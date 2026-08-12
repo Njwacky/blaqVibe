@@ -157,14 +157,16 @@ class PrivacyAndBattleTests(TestCase):
         response = self.client.get(f'/battle/{battle.id}/vote/')
         self.assertEqual(response.status_code, 405)
 
-    def test_vote_awards_one_star(self):
+    def test_vote_does_not_inflate_project_stars(self):
         battle = VibeBattle.objects.create(vibe_a=self.a, vibe_b=self.b)
         before = self.a.stars
         self.client.login(username='voter', password='pass12345')
         response = self.client.post(f'/battle/{battle.id}/vote/', {'choice': 'a'})
         self.assertEqual(response.status_code, 302)
         self.a.refresh_from_db()
-        self.assertEqual(self.a.stars, before + 1)
+        battle.refresh_from_db()
+        self.assertEqual(self.a.stars, before)
+        self.assertEqual(battle.votes_a, 1)
 
 
 @override_settings(RATELIMIT_ENABLE=False)
@@ -222,3 +224,72 @@ class StarFloorTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.project.refresh_from_db()
         self.assertGreaterEqual(self.project.stars, 0)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class RemainingHoleTests(TestCase):
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('owner')
+        self.buyer = make_user('buyer', stars_balance=10)
+        self.project = make_project(self.owner, self.cat, star_cost=3, price_zar=0)
+        self.project.zip_file.save('paid.zip', make_zip_file({'app.py': 'print(1)\\n'}), save=True)
+
+    def test_fork_requires_unlock(self):
+        self.client.login(username='buyer', password='pass12345')
+        response = self.client.post(f'/app/{self.project.slug}/fork/')
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(AppProject.objects.filter(owner=self.buyer, forked_from=self.project).exists())
+
+    def test_fork_after_trade(self):
+        Trade.objects.create(buyer=self.buyer, seller=self.owner, project=self.project, cost=3)
+        self.client.login(username='buyer', password='pass12345')
+        response = self.client.post(f'/app/{self.project.slug}/fork/')
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(AppProject.objects.filter(owner=self.buyer, forked_from=self.project).exists())
+
+    def test_media_zip_is_not_public(self):
+        response = self.client.get(f'/media/{self.project.zip_file.name}')
+        self.assertEqual(response.status_code, 404)
+
+    def test_clamav_missing_stays_pending(self):
+        from unittest.mock import patch
+        from gallery.tasks import scan_zip_with_clamav, finalize_publish
+        with patch('gallery.tasks.subprocess.run', side_effect=FileNotFoundError):
+            result = scan_zip_with_clamav.run(self.project.id)
+        self.assertEqual(result, 'scanner_unavailable')
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.status, 'pending')
+        self.assertEqual((self.project.scan_report or {}).get('clamav'), 'unavailable')
+        finalize_publish.run(self.project.id)
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.status, 'pending')
+
+    def test_api_lists_published_only(self):
+        response = self.client.get('/api/v1/apps/')
+        self.assertEqual(response.status_code, 200)
+        slugs = [row['slug'] for row in response.json()['results']]
+        self.assertIn(self.project.slug, slugs)
+        self.assertNotIn('zip_file', response.json()['results'][0])
+
+    def test_bookmark_roundtrip(self):
+        from gallery.models import Bookmark
+        self.client.login(username='buyer', password='pass12345')
+        response = self.client.post(f'/app/{self.project.slug}/save/')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Bookmark.objects.filter(user=self.buyer, project=self.project).exists())
+
+    def test_pr_merge_copies_files(self):
+        from django.core.files.base import ContentFile
+        from gallery.models import AppFile, PullRequest
+        fork = make_project(self.buyer, self.cat, title='Forked copy', forked_from=self.project, star_cost=0)
+        fork.zip_file.save('fork.zip', make_zip_file({'new.py': 'print(9)\\n'}), save=True)
+        AppFile.objects.create(project=fork, path='new.py', size=10)
+        pr = PullRequest.objects.create(source=fork, target=self.project, author=self.buyer, title='Add new.py', status='open')
+        self.client.login(username='owner', password='pass12345')
+        response = self.client.post(f'/app/{self.project.slug}/prs/{pr.id}/', {'action': 'merge'})
+        self.assertEqual(response.status_code, 302)
+        pr.refresh_from_db()
+        self.project.refresh_from_db()
+        self.assertEqual(pr.status, 'merged')
+        self.assertTrue(self.project.files.filter(path='new.py').exists())

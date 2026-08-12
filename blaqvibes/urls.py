@@ -54,5 +54,8 @@ urlpatterns = [
     ), name='password_reset_complete'),
 ]
 if settings.DEBUG:
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    from gallery.media_views import serve_public_media
+    urlpatterns += [
+        path('media/<path:path>', serve_public_media),
+    ]
     urlpatterns += static(settings.STATIC_URL, document_root=settings.STATIC_ROOT)

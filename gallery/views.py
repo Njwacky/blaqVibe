@@ -18,6 +18,8 @@ from .utils import build_tree_from_zip
 from .storages import get_presigned_url, is_s3_enabled
 from .search import search_projects
 from .access import user_can_download, access_denied_message
+from .zip_serve import serve_project_zip, owner_scan_reason
+from .notify import notify
 from django.core.mail import send_mail
 from users.forms import SignUpForm
 
@@ -29,7 +31,13 @@ def signup(request):
         if form.is_valid():
             user = form.save()
             login(request, user)
-            messages.success(request, "Welcome to BlaqVibes — publish your first vibe.")
+            try:
+                from users.views import send_verify_email
+                if user.email:
+                    send_verify_email(request, user)
+            except Exception:
+                logger.exception('verify email send failed')
+            messages.success(request, "Welcome to BlaqVibes — we sent a confirmation link to your email.")
             return redirect('feed')
     else:
         form = SignUpForm()
@@ -75,9 +83,10 @@ def feed(request):
 def app_detail(request, slug):
     qs = AppProject.objects.select_related(
         'owner', 'owner__profile', 'category', 'forked_from', 'forked_from__owner'
-    ).annotate(
+    ).prefetch_related('forks__owner', 'files').annotate(
         forks_count=Count('forks', distinct=True),
         prs_count=Count('prs_incoming', distinct=True),
+        comment_count=Count('comments', distinct=True),
     )
     project = get_object_or_404(qs, slug=slug)
     # Only published visible to visitors, owners can see their pending/quarantined
@@ -98,13 +107,15 @@ def app_detail(request, slug):
     is_starred = False
     has_traded = False
     has_bought = False
+    is_bookmarked = False
     viewers = None
     ai_readme_preview = None
     if request.user.is_authenticated:
         is_starred = Star.objects.filter(user=request.user, project=project).exists()
         has_traded = Trade.objects.filter(buyer=request.user, project=project).exists()
-        from .models import Sale
+        from .models import Sale, Bookmark
         has_bought = Sale.objects.filter(buyer=request.user, project=project).exists()
+        is_bookmarked = Bookmark.objects.filter(user=request.user, project=project).exists()
     can_download = user_can_download(request.user, project) if project.zip_file else True
     viewers = None
     show_viewer_upsell = False
@@ -141,9 +152,13 @@ def app_detail(request, slug):
         'nolo_review': nolo_review,
         'ai_readme_preview': ai_readme_preview,
         'is_starred': is_starred,
+        'is_bookmarked': is_bookmarked,
         'has_traded': has_traded,
         'has_bought': has_bought,
         'can_download': can_download,
+        'scan_reason': owner_scan_reason(project) if request.user.is_authenticated and (request.user == project.owner or request.user.is_staff) else '',
+        'comment_count': getattr(project, 'comment_count', 0),
+        'published_forks': [f for f in project.forks.all() if f.status == 'published'][:5],
         'viewers': viewers,
         'show_viewer_upsell': show_viewer_upsell,
         'viewer_count': project.views,
@@ -159,10 +174,14 @@ def scan_status(request, slug):
     """Backend-only status poll — JS gets only 'queued/scanning/clean/quarantined', never raw scan_report."""
     project = get_object_or_404(AppProject, slug=slug)
     job = getattr(project, 'scan_job', None)
-    return JsonResponse({
+    data = {
         'status': job.status if job else project.status,
         'is_published': project.status == 'published',
-    })
+        'reason': '',
+    }
+    if request.user.is_authenticated and (request.user == project.owner or request.user.is_staff):
+        data['reason'] = owner_scan_reason(project)
+    return JsonResponse(data)
 
 def preview(request, slug):
     project = get_object_or_404(AppProject, slug=slug, status='published')
@@ -283,17 +302,7 @@ def download_zip(request, slug):
         if not request.user.is_authenticated:
             return redirect(f"{settings.LOGIN_URL}?next={request.path}")
         return redirect(project.get_absolute_url())
-    AppProject.objects.filter(pk=project.pk).update(clones=F('clones')+1)
-    if is_s3_enabled():
-        url = get_presigned_url(project.zip_file.name, expires=300)
-        if url:
-            return HttpResponseRedirect(url)
-    try:
-        resp = HttpResponse(project.zip_file.open('rb'), content_type='application/zip')
-        resp['Content-Disposition'] = f'attachment; filename="{project.slug}.zip"'
-        return resp
-    except FileNotFoundError:
-        raise Http404
+    return serve_project_zip(project)
 
 def file_preview(request, slug, path):
     project = get_object_or_404(AppProject, slug=slug, status='published')
@@ -340,6 +349,8 @@ def post_comment(request, slug):
                 parent = Comment.objects.get(pk=parent_id, project=project)
             except: parent = None
         Comment.objects.create(project=project, user=request.user, body=body, parent=parent)
+        if project.owner_id != request.user.id:
+            notify(project.owner, 'comment', f'@{request.user.username} commented on {project.title}', body[:160], project.get_absolute_url() + '#comments')
         return redirect(project.get_absolute_url() + '#comments')
     except Exception as e:
         import logging
@@ -466,12 +477,7 @@ def git_clone(request, username, slug):
         if not request.user.is_authenticated:
             return redirect(f"{settings.LOGIN_URL}?next={request.path}")
         return redirect(project.get_absolute_url())
-    AppProject.objects.filter(pk=project.pk).update(clones=F('clones')+1)
-    if is_s3_enabled():
-        url = get_presigned_url(project.zip_file.name, expires=300)
-        if url:
-            return HttpResponseRedirect(url)
-    return HttpResponseRedirect(project.zip_file.url if hasattr(project.zip_file,'url') else f"/media/{project.zip_file.name}")
+    return serve_project_zip(project)
 
 @login_required
 @require_POST
@@ -510,12 +516,13 @@ def trade_download(request, slug):
         seller.stars_balance = F('stars_balance') + cost
         seller.save(update_fields=['stars_balance'])
         Trade.objects.create(buyer=request.user, seller=project.owner, project=project, cost=cost)
-        # Refresh
         buyer.refresh_from_db(); seller.refresh_from_db()
+    notify(project.owner, 'trade', f'@{request.user.username} traded {cost} ★ for {project.title}', url=project.get_absolute_url())
     messages.success(request, f"Traded {cost} ★ for “{project.title}” — seller @ {project.owner.username} now has {seller.stars_balance} ★. You have {buyer.stars_balance} ★ left.")
     return redirect('download_zip', slug=slug)
 
 @login_required
+@require_POST
 @ratelimit(key='user', rate='5/h', method='POST')
 def fork_vibe(request, slug):
     """Fork & Remix — backend only, crush silently, 5/h limit."""
@@ -524,6 +531,9 @@ def fork_vibe(request, slug):
             messages.error(request, "Rate limit: 5 forks/hour")
             return redirect('app_detail', slug=slug)
         original = get_object_or_404(AppProject, slug=slug, status='published')
+        if original.zip_file and not user_can_download(request.user, original):
+            messages.error(request, access_denied_message(request.user, original))
+            return redirect(original.get_absolute_url())
         if not getattr(original.owner.profile, 'allow_forks', True):
             messages.error(request, "This creator disabled forks.")
             return redirect(original.get_absolute_url())
@@ -650,7 +660,7 @@ def buy_vibe(request, slug):
         try:
             r = requests.post('https://api.paystack.co/transaction/initialize', json=data, headers=headers, timeout=10)
             j = r.json()
-            if j.get('status') and j.get('data',{}).get('authorization_url'):
+            if j.get('status') and j.get('data', {}).get('authorization_url'):
                 return redirect(j['data']['authorization_url'])
         except Exception as e:
             logger.warning(f"Paystack init fail: {e}")
@@ -692,7 +702,10 @@ def paystack_webhook(request):
                         return HttpResponse("amount mismatch", status=400)
                     if not Sale.objects.filter(buyer=buyer, project=project).exists():
                         Sale.objects.create(buyer=buyer, seller=project.owner, project=project, amount_zar=project.price_zar, paystack_ref=ref)
-                except: pass
+                        notify(project.owner, 'sale', f'{buyer.username} bought {project.title}', f'R{project.price_zar}', project.get_absolute_url())
+                        notify(buyer, 'sale', f'You unlocked {project.title}', url=project.get_absolute_url())
+                except Exception:
+                    logger.exception('sale create failed')
         return HttpResponse("ok")
     except Exception as e:
         import logging
@@ -776,7 +789,7 @@ def create_pr(request, slug):
         title = sanitize_prompt(request.POST.get('title',''))[:200] or f"PR: {source.title} → {target.title}"
         description = sanitize_prompt(request.POST.get('description',''))[:2000]
         pr = PullRequest.objects.create(source=source, target=target, author=request.user, title=title, description=description, status='open')
-        # Notify target owner via message + email
+        notify(target.owner, 'pr', f'@{request.user.username} opened PR #{pr.id} on {target.title}', title, f'/app/{target.slug}/prs/{pr.id}/view/')
         try:
             if target.owner.email:
                 send_mail(f"New PR for {target.title}", f"@{request.user.username} wants to merge {source.slug} into {target.slug}:\n{title}\n{description}\nView: https://blaqvibes.co.za/app/{target.slug}/prs/", getattr(settings, 'DEFAULT_FROM_EMAIL','noreply@blaqvibes.co.za'), [target.owner.email], fail_silently=True)
@@ -850,10 +863,42 @@ def pr_action(request, slug, pr_id):
             return render(request, '403.html', status=403)
         action = request.POST.get('action')
         if action == 'merge':
+            from django.core.files.base import ContentFile
+            from .tasks import process_upload_pipeline
+            source = pr.source
+            if target.zip_file:
+                try:
+                    AppVersion.objects.create(
+                        project=target,
+                        zip_file=target.zip_file,
+                        version=f"1.{target.versions.count()+1}.0",
+                        changelog=f"Before merge of PR #{pr.id}",
+                    )
+                except Exception:
+                    logger.exception('pr version snapshot failed')
+            if source.zip_file:
+                source.zip_file.open()
+                target.zip_file.save(f"{target.slug}.zip", ContentFile(source.zip_file.read()), save=True)
+            target.file_tree = source.file_tree or {}
+            target.file_count = source.file_count
+            if source.readme:
+                target.readme = source.readme
+            target.status = 'pending'
+            target.save()
+            target.files.all().delete()
+            for af in source.files.all():
+                AppFile.objects.create(project=target, path=af.path, size=af.size)
+            job, _ = ScanJob.objects.get_or_create(project=target)
+            job.status = 'queued'
+            job.save(update_fields=['status'])
+            try:
+                process_upload_pipeline.delay(target.id)
+            except Exception:
+                logger.exception('pr rematch scan queue failed')
             pr.status = 'merged'
             pr.save(update_fields=['status','updated_at'])
-            # For MVP, merging just marks merged — could copy description to target readme in future
-            messages.success(request, f"✓ PR #{pr.id} merged — thanks @{pr.author.username}!")
+            notify(pr.author, 'pr', f'PR #{pr.id} merged into {target.title}', url=target.get_absolute_url())
+            messages.success(request, f"✓ PR #{pr.id} merged — files copied from fork, re-queued for scan.")
         elif action == 'close':
             pr.status = 'closed'
             pr.save(update_fields=['status','updated_at'])
@@ -909,21 +954,18 @@ def battle_leaderboard(request):
             wins = VibeBattle.objects.filter(vibe_a=v, votes_a__gt=F('votes_b')).count() + VibeBattle.objects.filter(vibe_b=v, votes_b__gt=F('votes_a')).count()
             v.battle_wins = wins
         vibes = sorted(vibes, key=lambda x: getattr(x, 'battle_wins', 0), reverse=True)[:10]
-        # Top creators by rank (total stars)
         from django.contrib.auth.models import User
+        from django.db.models import Sum
         from .ranks import contributor_bonus
-        users = list(User.objects.all())
+        users = list(
+            User.objects.annotate(
+                rank_stars=Sum('projects__stars', filter=Q(projects__status='published')),
+                vibes_count=Count('projects', filter=Q(projects__status='published')),
+            ).order_by(F('rank_stars').desc(nulls_last=True))[:10]
+        )
         for u in users:
-            try:
-                rank = contributor_bonus(u)
-                u.rank = rank
-                u.rank_stars = sum(p.stars for p in u.projects.filter(status='published'))
-                u.vibes_count = u.projects.filter(status='published').count()
-            except:
-                u.rank = {'name':'Bronze','stars':0,'discount':0,'bonus':0}
-                u.rank_stars = 0
-                u.vibes_count = 0
-        users = sorted(users, key=lambda x: x.rank_stars, reverse=True)[:10]
+            u.rank_stars = u.rank_stars or 0
+            u.rank = contributor_bonus(u)
         return render(request, 'gallery/battle_leaderboard.html', {'top_vibes': vibes, 'top_users': users})
     except Exception as e:
         import logging
@@ -967,11 +1009,9 @@ def vote_battle(request, battle_id):
         BattleVote.objects.create(user=request.user, battle=battle, choice=choice)
         if choice == 'a':
             VibeBattle.objects.filter(pk=battle.pk).update(votes_a=F('votes_a')+1)
-            AppProject.objects.filter(pk=battle.vibe_a.pk).update(stars=F('stars')+1)
         else:
             VibeBattle.objects.filter(pk=battle.pk).update(votes_b=F('votes_b')+1)
-            AppProject.objects.filter(pk=battle.vibe_b.pk).update(stars=F('stars')+1)
-        messages.success(request, "Voted! Winner gets +1 ★")
+        messages.success(request, "Voted! Battle score updated — project stars are unchanged.")
         return redirect('battle')
     except Exception as e:
         import logging
@@ -979,8 +1019,9 @@ def vote_battle(request, battle_id):
         return redirect('battle')
 
 @login_required
+@require_POST
 def run_vibe(request, slug):
-    """1-Click Run — spins up Docker (mock) → live URL for 1 hour, backend only, crush silently."""
+    """Preview — sandboxed snippet or file list. Not a Docker host."""
     try:
         from .models import Deploy
         from django.utils import timezone
@@ -1002,7 +1043,7 @@ def run_vibe(request, slug):
         deploy = Deploy.objects.create(project=project, owner=request.user, token=token, live_url=live_url, status='running', expires_at=expires)
         # Mock Docker: for MVP, we don't actually docker run, we just serve ZIP via deploy_view
         # Real: subprocess.run(['docker','run','-d','--name',token,'-p','0:8000', image])
-        messages.success(request, f"▶ Running {project.title} — live at {live_url} for 1 hour! No pip install needed.")
+        messages.success(request, f"Preview ready at {live_url} for 1 hour. This is an in-app preview, not a Docker host.")
         return redirect(live_url)
     except Exception as e:
         import logging
@@ -1186,3 +1227,41 @@ def safe_500(request):
         pass
     from django.shortcuts import render
     return render(request, '500.html', status=500)
+
+@login_required
+@require_POST
+def toggle_bookmark(request, slug):
+    from .models import Bookmark
+    project = get_object_or_404(AppProject, slug=slug, status='published')
+    bm, created = Bookmark.objects.get_or_create(user=request.user, project=project)
+    if not created:
+        bm.delete()
+        return JsonResponse({'saved': False})
+    return JsonResponse({'saved': True})
+
+
+@login_required
+def saved_vibes(request):
+    from .models import Bookmark
+    qs = Bookmark.objects.filter(user=request.user).select_related('project', 'project__owner')
+    return render(request, 'gallery/saved.html', {'bookmarks': qs})
+
+
+@login_required
+def notifications_inbox(request):
+    from .models import Notification
+    notes = Notification.objects.filter(user=request.user)[:50]
+    Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    return render(request, 'gallery/notifications.html', {'notifications': notes})
+
+
+def sitemap_xml(request):
+    projects = AppProject.objects.filter(status='published').only('slug', 'updated_at')[:500]
+    rows = ['<?xml version="1.0" encoding="UTF-8"?>',
+            '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+            '<url><loc>https://blaqvibes.co.za/</loc></url>']
+    for p in projects:
+        rows.append(f'<url><loc>https://blaqvibes.co.za/app/{p.slug}/</loc></url>')
+    rows.append('</urlset>')
+    return HttpResponse('\n'.join(rows), content_type='application/xml')
+

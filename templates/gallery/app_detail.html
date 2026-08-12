@@ -3,13 +3,19 @@
 {% block og_title %}{{ project.title }} — BlaqVibes{% endblock %}
 {% block og_desc %}{{ project.short_description }}{% endblock %}
 {% block meta_desc %}{{ project.short_description }}{% endblock %}
+{% block og_image %}{% if project.thumbnail %}{{ request.scheme }}://{{ request.get_host }}{{ project.thumbnail.url }}{% else %}{{ block.super }}{% endif %}{% endblock %}
+{% block head %}
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"SoftwareApplication","name":"{{ project.title|escapejs }}","description":"{{ project.short_description|escapejs }}","author":{"@type":"Person","name":"{{ project.owner.username|escapejs }}"},"offers":{"@type":"Offer","price":"{{ project.price_zar|default:0 }}","priceCurrency":"ZAR"}}
+</script>
+{% endblock %}
 {% block content %}
 {% if project.status != 'published' %}
 <div id="scan-banner" data-scan-url="{% url 'scan_status' project.slug %}" style="max-width:1280px;margin:12px auto 0;padding:14px 16px;background:linear-gradient(135deg,#1A1A00 0%,#1A1400 100%);border:1px solid #F59E0B;border-radius:12px;display:flex;align-items:center;gap:12px;font-size:13px;box-shadow:0 4px 16px rgba(245,158,11,.15)">
   <span style="width:10px;height:10px;background:#F59E0B;border-radius:50%;animation:pulse 1.2s infinite;flex-shrink:0"></span>
   <div>
     <div style="font-weight:700;color:#FDE68A">⏳ Your vibe is in the queue — we’ll tell you when it’s uploaded!</div>
-    <div style="font-size:12px;color:#FDE68A;opacity:.9">Status: <b id="scan-text" style="color:#fff">{{ scan_status }}</b> • Every app is checked for vulnerabilities, even when many upload at once. This is backend only — no sensitive info in JS.</div>
+    <div style="font-size:12px;color:#FDE68A;opacity:.9">Status: <b id="scan-text" style="color:#fff">{{ scan_status }}</b>{% if scan_reason %} — {{ scan_reason }}{% endif %}</div>
   </div>
   <span style="margin-left:auto;font-size:11px;color:#F59E0B;white-space:nowrap">🔒 scan → vuln → publish</span>
 </div>
@@ -30,10 +36,10 @@
         </div>
       {% endif %}
       <div style="margin:12px;background:#07070A;border:1px solid #232326;border-radius:12px;padding:12px">
-        <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:11px;letter-spacing:.06em;color:#9A9AAF;font-weight:700">CLONE WITH GIT</span><span style="font-size:11px;color:#F59E0B">{{ project.file_count }} files • {{ project.clones }} clones</span></div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:11px;letter-spacing:.06em;color:#9A9AAF;font-weight:700">DOWNLOAD ZIP URL</span><span style="font-size:11px;color:#F59E0B">{{ project.file_count }} files • {{ project.clones }} clones</span></div>
         <div style="display:flex;gap:8px;align-items:center;background:#15151A;border:1px solid #232326;border-radius:10px;padding:8px 10px;font-family:JetBrains Mono,monospace;font-size:11px;overflow:auto">
-          <span style="color:#9A9AAF">$</span> git clone https://blaqvibes.co.za/git/{{ project.owner.username }}/{{ project.slug }}.git
-          <button class="btn-white js-copy" data-copy="git clone https://blaqvibes.co.za/git/{{ project.owner.username }}/{{ project.slug }}.git" style="margin-left:auto;padding:6px 10px;font-size:11px">Copy</button>
+          <span style="color:#9A9AAF">$</span> https://blaqvibes.co.za/git/{{ project.owner.username }}/{{ project.slug }}.git
+          <button class="btn-white js-copy" data-copy="https://blaqvibes.co.za/git/{{ project.owner.username }}/{{ project.slug }}.git" style="margin-left:auto;padding:6px 10px;font-size:11px">Copy</button>
         </div>
         <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
           {% if project.zip_file %}
@@ -49,14 +55,21 @@
             {% endif %}
           {% endif %}
           {% if can_download %}
-          <a href="{% url 'git_clone' project.owner.username project.slug %}" class="btn-ghost" style="flex:1;justify-content:center;text-align:center">⎇ Git Clone</a>
+          <a href="{% url 'git_clone' project.owner.username project.slug %}" class="btn-ghost" style="flex:1;justify-content:center;text-align:center">⎇ ZIP URL</a>
           {% endif %}
           <button class="btn-ghost js-copy-snippet" data-target="html-code">⎘ Copy Snippet</button>
           <form method="post" action="{% url 'toggle_star' project.slug %}" class="js-star-form" style="display:inline">
             {% csrf_token %}<button class="btn-ghost">{% if is_starred %}★ Starred{% else %}☆ Star{% endif %} {{ project.stars }}</button>
           </form>
+          {% if not project.zip_file or can_download %}
           <form method="post" action="{% url 'fork_vibe' project.slug %}" class="js-fork-form" style="display:inline">{% csrf_token %}<button class="btn-ghost">⑂ Fork {{ forks_count }}</button></form>
-          <form method="post" action="{% url 'run_vibe' project.slug %}" style="display:inline;flex:1">{% csrf_token %}<button class="btn-ghost" style="width:100%;background:#10B981;color:#fff">▶ Run — Live 1h</button></form>
+          {% else %}
+          <button class="btn-ghost" type="button" disabled title="Unlock to fork">⑂ Unlock to fork</button>
+          {% endif %}
+          {% if user.is_authenticated %}
+          <form method="post" action="{% url 'toggle_bookmark' project.slug %}" class="js-save-form" style="display:inline">{% csrf_token %}<button class="btn-ghost">{% if is_bookmarked %}♥ Saved{% else %}♡ Save{% endif %}</button></form>
+          {% endif %}
+          <form method="post" action="{% url 'run_vibe' project.slug %}" style="display:inline;flex:1">{% csrf_token %}<button class="btn-ghost" style="width:100%;background:#10B981;color:#fff">▶ Preview 1h</button></form>
         </div>
         {% if user_rank %}<div style="font-size:11px;color:#9A9AAF;margin-top:6px">Your rank: <b style="color:#F59E0B">{{ user_rank.name }}</b> ({{ user_rank.discount }}% Pro discount) • Earn stars when others star/trade your vibes → appears 1st when exploring</div>{% endif %}
         {% if project.price_zar and project.price_zar > 0 %}
@@ -139,7 +152,7 @@
 
     <!-- COMMENTS -->
     <div class="card" id="comments" style="margin-top:12px;padding:14px">
-      <h3 style="font-weight:700">Comments • {{ comments.count }}</h3>
+      <h3 style="font-weight:700">Comments • {{ comment_count }}</h3>
       {% if user.is_authenticated %}
       <form method="post" action="{% url 'post_comment' project.slug %}" style="margin-top:10px;display:flex;gap:8px">
         {% csrf_token %}
@@ -284,10 +297,10 @@
       {% endif %}
       {% if project.ai_prompt %}<div style="margin-top:10px;background:#07070A;border:1px solid #232326;border-radius:10px;padding:10px"><div style="font-size:11px;color:#F59E0B;font-weight:700">🤖 AI PROMPT</div><div style="font-size:12px;color:#CFCFD9;margin-top:4px;white-space:pre-wrap">{{ project.ai_prompt }}</div></div>{% endif %}
       <div style="margin-top:10px;background:#07070A;border:1px solid #232326;border-radius:10px;padding:10px"><div style="font-size:11px;color:#10B981;font-weight:700">🔒 SECURITY</div><div style="font-size:12px;line-height:1.6;margin-top:4px">✅ Sanitized README<br>✅ Path traversal blocked<br>✅ Sandboxed preview</div></div>
-      {% if project.forks.all %}
+      {% if published_forks %}
       <div style="margin-top:10px;background:#07070A;border:1px solid #232326;border-radius:10px;padding:10px">
         <div style="font-size:11px;color:#9A9AAF;font-weight:700">⑂ FORKS ({{ forks_count }}) — <a href="{% url 'fork_network' project.slug %}" style="color:#7C3AED">View network →</a> • <a href="{% url 'pr_list' project.slug %}" style="color:#7C3AED">PRs ({{ prs_count }}) →</a></div>
-        {% for f in project.forks.all|slice:":5" %}<div style="font-size:12px;padding:4px 0;border-bottom:1px solid #1F1F23"><a href="{{ f.get_absolute_url }}" style="color:#7C3AED">{{ f.title }}</a> by @{{ f.owner.username }} • {{ f.stars }} ★</div>{% endfor %}
+        {% for f in published_forks %}<div style="font-size:12px;padding:4px 0;border-bottom:1px solid #1F1F23"><a href="{{ f.get_absolute_url }}" style="color:#7C3AED">{{ f.title }}</a> by @{{ f.owner.username }} • {{ f.stars }} ★</div>{% endfor %}
       </div>
       {% else %}
       <div style="margin-top:10px;background:#07070A;border:1px solid #232326;border-radius:10px;padding:10px">
@@ -320,7 +333,7 @@
     </div>
     <div class="card" style="margin-top:12px;padding:14px;background:#07070A">
       <h4 style="font-size:11px;letter-spacing:.06em;color:#9A9AAF">HOW TO ACCESS</h4>
-      <ol style="font-size:12px;line-height:1.7;margin-top:6px;padding-left:16px;color:#CFCFD9"><li>Read README</li><li>Explore Files tree</li><li>Read comments</li><li>Download ZIP / git clone</li></ol>
+      <ol style="font-size:12px;line-height:1.7;margin-top:6px;padding-left:16px;color:#CFCFD9"><li>Read README</li><li>Explore Files tree</li><li>Read comments</li><li>Download ZIP</li></ol>
     </div>
   </div>
 </div>

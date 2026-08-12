@@ -75,7 +75,8 @@ class AppProject(models.Model):
                     from .sanitizers import render_readme
                     self.readme_html = render_readme(self.readme)
                 except Exception:
-                    pass  # crush silently
+                    import logging
+                    logging.getLogger(__name__).exception('readme render failed')
             # html_code is stored raw and only rendered inside a sandboxed iframe.
             # Bleach-on-save guts real snippet dashboards.
             # Sanitize ai_prompt — many prompt fields, must be checked
@@ -104,7 +105,8 @@ class AppProject(models.Model):
                         self.language_stats = detect_languages(self.zip_file.path)
                 except: pass
         except Exception:
-            pass  # app need to crush silently — never throw on save
+            import logging
+            logging.getLogger(__name__).exception('AppProject.save pre-process failed')
         super().save(*args, **kwargs)
     def get_absolute_url(self):
         return reverse('app_detail', args=[self.slug])
@@ -301,3 +303,43 @@ class PullRequest(models.Model):
         ordering = ['-created_at']
         indexes = [models.Index(fields=['target','status']), models.Index(fields=['source'])]
     def __str__(self): return f"PR #{self.id} {self.source.slug} → {self.target.slug} ({self.status})"
+
+
+class Notification(models.Model):
+    KIND_CHOICES = [
+        ('comment', 'Comment'),
+        ('follow', 'Follow'),
+        ('trade', 'Trade'),
+        ('sale', 'Sale'),
+        ('pr', 'Pull request'),
+        ('published', 'Published'),
+        ('quarantined', 'Quarantined'),
+        ('review', 'Review'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES)
+    title = models.CharField(max_length=200)
+    body = models.CharField(max_length=400, blank=True)
+    url = models.CharField(max_length=300, blank=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['user', 'is_read', '-created_at'])]
+
+    def __str__(self):
+        return f'{self.user} {self.kind}: {self.title}'
+
+
+class Bookmark(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bookmarks')
+    project = models.ForeignKey(AppProject, on_delete=models.CASCADE, related_name='bookmarks')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'project')
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.user} ♥ {self.project.slug}'
