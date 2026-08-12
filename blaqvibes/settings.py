@@ -5,9 +5,12 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 
+# Fail closed: DEBUG defaults OFF. Enable it explicitly with DEBUG=1 in dev.
+DEBUG = os.getenv('DEBUG', '0') == '1'
+
 # Detect local development in a virtual environment or debug mode.
 # This avoids forcing production-only HTTPS handling when running locally.
-LOCAL_DEV = bool(os.getenv('VIRTUAL_ENV') or os.getenv('PYTHONENV') or os.getenv('DJANGO_LOCAL_DEV') or os.getenv('DEBUG', '1') == '1')
+LOCAL_DEV = bool(os.getenv('VIRTUAL_ENV') or os.getenv('PYTHONENV') or os.getenv('DJANGO_LOCAL_DEV') or DEBUG)
 
 # Sentry — crush silently, backend only, no JS secrets
 try:
@@ -21,13 +24,13 @@ try:
 except Exception:
     pass  # crush silently
 
-DEBUG = os.getenv('DEBUG', '1') == '1'
 SECRET_KEY = os.getenv('SECRET_KEY', '')
 if not SECRET_KEY:
-    if DEBUG or LOCAL_DEV:
+    if LOCAL_DEV:
         SECRET_KEY = 'django-insecure-blaqvibes-dev-key-change-in-prod-07070A'
     else:
-        raise RuntimeError('SECRET_KEY must be set when DEBUG=0')
+        # Never boot production (DEBUG=0) without a real key.
+        raise RuntimeError('SECRET_KEY must be set. Add SECRET_KEY to your .env.')
 
 _raw_hosts = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0')
 ALLOWED_HOSTS = [h.strip() for h in _raw_hosts.split(',') if h.strip()]
@@ -46,6 +49,10 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 if LOCAL_DEV or DEBUG:
     CSRF_TRUSTED_ORIGINS += ['http://localhost:8000', 'http://127.0.0.1:8000', 'https://*.e2b.app']
+
+# Canonical public origin — used for emails, sitemap, Paystack callback.
+# Override via env (e.g. a custom domain) instead of hardcoding URLs in views/tasks.
+SITE_URL = os.getenv('SITE_URL', 'https://blaqvibes.co.za').rstrip('/')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -122,6 +129,7 @@ TEMPLATES = [{
             'django.template.context_processors.request',
             'django.contrib.auth.context_processors.auth',
             'django.contrib.messages.context_processors.messages',
+            'django.template.context_processors.csrf',
             'gallery.context_processors.extras',
         ],
     },
@@ -153,14 +161,30 @@ if DATABASE_URL:
 else:
     DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'db.sqlite3'}}
 
+REDIS_URL = os.getenv('REDIS_URL', '')
+if REDIS_URL:
+    # Shared Redis-backed rate-limit cache so limits hold across gunicorn workers.
+    RATELIMIT_CACHE = {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': REDIS_URL,
+        'KEY_PREFIX': 'blaqvibes-ratelimit',
+    }
+else:
+    # Dev fallback (single process) — per-worker cache is fine without Redis.
+    RATELIMIT_CACHE = {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'blaqvibes-ratelimit',
+    }
+
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         'LOCATION': 'blaqvibes',
-    }
+    },
+    'ratelimit': RATELIMIT_CACHE,
 }
 RATELIMIT_ENABLE = os.getenv('RATELIMIT_ENABLE', '1') == '1'
-RATELIMIT_USE_CACHE = 'default'
+RATELIMIT_USE_CACHE = 'ratelimit'
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
@@ -169,7 +193,9 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 SESSION_COOKIE_HTTPONLY = True
-CSRF_COOKIE_HTTPONLY = False
+# CSRF token is exposed via {% csrf_token %} / forms, never read from the cookie,
+# so keep it HttpOnly as defense-in-depth against token exfiltration.
+CSRF_COOKIE_HTTPONLY = True
 if not DEBUG and not LOCAL_DEV:
     SECURE_SSL_REDIRECT = True
     SECURE_HSTS_SECONDS = 31536000

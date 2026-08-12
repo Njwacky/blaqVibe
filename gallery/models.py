@@ -233,6 +233,18 @@ class Review(models.Model):
             self.project.review_count = agg['cnt'] or 0
             self.project.save(update_fields=['avg_rating','review_count'])
         except Exception: pass
+
+    def delete(self, *args, **kwargs):
+        project = self.project
+        super().delete(*args, **kwargs)
+        try:
+            from django.db.models import Avg, Count
+            agg = Review.objects.filter(project=project).aggregate(avg=Avg('rating'), cnt=Count('id'))
+            project.avg_rating = round(agg['avg'] or 0, 1)
+            project.review_count = agg['cnt'] or 0
+            project.save(update_fields=['avg_rating','review_count'])
+        except Exception: pass
+
     def __str__(self): return f"{self.user} → {self.project.slug} {self.rating}★"
 
 class VibeBattle(models.Model):

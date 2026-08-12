@@ -5,6 +5,8 @@ env/
 .venv/
 media/
 staticfiles/
+uploads/
 db.sqlite3
 .DS_Store
 .vscode/
+.ruff_cache/

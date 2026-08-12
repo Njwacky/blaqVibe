@@ -107,7 +107,8 @@ def create_pr(request, slug):
         notify(target.owner, 'pr', f'@{request.user.username} opened PR #{pr.id} on {target.title}', title, f'/app/{target.slug}/prs/{pr.id}/view/')
         try:
             if target.owner.email:
-                send_mail(f"New PR for {target.title}", f"@{request.user.username} wants to merge {source.slug} into {target.slug}:\n{title}\n{description}\nView: https://blaqvibes.co.za/app/{target.slug}/prs/", getattr(settings, 'DEFAULT_FROM_EMAIL','noreply@blaqvibes.co.za'), [target.owner.email], fail_silently=True)
+                site = getattr(settings, 'SITE_URL', 'https://blaqvibes.co.za')
+                send_mail(f"New PR for {target.title}", f"@{request.user.username} wants to merge {source.slug} into {target.slug}:\n{title}\n{description}\nView: {site}/app/{target.slug}/prs/", getattr(settings, 'DEFAULT_FROM_EMAIL','noreply@blaqvibes.co.za'), [target.owner.email], fail_silently=True)
         except Exception: pass
         messages.success(request, f"✓ PR #{pr.id} opened — {source.slug} → {target.slug}")
         return redirect('pr_list', slug=target.slug)
