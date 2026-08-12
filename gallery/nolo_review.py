@@ -35,7 +35,7 @@ def heuristic_review(project):
                 pros.append("Has requirements.txt")
             else:
                 fixes.append("Add requirements.txt or package.json")
-        except: pass
+        except Exception: pass
         score = max(0, min(10, score))
         # Ensure 3 fixes max, 3 pros
         return {"score": score, "fixes": fixes[:3], "pros": pros[:3], "source": "heuristic"}

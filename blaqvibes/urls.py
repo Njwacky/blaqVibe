@@ -14,7 +14,7 @@ def serve_sw(request):
     # Serve SW at /sw.js with scope / — backend, no secrets, crush silently
     try:
         return FileResponse(open(settings.BASE_DIR / 'static' / 'sw.js', 'rb'), content_type='application/javascript')
-    except:
+    except Exception:
         from django.http import Http404
         raise Http404
 

@@ -3,40 +3,40 @@
 {% block content %}
 <div style="max-width:1100px;margin:0 auto;padding:20px">
   <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">💱 Trading History — @{{ user.username }}</h1>
-  <p style="color:#9A9AAF;font-size:13px">Every trade costs stars — backend only, no JS secrets. You traded with these people. <span style="color:#F59E0B">Balance: {{ user.profile.stars_balance }} ★ ({{ user.profile.rank.name }} • {{ user.profile.rank.discount }}% Pro discount)</span></p>
+  <p style="color:var(--muted);font-size:13px">Every trade costs stars — backend only, no JS secrets. You traded with these people. <span style="color:#F59E0B">Balance: {{ user.profile.stars_balance }} ★ ({{ user.profile.rank.name }} • {{ user.profile.rank.discount }}% Pro discount)</span></p>
 
   <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
     <div>
       <h2 style="font-size:14px;font-weight:700">Bought — You paid stars</h2>
       {% for t in bought %}
-      <div style="background:#121214;border:1px solid #1F1F23;border-radius:12px;padding:12px;margin-top:8px;display:flex;gap:10px;align-items:center">
+      <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:8px;display:flex;gap:10px;align-items:center">
         <img src="/static/branding/icon-32.png" style="width:36px;height:36px;border-radius:8px">
         <div style="flex:1">
           <div style="font-weight:700">{{ t.project.title }} <span style="font-size:11px;background:#FEF3C7;color:#92400E;padding:3px 7px;border-radius:8px">{{ t.cost }} ★</span></div>
-          <div style="font-size:12px;color:#9A9AAF">Seller: <a href="{% url 'profile_view' t.seller.username %}" style="color:#7C3AED">@{{ t.seller.username }}</a> ({{ t.seller.profile.rank.name }}) • {{ t.created_at|date:"Y-m-d H:i" }}</div>
+          <div style="font-size:12px;color:var(--muted)">Seller: <a href="{% url 'profile_view' t.seller.username %}" style="color:#7C3AED">@{{ t.seller.username }}</a> ({{ t.seller.profile.rank.name }}) • {{ t.created_at|date:"Y-m-d H:i" }}</div>
         </div>
         <a href="{{ t.project.get_absolute_url }}" class="btnG" style="padding:6px 10px;font-size:11px">View</a>
       </div>
-      {% empty %}<div style="color:#6A6A7A;font-size:13px;padding:12px;background:var(--input);border:1px dashed #232326;border-radius:10px;margin-top:8px">You haven't bought any vibes yet. Explore feed to trade!</div>{% endfor %}
+      {% empty %}<div style="color:var(--muted);font-size:13px;padding:12px;background:var(--input);border:1px dashed var(--line);border-radius:10px;margin-top:8px">You haven't bought any vibes yet. Explore feed to trade!</div>{% endfor %}
     </div>
     <div>
       <h2 style="font-size:14px;font-weight:700">Sold — People bought from you</h2>
       {% for t in sold %}
-      <div style="background:#121214;border:1px solid #1F1F23;border-radius:12px;padding:12px;margin-top:8px;display:flex;gap:10px;align-items:center">
+      <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:8px;display:flex;gap:10px;align-items:center">
         <img src="/static/branding/icon-32.png" style="width:36px;height:36px;border-radius:8px">
         <div style="flex:1">
           <div style="font-weight:700">{{ t.project.title }} <span style="font-size:11px;background:#DCFCE7;color:#15803D;padding:3px 7px;border-radius:8px">+{{ t.cost }} ★</span></div>
-          <div style="font-size:12px;color:#9A9AAF">Buyer: <a href="{% url 'profile_view' t.buyer.username %}" style="color:#7C3AED">@{{ t.buyer.username }}</a> • {{ t.created_at|date:"Y-m-d H:i" }}</div>
+          <div style="font-size:12px;color:var(--muted)">Buyer: <a href="{% url 'profile_view' t.buyer.username %}" style="color:#7C3AED">@{{ t.buyer.username }}</a> • {{ t.created_at|date:"Y-m-d H:i" }}</div>
         </div>
         <a href="{{ t.project.get_absolute_url }}" class="btnG" style="padding:6px 10px;font-size:11px">View</a>
       </div>
-      {% empty %}<div style="color:#6A6A7A;font-size:13px;padding:12px;background:var(--input);border:1px dashed #232326;border-radius:10px;margin-top:8px">No one has traded your vibes yet. Publish good vibes to earn stars!</div>{% endfor %}
+      {% empty %}<div style="color:var(--muted);font-size:13px;padding:12px;background:var(--input);border:1px dashed var(--line);border-radius:10px;margin-top:8px">No one has traded your vibes yet. Publish good vibes to earn stars!</div>{% endfor %}
     </div>
   </div>
 
-  <div style="margin-top:16px;background:#0F0F12;border:1px solid #232326;border-radius:12px;padding:12px">
+  <div style="margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
     <div style="font-size:12px;font-weight:700">How trading works — 5 Whys</div>
-    <div style="font-size:11px;color:#9A9AAF;line-height:1.6;margin-top:4px">
+    <div style="font-size:11px;color:var(--muted);line-height:1.6;margin-top:4px">
       New users get 5 ★. Publishing vibes that get stars/trades earns stars. High stars → Rank up (Bronze→Platinum) → появляется 1st when exploring + Pro discount (Platinum 50% off). Every trade is backend, atomic (select_for_update), logged in <code>Trade</code> — JS never sees balances raw, only via view.
     </div>
   </div>

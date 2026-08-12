@@ -68,11 +68,11 @@ def vulnerability_scan(self, *args, project_id=None):
         existing.update(report)
         p.scan_report = existing
         p.save(update_fields=['scan_report'])
-    except: 
+    except Exception:
         try:
             p.scan_report = report
             p.save(update_fields=['scan_report'])
-        except: pass
+        except Exception: pass
     logger.info(f"Vuln scan {p.slug}: {report}")
     return report
 
@@ -118,8 +118,8 @@ def scan_zip_with_clamav(self, project_id):
                             if pat.search(text):
                                 secrets.append(name)  # store filename only, not key
                                 break
-                    except: pass
-    except: pass
+                    except Exception: pass
+    except Exception: pass
     if secrets:
         logger.warning(f"Secrets in {p.slug}: {secrets[:3]}")
         # Keep pending for human review, don't auto-publish
@@ -177,7 +177,7 @@ def finalize_publish(*args, project_id=None):
         job, _ = ScanJob.objects.get_or_create(project=p)
         job.status = 'clean' if p.status == 'published' else p.status
         job.save(update_fields=['status'])
-    except: pass
+    except Exception: pass
     # Email notify — Why backend? JS toast dies when tab closed, email persists
     try:
         if p.owner.email:
@@ -213,7 +213,7 @@ def generate_weekly_challenges():
                 emails = [u.email for u in supers if u.email]
                 if emails:
                     send_mail(f"BlaqVibes: {len(created)} draft challenges ready", f"AI drafted {len(created)} challenges. Approve at https://blaqvibes.co.za/challenges/", getattr(settings, 'DEFAULT_FROM_EMAIL','noreply@blaqvibes.co.za'), emails, fail_silently=True)
-            except: pass
+            except Exception: pass
         return len(created)
     except Exception as e:
         import logging

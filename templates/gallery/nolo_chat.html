@@ -3,18 +3,18 @@
 {% block content %}
 <div style="max-width:1100px;margin:16px auto;padding:0 20px">
   <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:18px">
-    <main style="background:#07070A;border:1px solid #232326;border-radius:24px;padding:24px">
+    <main style="background:var(--bg);border:1px solid var(--line);border-radius:24px;padding:24px">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
         <span style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:16px;background:#7C3AED;color:#fff;font-size:18px">💬</span>
         <div>
           <div style="font-size:20px;font-weight:800">Nolo Chat</div>
-          <div style="font-size:13px;color:#9A9AAF;margin-top:4px">Ask questions about apps, templates, new releases, or compare vibes in one place.</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">Ask questions about apps, templates, new releases, or compare vibes in one place.</div>
         </div>
       </div>
 
       <div style="display:flex;gap:14px;flex-wrap:wrap;">
-        <div style="flex:1;min-width:240px;background:#0F0F14;border:1px solid #232326;border-radius:18px;padding:18px">
-          <div style="font-size:12px;color:#9A9AAF;font-weight:700;margin-bottom:8px">Ask Nolo about</div>
+        <div style="flex:1;min-width:240px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px">
+          <div style="font-size:12px;color:var(--muted);font-weight:700;margin-bottom:8px">Ask Nolo about</div>
           <div style="font-size:13px;line-height:1.7;color:#C4C4D4">
             • New app launches and trends<br>
             • Best templates for React, Vue, HTML/CSS/JS<br>
@@ -22,8 +22,8 @@
             • What features a project supports
           </div>
         </div>
-        <div style="flex:1;min-width:240px;background:#0F0F14;border:1px solid #232326;border-radius:18px;padding:18px">
-          <div style="font-size:12px;color:#9A9AAF;font-weight:700;margin-bottom:8px">Example prompts</div>
+        <div style="flex:1;min-width:240px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px">
+          <div style="font-size:12px;color:var(--muted);font-weight:700;margin-bottom:8px">Example prompts</div>
           <div style="font-size:13px;line-height:1.7;color:#C4C4D4">
             • "Show me the newest published template apps."<br>
             • "Which app is best for a JavaScript portfolio?"<br>
@@ -33,18 +33,18 @@
         </div>
       </div>
 
-      <div style="margin-top:22px;background:#0F0F14;border:1px solid #232326;border-radius:24px;padding:20px">
+      <div style="margin-top:22px;background:var(--card);border:1px solid var(--line);border-radius:24px;padding:20px">
         <div style="font-weight:700;font-size:14px;color:#EDE9FE">Chat with Nolo</div>
         <div style="margin-top:12px;display:grid;gap:12px">
           <div id="nolo-chat-messages" style="display:grid;gap:12px">
-            <div style="padding:16px;background:#121212;border:1px solid #232326;border-radius:18px;color:#fff;line-height:1.7">
-              <div style="font-size:12px;color:#9A9AAF;margin-bottom:10px">Nolo says</div>
+            <div style="padding:16px;background:var(--card);border:1px solid var(--line);border-radius:18px;color:var(--text);line-height:1.7">
+              <div style="font-size:12px;color:var(--muted);margin-bottom:10px">Nolo says</div>
               <div>Welcome to Nolo Chat! Ask about new apps, templates, or how to use the latest features. I can help compare apps, explain the best fork flow, and point you to the freshest published vibes.</div>
             </div>
           </div>
-          <div style="display:flex;align-items:center;gap:10px;padding:16px;background:#121212;border:1px solid #232326;border-radius:18px">
+          <div style="display:flex;align-items:center;gap:10px;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:18px">
             <span style="width:32px;height:32px;border-radius:10px;background:#7C3AED;display:grid;place-items:center;font-size:16px;color:#fff">💬</span>
-            <input id="nolo-chat-input" type="text" placeholder="Ask a question for Nolo..." style="flex:1;background:#0F0F14;border:1px solid #232326;border-radius:14px;padding:12px 14px;color:#fff;font-size:13px"> 
+            <input id="nolo-chat-input" type="text" placeholder="Ask a question for Nolo..." style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;color:var(--text);font-size:13px"> 
             <button id="nolo-chat-send" class="btn-violet" style="padding:10px 16px;font-size:13px">Send</button>
           </div>
           <div id="nolo-chat-error" style="display:none;color:#FECACA;background:#4B1D1D;padding:10px;border-radius:12px;font-size:12px"></div>
@@ -53,7 +53,7 @@
     </main>
 
     <aside style="display:flex;flex-direction:column;gap:18px">
-      <div style="background:#0F0F14;border:1px solid #232326;border-radius:24px;padding:20px">
+      <div style="background:var(--card);border:1px solid var(--line);border-radius:24px;padding:20px">
         <div style="font-weight:800;font-size:16px">Need quick help?</div>
         <div style="margin-top:12px;font-size:13px;color:#C4C4D4;line-height:1.8">
           • New app releases
@@ -64,25 +64,25 @@
         </div>
       </div>
 
-      <div style="background:#07070A;border:1px solid #232326;border-radius:24px;padding:20px">
+      <div style="background:var(--bg);border:1px solid var(--line);border-radius:24px;padding:20px">
         <div style="font-weight:800;font-size:16px">Latest published vibes</div>
         <div style="margin-top:12px;display:grid;gap:10px">
           {% for app in recent_apps %}
-          <a href="{% url 'app_detail' app.slug %}" style="display:block;padding:12px;background:#121212;border:1px solid #232326;border-radius:16px;text-decoration:none;color:#fff">
+          <a href="{% url 'app_detail' app.slug %}" style="display:block;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:16px;text-decoration:none;color:var(--text)">
             <div style="font-size:13px;font-weight:700">{{ app.title }}</div>
-            <div style="font-size:11px;color:#9A9AAF">{{ app.short_description|truncatechars:60 }}</div>
+            <div style="font-size:11px;color:var(--muted)">{{ app.short_description|truncatechars:60 }}</div>
           </a>
           {% empty %}
-          <div style="font-size:13px;color:#9A9AAF">No published vibes yet.</div>
+          <div style="font-size:13px;color:var(--muted)">No published vibes yet.</div>
           {% endfor %}
         </div>
       </div>
 
-      <div style="background:#0F0F14;border:1px solid #232326;border-radius:24px;padding:20px">
+      <div style="background:var(--card);border:1px solid var(--line);border-radius:24px;padding:20px">
         <div style="font-weight:800;font-size:16px">Explore by category</div>
         <div style="margin-top:12px;display:grid;gap:8px;font-size:12px;color:#C4C4D4">
           {% for category in categories %}
-          <a href="{% url 'feed' %}?category={{ category.slug }}" style="color:#9A9AAF;text-decoration:none">• {{ category.name }}</a>
+          <a href="{% url 'feed' %}?category={{ category.slug }}" style="color:var(--muted);text-decoration:none">• {{ category.name }}</a>
           {% endfor %}
         </div>
       </div>
@@ -111,12 +111,12 @@
   function appendMessage(role, text){
     const bubble = document.createElement('div');
     bubble.style.padding = '16px';
-    bubble.style.border = '1px solid #232326';
+    bubble.style.border = '1px solid var(--line)';
     bubble.style.borderRadius = '18px';
     bubble.style.lineHeight = '1.7';
     bubble.style.color = '#fff';
-    bubble.style.background = role === 'user' ? '#1F1F28' : '#121212';
-    bubble.innerHTML = `<div style="font-size:12px;color:#9A9AAF;margin-bottom:10px">${role === 'user' ? 'You said' : 'Nolo says'}</div><div>${text.replace(/\n/g,'<br>')}</div>`;
+    bubble.style.background = role === 'user' ? '#1F1F28' : 'var(--card)';
+    bubble.innerHTML = `<div style="font-size:12px;color:var(--muted);margin-bottom:10px">${role === 'user' ? 'You said' : 'Nolo says'}</div><div>${text.replace(/\n/g,'<br>')}</div>`;
     messages.appendChild(bubble);
     bubble.scrollIntoView({behavior:'smooth', block:'end'});
   }

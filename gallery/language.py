@@ -21,7 +21,8 @@ def detect_languages(zip_path):
                     # Weight by file size (bytes) + 1 to avoid 0
                     counts[lang] += info.file_size + 1
                     total += info.file_size + 1
-    except: return {}
+    except Exception:
+        return {}
     if not total:
         return {}
     # Top 5 + Other

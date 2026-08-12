@@ -10,7 +10,8 @@ def _has_role(user, required):
         role = getattr(user.profile, 'role', 'user')
         order = {'user':0,'moderator':1,'admin':2,'superadmin':3}
         return order.get(role,0) >= order.get(required,0)
-    except: return False
+    except Exception:
+        return False
 
 def role_required(required_role):
     def decorator(view):
@@ -24,7 +25,7 @@ def role_required(required_role):
                     try:
                         import sentry_sdk
                         sentry_sdk.capture_message(f"403 role {required_role}: {request.user} at {request.path}")
-                    except: pass
+                    except Exception: pass
                     logger.warning(f"403 role {required_role} for {request.user}")
                     return render(request, '403.html', status=403)
                 return view(request, *args, **kwargs)

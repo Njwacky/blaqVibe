@@ -11,7 +11,7 @@ endblock %} {% block content %}
   <div
     style="
       padding: 12px 16px;
-      border-bottom: 1px solid #1f1f23;
+      border-bottom: 1px solid var(--line);
       flex-shrink: 0;
       background: var(--bg);
     "
@@ -26,7 +26,7 @@ endblock %} {% block content %}
     >
       ⚔️ Vibe Battles — Which would you pick?
     </h1>
-    <p style="color: #9a9aaf; font-size: 12px">
+    <p style="color: var(--muted); font-size: 12px">
       Two vibes side-by-side — vote → winner gets
       <b style="color: #f59e0b">+1 ★</b>. One vote per battle. Swipe on mobile
       for the next matchup.
@@ -41,7 +41,7 @@ endblock %} {% block content %}
       place-items: center;
       padding: 20px;
       text-align: center;
-      color: #6a6a7a;
+      color: var(--muted);
     "
   >
     Not enough vibes for battle — publish at least 2 vibes!
@@ -65,7 +65,7 @@ endblock %} {% block content %}
         margin: 0;
         border-radius: 0;
         border: none;
-        border-right: 1px solid #1f1f23;
+        border-right: 1px solid var(--line);
         display: flex;
         flex-direction: column;
         overflow: auto;
@@ -107,10 +107,10 @@ endblock %} {% block content %}
         <div style="font-weight: 700; font-size: 15px">
           {{ battle.vibe_a.title }}
         </div>
-        <div style="font-size: 12px; color: #9a9aaf; margin-top: 4px">
+        <div style="font-size: 12px; color: var(--muted); margin-top: 4px">
           {{ battle.vibe_a.short_description|truncatechars:100 }}
         </div>
-        <div style="font-size: 11px; color: #6a6a7a; margin-top: 6px">
+        <div style="font-size: 11px; color: var(--muted); margin-top: 6px">
           @{{ battle.vibe_a.owner.username }} • ★ {{ battle.vibe_a.stars }}
         </div>
         <div
@@ -119,8 +119,8 @@ endblock %} {% block content %}
           <span
             style="
               font-size: 11px;
-              background: #1a1a1e;
-              border: 1px solid #232326;
+              background: var(--input);
+              border: 1px solid var(--line);
               padding: 4px 8px;
               border-radius: 8px;
             "
@@ -209,10 +209,10 @@ endblock %} {% block content %}
         <div style="font-weight: 700; font-size: 15px">
           {{ battle.vibe_b.title }}
         </div>
-        <div style="font-size: 12px; color: #9a9aaf; margin-top: 4px">
+        <div style="font-size: 12px; color: var(--muted); margin-top: 4px">
           {{ battle.vibe_b.short_description|truncatechars:100 }}
         </div>
-        <div style="font-size: 11px; color: #6a6a7a; margin-top: 6px">
+        <div style="font-size: 11px; color: var(--muted); margin-top: 6px">
           @{{ battle.vibe_b.owner.username }} • ★ {{ battle.vibe_b.stars }}
         </div>
         <div
@@ -221,8 +221,8 @@ endblock %} {% block content %}
           <span
             style="
               font-size: 11px;
-              background: #1a1a1e;
-              border: 1px solid #232326;
+              background: var(--input);
+              border: 1px solid var(--line);
               padding: 4px 8px;
               border-radius: 8px;
             "
@@ -304,7 +304,7 @@ endblock %} {% block content %}
         flex: 1;
         max-width: 200px;
         height: 6px;
-        background: #1f1f23;
+        background: var(--line);
         border-radius: 100px;
         display: flex;
         overflow: hidden;
@@ -346,7 +346,7 @@ endblock %} {% block content %}
     }
     #battle-swipe .card {
       border-right: none !important;
-      border-bottom: 1px solid #1f1f23;
+      border-bottom: 1px solid var(--line);
     }
     .mobile-hint {
       display: inline !important;

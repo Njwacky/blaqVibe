@@ -91,19 +91,19 @@ class AppProject(models.Model):
                 try:
                     import bleach
                     self.tech_stack = bleach.clean(self.tech_stack, tags=[], strip=True)[:200]
-                except: pass
+                except Exception: pass
             if self.short_description:
                 try:
                     import bleach
                     self.short_description = bleach.clean(self.short_description, tags=[], strip=True)[:260]
-                except: pass
+                except Exception: pass
             # Auto language detect (crush silently)
             if self.zip_file and not self.language_stats:
                 try:
                     from .language import detect_languages
                     if hasattr(self.zip_file, 'path') and self.zip_file.path:
                         self.language_stats = detect_languages(self.zip_file.path)
-                except: pass
+                except Exception: pass
         except Exception:
             import logging
             logging.getLogger(__name__).exception('AppProject.save pre-process failed')
@@ -224,7 +224,7 @@ class Review(models.Model):
         try:
             from .prompt_sanitize import sanitize_prompt
             self.text = sanitize_prompt(self.text)[:1000]
-        except: pass
+        except Exception: pass
         super().save(*args, **kwargs)
         try:
             from django.db.models import Avg, Count
@@ -232,7 +232,7 @@ class Review(models.Model):
             self.project.avg_rating = round(agg['avg'] or 0, 1)
             self.project.review_count = agg['cnt'] or 0
             self.project.save(update_fields=['avg_rating','review_count'])
-        except: pass
+        except Exception: pass
     def __str__(self): return f"{self.user} → {self.project.slug} {self.rating}★"
 
 class VibeBattle(models.Model):
