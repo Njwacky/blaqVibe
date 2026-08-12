@@ -1,6 +1,11 @@
 // BlaqVibes SW — 5 Whys: Why PWA? Offline feed + installable. Why cache-first for static? Fast, offline. Why network-first for HTML? Fresh vibes. Why fallback to /oops/? Safe fork page, not scary.
 // No secrets in JS — no S3 keys, no scan_report.
 const CACHE = 'blaqvibes-v1';
+// Account-specific pages — never cache (they contain per-user data).
+const PRIVATE_PREFIXES = [
+  '/my-vibes/', '/inbox/', '/saved/', '/settings/', '/payout/',
+  '/trades/', '/moderation/', '/blaq-admin', '/admin/',
+];
 const STATIC_ASSETS = [
   '/static/gallery/css/blaqvibes.css',
   '/static/gallery/css/error.css',
@@ -34,6 +39,11 @@ self.addEventListener('fetch', e => {
   }
   // HTML -> network first, fallback to cache, then safe page
   if(req.headers.get('accept')?.includes('text/html')){
+    // Never cache account-specific pages — they contain per-user data.
+    if(PRIVATE_PREFIXES.some(p => url.pathname.startsWith(p))){
+      e.respondWith(fetch(req));
+      return;
+    }
     e.respondWith(fetch(req).then(res=>{
       // Don't cache 404/403 as success — but cache 200
       if(res.ok) { const clone=res.clone(); caches.open(CACHE).then(c=>c.put(req, clone)); }

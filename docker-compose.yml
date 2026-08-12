@@ -1,11 +1,10 @@
-version: "3.9"
 services:
   db:
     image: postgres:16-alpine
     environment:
       POSTGRES_DB: blaqvibes
       POSTGRES_USER: blaq
-      POSTGRES_PASSWORD: blaq123
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blaq123}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -15,10 +14,6 @@ services:
   redis:
     image: redis:7-alpine
     ports: ["6379:6379"]
-
-  clamav:
-    image: clamav/clamav:latest
-    # Real ClamAV daemon — gallery/tasks.py will use clamd socket, not subprocess
 
   gitea:
     image: gitea/gitea:1.21
@@ -40,7 +35,7 @@ services:
       - "8000:8000"
     env_file: .env
     environment:
-      - DATABASE_URL=postgres://blaq:blaq123@db:5432/blaqvibes
+      - DATABASE_URL=postgres://blaq:${POSTGRES_PASSWORD:-blaq123}@db:5432/blaqvibes
       - REDIS_URL=redis://redis:6379/0
       - CELERY_EAGER=0
     depends_on:

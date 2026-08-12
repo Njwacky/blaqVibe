@@ -207,41 +207,45 @@ def scan_status(request, slug):
     return JsonResponse(data)
 
 def preview(request, slug):
+    """Safe preview shell — the user's HTML/JS runs only inside a sandboxed
+    (opaque-origin) iframe pointed at snippet_doc, never in a privileged context."""
     project = get_object_or_404(AppProject, slug=slug, status='published')
     resp = render(request, 'gallery/preview.html', {'project': project})
-    # Fixed Stored XSS: no unsafe-inline, CSS/JS are external files via snippet_css/js, allow only self + cdn for Tailwind
-    # Also add Report-Only to log violations to Sentry without blocking (n cs)
-    csp = "default-src 'self' https://cdn.tailwindcss.com https://fonts.googleapis.com; style-src 'self' https://cdn.tailwindcss.com https://fonts.googleapis.com; script-src 'self' https://cdn.tailwindcss.com; img-src 'self' https: data:; object-src 'none'"
+    # This shell has no scripts of its own — lock it down (only our own inline <style>).
+    csp = (
+        "default-src 'none'; frame-src 'self'; img-src 'self' data: https:; "
+        "style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    )
     resp['Content-Security-Policy'] = csp
     resp['Content-Security-Policy-Report-Only'] = csp + "; report-uri /csp-report/"
     resp['X-Frame-Options'] = 'SAMEORIGIN'
     resp['Referrer-Policy'] = 'no-referrer'
     return resp
 
-def snippet_css(request, slug):
-    # External CSS file per snippet — backend only, crush silently
-    try:
-        project = get_object_or_404(AppProject, slug=slug, status='published')
-        css = project.css_code or ""
-        # Extra sanitize: strip any @import with javascript: or url(javascript:)
-        import re
-        css = re.sub(r'@import[^;]*javascript[^;]*;', '', css, flags=re.I)
-        from django.http import HttpResponse
-        return HttpResponse(css, content_type='text/css')
-    except Exception:
-        from django.http import HttpResponse
-        return HttpResponse("", content_type='text/css')
 
-def snippet_js(request, slug):
-    # External JS file per snippet — backend only, crush silently
-    try:
-        project = get_object_or_404(AppProject, slug=slug, status='published')
-        js = project.js_code or ""
-        from django.http import HttpResponse
-        return HttpResponse(js, content_type='application/javascript')
-    except Exception:
-        from django.http import HttpResponse
-        return HttpResponse("", content_type='application/javascript')
+def snippet_doc(request, slug):
+    """The raw snippet document (user HTML + CSS + JS).
+
+    Served ONLY into an <iframe sandbox="allow-scripts"> (opaque origin):
+    the framed content gets no cookies, no parent DOM, and `connect-src 'none'`
+    stops it from phoning home or driving state-changing requests. Direct
+    top-level navigation is rejected so the code never runs unsandboxed.
+    """
+    project = get_object_or_404(AppProject, slug=slug, status='published')
+    # Block direct (top-level) navigation. Browsers send Sec-Fetch-Dest on every
+    # request; the only legitimate entry point is our sandboxed preview iframe.
+    if request.META.get('HTTP_SEC_FETCH_DEST') == 'document':
+        return render(request, 'gallery/snippet_blocked.html', {'project': project}, status=403)
+    resp = render(request, 'gallery/snippet_doc.html', {'project': project})
+    resp['Content-Security-Policy'] = (
+        "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
+        "img-src data: https: http:; media-src data: https:; font-src data:; "
+        "connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'self'"
+    )
+    resp['X-Frame-Options'] = 'SAMEORIGIN'
+    resp['Referrer-Policy'] = 'no-referrer'
+    resp['X-Content-Type-Options'] = 'nosniff'
+    return resp
 
 @login_required
 @ratelimit(key='user', rate='5/h', method='POST')
@@ -277,7 +281,7 @@ def publish(request):
                     for f in file_list[:2000]:
                         AppFile.objects.create(project=project, path=f['path'], size=f['size'])
                 except Exception as e:
-                    print("Tree build error:", e)
+                    logger.warning("Tree build error for %s: %s", project.slug, e)
                 # Queue EVERY app — concurrent uploads serialize in 'scan' queue (FIFO, acks_late, prefetch 1)
                 try:
                     from .tasks import process_upload_pipeline
@@ -287,7 +291,7 @@ def publish(request):
                     job.status = 'scanning'
                     job.save(update_fields=['task_id','status'])
                 except Exception as e:
-                    print("Queue error, fallback eager:", e)
+                    logger.warning("Queue error, fallback eager for %s: %s", project.slug, e)
                 messages.info(request, f"⏳ Your vibe “{project.title}” is in the queue — we’re checking for vulnerabilities. We’ll tell you when it’s uploaded! You’re #{ScanJob.objects.filter(status__in=['queued','scanning']).count()} in line, even with concurrent uploads every app is checked.")
                 # Auto-run toggle — if On, auto spin live URL on upload
                 try:
@@ -413,7 +417,7 @@ def post_review(request, slug):
 @require_POST
 @login_required
 def toggle_star(request, slug):
-    project = get_object_or_404(AppProject, slug=slug)
+    project = get_object_or_404(AppProject, slug=slug, status='published')
     star, created = Star.objects.get_or_create(user=request.user, project=project)
     if not created:
         star.delete()
@@ -466,6 +470,7 @@ def edit_vibe(request, slug):
         form = AppUploadForm(instance=project)
     return render(request, 'gallery/edit_vibe.html', {'form': form, 'project': project})
 
+@login_required
 @login_required
 @require_POST
 def delete_vibe(request, slug):
@@ -679,8 +684,11 @@ def buy_vibe(request, slug):
             messages.error(request, "Card payments aren't configured yet. Trade stars to download, or ask the creator.")
             return redirect(project.get_absolute_url())
         import requests
+        import secrets
+        # Unique per attempt — Paystack rejects reused references on retry.
+        reference = f"blaq-{project.id}-{request.user.id}-{secrets.token_hex(6)}"
         headers = {'Authorization': f'Bearer {paystack_secret}', 'Content-Type': 'application/json'}
-        data = {"email": request.user.email or f"{request.user.username}@blaqvibes.co.za", "amount": project.price_zar*100, "reference": f"blaq-{project.id}-{request.user.id}", "callback_url": f"https://blaqvibes.co.za/app/{project.slug}/", "metadata": {"project_id": project.id, "buyer_id": request.user.id}}
+        data = {"email": request.user.email or f"{request.user.username}@blaqvibes.co.za", "amount": project.price_zar*100, "reference": reference, "callback_url": f"{settings.SITE_URL}{project.get_absolute_url()}", "metadata": {"project_id": project.id, "buyer_id": request.user.id}}
         try:
             r = requests.post('https://api.paystack.co/transaction/initialize', json=data, headers=headers, timeout=10)
             j = r.json()
@@ -697,44 +705,56 @@ def buy_vibe(request, slug):
 
 from django.views.decorators.csrf import csrf_exempt
 @csrf_exempt
+@require_POST
 def paystack_webhook(request):
+    """Verify Paystack signature and record a Sale.
+
+    Returns 4xx on anything we can't verify/process so Paystack retries;
+    returns 200 only once the event is handled (or safely ignored).
+    """
+    import hashlib, hmac, json, os
+    secret = os.getenv('PAYSTACK_SECRET_KEY', '')
+    if not secret:
+        return HttpResponse("webhook not configured", status=503)
+    body = request.body
+    sig = request.headers.get('x-paystack-signature', '')
+    expected = hmac.new(secret.encode(), body, hashlib.sha512).hexdigest()
+    if not sig or not hmac.compare_digest(expected, sig):
+        return HttpResponse("invalid signature", status=400)
     try:
-        import hashlib, hmac, json, os
-        secret = os.getenv('PAYSTACK_SECRET_KEY', '')
-        if not secret:
-            return HttpResponse("No secret", status=400)
-        body = request.body
-        sig = request.headers.get('x-paystack-signature','')
-        hash = hmac.new(secret.encode(), body, hashlib.sha512).hexdigest()
-        if hash != sig:
-            return HttpResponse("Invalid", status=400)
         data = json.loads(body)
-        if data.get('event') == 'charge.success':
-            ref = data['data']['reference']
-            parts = ref.split('-')
-            if len(parts) >= 3:
-                pid, uid = int(parts[1]), int(parts[2])
-                from .models import Sale, AppProject
-                from django.contrib.auth.models import User
-                try:
-                    project = AppProject.objects.get(pk=pid)
-                    buyer = User.objects.get(pk=uid)
-                    paid = int((data.get('data') or {}).get('amount') or 0)
-                    expected = int(project.price_zar or 0) * 100
-                    if expected and paid != expected:
-                        logger.warning("Paystack amount mismatch ref=%s paid=%s expected=%s", ref, paid, expected)
-                        return HttpResponse("amount mismatch", status=400)
-                    if not Sale.objects.filter(buyer=buyer, project=project).exists():
-                        Sale.objects.create(buyer=buyer, seller=project.owner, project=project, amount_zar=project.price_zar, paystack_ref=ref)
-                        notify(project.owner, 'sale', f'{buyer.username} bought {project.title}', f'R{project.price_zar}', project.get_absolute_url())
-                        notify(buyer, 'sale', f'You unlocked {project.title}', url=project.get_absolute_url())
-                except Exception:
-                    logger.exception('sale create failed')
-        return HttpResponse("ok")
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).exception(f"webhook crush: {e}")
-        return HttpResponse("ok")
+    except (ValueError, TypeError):
+        return HttpResponse("invalid json", status=400)
+    if data.get('event') != 'charge.success':
+        return HttpResponse("ignored", status=200)
+    ref = (data.get('data') or {}).get('reference') or ''
+    parts = ref.split('-')
+    if len(parts) < 3 or parts[0] != 'blaq':
+        return HttpResponse("bad reference", status=400)
+    try:
+        pid, uid = int(parts[1]), int(parts[2])
+    except ValueError:
+        return HttpResponse("bad reference", status=400)
+    from .models import Sale, AppProject
+    from django.contrib.auth.models import User
+    try:
+        project = AppProject.objects.get(pk=pid)
+        buyer = User.objects.get(pk=uid)
+    except (AppProject.DoesNotExist, User.DoesNotExist):
+        return HttpResponse("unknown project/buyer", status=400)
+    paid = int((data.get('data') or {}).get('amount') or 0)
+    expected_amount = int(project.price_zar or 0) * 100
+    if expected_amount and paid != expected_amount:
+        logger.warning("Paystack amount mismatch ref=%s paid=%s expected=%s", ref, paid, expected_amount)
+        return HttpResponse("amount mismatch", status=400)
+    sale, created = Sale.objects.get_or_create(
+        buyer=buyer, project=project,
+        defaults={'seller': project.owner, 'amount_zar': project.price_zar, 'paystack_ref': ref},
+    )
+    if created:
+        notify(project.owner, 'sale', f'{buyer.username} bought {project.title}', f'R{project.price_zar}', project.get_absolute_url())
+        notify(buyer, 'sale', f'You unlocked {project.title}', url=project.get_absolute_url())
+    return HttpResponse("ok")
 
 def oops_demo(request):
     # Demo safe page — always shows friendly fork, no HttpResponse scare
@@ -827,9 +847,9 @@ def sitemap_xml(request):
     projects = AppProject.objects.filter(status='published').only('slug', 'updated_at')[:500]
     rows = ['<?xml version="1.0" encoding="UTF-8"?>',
             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-            '<url><loc>https://blaqvibes.co.za/</loc></url>']
+            f'<url><loc>{settings.SITE_URL}/</loc></url>']
     for p in projects:
-        rows.append(f'<url><loc>https://blaqvibes.co.za/app/{p.slug}/</loc></url>')
+        rows.append(f'<url><loc>{settings.SITE_URL}/app/{p.slug}/</loc><lastmod>{p.updated_at.date().isoformat()}</lastmod></url>')
     rows.append('</urlset>')
     return HttpResponse('\n'.join(rows), content_type='application/xml')
 

@@ -10,14 +10,20 @@ source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
 python manage.py migrate
-python manage.py runserver 0.0.0.0:8000
+DEBUG=1 python manage.py runserver 0.0.0.0:8000
 ```
+
+`DEBUG` defaults to **off** (fail-closed). Set `DEBUG=1` for local dev so
+`runserver` serves static/media; in production `DEBUG` must stay `0` and
+`SECRET_KEY` must be set (the app refuses to boot otherwise).
 
 Tests:
 
 ```bash
-python manage.py test gallery users
+DJANGO_LOCAL_DEV=1 python manage.py test gallery users
 ```
+
+CI runs the same suite on every push and pull request (`.github/workflows/ci.yml`).
 
 ## What is real
 

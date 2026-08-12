@@ -122,71 +122,92 @@ def scan_zip_with_clamav(self, project_id):
     except Exception: pass
     if secrets:
         logger.warning(f"Secrets in {p.slug}: {secrets[:3]}")
-        # Keep pending for human review, don't auto-publish
+        # Keep pending for human review, don't auto-publish. Store filenames only
+        # (never the secret values) so owner_scan_reason can explain the hold.
+        report = p.scan_report or {}
+        report['secrets'] = secrets
+        p.scan_report = report
         p.status = 'pending'
-        p.save(update_fields=['status'])
+        p.save(update_fields=['scan_report', 'status'])
+        from .notify import notify
+        notify(p.owner, 'quarantined', f'“{p.title}” needs human review',
+               'Possible secrets detected in the ZIP. A moderator will review it before it goes live.',
+               p.get_absolute_url())
         return "secrets_found"
     return "clean"
 
+def _set_scan_job(p, status):
+    try:
+        from .models import ScanJob
+        job, _ = ScanJob.objects.get_or_create(project=p)
+        job.status = status
+        job.save(update_fields=['status'])
+    except Exception:
+        logger.exception('scan job update failed')
+
+
+def _send_status_email(p):
+    try:
+        if p.owner.email:
+            site = getattr(settings, 'SITE_URL', 'https://blaqvibes.co.za')
+            if p.status == 'published':
+                subject = f"✓ Your vibe “{p.title}” is live on BlaqVibes!"
+            else:
+                subject = f"⏳ Your vibe “{p.title}” needs review"
+            msg = (
+                f"Hi @{p.owner.username},\n\n"
+                f"Your vibe '{p.title}' ({p.slug}) is {p.status}.\n\n"
+                f"View: {site}/app/{p.slug}/\n"
+                f"My Vibes: {site}/my-vibes/\n\n"
+                f"BlaqVibes — Publish the Vibes.\n"
+            )
+            send_mail(subject, msg, getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@blaqvibes.co.za'), [p.owner.email], fail_silently=True)
+    except Exception as e:
+        logger.warning(f"Email fail {p.slug}: {e}")
+
+
 @shared_task(queue='scan')
 def finalize_publish(*args, project_id=None):
-    """Final step: tree + status → published. Runs after scans."""
-    from .models import AppProject
-    from .utils import build_tree_from_zip
-    from .models import AppFile
+    """Final step: tree + status → published. Runs after scans.
+
+    A clean scan publishes. Missing scanner or detected secrets hold the vibe
+    in `pending` for human review — never auto-publish those.
+    """
+    from .models import AppProject, AppFile
     if project_id is None and args:
         project_id = args[-1]
     p = AppProject.objects.get(pk=project_id)
     if p.status == 'quarantined':
         return "quarantined_no_publish"
-    if (p.scan_report or {}).get('clamav') == 'unavailable':
-        try:
-            from .models import ScanJob
-            job, _ = ScanJob.objects.get_or_create(project=p)
-            job.status = 'queued'
-            job.save(update_fields=['status'])
-        except Exception:
-            logger.exception('scan job update failed')
+    report = p.scan_report or {}
+    if report.get('clamav') == 'unavailable':
+        _set_scan_job(p, 'queued')
         return "pending_no_scanner"
-    if not p.file_tree:
+    if report.get('secrets'):
+        _set_scan_job(p, 'pending')
+        return "pending_secrets"
+    if not p.file_tree and p.zip_file:
         try:
             from .utils import build_tree_from_zip
-            from .models import AppFile
             tree, file_list = build_tree_from_zip(p.zip_file.path)
             p.file_tree = tree
             p.file_count = len(file_list)
-            p.save(update_fields=['file_tree','file_count'])
+            p.save(update_fields=['file_tree', 'file_count'])
             for f in file_list[:2000]:
                 AppFile.objects.get_or_create(project=p, path=f['path'], defaults={'size': f['size']})
         except Exception as e:
             logger.error(f"Tree rebuild fail {p.slug}: {e}")
-    if p.status == 'pending' and p.owner.projects.filter(status='published').count() >= 3:
-        p.status = 'published'
-        p.save(update_fields=['status'])
-    elif p.status == 'pending':
-        pass
-    else:
+    if p.status == 'pending':
         p.status = 'published'
         p.save(update_fields=['status'])
     if p.status == 'published':
         from .notify import notify
         notify(p.owner, 'published', f'“{p.title}” is live', url=p.get_absolute_url())
-    # Update ScanJob to clean for JS poll (backend only)
-    try:
-        from .models import ScanJob
-        job, _ = ScanJob.objects.get_or_create(project=p)
-        job.status = 'clean' if p.status == 'published' else p.status
-        job.save(update_fields=['status'])
-    except Exception: pass
-    # Email notify — Why backend? JS toast dies when tab closed, email persists
-    try:
-        if p.owner.email:
-            subject = f"✓ Your vibe “{p.title}” is live on BlaqVibes!" if p.status == 'published' else f"⏳ Your vibe “{p.title}” needs review"
-            msg = f"Hi @{p.owner.username},\n\nYour vibe '{p.title}' ({p.slug}) is {p.status}.\n\nView: https://blaqvibes.co.za/app/{p.slug}/\nMy Vibes: https://blaqvibes.co.za/my-vibes/\n\nBlaqVibes — Publish the Vibes.\n"
-            send_mail(subject, msg, getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@blaqvibes.co.za'), [p.owner.email], fail_silently=True)
-    except Exception as e:
-        logger.warning(f"Email fail {p.slug}: {e}")
-    return "published"
+    # Update ScanJob for the JS poll (backend only — just a status string).
+    _set_scan_job(p, 'clean' if p.status == 'published' else p.status)
+    # Email notify — Why backend? JS toast dies when tab closed, email persists.
+    _send_status_email(p)
+    return "published" if p.status == 'published' else p.status
 
 @shared_task(queue='scan')
 def process_upload_pipeline(project_id):
@@ -212,7 +233,8 @@ def generate_weekly_challenges():
                 supers = User.objects.filter(profile__role='superadmin')
                 emails = [u.email for u in supers if u.email]
                 if emails:
-                    send_mail(f"BlaqVibes: {len(created)} draft challenges ready", f"AI drafted {len(created)} challenges. Approve at https://blaqvibes.co.za/challenges/", getattr(settings, 'DEFAULT_FROM_EMAIL','noreply@blaqvibes.co.za'), emails, fail_silently=True)
+                    site = getattr(settings, 'SITE_URL', 'https://blaqvibes.co.za')
+                    send_mail(f"BlaqVibes: {len(created)} draft challenges ready", f"AI drafted {len(created)} challenges. Approve at {site}/challenges/", getattr(settings, 'DEFAULT_FROM_EMAIL','noreply@blaqvibes.co.za'), emails, fail_silently=True)
             except Exception: pass
         return len(created)
     except Exception as e:
