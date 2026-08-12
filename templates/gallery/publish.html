@@ -27,6 +27,7 @@
           </div>
           <div><label style="font-size:12px;color:#9A9AAF">Short description*</label>{{ form.short_description }}</div>
           <div><label style="font-size:12px;color:#9A9AAF">README.md* — min 100 chars, must include heading</label>{{ form.readme }}</div>
+          <div id="readme-preview" class="help" style="display:none;white-space:pre-wrap;background:#07070A;border:1px solid #232326;border-radius:10px;padding:10px;max-height:160px;overflow:auto"></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div><label style="font-size:12px;color:#9A9AAF">Tech stack</label>{{ form.tech_stack }}</div>
             <div><label style="font-size:12px;color:#9A9AAF">Thumbnail</label>{{ form.thumbnail }}</div>
@@ -52,11 +53,12 @@
       <div style="background:#121214;border:1px solid #1F1F23;border-radius:12px;padding:16px">
         <h2 style="font-family:Space Grotesk,sans-serif;font-size:18px">Step 2 — Upload</h2>
         <p style="font-size:12px;color:#9A9AAF;margin-top:4px">Drop ZIP or paste snippet — we auto-block bad files, count files, detect languages.</p>
-        <div style="margin-top:12px;border:1px dashed #3A3A40;border-radius:12px;padding:14px;background:#0F0F12;text-align:center">
+        <div style="margin-top:12px;border:1px dashed #3A3A40;border-radius:12px;padding:14px;background:#0F0F12;text-align:center" id="zip-drop">
           <div style="font-weight:700;font-size:13px">ZIP file (for Full App) — Max 100MB</div>
-          <div style="font-size:11px;color:#6A6A7A">We auto-block node_modules, .env, .exe and count files. If ZIP has README.md, we keep it; else inject yours.</div>
-          <div style="margin-top:8px" id="zip-drop">{{ form.zip_file }}</div>
+          <div style="font-size:11px;color:#6A6A7A">Drop a ZIP here or browse. We block .env, .exe, path traversal, and zip bombs.</div>
+          <div style="margin-top:8px">{{ form.zip_file }}</div>
           <div id="zip-hint" style="font-size:11px;color:#9A9AAF;margin-top:6px"></div>
+          <div id="zip-progress" style="display:none;margin-top:10px;height:8px;background:#1F1F23;border-radius:99px;overflow:hidden"><div id="zip-bar" style="height:100%;width:0;background:#7C3AED"></div></div>
           <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:left">
             <div><label style="font-size:12px;color:#9A9AAF">Trade Cost — Stars</label>{{ form.star_cost }}<div style="font-size:11px;color:#6A6A7A">0=free, 1=Bronze, 3=Silver</div></div>
             <div><label style="font-size:12px;color:#9A9AAF">Money Price — ZAR</label>{{ form.price_zar }}<div style="font-size:11px;color:#6A6A7A">0=free, 50=R50 — you get 85%</div></div>
@@ -76,10 +78,13 @@
     <!-- Step 3 — Live -->
     <div class="wizard-step" data-step="3" style="display:none">
       <div style="background:#121214;border:1px solid #1F1F23;border-radius:12px;padding:16px">
-        <h2 style="font-family:Space Grotesk,sans-serif;font-size:18px">Step 3 — Live</h2>
-        <p style="font-size:12px;color:#9A9AAF;margin-top:4px">Docker & queue run automatically — you’ll see live URL after publish.</p>
-        <div style="margin-top:12px;background:#07070A;border:1px solid #232326;border-radius:12px;padding:12px;display:flex;gap:10px;font-size:12px;color:#9A9AAF"><span>🔔</span><div><b style="color:#fff">What happens after Publish:</b><br>• ZIP validated (path traversal, zip bomb)<br>• README sanitized via bleach/nh3, preview sandboxed<br>• Queue: ClamAV → secrets → vuln → Nolo (Gemini/Groq) → Published<br>• If Auto-run On → live at <code>/deploy/&lt;token&gt;/</code> for 1h</div></div>
-        <div style="margin-top:12px;background:#07070A;border:1px solid #232326;border-radius:12px;padding:12px;display:flex;gap:10px;font-size:12px;color:#9A9AAF"><span>🔒</span><div><b style="color:#fff">Security:</b> You have {{ user.profile.stars_balance }} ★ — rank {{ user.profile.rank.name }} ({{ user.profile.rank.discount }}% Pro discount). Very critical toggles (ClamAV, R2) are locked On.</div></div>
+        <h2 style="font-family:Space Grotesk,sans-serif;font-size:18px">Step 3 — Confirm</h2>
+        <p style="font-size:12px;color:#9A9AAF;margin-top:4px">Check the listing. After publish we scan the ZIP; it goes live only if the scan is clean.</p>
+        <div id="confirm-card" style="margin-top:12px;background:#07070A;border:1px solid #232326;border-radius:12px;padding:12px;font-size:13px;line-height:1.7">
+          <div><b id="c-title">—</b></div>
+          <div class="help" id="c-desc"></div>
+          <div class="help" id="c-meta" style="margin-top:8px"></div>
+        </div>
         <div style="margin-top:12px;display:flex;gap:8px;justify-content:space-between">
           <button type="button" class="btnG" onclick="startAgain()">↺ Start Again — Clear Form</button>
           <button type="button" class="btnG" onclick="goStep(2)">← Back</button>
@@ -113,6 +118,71 @@ function goStep(n){
   document.getElementById('step-ind-2').style.opacity = n>=2 ? '1' : '.5';
   document.getElementById('step-ind-3').style.opacity = n>=3 ? '1' : '.5';
   window.scrollTo({top:0,behavior:'smooth'});
+}
+const MAX_ZIP = 100 * 1024 * 1024;
+const zipInput = document.querySelector('#id_zip_file');
+const drop = document.getElementById('zip-drop');
+const hint = document.getElementById('zip-hint');
+const readme = document.querySelector('#id_readme');
+const preview = document.getElementById('readme-preview');
+function setHint(msg, bad){ if(hint){ hint.textContent = msg; hint.style.color = bad ? '#F87171' : '#9A9AAF'; } }
+function checkZip(file){
+  if(!file) return true;
+  if(!file.name.toLowerCase().endsWith('.zip')){ setHint('Only .zip files.', true); return false; }
+  if(file.size > MAX_ZIP){ setHint('ZIP is over 100MB.', true); return false; }
+  setHint(file.name + ' — ' + Math.round(file.size/1024) + ' KB', false);
+  return true;
+}
+if(zipInput){
+  zipInput.addEventListener('change', ()=>checkZip(zipInput.files[0]));
+}
+if(drop && zipInput){
+  ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev, e=>{ e.preventDefault(); drop.style.borderColor='#7C3AED'; }));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev, e=>{ e.preventDefault(); drop.style.borderColor='#3A3A40'; }));
+  drop.addEventListener('drop', e=>{
+    const file = e.dataTransfer.files[0];
+    if(!file) return;
+    const dt = new DataTransfer();
+    dt.items.add(file);
+    zipInput.files = dt.files;
+    checkZip(file);
+  });
+}
+if(readme && preview){
+  const paint = ()=>{
+    const v = readme.value || '';
+    preview.style.display = v.trim() ? 'block' : 'none';
+    preview.textContent = v.slice(0,800);
+  };
+  readme.addEventListener('input', paint);
+  paint();
+}
+const form = document.getElementById('wizard-form');
+if(form){
+  form.addEventListener('submit', function(e){
+    if(zipInput && zipInput.files[0] && !checkZip(zipInput.files[0])){
+      e.preventDefault();
+      goStep(2);
+      return;
+    }
+    if(!window.FormData || !window.XMLHttpRequest) return;
+    e.preventDefault();
+    const barWrap = document.getElementById('zip-progress');
+    const bar = document.getElementById('zip-bar');
+    if(barWrap) barWrap.style.display='block';
+    const xhr = new XMLHttpRequest();
+    xhr.upload.onprogress = function(ev){
+      if(ev.lengthComputable && bar) bar.style.width = Math.round(ev.loaded/ev.total*100) + '%';
+    };
+    xhr.onload = function(){
+      if(xhr.responseURL){ window.location.href = xhr.responseURL; return; }
+      document.open(); document.write(xhr.responseText); document.close();
+    };
+    xhr.onerror = function(){ setHint('Upload failed. Try again.', true); };
+    xhr.open('POST', form.action || window.location.href);
+    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+    xhr.send(new FormData(form));
+  });
 }
 function startAgain(){
   if(confirm('Start again? This will clear the form.')){

@@ -13,6 +13,13 @@
         {% else %}<span style="background:#FEE2E2;color:#991B1B;padding:4px 8px;border-radius:8px;font-size:11px;font-weight:700">🚨 Quarantined</span>{% endif %}
       </div>
       <div style="font-weight:700;font-size:14px">{{ p.title }}</div>
+      {% if p.status != 'published' %}
+      <div style="font-size:12px;color:#F59E0B;margin:4px 0">
+        {% if p.status == 'quarantined' %}Virus or blocked secret found. Edit and re-upload a clean ZIP.
+        {% elif p.scan_report.clamav == 'unavailable' %}Scanner offline — waiting for human review, not auto-published.
+        {% else %}Queued for review. You will get an inbox notification when it is live.{% endif %}
+      </div>
+      {% endif %}
       <div style="font-size:12px;color:#9A9AAF">{{ p.short_description|truncatechars:80 }}</div>
       <div style="font-size:11px;color:#6A6A7A;margin-top:6px">{{ p.file_count }} files • ★ {{ p.stars }} • ⬇ {{ p.clones }}</div>
     </a>

@@ -177,6 +177,17 @@
   </div>
   {% endif %}
 
+  <div style="margin-top:28px;padding:16px;border:1px solid var(--line);background:var(--card);border-radius:12px">
+    <h2 style="font-size:14px;font-weight:700">Email</h2>
+    <p class="help" style="margin:6px 0 10px">
+      {% if profile.email_verified %}Confirmed: {{ user.email }}
+      {% else %}{{ user.email|default:"No email on this account" }} — not confirmed yet.{% endif %}
+    </p>
+    {% if not profile.email_verified and user.email %}
+    <form method="post" action="{% url 'resend_verify_email' %}">{% csrf_token %}<button class="btn-ghost">Resend confirmation</button></form>
+    {% endif %}
+  </div>
+
   <div style="margin-top:28px;padding:16px;border:1px solid #7C2D2D;background:#1A0A0A;border-radius:12px">
     <h2 style="font-size:14px;font-weight:700;color:#FECACA">Danger zone — POPIA</h2>
     <p style="font-size:12px;color:#9A9AAF;margin:6px 0 12px">Delete your account, vibes, comments, and stars. This cannot be undone.</p>

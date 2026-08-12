@@ -1,0 +1,19 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Inbox — BlaqVibes{% endblock %}
+{% block content %}
+<div class="page" style="max-width:720px">
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">Inbox</h1>
+  <p class="help" style="margin:6px 0 14px">Comments, trades, PRs, and publish updates stay here after the toast is gone.</p>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    {% for n in notifications %}
+    <a href="{{ n.url|default:'#' }}" class="card" style="padding:12px;display:block">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase">{{ n.kind }} • {{ n.created_at|timesince }} ago</div>
+      <div style="font-weight:700;margin-top:4px">{{ n.title }}</div>
+      {% if n.body %}<div class="help" style="margin-top:4px">{{ n.body }}</div>{% endif %}
+    </a>
+    {% empty %}
+    <div class="card" style="padding:24px;text-align:center;color:var(--muted)">No notifications yet.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

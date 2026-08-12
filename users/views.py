@@ -1,12 +1,18 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.contrib import messages
+from django.core.mail import send_mail
+from django.conf import settings
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes, force_str
 from .models import Profile, Follow, SiteSettings
 from .forms import ProfileForm
 from gallery.models import AppProject
+from gallery.notify import notify
 
 # 5 Whys: Why /u/<username>/ not /profile/<id>? Username is brand, SEO, like GitHub. Why not expose email? Privacy — only bio/location.
 
@@ -59,6 +65,7 @@ def toggle_follow(request, username):
     if not created:
         follow.delete()
         return JsonResponse({'following': False, 'followers': target.followers.count()})
+    notify(target, 'follow', f'@{request.user.username} followed you', url=f'/u/{request.user.username}/')
     return JsonResponse({'following': True, 'followers': target.followers.count()})
 
 @login_required
@@ -155,3 +162,46 @@ def delete_account(request):
     user.delete()
     messages.success(request, "Your account and vibes were deleted.")
     return redirect('feed')
+
+
+def send_verify_email(request, user):
+    uid = urlsafe_base64_encode(force_bytes(user.pk))
+    token = default_token_generator.make_token(user)
+    link = request.build_absolute_uri(f'/accounts/verify/{uid}/{token}/')
+    send_mail(
+        'Confirm your BlaqVibes email',
+        f'Hi @{user.username},\n\nConfirm your email:\n{link}\n\nBlaqVibes',
+        getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@blaqvibes.co.za'),
+        [user.email],
+        fail_silently=True,
+    )
+
+
+def verify_email(request, uidb64, token):
+    try:
+        uid = force_str(urlsafe_base64_decode(uidb64))
+        user = User.objects.get(pk=uid)
+    except Exception:
+        user = None
+    if user and default_token_generator.check_token(user, token):
+        profile, _ = Profile.objects.get_or_create(user=user)
+        profile.email_verified = True
+        profile.save(update_fields=['email_verified'])
+        messages.success(request, "Email confirmed.")
+        return redirect('feed')
+    messages.error(request, "That confirmation link is invalid or expired.")
+    return redirect('login')
+
+
+@login_required
+@require_POST
+def resend_verify_email(request):
+    if request.user.profile.email_verified:
+        messages.info(request, "Your email is already confirmed.")
+        return redirect('settings')
+    if not request.user.email:
+        messages.error(request, "Add an email to your account first.")
+        return redirect('edit_profile')
+    send_verify_email(request, request.user)
+    messages.success(request, "Confirmation email sent. Check your inbox (or the server console in dev).")
+    return redirect('settings')

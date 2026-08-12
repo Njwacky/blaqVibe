@@ -1,9 +1,14 @@
 from django.urls import path
-from . import views, trading_views
+from . import views, trading_views, api_views
 from .csp_views import csp_report
 from .moderation import moderation_queue, moderation_action
 urlpatterns = [
     path('', views.feed, name='feed'),
+    path('sitemap.xml', views.sitemap_xml, name='sitemap'),
+    path('api/v1/apps/', api_views.api_apps, name='api_apps'),
+    path('api/v1/apps/<slug:slug>/', api_views.api_app_detail, name='api_app_detail'),
+    path('inbox/', views.notifications_inbox, name='notifications'),
+    path('saved/', views.saved_vibes, name='saved_vibes'),
     path('oops/', views.oops_demo, name='oops_demo'),
     path('publish/', views.publish, name='publish'),
     path('my-vibes/', views.my_vibes, name='my_vibes'),
@@ -25,6 +30,7 @@ urlpatterns = [
     path('app/<slug:slug>/comment/', views.post_comment, name='post_comment'),
     path('app/<slug:slug>/review/', views.post_review, name='post_review'),
     path('app/<slug:slug>/star/', views.toggle_star, name='toggle_star'),
+    path('app/<slug:slug>/save/', views.toggle_bookmark, name='toggle_bookmark'),
     path('app/<slug:slug>/fork/', views.fork_vibe, name='fork_vibe'),
     path('app/<slug:slug>/forks/', views.fork_network, name='fork_network'),
     path('app/<slug:slug>/pr/create/', views.create_pr, name='create_pr'),

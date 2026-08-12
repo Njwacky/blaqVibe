@@ -12,6 +12,7 @@
     (function poll(){
       fetch(scanUrl).then(r=>r.json()).then(d=>{
         if(scanText) scanText.textContent=d.status;
+        if(d.reason && scanText) scanText.textContent = d.status + ' — ' + d.reason;
         if(d.is_published || d.status==='clean'){
           if(scanText) scanText.textContent='clean — vibe is live!';
           if(banner){ banner.style.background='linear-gradient(135deg,#0A1A0A 0%,#0A1A14 100%)'; banner.style.borderColor='#10B981'; }
@@ -86,6 +87,15 @@
     }
     if(e.target.classList.contains('js-delete-form')){
       if(!confirm('Delete forever?')) e.preventDefault();
+    }
+    if(e.target.classList.contains('js-save-form')){
+      e.preventDefault();
+      const form=e.target;
+      const csrf=form.querySelector('[name=csrfmiddlewaretoken]')?.value;
+      fetch(form.action,{method:'POST',headers:csrf?{'X-CSRFToken':csrf}:{}}).then(r=>r.json()).then(d=>{
+        try{ toast(d.saved?'Saved':'Removed from saved'); }catch(err){}
+        setTimeout(()=>location.reload(),400);
+      }).catch(()=>{ try{toast('Failed')}catch(err){}});
     }
     if(e.target.classList.contains('js-fork-form')){
       if(!confirm('Fork this vibe to your account? You will get your own copy to remix.')) e.preventDefault();

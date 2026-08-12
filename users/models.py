@@ -16,6 +16,7 @@ class Profile(models.Model):
     stars_balance = models.PositiveIntegerField(default=5, help_text="Stars to trade — earn by publishing, spend to download")
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='user', help_text="Admin role — backend only, never in JS")
     is_pro = models.BooleanField(default=False, help_text="Pro plan — can see who viewed your vibes, AI README, money")
+    email_verified = models.BooleanField(default=False)
     pro_since = models.DateTimeField(null=True, blank=True)
     pro_until = models.DateTimeField(null=True, blank=True, help_text="When a Pro trial/prize expires. Null + is_pro means permanent (admin).")
     auto_language = models.BooleanField(default=True, help_text="Auto detect language % from ZIP")

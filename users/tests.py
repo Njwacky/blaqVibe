@@ -58,6 +58,19 @@ class AuthAndProTests(TestCase):
         profile.refresh_from_db()
         self.assertFalse(profile.is_pro_active)
 
+    def test_verify_email_marks_profile(self):
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.http import urlsafe_base64_encode
+        from django.utils.encoding import force_bytes
+        user = User.objects.create_user('mailer', password='pass12345', email='m@test.com')
+        self.assertFalse(user.profile.email_verified)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        response = self.client.get(f'/accounts/verify/{uid}/{token}/')
+        self.assertEqual(response.status_code, 302)
+        user.profile.refresh_from_db()
+        self.assertTrue(user.profile.email_verified)
+
     def test_delete_account_requires_username(self):
         user = User.objects.create_user('goner', password='pass12345', email='g@test.com')
         self.client.login(username='goner', password='pass12345')

@@ -90,9 +90,19 @@ def scan_zip_with_clamav(self, project_id):
             p.status = 'quarantined'
             p.save(update_fields=['status'])
             logger.warning(f"Virus quarantined {p.slug}")
+            from .notify import notify
+            notify(p.owner, 'quarantined', f'“{p.title}” was quarantined', 'Virus or blocked secret found. Edit and re-upload a clean ZIP.', p.get_absolute_url())
             return "quarantined"
     except FileNotFoundError:
-        logger.info(f"clamscan missing — mock clean {p.slug}")
+        logger.warning(f"clamscan missing — leaving pending {p.slug}")
+        report = p.scan_report or {}
+        report['clamav'] = 'unavailable'
+        p.scan_report = report
+        p.status = 'pending'
+        p.save(update_fields=['scan_report', 'status'])
+        from .notify import notify
+        notify(p.owner, 'quarantined', f'“{p.title}” needs human review', 'Virus scanner is offline. We did not auto-publish.', p.get_absolute_url())
+        return "scanner_unavailable"
     except subprocess.TimeoutExpired:
         logger.warning(f"ClamAV timeout {p.slug}, retry")
         raise self.retry()
@@ -129,6 +139,15 @@ def finalize_publish(*args, project_id=None):
     p = AppProject.objects.get(pk=project_id)
     if p.status == 'quarantined':
         return "quarantined_no_publish"
+    if (p.scan_report or {}).get('clamav') == 'unavailable':
+        try:
+            from .models import ScanJob
+            job, _ = ScanJob.objects.get_or_create(project=p)
+            job.status = 'queued'
+            job.save(update_fields=['status'])
+        except Exception:
+            logger.exception('scan job update failed')
+        return "pending_no_scanner"
     if not p.file_tree:
         try:
             from .utils import build_tree_from_zip
@@ -149,6 +168,9 @@ def finalize_publish(*args, project_id=None):
     else:
         p.status = 'published'
         p.save(update_fields=['status'])
+    if p.status == 'published':
+        from .notify import notify
+        notify(p.owner, 'published', f'“{p.title}” is live', url=p.get_absolute_url())
     # Update ScanJob to clean for JS poll (backend only)
     try:
         from .models import ScanJob
