@@ -3,25 +3,25 @@
 {% block content %}
 <div style="max-width:1100px;margin:0 auto;padding:20px">
   <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">⑂ Fork Network — {{ root.title }}</h1>
-  <p style="color:#9A9AAF;font-size:13px">Tree of remixes — <code>forked_from</code> FK, backend built, no JS secrets. Click any vibe to view.</p>
+  <p style="color:var(--muted);font-size:13px">Tree of remixes — <code>forked_from</code> FK, backend built, no JS secrets. Click any vibe to view.</p>
 
-  <div style="margin-top:16px;display:flex;gap:16px;overflow:auto;padding:12px;background:#07070A;border:1px solid #1F1F23;border-radius:14px">
+  <div style="margin-top:16px;display:flex;gap:16px;overflow:auto;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:14px">
     <!-- Root -->
     <div style="min-width:220px">
       <a href="{{ root.get_absolute_url }}" class="card" style="padding:12px;display:block;border-color:#7C3AED;box-shadow:0 0 0 1px #7C3AED">
         <div style="font-weight:800">{{ root.title }}</div>
-        <div style="font-size:11px;color:#9A9AAF">@{{ root.owner.username }} • {{ root.forks.count }} forks • ★ {{ root.stars }}</div>
-        <div style="font-size:10px;color:#6A6A7A;margin-top:4px">Root • {{ root.tech_stack|default:"—" }}</div>
+        <div style="font-size:11px;color:var(--muted)">@{{ root.owner.username }} • {{ root.forks.count }} forks • ★ {{ root.stars }}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:4px">Root • {{ root.tech_stack|default:"—" }}</div>
       </a>
-      <div style="margin-left:20px;margin-top:8px;border-left:2px solid #1F1F23;padding-left:12px;display:flex;flex-direction:column;gap:8px">
+      <div style="margin-left:20px;margin-top:8px;border-left:2px solid var(--line);padding-left:12px;display:flex;flex-direction:column;gap:8px">
         {% for fork in forks %}
         <a href="{{ fork.get_absolute_url }}" class="card" style="padding:10px;display:block">
           <div style="font-weight:700;font-size:13px">{{ fork.title }}</div>
-          <div style="font-size:11px;color:#9A9AAF">@{{ fork.owner.username }} • {{ fork.forks.count }} forks • ★ {{ fork.stars }}</div>
-          {% if fork.forked_from.slug != root.slug %}<div style="font-size:10px;color:#6A6A7A">forked from @{{ fork.forked_from.owner.username }}</div>{% endif %}
+          <div style="font-size:11px;color:var(--muted)">@{{ fork.owner.username }} • {{ fork.forks.count }} forks • ★ {{ fork.stars }}</div>
+          {% if fork.forked_from.slug != root.slug %}<div style="font-size:10px;color:var(--muted)">forked from @{{ fork.forked_from.owner.username }}</div>{% endif %}
         </a>
         {% empty %}
-        <div style="color:#6A6A7A;font-size:12px;padding:8px;border:1px dashed #232326;border-radius:10px">No forks yet — be the first to fork!</div>
+        <div style="color:var(--muted);font-size:12px;padding:8px;border:1px dashed var(--line);border-radius:10px">No forks yet — be the first to fork!</div>
         {% endfor %}
       </div>
     </div>

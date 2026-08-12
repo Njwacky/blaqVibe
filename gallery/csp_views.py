@@ -13,14 +13,14 @@ def csp_report(request):
             body = request.body.decode('utf-8', errors='ignore') if request.body else ""
             try:
                 data = json.loads(body) if body else {}
-            except:
+            except Exception:
                 data = {"raw": body[:500]}
             # Log + Sentry, no secrets in JS, never crash
             logger.warning(f"CSP violation: {data}")
             try:
                 import sentry_sdk
                 sentry_sdk.capture_message(f"CSP violation: {str(data)[:300]}")
-            except: pass
+            except Exception: pass
         return HttpResponse("", status=204)
     except Exception as e:
         logger.exception(f"csp_report crush: {e}")

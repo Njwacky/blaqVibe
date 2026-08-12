@@ -40,5 +40,5 @@ def sanitize_prompt(text: str) -> str:
 def is_prompt_safe(text: str) -> bool:
     try:
         return not any(p.search(text or '') for p in PROMPT_INJECTION_PATTERNS)
-    except:
+    except Exception:
         return False

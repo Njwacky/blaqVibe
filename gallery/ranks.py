@@ -18,11 +18,12 @@ def contributor_bonus(user):
     # For now: sum of vibes stars + stars field on profile (if we store)
     try:
         total = sum(p.stars for p in user.projects.all())
-    except: total = 0
+    except Exception:
+        total = 0
     # Also add Trade earnings if exists
     try:
         from .models import Trade
         earned = Trade.objects.filter(seller=user).count() * 2  # 2 per trade
         total += earned
-    except: pass
+    except Exception: pass
     return get_rank(total)

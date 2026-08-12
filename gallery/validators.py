@@ -24,7 +24,7 @@ def _is_symlink(zip_info):
     # External attr high 16 bits is file mode; symlink is 0o120000
     try:
         return (zip_info.external_attr >> 16) & 0o170000 == 0o120000
-    except:
+    except Exception:
         return False
 
 def validate_zip(file):
@@ -139,5 +139,5 @@ def scan_for_secrets_text(text: str):
             if pat.search(text):
                 found.append(pat.pattern[:20]+"...")
         return found
-    except:
+    except Exception:
         return []

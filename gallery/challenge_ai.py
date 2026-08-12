@@ -19,7 +19,7 @@ def get_past_challenge_titles():
     try:
         from .models import Challenge
         return list(Challenge.objects.values_list('title', flat=True))
-    except:
+    except Exception:
         return []
 
 def is_duplicate(new_title, past_titles, cutoff=0.7):
@@ -34,7 +34,7 @@ def is_duplicate(new_title, past_titles, cutoff=0.7):
             if difflib.get_close_matches(new_title.lower(), [past.lower()], n=1, cutoff=cutoff):
                 return True
         return False
-    except:
+    except Exception:
         return False
 
 def generate_challenge_candidates(past_titles, n=3):

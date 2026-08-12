@@ -279,6 +279,24 @@ class RemainingHoleTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(Bookmark.objects.filter(user=self.buyer, project=self.project).exists())
 
+    def test_pr_content_diff_shows_modified_file(self):
+        from django.core.files.base import ContentFile
+        from gallery.diff import diff_projects
+        from gallery.models import AppFile, PullRequest
+        target = make_project(self.owner, self.cat, title='Diff target', star_cost=0)
+        target.zip_file.save('target.zip', make_zip_file({'app.py': 'print("old")\n', 'keep.py': 'x=1\n'}), save=True)
+        AppFile.objects.create(project=target, path='app.py', size=10)
+        AppFile.objects.create(project=target, path='keep.py', size=10)
+        fork = make_project(self.buyer, self.cat, title='Diff fork', forked_from=target, star_cost=0)
+        fork.zip_file.save('fork.zip', make_zip_file({'app.py': 'print("new")\nprint("extra")\n', 'keep.py': 'x=1\n'}), save=True)
+        AppFile.objects.create(project=fork, path='app.py', size=10)
+        AppFile.objects.create(project=fork, path='keep.py', size=10)
+        d = diff_projects(fork, target)
+        self.assertEqual(d['modified_count'], 1)
+        self.assertEqual(d['modified'][0]['path'], 'app.py')
+        self.assertEqual(d['modified'][0]['additions'], 2)
+        self.assertEqual(d['modified'][0]['deletions'], 1)
+
     def test_pr_merge_copies_files(self):
         from django.core.files.base import ContentFile
         from gallery.models import AppFile, PullRequest

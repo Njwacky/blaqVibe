@@ -48,7 +48,7 @@ def set_role(request, username):
         # Audit log — backend only
         try:
             AdminLog.objects.create(actor=request.user, action='set_role', target=f"@{user.username}: {old}→{role}")
-        except: pass
+        except Exception: pass
         messages.success(request, f"@{user.username}: {old} → {role}")
     except Exception as e:
         messages.error(request, f"Failed: {e}")
