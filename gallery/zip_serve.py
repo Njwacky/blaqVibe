@@ -1,6 +1,6 @@
 """Serve paid ZIPs only through gated views — never via /media/."""
 from django.db.models import F
-from django.http import Http404, HttpResponse, HttpResponseRedirect
+from django.http import FileResponse, Http404, HttpResponseRedirect
 
 from .storages import get_presigned_url, is_s3_enabled
 
@@ -15,8 +15,7 @@ def serve_project_zip(project):
         if url:
             return HttpResponseRedirect(url)
     try:
-        resp = HttpResponse(project.zip_file.open('rb'), content_type='application/zip')
-        resp['Content-Disposition'] = f'attachment; filename="{project.slug}.zip"'
+        resp = FileResponse(project.zip_file.open('rb'), as_attachment=True, filename=f'{project.slug}.zip', content_type='application/zip')
         resp['X-Content-Type-Options'] = 'nosniff'
         resp['Cache-Control'] = 'no-store'
         return resp

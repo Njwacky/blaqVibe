@@ -24,16 +24,6 @@ def get_nolo_ai_answer(prompt):
             return resp.choices[0].message.content
         except Exception as e:
             logger.warning(f'Groq chat failed: {e}')
-    # Try OpenAI if available
-    openai_key = os.getenv('OPENAI_API_KEY', '')
-    if openai_key:
-        try:
-            import openai
-            openai.api_key = openai_key
-            resp = openai.ChatCompletion.create(model='gpt-4o-mini', messages=[{'role':'user','content': prompt_text}], max_tokens=300, temperature=0.4)
-            return resp.choices[0].message.content
-        except Exception as e:
-            logger.warning(f'OpenAI chat failed: {e}')
     # Fallback heuristic
     return _heuristic_fallback(prompt_text)
 
