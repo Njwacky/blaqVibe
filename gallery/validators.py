@@ -9,7 +9,7 @@ MAX_FILES = getattr(settings, 'BLAQVIBES_MAX_FILES', 1000)  # stricter: 1000 not
 MAX_TOTAL_UNCOMPRESSED = 200 * 1024 * 1024  # 200MB, not 500MB
 MAX_COMPRESSION_RATIO = 100  # file_size / compress_size >100 = bomb
 MAX_FILENAME_LEN = 255
-BLOCKED_NAMES = {'node_modules','__pycache__','.git','venv','.venv','.env','__MACOSX','.DS_Store'}
+BLOCKED_NAMES = {'node_modules','__pycache__','.git','venv','.venv','.env','__MACOSX','.DS_Store','.ssh','.aws'}
 BLOCKED_EXT = {'.exe','.dll','.so','.dylib','.sh','.bat','.bin','.o','.a'}
 SECRET_PATTERNS = [
     re.compile(r'sk_live_[0-9a-zA-Z]+'),
@@ -82,16 +82,15 @@ def validate_zip(file):
                     if '..' in norm.split('/'):
                         raise ValidationError(f"Path traversal '..' in: {name}")
 
-                # Also block '.' components and empty parts
                 parts = norm.split('/')
-                if any(p == '..' for p in parts):
+                if any(part == '..' for part in parts):
                     raise ValidationError(f"Path traversal '..' in: {name}")
-                if any(p in BLOCKED_NAMES for p in parts):
-                    raise ValidationError(f"Blocked folder/file in ZIP: {name} — remove {sorted(BLOCKED_NAMES)}")
-                # Block hidden files except .env.example?
-                if any(p.startswith('.') and p not in ('.env.example',) for p in parts):
-                    # Allow .gitignore but not .env, .ssh
-                    if p in ('.env', '.ssh', '.aws'):
+                for part in parts:
+                    if part in BLOCKED_NAMES:
+                        raise ValidationError(f"Blocked folder/file in ZIP: {name} — remove {sorted(BLOCKED_NAMES)}")
+                    if part.startswith('.env') and part != '.env.example':
+                        raise ValidationError(f"Blocked secrets file: {name}")
+                    if part in ('.ssh', '.aws'):
                         raise ValidationError(f"Blocked hidden file: {name}")
 
                 # 3. Symlink check

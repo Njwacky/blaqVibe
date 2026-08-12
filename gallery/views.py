@@ -1,32 +1,38 @@
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth import login
-from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required
-from django.db.models import F, Q
+from django.conf import settings
+from django.db.models import F, Q, Count
 from django.http import Http404, HttpResponse, JsonResponse, HttpResponseRedirect
 from django.core.paginator import Paginator
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django_ratelimit.decorators import ratelimit
-import zipfile, os, json
+import zipfile, os, json, logging
 
 from .models import AppProject, Category, Comment, Star, AppFile, ScanJob, AppReport, AppVersion, Review, Trade, PullRequest
 from .forms import AppUploadForm
 from .utils import build_tree_from_zip
 from .storages import get_presigned_url, is_s3_enabled
 from .search import search_projects
+from .access import user_can_download, access_denied_message
 from django.core.mail import send_mail
+from users.forms import SignUpForm
+
+logger = logging.getLogger(__name__)
 
 def signup(request):
     if request.method == 'POST':
-        form = UserCreationForm(request.POST)
+        form = SignUpForm(request.POST)
         if form.is_valid():
             user = form.save()
             login(request, user)
+            messages.success(request, "Welcome to BlaqVibes — publish your first vibe.")
             return redirect('feed')
     else:
-        form = UserCreationForm()
+        form = SignUpForm()
     return render(request, 'registration/signup.html', {'form': form})
 
 def feed(request):
@@ -42,7 +48,7 @@ def feed(request):
         ai = request.GET.get('ai','')
         tech = request.GET.get('tech','')
         sort = request.GET.get('sort','newest')
-        projects = AppProject.objects.filter(status='published').select_related('owner','category')
+        projects = AppProject.objects.filter(status='published').select_related('owner','owner__profile','category').prefetch_related('tags')
         if cat:
             projects = projects.filter(category__slug=cat)
         if kind == 'snippet':
@@ -63,26 +69,30 @@ def feed(request):
         page = paginator.get_page(request.GET.get('page'))
         return render(request, 'gallery/feed.html', {'page': page, 'categories': categories, 'q': q, 'cat': cat, 'kind': kind, 'sort': sort})
     except Exception:
-        # crush silently — log, return empty feed
-        import logging
-        logging.getLogger(__name__).exception("feed crush silent")
+        logger.exception("feed crush silent")
         return render(request, 'gallery/feed.html', {'page': Paginator(AppProject.objects.none(), 12).get_page(1), 'categories': Category.objects.all(), 'q': '', 'cat': '', 'kind': '', 'sort': 'newest'})
 
 def app_detail(request, slug):
-    project = get_object_or_404(AppProject, slug=slug)
+    qs = AppProject.objects.select_related(
+        'owner', 'owner__profile', 'category', 'forked_from', 'forked_from__owner'
+    ).annotate(
+        forks_count=Count('forks', distinct=True),
+        prs_count=Count('prs_incoming', distinct=True),
+    )
+    project = get_object_or_404(qs, slug=slug)
     # Only published visible to visitors, owners can see their pending/quarantined
     if project.status != 'published' and (not request.user.is_authenticated or project.owner != request.user and not request.user.is_staff):
         raise Http404
     if project.status == 'published':
         AppProject.objects.filter(pk=project.pk).update(views=F('views')+1)
-        # Pro — who viewed your vibe — backend only, crush silently
         try:
             if request.user.is_authenticated and request.user != project.owner:
                 from .models import VibeView
                 vv, created = VibeView.objects.get_or_create(viewer=request.user, project=project, defaults={'count':1})
                 if not created:
-                    VibeView.objects.filter(pk=vv.pk).update(count=F('count')+1, last_viewed=models.functions.Now())
-        except: pass
+                    VibeView.objects.filter(pk=vv.pk).update(count=F('count')+1, last_viewed=timezone.now())
+        except Exception:
+            logger.exception("vibe view log failed")
     comments = project.comments.filter(is_hidden=False).select_related('user').prefetch_related('replies__user')
     top_comments = comments.filter(parent__isnull=True)
     is_starred = False
@@ -95,14 +105,18 @@ def app_detail(request, slug):
         has_traded = Trade.objects.filter(buyer=request.user, project=project).exists()
         from .models import Sale
         has_bought = Sale.objects.filter(buyer=request.user, project=project).exists()
-    # Who viewed — Pro only sees names, free sees count
+    can_download = user_can_download(request.user, project) if project.zip_file else True
+    viewers = None
+    show_viewer_upsell = False
     try:
-        if project.owner.profile.is_pro:
-            from .models import VibeView
-            viewers = VibeView.objects.filter(project=project).select_related('viewer').order_by('-last_viewed')[:20]
-        else:
-            viewers = None  # free: don't show names
-    except: viewers = None
+        if request.user.is_authenticated and request.user == project.owner:
+            if project.owner.profile.is_pro_active:
+                from .models import VibeView
+                viewers = VibeView.objects.filter(project=project).select_related('viewer').order_by('-last_viewed')[:20]
+            else:
+                show_viewer_upsell = True
+    except Exception:
+        viewers = None
     # Nolo + AI README preview
     reviews = project.reviews.select_related('user').order_by('-created_at')
     nolo_review = None
@@ -117,6 +131,9 @@ def app_detail(request, slug):
     from .ranks import contributor_bonus
     owner_rank = contributor_bonus(project.owner)
     user_rank = contributor_bonus(request.user) if request.user.is_authenticated else None
+    compare_options = AppProject.objects.filter(
+        category=project.category, status='published'
+    ).exclude(pk=project.pk).order_by('-stars')[:10]
     return render(request, 'gallery/app_detail.html', {
         'project': project,
         'comments': top_comments,
@@ -126,11 +143,16 @@ def app_detail(request, slug):
         'is_starred': is_starred,
         'has_traded': has_traded,
         'has_bought': has_bought,
+        'can_download': can_download,
         'viewers': viewers,
-        'viewer_count': project.viewer_logs.count() if hasattr(project,'viewer_logs') else project.views,
+        'show_viewer_upsell': show_viewer_upsell,
+        'viewer_count': project.views,
         'scan_status': scan_status.status if scan_status else project.status,
         'owner_rank': owner_rank,
         'user_rank': user_rank,
+        'compare_options': compare_options,
+        'forks_count': getattr(project, 'forks_count', 0),
+        'prs_count': getattr(project, 'prs_count', 0),
     })
 
 def scan_status(request, slug):
@@ -150,7 +172,8 @@ def preview(request, slug):
     csp = "default-src 'self' https://cdn.tailwindcss.com https://fonts.googleapis.com; style-src 'self' https://cdn.tailwindcss.com https://fonts.googleapis.com; script-src 'self' https://cdn.tailwindcss.com; img-src 'self' https: data:; object-src 'none'"
     resp['Content-Security-Policy'] = csp
     resp['Content-Security-Policy-Report-Only'] = csp + "; report-uri /csp-report/"
-    resp['X-Frame-Options'] = 'ALLOWALL'
+    resp['X-Frame-Options'] = 'SAMEORIGIN'
+    resp['Referrer-Policy'] = 'no-referrer'
     return resp
 
 def snippet_css(request, slug):
@@ -194,6 +217,8 @@ def publish(request):
             project = form.save(commit=False)
             project.owner = request.user
             project.status = 'pending'  # Always pending first — must go through queue
+            if not getattr(request.user.profile, 'allow_trading', True):
+                project.star_cost = 0
             project.save()
             form.save_m2m()
             # Challenge — if checked, add tag
@@ -253,6 +278,11 @@ def download_zip(request, slug):
     project = get_object_or_404(AppProject, slug=slug, status='published')
     if not project.zip_file:
         raise Http404
+    if not user_can_download(request.user, project):
+        messages.error(request, access_denied_message(request.user, project))
+        if not request.user.is_authenticated:
+            return redirect(f"{settings.LOGIN_URL}?next={request.path}")
+        return redirect(project.get_absolute_url())
     AppProject.objects.filter(pk=project.pk).update(clones=F('clones')+1)
     if is_s3_enabled():
         url = get_presigned_url(project.zip_file.name, expires=300)
@@ -267,10 +297,12 @@ def download_zip(request, slug):
 
 def file_preview(request, slug, path):
     project = get_object_or_404(AppProject, slug=slug, status='published')
-    if '..' in path or path.startswith('/'):
+    if '..' in path or path.startswith('/') or '\\' in path:
         raise Http404
     if not project.zip_file:
         raise Http404
+    if not user_can_download(request.user, project):
+        return JsonResponse({'error': 'Unlock this vibe to preview files.'}, status=403)
     try:
         with zipfile.ZipFile(project.zip_file.path) as z:
             if path not in z.namelist():
@@ -294,6 +326,9 @@ def post_comment(request, slug):
         if getattr(request, 'limited', False):
             return HttpResponse("Rate limit: 10 comments/hour", status=429)
         project = get_object_or_404(AppProject, slug=slug, status='published')
+        if not getattr(project.owner.profile, 'allow_comments', True):
+            messages.error(request, "Comments are turned off for this vibe.")
+            return redirect(project.get_absolute_url())
         from .prompt_sanitize import sanitize_prompt
         body = sanitize_prompt(request.POST.get('body','').strip())[:2000]
         parent_id = request.POST.get('parent_id')
@@ -318,6 +353,9 @@ def post_review(request, slug):
         from .models import Review
         from .prompt_sanitize import sanitize_prompt
         project = get_object_or_404(AppProject, slug=slug, status='published')
+        if not getattr(project.owner.profile, 'allow_reviews', True):
+            messages.error(request, "Reviews are turned off for this vibe.")
+            return redirect(project.get_absolute_url())
         rating = int(request.POST.get('rating', 0))
         text = sanitize_prompt(request.POST.get('text',''))[:1000]
         if rating < 1 or rating > 5:
@@ -344,7 +382,7 @@ def toggle_star(request, slug):
     star, created = Star.objects.get_or_create(user=request.user, project=project)
     if not created:
         star.delete()
-        AppProject.objects.filter(pk=project.pk).update(stars=F('stars')-1)
+        AppProject.objects.filter(pk=project.pk, stars__gt=0).update(stars=F('stars')-1)
         return JsonResponse({'starred': False})
     AppProject.objects.filter(pk=project.pk).update(stars=F('stars')+1)
     return JsonResponse({'starred': True})
@@ -402,6 +440,7 @@ def delete_vibe(request, slug):
     return redirect('my_vibes')
 
 @require_POST
+@ratelimit(key='ip', rate='10/h', method='POST')
 def report_vibe(request, slug):
     try:
         from .prompt_sanitize import sanitize_prompt
@@ -422,15 +461,11 @@ def git_clone(request, username, slug):
     project = get_object_or_404(AppProject, slug=slug, owner__username=username, status='published')
     if not project.zip_file:
         raise Http404
-    repo_path = f"/var/git/{username}/{slug}.git"
-    if os.path.exists(repo_path):
-        try:
-            from dulwich.server import DictBackend
-            from dulwich.repo import Repo
-            pass
-        except ImportError:
-            pass
-    from django.db.models import F
+    if not user_can_download(request.user, project):
+        messages.error(request, access_denied_message(request.user, project))
+        if not request.user.is_authenticated:
+            return redirect(f"{settings.LOGIN_URL}?next={request.path}")
+        return redirect(project.get_absolute_url())
     AppProject.objects.filter(pk=project.pk).update(clones=F('clones')+1)
     if is_s3_enabled():
         url = get_presigned_url(project.zip_file.name, expires=300)
@@ -449,7 +484,8 @@ def trade_download(request, slug):
     if project.owner == request.user:
         # Owner free download
         return redirect('download_zip', slug=slug)
-    cost = project.star_cost or 0
+    from .access import effective_star_cost
+    cost = effective_star_cost(project)
     if cost == 0:
         return redirect('download_zip', slug=slug)
     # Check already traded?
@@ -488,6 +524,9 @@ def fork_vibe(request, slug):
             messages.error(request, "Rate limit: 5 forks/hour")
             return redirect('app_detail', slug=slug)
         original = get_object_or_404(AppProject, slug=slug, status='published')
+        if not getattr(original.owner.profile, 'allow_forks', True):
+            messages.error(request, "This creator disabled forks.")
+            return redirect(original.get_absolute_url())
         if original.owner == request.user:
             messages.error(request, "You can't fork your own vibe")
             return redirect(original.get_absolute_url())
@@ -558,9 +597,6 @@ def fork_vibe(request, slug):
 
 @require_POST
 @login_required
-@login_required
-@login_required
-@require_POST
 def generate_ai_readme(request, slug):
     try:
         project = get_object_or_404(AppProject, slug=slug, owner=request.user)
@@ -577,7 +613,6 @@ def generate_ai_readme(request, slug):
         return redirect('app_detail', slug=slug)
 
 @login_required
-@login_required
 @require_POST
 def apply_ai_readme(request, slug):
     try:
@@ -593,7 +628,6 @@ def apply_ai_readme(request, slug):
         return redirect('app_detail', slug=slug)
 
 @login_required
-@login_required
 @require_POST
 def buy_vibe(request, slug):
     try:
@@ -608,9 +642,8 @@ def buy_vibe(request, slug):
         import os
         paystack_secret = os.getenv('PAYSTACK_SECRET_KEY', '')
         if not paystack_secret:
-            Sale.objects.create(buyer=request.user, seller=project.owner, project=project, amount_zar=project.price_zar, paystack_ref='demo-'+str(project.id))
-            messages.success(request, f"Bought {project.title} for R{project.price_zar} - demo mode. Seller gets R{int(project.price_zar*0.85)}.")
-            return redirect('download_zip', slug=slug)
+            messages.error(request, "Card payments aren't configured yet. Trade stars to download, or ask the creator.")
+            return redirect(project.get_absolute_url())
         import requests
         headers = {'Authorization': f'Bearer {paystack_secret}', 'Content-Type': 'application/json'}
         data = {"email": request.user.email or f"{request.user.username}@blaqvibes.co.za", "amount": project.price_zar*100, "reference": f"blaq-{project.id}-{request.user.id}", "callback_url": f"https://blaqvibes.co.za/app/{project.slug}/", "metadata": {"project_id": project.id, "buyer_id": request.user.id}}
@@ -620,10 +653,9 @@ def buy_vibe(request, slug):
             if j.get('status') and j.get('data',{}).get('authorization_url'):
                 return redirect(j['data']['authorization_url'])
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).warning(f"Paystack init fail: {e}")
-        Sale.objects.create(buyer=request.user, seller=project.owner, project=project, amount_zar=project.price_zar, paystack_ref='fallback')
-        return redirect('download_zip', slug=slug)
+            logger.warning(f"Paystack init fail: {e}")
+        messages.error(request, "Could not start checkout. No charge was made.")
+        return redirect(project.get_absolute_url())
     except Exception as e:
         import logging
         logging.getLogger(__name__).exception(f"buy crush: {e}")
@@ -653,6 +685,11 @@ def paystack_webhook(request):
                 try:
                     project = AppProject.objects.get(pk=pid)
                     buyer = User.objects.get(pk=uid)
+                    paid = int((data.get('data') or {}).get('amount') or 0)
+                    expected = int(project.price_zar or 0) * 100
+                    if expected and paid != expected:
+                        logger.warning("Paystack amount mismatch ref=%s paid=%s expected=%s", ref, paid, expected)
+                        return HttpResponse("amount mismatch", status=400)
                     if not Sale.objects.filter(buyer=buyer, project=project).exists():
                         Sale.objects.create(buyer=buyer, seller=project.owner, project=project, amount_zar=project.price_zar, paystack_ref=ref)
                 except: pass
@@ -673,8 +710,8 @@ def nolo_compare(request):
         b_slug = sanitize_prompt(request.POST.get('b_slug',''))[:100]
         if not a_slug or not b_slug:
             return JsonResponse({'error': 'Need two vibes'}, status=400)
-        a = get_object_or_404(AppProject, slug=a_slug)
-        b = get_object_or_404(AppProject, slug=b_slug)
+        a = get_object_or_404(AppProject, slug=a_slug, status='published')
+        b = get_object_or_404(AppProject, slug=b_slug, status='published')
         result = compare_apps(a, b)
         return JsonResponse(result)
     except Exception as e:
@@ -694,10 +731,14 @@ def nolo_chat(request):
     })
 
 @require_POST
+@ratelimit(key='ip', rate='20/h', method='POST')
 def nolo_chat_api(request):
     try:
+        if getattr(request, 'limited', False):
+            return JsonResponse({'error': 'Too many questions. Try again later.'}, status=429)
         data = json.loads(request.body.decode('utf-8') or '{}')
-        prompt = data.get('prompt', '').strip()[:1000]
+        from .prompt_sanitize import sanitize_prompt
+        prompt = sanitize_prompt(data.get('prompt', '').strip())[:1000]
         if not prompt:
             return JsonResponse({'error': 'Ask Nolo a question first.'}, status=400)
         from .nolo_ai import get_nolo_ai_answer
@@ -724,6 +765,9 @@ def create_pr(request, slug):
             messages.error(request, "Only forked vibes can create PR")
             return redirect(source.get_absolute_url())
         target = source.forked_from
+        if not getattr(target.owner.profile, 'allow_prs', True):
+            messages.error(request, "This creator disabled pull requests.")
+            return redirect(source.get_absolute_url())
         # Must be open PR not already open for this source
         if PullRequest.objects.filter(source=source, target=target, status='open').exists():
             messages.info(request, "PR already open for this fork")
@@ -836,11 +880,16 @@ def battle(request):
             if available.exists():
                 battle = available.first()
                 return render(request, 'gallery/battle.html', {'battle': battle})
-        # Create new battle with 2 random
         vibes = list(qs.order_by('?')[:2])
         if len(vibes) < 2:
             vibes = list(qs[:2])
-        battle = VibeBattle.objects.create(vibe_a=vibes[0], vibe_b=vibes[1])
+        a, b = vibes[0], vibes[1]
+        existing = VibeBattle.objects.filter(
+            Q(vibe_a=a, vibe_b=b) | Q(vibe_a=b, vibe_b=a)
+        ).first()
+        if existing:
+            return render(request, 'gallery/battle.html', {'battle': existing})
+        battle = VibeBattle.objects.create(vibe_a=a, vibe_b=b)
         return render(request, 'gallery/battle.html', {'battle': battle})
     except Exception as e:
         import logging
@@ -894,14 +943,17 @@ def battle_history(request):
         logging.getLogger(__name__).exception(f"battle_history crush: {e}")
         return render(request, 'gallery/battle_history.html', {'my_votes': [], 'recent': []})
 
+@login_required
+@require_POST
+@ratelimit(key='user', rate='30/h', method='POST')
 def vote_battle(request, battle_id):
     try:
         from .models import VibeBattle, BattleVote
         from django.db.models import F
-        battle = get_object_or_404(VibeBattle, id=battle_id)
-        if not request.user.is_authenticated:
-            messages.error(request, "Login to vote — earn stars!")
+        if getattr(request, 'limited', False):
+            messages.error(request, "Rate limit: too many votes.")
             return redirect('battle')
+        battle = get_object_or_404(VibeBattle, id=battle_id)
         if BattleVote.objects.filter(user=request.user, battle=battle).exists():
             messages.info(request, "You already voted on this battle")
             return redirect('battle')
@@ -915,17 +967,18 @@ def vote_battle(request, battle_id):
         BattleVote.objects.create(user=request.user, battle=battle, choice=choice)
         if choice == 'a':
             VibeBattle.objects.filter(pk=battle.pk).update(votes_a=F('votes_a')+1)
-            AppProject.objects.filter(pk=battle.vibe_a.pk).update(stars=F('stars')+5)
+            AppProject.objects.filter(pk=battle.vibe_a.pk).update(stars=F('stars')+1)
         else:
             VibeBattle.objects.filter(pk=battle.pk).update(votes_b=F('votes_b')+1)
-            AppProject.objects.filter(pk=battle.vibe_b.pk).update(stars=F('stars')+5)
-        messages.success(request, f"Voted! Winner gets +5 ★ and appears top 1st")
+            AppProject.objects.filter(pk=battle.vibe_b.pk).update(stars=F('stars')+1)
+        messages.success(request, "Voted! Winner gets +1 ★")
         return redirect('battle')
     except Exception as e:
         import logging
         logging.getLogger(__name__).exception(f"vote crush: {e}")
         return redirect('battle')
 
+@login_required
 def run_vibe(request, slug):
     """1-Click Run — spins up Docker (mock) → live URL for 1 hour, backend only, crush silently."""
     try:
@@ -977,6 +1030,8 @@ def deploy_view(request, token):
         logging.getLogger(__name__).exception(f"deploy view crush: {e}")
         return render(request, 'gallery/deploy_expired.html', {'deploy': None})
 
+@require_POST
+@ratelimit(key='ip', rate='60/h', method='POST')
 def copy_increment(request, slug):
     try:
         project = get_object_or_404(AppProject, slug=slug)
@@ -1066,7 +1121,8 @@ def pick_challenge_winner(request, tag):
             from datetime import timedelta
             winner.owner.profile.is_pro = True
             winner.owner.profile.pro_since = timezone.now()
-            winner.owner.profile.save(update_fields=['is_pro','pro_since'])
+            winner.owner.profile.pro_until = timezone.now() + timedelta(days=30)
+            winner.owner.profile.save(update_fields=['is_pro','pro_since','pro_until'])
         except: pass
         messages.success(request, f"Winner picked: {winner.title} by @{winner.owner.username} — +{challenge.bounty_stars} ★ + Pro!")
     return redirect('challenge_detail', tag=tag)
@@ -1124,9 +1180,9 @@ def safe_403(request, exception=None):
 
 def safe_500(request):
     try:
-        import sentry_sdk2
-        try: sentry_sdk.capture_exception()
-        except: pass
-    except: pass
+        import sentry_sdk
+        sentry_sdk.capture_exception()
+    except Exception:
+        pass
     from django.shortcuts import render
     return render(request, '500.html', status=500)

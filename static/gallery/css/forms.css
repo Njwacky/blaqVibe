@@ -1,2 +1,4 @@
-input,select,textarea{width:100%;background:#15151A;border:1px solid #232326;border-radius:10px;padding:10px;color:#fff;font-size:13px}
+input,select,textarea{width:100%;background:var(--input,#15151A);border:1px solid var(--line,#232326);border-radius:10px;padding:10px;color:var(--text,#fff);font-size:13px}
 input[type=checkbox]{width:auto}
+.auth-wrap form p{display:grid;gap:6px;margin:0 0 10px}
+.auth-wrap label{font-size:12px;color:var(--muted,#9A9AAF)}

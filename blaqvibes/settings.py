@@ -21,12 +21,31 @@ try:
 except Exception:
     pass  # crush silently
 
-SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-blaqvibes-dev-key-change-in-prod-07070A')
 DEBUG = os.getenv('DEBUG', '1') == '1'
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1').split(',') if LOCAL_DEV else os.getenv('ALLOWED_HOSTS', '*').split(',')
-CSRF_TRUSTED_ORIGINS = ['https://*.e2b.app']
-if LOCAL_DEV:
-    CSRF_TRUSTED_ORIGINS += ['http://localhost:8000', 'http://127.0.0.1:8000']
+SECRET_KEY = os.getenv('SECRET_KEY', '')
+if not SECRET_KEY:
+    if DEBUG or LOCAL_DEV:
+        SECRET_KEY = 'django-insecure-blaqvibes-dev-key-change-in-prod-07070A'
+    else:
+        raise RuntimeError('SECRET_KEY must be set when DEBUG=0')
+
+_raw_hosts = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0')
+ALLOWED_HOSTS = [h.strip() for h in _raw_hosts.split(',') if h.strip()]
+if '*' in ALLOWED_HOSTS and not (DEBUG or LOCAL_DEV):
+    ALLOWED_HOSTS = ['blaqvibes.co.za', 'www.blaqvibes.co.za']
+if DEBUG or LOCAL_DEV:
+    for extra in ('localhost', '127.0.0.1', '0.0.0.0', '.e2b.app', '.localhost'):
+        if extra not in ALLOWED_HOSTS:
+            ALLOWED_HOSTS.append(extra)
+
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip() for origin in os.getenv(
+        'CSRF_TRUSTED_ORIGINS',
+        'https://*.e2b.app,https://blaqvibes.co.za,https://www.blaqvibes.co.za',
+    ).split(',') if origin.strip()
+]
+if LOCAL_DEV or DEBUG:
+    CSRF_TRUSTED_ORIGINS += ['http://localhost:8000', 'http://127.0.0.1:8000', 'https://*.e2b.app']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -107,11 +126,49 @@ TEMPLATES = [{
     },
 }]
 WSGI_APPLICATION = 'blaqvibes.wsgi.application'
-DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'db.sqlite3'}}
+
+def _db_from_url(url: str):
+    from urllib.parse import urlparse, unquote
+    parsed = urlparse(url)
+    scheme = (parsed.scheme or '').split('+')[0]
+    if scheme.startswith('postgres'):
+        engine = 'django.db.backends.postgresql'
+    elif scheme.startswith('mysql'):
+        engine = 'django.db.backends.mysql'
+    else:
+        engine = 'django.db.backends.sqlite3'
+    return {
+        'ENGINE': engine,
+        'NAME': unquote(parsed.path.lstrip('/')),
+        'USER': unquote(parsed.username or ''),
+        'PASSWORD': unquote(parsed.password or ''),
+        'HOST': parsed.hostname or '',
+        'PORT': str(parsed.port or ''),
+    }
+
+DATABASE_URL = os.getenv('DATABASE_URL', '')
+if DATABASE_URL:
+    DATABASES = {'default': _db_from_url(DATABASE_URL)}
+else:
+    DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'db.sqlite3'}}
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+        'LOCATION': 'blaqvibes',
+    }
+}
+RATELIMIT_ENABLE = os.getenv('RATELIMIT_ENABLE', '1') == '1'
+RATELIMIT_USE_CACHE = 'default'
+
 AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator', 'OPTIONS': {'min_length': 8}},
     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = False
 if not DEBUG and not LOCAL_DEV:
     SECURE_SSL_REDIRECT = True
     SECURE_HSTS_SECONDS = 31536000
