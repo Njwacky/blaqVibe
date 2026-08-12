@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlaqVibes — Battle Demo (Full Page, Swipe Mobile)</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07070A;--card:#121214;--line:#1F1F23;--muted:#9A9AAF;--text:#fff}
+[data-theme="light"]{--bg:#F8FAFC;--card:#FFFFFF;--line:#E2E8F0;--muted:#64748B;--text:#0F172A}
+*{margin:0;padding:0;box-sizing:border-box} body{font-family:Inter,sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+.nav{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--line);background:var(--bg)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:0;padding:14px}
+.btnV{background:#7C3AED;color:#fff;border:none;padding:12px 14px;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;width:100%}
+</style>
+</head>
+<body data-theme="dark">
+<nav class="nav">
+  <div style="display:flex;align-items:center;gap:10px"><img src="/static/branding/icon-32.png" style="width:28px;height:28px;border-radius:8px"><span style="font-family:Space Grotesk,sans-serif;font-weight:700">BlaqVibes</span><span style="font-size:11px;background:#F59E0B;color:#000;padding:4px 8px;border-radius:8px;font-weight:700">Full Page • Swipe Mobile</span></div>
+  <span style="font-size:11px;color:var(--muted)">Desktop: buttons • Mobile: swipe right ➡️</span>
+</nav>
+<div style="height:calc(100vh - 56px);display:flex;flex-direction:column;overflow:hidden">
+  <div style="padding:12px 16px;border-bottom:1px solid var(--line);flex-shrink:0">
+    <div style="font-family:Space Grotesk,sans-serif;font-size:18px">⚔️ Vibe Battles — Which would you pick?</div>
+    <div style="font-size:11px;color:var(--muted)">Full page — two vibes fill screen. Mobile: swipe right for next battle. Pick → reveals who's app it is.</div>
+  </div>
+  <div id="battle-swipe" style="flex:1;display:grid;grid-template-columns:1fr 1fr;gap:0;overflow:hidden">
+    <div class="card" style="border-right:1px solid var(--line);display:flex;flex-direction:column;overflow:auto">
+      <div style="height:160px;background:linear-gradient(135deg,#1E1B4B,#0F172A);padding:12px;flex-shrink:0;display:grid;place-items:center">
+        <div style="width:100%;height:100%;background:#fff;border-radius:10px;padding:12px;color:#111"><div style="font-weight:700">SaaS Launch Hero Pro</div><div style="font-size:11px;color:#64748B">Tailwind • 1 file • ★24</div></div>
+      </div>
+      <div style="padding:14px;flex:1;overflow:auto">
+        <div style="font-weight:700">SaaS Launch Hero Pro — Real</div><div style="font-size:12px;color:var(--muted)">High-converting hero with badge</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">@blaq • ★24</div>
+      </div>
+      <div style="padding:0 14px 14px"><button class="btnV" onclick="pick('a')">Pick Left → Reveal @blaq • +5 ★</button><div style="text-align:center;font-size:11px;color:var(--muted);margin-top:6px">View vibe → reveals @blaq</div></div>
+    </div>
+    <div class="card" style="display:flex;flex-direction:column;overflow:auto">
+      <div style="height:160px;background:linear-gradient(135deg,#2E220F,#1A140A);padding:12px;flex-shrink:0;display:grid;place-items:center">
+        <div style="width:100%;height:100%;background:#fff;border-radius:10px;padding:10px;color:#111"><div style="font-weight:700">Stock Portfolio Table</div><div style="font-size:11px;color:#64748B">Tailwind • 1 file • ★0</div></div>
+      </div>
+      <div style="padding:14px;flex:1;overflow:auto">
+        <div style="font-weight:700">Stock Portfolio Table — Real</div><div style="font-size:11px;color:var(--muted)">Real table • Tailwind • ★0</div>
+      </div>
+      <div style="padding:0 14px 14px"><button class="btnV" style="background:#F59E0B" onclick="pick('b')">Pick Right → Reveal @blaq • +5 ★</button><div style="text-align:center;font-size:11px;color:var(--muted);margin-top:6px">View vibe → reveals @blaq</div></div>
+    </div>
+  </div>
+  <div style="height:48px;display:flex;align-items:center;gap:12px;justify-content:center;background:var(--card);border-top:1px solid var(--line);padding:0 12px;flex-shrink:0">
+    <span style="font-size:11px;color:var(--muted)">1 votes</span><span style="font-size:12px;font-weight:800;background:linear-gradient(135deg,#7C3AED,#F59E0B);-webkit-background-clip:text;-webkit-text-fill-color:transparent">VS</span><span style="font-size:11px;color:var(--muted)">0 votes</span>
+    <button class="btnV" style="padding:6px 10px;font-size:11px;margin-left:8px" onclick="nextBattle()">Next Battle →</button>
+    <span style="font-size:10px;color:var(--muted);display:none" class="mobile-hint">Swipe right ➡️ on mobile</span>
+  </div>
+</div>
+<style>
+@media(max-width:720px){#battle-swipe{grid-template-columns:1fr;overflow:auto} #battle-swipe .card{border-right:none !important;border-bottom:1px solid var(--line)} .mobile-hint{display:inline !important}}
+</style>
+<script>
+let startX=0;
+const wrap=document.getElementById('battle-swipe');
+if(wrap && window.matchMedia('(max-width: 720px)').matches){
+  wrap.addEventListener('touchstart', e=>{ startX=e.touches[0].clientX; }, {passive:true});
+  wrap.addEventListener('touchend', e=>{
+    const dx=e.changedTouches[0].clientX - startX;
+    if(Math.abs(dx) > 60) nextBattle();
+  });
+}
+function pick(which){ toast('You picked @blaq — ' + (which==='a'?'SaaS Hero':'Stock Table') + ' • +5 ★'); }
+function nextBattle(){ toast('Next battle — swipe again ➡️'); }
+function toast(m){const t=document.getElementById('toast'); if(!t){ const d=document.createElement('div'); d.id='toast'; d.style.cssText='position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;transition:.25s'; document.body.appendChild(d); d.textContent=m; setTimeout(()=>d.style.transform='translateX(-50%) translateY(0)',10); setTimeout(()=>d.style.transform='translateX(-50%) translateY(80px)',1600); return;} t.textContent=m; t.style.transform='translateX(-50%) translateY(0)'; setTimeout(()=>t.style.transform='translateX(-50%) translateY(80px)',1600); }
+</script>
+<div id="toast" style="position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;transition:.25s">✓</div>
+</body>
+</html>

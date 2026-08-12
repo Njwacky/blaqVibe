@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlaqVibes — Figma Mockup v1</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Inter',sans-serif;background:#07070A;color:#fff}
+a{color:inherit;text-decoration:none}
+button{font-family:inherit}
+/* Figma top bar */
+.figma-bar{height:44px;background:#1E1E1E;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid #2D2D2D;position:sticky;top:0;z-index:100}
+.figma-left{display:flex;align-items:center;gap:12px}
+.figma-logo{width:28px;height:28px;background:#7C3AED;border-radius:6px;display:grid;place-items:center;font-weight:800;font-size:12px}
+.figma-title{font-size:13px;font-weight:600}
+.figma-title span{color:#8B8B9E;font-weight:400}
+.figma-right{display:flex;align-items:center;gap:8px}
+.figma-pill{background:#2D2D2D;padding:6px 10px;border-radius:8px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px}
+.figma-pill.live{background:#7C3AED;color:#fff}
+.figma-nav{height:44px;background:#111113;border-bottom:1px solid #232326;display:flex;align-items:center;padding:0 12px;gap:8px;overflow:auto;position:sticky;top:44px;z-index:99}
+.frame-btn{padding:8px 14px;border-radius:100px;font-size:12px;font-weight:600;white-space:nowrap;cursor:pointer;border:1px solid #2A2A30;background:#1A1A1E;color:#9A9AAF;transition:.15s;display:flex;align-items:center;gap:6px}
+.frame-btn.active{background:#fff;color:#000;border-color:#fff}
+.frame-btn:hover{border-color:#3A3A40}
+/* Page */
+.page{display:none;max-width:1440px;margin:0 auto;background:#07070A;min-height:calc(100vh - 88px)}
+.page.active{display:block}
+/* Common nav */
+.nav{height:64px;display:flex;align-items:center;justify-content:space-between;padding:0 32px;border-bottom:1px solid #1F1F23;background:rgba(7,7,10,0.9);backdrop-filter:blur(12px);position:sticky;top:88px;z-index:50}
+.logo{display:flex;align-items:center;gap:10px;font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:18px;letter-spacing:-.02em}
+.logo-mark{width:34px;height:34px;background:linear-gradient(135deg,#7C3AED 0%,#EC4899 50%,#F59E0B 100%);border-radius:10px;display:grid;place-items:center;font-size:14px;box-shadow:0 4px 20px rgba(124,58,237,.4)}
+.nav-links{display:flex;gap:20px;font-size:13px;font-weight:500;color:#9A9AAF}
+.nav-links .active{color:#fff}
+.nav-actions{display:flex;align-items:center;gap:12px}
+.search{width:260px;height:36px;background:#15151A;border:1px solid #232326;border-radius:10px;display:flex;align-items:center;gap:8px;padding:0 12px}
+.search input{flex:1;background:transparent;border:none;outline:none;color:#fff;font-size:13px}
+.search input::placeholder{color:#5A5A6A}
+.btn-ghost{padding:8px 14px;border-radius:10px;background:transparent;border:1px solid #232326;color:#fff;font-size:13px;font-weight:600;cursor:pointer}
+.btn-primary{padding:9px 16px;border-radius:10px;background:#fff;color:#000;font-size:13px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;gap:6px}
+.btn-violet{padding:9px 16px;border-radius:10px;background:#7C3AED;color:#fff;font-size:13px;font-weight:700;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;box-shadow:0 4px 16px rgba(124,58,237,.4)}
+/* FRAME 1: Feed */
+.hero{padding:40px 32px 16px;display:grid;grid-template-columns:1.1fr .9fr;gap:32px;align-items:center}
+.hero-left h1{font-family:'Space Grotesk',sans-serif;font-size:44px;line-height:.95;letter-spacing:-.03em;font-weight:700}
+.hero-left h1 em{font-style:normal;background:linear-gradient(90deg,#7C3AED,#EC4899,#F59E0B);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero-left p{color:#9A9AAF;font-size:14px;line-height:1.6;margin:14px 0 18px;max-width:520px}
+.hero-stats{display:flex;gap:18px;margin-top:14px}
+.stat{display:flex;align-items:center;gap:8px;font-size:12px;color:#9A9AAF}
+.stat strong{color:#fff;font-size:16px}
+.hero-card{background:#121214;border:1px solid #232326;border-radius:16px;padding:14px;position:relative;overflow:hidden}
+.hero-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.badge{font-size:10px;letter-spacing:.08em;padding:5px 8px;border-radius:8px;font-weight:700;text-transform:uppercase}
+.badge-gold{background:#F59E0B;color:#000}
+.badge-violet{background:#EDE9FE;color:#6D28D9}
+.hero-preview{height:180px;background:#fff;border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.mini-nav{height:20px;display:flex;justify-content:space-between;align-items:center}
+.mini-dots{display:flex;gap:4px}
+.mini-dots span{width:6px;height:6px;border-radius:50%;background:#E5E7EB}
+.mini-cta{width:70px;height:18px;background:#0A0A0F;border-radius:8px}
+.hero-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:4px}
+.hero-grid div{height:56px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px}
+.filter-bar{padding:16px 32px;display:flex;align-items:center;justify-content:space-between;gap:16px;border-top:1px solid #1F1F23;border-bottom:1px solid #1F1F23;position:sticky;top:152px;background:#07070A;z-index:40}
+.filter-left{display:flex;gap:10px;align-items:center;overflow:auto}
+.chip{padding:8px 14px;border-radius:100px;font-size:12px;font-weight:600;white-space:nowrap;border:1px solid #232326;background:#15151A;color:#9A9AAF;cursor:pointer}
+.chip.active{background:#fff;color:#000;border-color:#fff}
+.toggle{display:flex;background:#15151A;border:1px solid #232326;border-radius:100px;padding:3px;gap:2px}
+.toggle button{padding:6px 14px;border-radius:100px;font-size:12px;font-weight:600;border:none;cursor:pointer}
+.toggle .on{background:#fff;color:#000}
+.toggle .off{background:transparent;color:#9A9AAF}
+.grid{padding:20px 32px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
+.card{background:#121214;border:1px solid #1F1F23;border-radius:16px;overflow:hidden;transition:.15s;cursor:pointer}
+.card:hover{border-color:#7C3AED;transform:translateY(-2px)}
+.card-media{height:168px;position:relative;overflow:hidden;background:#0A0A0F;display:grid;place-items:center;padding:14px}
+.card-media img{width:100%;height:100%;object-fit:cover;border-radius:10px}
+.card-overlay{position:absolute;inset:14px;border-radius:10px;background:linear-gradient(to top,rgba(0,0,0,.5),transparent);opacity:0;transition:.15s;display:flex;align-items:flex-end;justify-content:space-between;padding:10px}
+.card:hover .card-overlay{opacity:1}
+.overlay-btn{padding:6px 10px;border-radius:8px;font-size:11px;font-weight:700;background:#fff;color:#000;border:none}
+.card-body{padding:12px 14px}
+.card-topline{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.tag{font-size:10px;font-weight:700;letter-spacing:.06em;padding:4px 7px;border-radius:8px;text-transform:uppercase}
+.tag-snippet{background:#EDE9FE;color:#6D28D9}
+.tag-app{background:#FEF3C7;color:#92400E}
+.tag-ai{background:#121214;border:1px solid #F59E0B;color:#F59E0B}
+.card h3{font-size:14px;font-weight:700;line-height:1.3;margin-bottom:4px}
+.card p{font-size:12px;color:#9A9AAF;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.card-meta{display:flex;align-items:center;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid #1F1F23;font-size:12px;color:#6A6A7A}
+.meta-left{display:flex;align-items:center;gap:6px}
+.avatar{width:20px;height:20px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#EC4899);border:2px solid #121214;margin-left:-6px}
+.avatar:first-child{margin-left:0}
+.meta-right{display:flex;gap:10px}
+.meta-right span{display:flex;align-items:center;gap:4px}
+/* Frame 2: Detail */
+.detail-layout{padding:20px 32px;display:grid;grid-template-columns:1.65fr .9fr;gap:20px}
+.detail-main{background:#121214;border:1px solid #232326;border-radius:16px;overflow:hidden}
+.detail-toolbar{height:44px;display:flex;align-items:center;justify-content:space-between;padding:0 14px;border-bottom:1px solid #232326;background:#15151A}
+.dots3{display:flex;gap:6px}
+.dots3 span{width:10px;height:10px;border-radius:50%}
+.detail-preview{height:420px;background:#fff;position:relative;overflow:auto}
+.clone-box{margin:14px;background:#07070A;border:1px solid #232326;border-radius:12px;padding:12px}
+.clone-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.clone-head h4{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#9A9AAF}
+.clone-field{display:flex;align-items:center;gap:8px;background:#15151A;border:1px solid #232326;border-radius:10px;padding:8px 10px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#E5E7EB;overflow:auto}
+.copy-mini{margin-left:auto;padding:6px 10px;border-radius:8px;background:#fff;color:#000;font-size:11px;font-weight:700;border:none;cursor:pointer;white-space:nowrap}
+.detail-side{display:flex;flex-direction:column;gap:16px}
+.side-card{background:#121214;border:1px solid #232326;border-radius:16px;padding:16px}
+.side-card h3{font-size:15px;font-weight:700;margin-bottom:6px}
+.side-card p{font-size:12px;color:#9A9AAF;line-height:1.6}
+.side-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #1F1F23;font-size:12px}
+.side-row span:first-child{color:#9A9AAF}
+.side-row span:last-child{font-weight:600}
+.code-tabs{display:flex;gap:8px;margin-top:10px}
+.code-tab{flex:1;padding:10px;border-radius:10px;text-align:center;font-size:12px;font-weight:700;cursor:pointer;border:1px solid #232326}
+.code-tab.active{background:#fff;color:#000}
+.code-tab.idle{background:#15151A;color:#9A9AAF}
+.readme{margin-top:14px;background:#07070A;border:1px solid #232326;border-radius:12px;padding:14px}
+.readme h4{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#9A9AAF;margin-bottom:8px}
+.readme pre{font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;color:#CFCFD9;white-space:pre-wrap;word-break:break-word}
+/* Frame 3: Publish */
+.publish-wrap{max-width:760px;margin:0 auto;padding:24px 20px}
+.drop{border:1.5px dashed #3A3A40;border-radius:16px;background:#121214;padding:28px;text-align:center;transition:.15s}
+.drop.dragover{border-color:#7C3AED;background:#15151E}
+.drop-icon{width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#7C3AED,#EC4899);display:grid;place-items:center;margin:0 auto 12px;font-size:18px}
+.form{margin-top:18px;display:grid;gap:14px}
+.input, .textarea, .select{width:100%;background:#15151A;border:1px solid #232326;border-radius:10px;padding:11px 12px;color:#fff;font-size:13px;outline:none}
+.textarea{min-height:90px;resize:vertical}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.check{display:flex;align-items:center;gap:8px;font-size:13px;color:#CFCFD9}
+.security-note{background:#07070A;border:1px solid #232326;border-radius:12px;padding:12px;display:flex;gap:10px;font-size:12px;color:#9A9AAF;line-height:1.5}
+/* Frame 4: Profile */
+.profile-head{padding:24px 32px;display:flex;gap:16px;align-items:center;border-bottom:1px solid #1F1F23}
+.p-avatar{width:64px;height:64px;border-radius:16px;background:linear-gradient(135deg,#7C3AED,#F59E0B);display:grid;place-items:center;font-weight:800;font-size:20px}
+@media(max-width:900px){.hero,.detail-layout{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}.form-grid{grid-template-columns:1fr}.nav{padding:0 16px}.filter-bar{padding:12px 16px}.grid{padding:16px}}
+@media(max-width:600px){.grid{grid-template-columns:1fr}.hero{padding:20px 16px}.nav-links{display:none}.search{width:140px}}
+</style>
+</head>
+<body>
+
+<div class="figma-bar">
+  <div class="figma-left">
+    <div class="figma-logo">◈</div>
+    <div class="figma-title">BlaqVibes — Figma File <span>• Draft • Edited 2m ago</span></div>
+  </div>
+  <div class="figma-right">
+    <div class="figma-pill">👁 3 viewing</div>
+    <div class="figma-pill live">● Share</div>
+  </div>
+</div>
+
+<div class="figma-nav">
+  <button class="frame-btn active" data-frame="frame1">◈ 01 — Feed / Gallery</button>
+  <button class="frame-btn" data-frame="frame2">◈ 02 — App Detail</button>
+  <button class="frame-btn" data-frame="frame3">◈ 03 — Publish (Upload)</button>
+  <button class="frame-btn" data-frame="frame4">◈ 04 — Creator Profile</button>
+  <span style="margin-left:auto;font-size:11px;color:#6A6A7A">1440 × 900 • 100% • Dark Mode</span>
+</div>
+
+<!-- FRAME 1 -->
+<div class="page active" id="frame1">
+  <div class="nav">
+    <div class="logo"><div class="logo-mark">◈</div> BlaqVibes</div>
+    <div class="nav-links"><a class="active" href="#">Vibes</a><a href="#">Creators</a><a href="#">Docs</a></div>
+    <div class="nav-actions">
+      <div class="search">⌕ <input placeholder="Search vibes, stacks, creators..."></div>
+      <button class="btn-ghost" onclick="switchFrame('frame3')">Publish</button>
+      <button class="btn-primary">Sign in</button>
+    </div>
+  </div>
+
+  <div class="hero">
+    <div class="hero-left">
+      <div style="display:inline-flex;gap:6px;align-items:center;background:#15151A;border:1px solid #232326;padding:6px 10px;border-radius:100px;font-size:11px;letter-spacing:.06em;color:#F59E0B">● BLAQVIBES — PUBLISH THE VIBES</div>
+      <h1>Unpublished apps<br><em>deserve an audience</em></h1>
+      <p>BlaqVibes is a Git-like hub for people with AI-built & hand-coded apps that never shipped. Browse vibes, copy snippets, or clone full apps.</p>
+      <div style="display:flex;gap:10px">
+        <button class="btn-violet" onclick="document.getElementById('grid').scrollIntoView({behavior:'smooth'})">Explore Vibes →</button>
+        <button class="btn-ghost" onclick="switchFrame('frame3')">Publish Your App</button>
+      </div>
+      <div class="hero-stats">
+        <div class="stat"><strong>2,430+</strong> vibes</div>
+        <div class="stat"><strong>18k</strong> clones</div>
+        <div class="stat"><strong>340</strong> creators</div>
+        <div class="stat" style="color:#10B981">● Scanning & Secure</div>
+      </div>
+    </div>
+    <div class="hero-card">
+      <div class="hero-card-top">
+        <span class="badge badge-gold">Featured • Full App</span>
+        <span style="font-size:11px;color:#9A9AAF">★ 142 • ⬇ 892 clones</span>
+      </div>
+      <div class="hero-preview">
+        <div class="mini-nav"><div style="font-weight:700;font-size:11px">StockVibe — Portfolio</div><div style="background:#FEF3C7;color:#92400E;padding:3px 7px;border-radius:6px;font-size:10px;font-weight:700">● LIVE</div></div>
+        <div class="hero-grid"><div></div><div></div><div></div></div>
+        <div style="height:64px;background:#0A0A0F;border-radius:8px;display:grid;place-items:center;color:#6A6A7A;font-size:11px;border:1px dashed #2A2A30">Chart preview</div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <span class="tag tag-app">Django + React</span><span class="tag tag-ai">🤖 AI Generated</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="filter-bar">
+    <div class="filter-left">
+      <button class="chip active">All Vibes</button>
+      <button class="chip">Landing Pages</button>
+      <button class="chip">Dashboards</button>
+      <button class="chip">Track Stock</button>
+      <button class="chip">Full AI Apps</button>
+    </div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <div class="toggle"><button class="on">Grid</button><button class="off">List</button></div>
+      <div class="toggle"><button class="on">Snippets</button><button class="off">Full Apps</button></div>
+    </div>
+  </div>
+
+  <div class="grid" id="grid">
+    <div class="card" onclick="switchFrame('frame2')">
+      <div class="card-media" style="background:linear-gradient(135deg,#1E1B4B,#0F172A)">
+        <div style="width:92%;height:92%;background:#fff;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;justify-content:space-between"><div style="width:60px;height:10px;background:#0A0A0F;border-radius:6px"></div><div style="width:70px;height:16px;background:#7C3AED;border-radius:6px"></div></div>
+          <div style="height:36px;background:linear-gradient(90deg,#7C3AED,#EC4899);border-radius:8px;display:grid;place-items:center;color:#fff;font-weight:700;font-size:10px">HERO</div>
+          <div style="height:6px;background:#E5E7EB;border-radius:6px"></div><div style="height:6px;background:#E5E7EB;border-radius:6px;width:70%"></div>
+        </div>
+        <div class="card-overlay"><span class="overlay-btn">Copy HTML</span><span class="overlay-btn" style="background:#15151A;color:#fff;border:1px solid #2A2A30">Preview</span></div>
+      </div>
+      <div class="card-body">
+        <div class="card-topline"><span class="tag tag-snippet">Snippet • Landing</span><span style="font-size:11px;color:#6A6A7A">⋯</span></div>
+        <h3>SaaS Launch Hero — Gradient CTA</h3>
+        <p>High-converting hero with badge, proof bar and dual CTA. Copy-paste, Tailwind ready.</p>
+        <div class="card-meta"><div class="meta-left"><div class="avatar"></div><span>by @zandi</span></div><div class="meta-right"><span>♡ 124</span><span>⎘ 892</span></div></div>
+      </div>
+    </div>
+
+    <div class="card" onclick="switchFrame('frame2')">
+      <div class="card-media" style="background:#0A0A0F"><div style="width:92%;height:92%;background:#F8FAFC;border-radius:10px;padding:10px;display:flex;gap:8px"><div style="width:30%;background:#0F172A;border-radius:8px;padding:8px;display:flex;flex-direction:column;gap:6px"><div style="height:8px;background:#7C3AED;border-radius:6px"></div><div style="height:6px;background:#334155;border-radius:6px"></div><div style="height:6px;background:#334155;border-radius:6px;width:70%"></div></div><div style="flex:1;display:flex;flex-direction:column;gap:6px"><div style="display:flex;gap:6px"><div style="flex:1;height:28px;background:#fff;border:1px solid #E2E8F0;border-radius:8px"></div><div style="flex:1;height:28px;background:#fff;border:1px solid #E2E8F0;border-radius:8px"></div></div><div style="height:70px;background:#fff;border:1px dashed #CBD5E1;border-radius:8px;display:grid;place-items:center;color:#64748B;font-size:10px">Chart</div></div></div></div>
+      <div class="card-body">
+        <div class="card-topline"><span class="tag tag-snippet">Snippet • Dashboard</span><span style="font-size:11px;color:#10B981">● Secure</span></div>
+        <h3>Analytics Dashboard — Dark Grid</h3>
+        <p>Sidebar, KPI cards and chart scaffold. Drop into Django admin instantly.</p>
+        <div class="card-meta"><div class="meta-left"><div class="avatar" style="background:linear-gradient(135deg,#06B6D4,#3B82F6)"></div><span>by @thando</span></div><div class="meta-right"><span>♡ 89</span><span>⎘ 540</span></div></div>
+      </div>
+    </div>
+
+    <div class="card" onclick="switchFrame('frame2')">
+      <div class="card-media" style="background:linear-gradient(135deg,#2E220F,#1A140A)"><div style="width:92%;height:92%;background:#fff;border-radius:10px;padding:10px"><div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="font-size:10px;font-weight:800">STOCKVIBE</span><span style="font-size:9px;background:#DCFCE7;color:#15803D;padding:2px 6px;border-radius:6px">● LIVE</span></div><div style="display:flex;flex-direction:column;gap:6px"><div style="display:flex;justify-content:space-between;padding:6px 8px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;font-size:10px"><b>AAPL</b><span style="color:#16A34A">+2.34%</span></div><div style="display:flex;justify-content:space-between;padding:6px 8px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;font-size:10px"><b>NVDA</b><span style="color:#16A34A">+5.8%</span></div></div></div></div>
+      <div class="card-body">
+        <div class="card-topline"><span class="tag tag-app">Full App • Stock</span><span class="tag tag-ai">🤖 AI • Lovable</span></div>
+        <h3>StockVibe — AI Portfolio Tracker</h3>
+        <p>Full Django + React app. Clone, add your TwelveData key, run. ZIP 14 MB.</p>
+        <div class="card-meta"><div class="meta-left"><div class="avatar" style="background:linear-gradient(135deg,#F59E0B,#EF4444)"></div><span>by @nolo.ai</span></div><div class="meta-right"><span>★ 142</span><span>⬇ 892</span></div></div>
+      </div>
+    </div>
+
+    <div class="card"><div class="card-media" style="background:#121214"><div style="width:92%;height:92%;background:#fff;border-radius:10px;display:grid;place-items:center"><div style="width:40px;height:40px;background:linear-gradient(135deg,#EC4899,#7C3AED);border-radius:10px;display:grid;place-items:center;color:#fff">✦</div></div></div><div class="card-body"><div class="card-topline"><span class="tag tag-snippet">Snippet • Landing</span></div><h3>Waitlist Minimal — Email Capture</h3><p>Centered waitlist with glow. 36% conversion in tests.</p><div class="card-meta"><div class="meta-left"><div class="avatar"></div><span>by @blaq</span></div><div class="meta-right"><span>♡ 56</span><span>⎘ 310</span></div></div></div></div>
+    <div class="card"><div class="card-media" style="background:#0F172A"><div style="width:92%;height:92%;background:#1E293B;border-radius:10px;padding:10px"><div style="display:flex;gap:8px"><div style="flex:1;height:32px;background:#0F172A;border-radius:8px;border:1px solid #334155"></div><div style="flex:1;height:32px;background:#0F172A;border-radius:8px;border:1px solid #334155"></div></div><div style="height:70px;background:#0F172A;border-radius:8px;margin-top:8px;border:1px dashed #334155;display:grid;place-items:center;color:#64748B;font-size:10px">Revenue chart</div></div></div><div class="card-body"><div class="card-topline"><span class="tag tag-app">Full App • Dashboard</span></div><h3>RevenueOS — SaaS Admin</h3><p>Complete admin with auth, Stripe, and CSV export. Django ready.</p><div class="card-meta"><div class="meta-left"><div class="avatar"></div><span>by @kay</span></div><div class="meta-right"><span>★ 98</span><span>⬇ 430</span></div></div></div></div>
+    <div class="card"><div class="card-media" style="background:linear-gradient(135deg,#0A0A0F,#1A140A)"><div style="width:92%;height:92%;background:#fff;border-radius:10px;padding:10px"><div style="height:18px;background:#0A0A0F;border-radius:6px;display:flex;align-items:center;justify-content:space-between;padding:0 8px"><span style="color:#fff;font-size:9px;font-weight:700">BTC $67,420</span><span style="color:#22C55E;font-size:9px">▲ 4.2%</span></div><div style="height:70px;border:1px dashed #F59E0B;border-radius:8px;margin-top:8px;display:grid;place-items:center;color:#92400E;font-size:10px">Candlestick</div></div></div><div class="card-body"><div class="card-topline"><span class="tag tag-snippet">Snippet • Stock</span></div><h3>Crypto Chart Card — Buy/Sell CTA</h3><p>Single asset card with chart placeholder and trade buttons.</p><div class="card-meta"><div class="meta-left"><div class="avatar" style="background:#22C55E"></div><span>by @sbu</span></div><div class="meta-right"><span>♡ 71</span><span>⎘ 410</span></div></div></div></div>
+  </div>
+</div>
+
+<!-- FRAME 2 -->
+<div class="page" id="frame2">
+  <div class="nav">
+    <div class="logo"><div class="logo-mark">◈</div> BlaqVibes</div>
+    <div class="nav-links"><a href="#" onclick="switchFrame('frame1')">← Back to Vibes</a></div>
+    <div class="nav-actions"><button class="btn-ghost">Report</button><button class="btn-primary">★ Star 142</button></div>
+  </div>
+  <div class="detail-layout">
+    <div class="detail-main">
+      <div class="detail-toolbar">
+        <div style="display:flex;align-items:center;gap:10px"><div class="dots3"><span style="background:#EF4444"></span><span style="background:#F59E0B"></span><span style="background:#10B981"></span></div><span style="font-size:12px;color:#9A9AAF">Preview — StockVibe</span></div>
+        <div style="display:flex;gap:6px"><span style="font-size:11px;background:#DCFCE7;color:#15803D;padding:5px 8px;border-radius:8px;font-weight:700">● Secure — ClamAV clean</span><span style="font-size:11px;background:#15151A;border:1px solid #232326;padding:5px 8px;border-radius:8px">Desktop ▾</span></div>
+      </div>
+      <div class="detail-preview">
+        <div style="padding:18px;font-family:'Inter',sans-serif">
+          <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #E5E7EB;padding-bottom:10px"><h3 style="font-size:14px">StockVibe Portfolio</h3><span style="background:#DCFCE7;color:#15803D;padding:4px 8px;border-radius:100px;font-size:11px;font-weight:700">● LIVE</span></div>
+          <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:10px"><thead><tr style="color:#64748B;text-align:left"><th style="padding:8px">Symbol</th><th>Price</th><th>Change</th><th>Chart</th></tr></thead><tbody><tr style="border-top:1px solid #E5E7EB"><td style="padding:8px;font-weight:700">AAPL</td><td>$182.52</td><td style="color:#16A34A;font-weight:600">+2.34%</td><td>▁▂▃▅▇</td></tr><tr style="border-top:1px solid #E5E7EB"><td style="padding:8px;font-weight:700">TSLA</td><td>$248.50</td><td style="color:#DC2626;font-weight:600">-1.12%</td><td>▇▅▃▂▁</td></tr></tbody></table>
+          <div style="margin-top:12px;background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:10px;height:90px;display:grid;place-items:center;color:#64748B;font-size:11px">Chart.js mount point</div>
+        </div>
+      </div>
+      <div class="clone-box">
+        <div class="clone-head"><h4>Clone with Git</h4><span style="font-size:11px;color:#F59E0B">● Verified • 14.2 MB</span></div>
+        <div class="clone-field"><span style="color:#9A9AAF">$</span> git clone https://blaqvibes.co.za/git/nolo.ai/stockvibe.git <button class="copy-mini" onclick="toast('Copied clone command!')">Copy</button></div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="btn-violet" style="flex:1;justify-content:center" onclick="toast('Download started — signed URL (5 min)')">⬇ Download ZIP — 14.2 MB</button>
+          <button class="btn-ghost">View Files (18)</button>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:#6A6A7A">Clones: 892 • Stars: 142 • Updated 2 days ago • License: MIT</div>
+      </div>
+    </div>
+    <div class="detail-side">
+      <div class="side-card">
+        <div style="display:flex;gap:8px;margin-bottom:8px"><span class="tag tag-app">Full App</span><span class="tag tag-ai">🤖 Lovable</span><span style="font-size:11px;background:#DCFCE7;color:#15803D;padding:4px 8px;border-radius:8px;font-weight:700">● Security Clean</span></div>
+        <h3>StockVibe — AI Portfolio Tracker</h3>
+        <p>Full-stack portfolio tracker that never shipped. Built with Lovable, Django + React + Tailwind. Includes auth, CSV import, and TwelveData hooks. Just add your API key.</p>
+        <div class="code-tabs"><div class="code-tab active">README</div><div class="code-tab idle">Files</div><div class="code-tab idle">Versions</div></div>
+        <div class="readme">
+          <h4>README.md</h4>
+          <pre># StockVibe
+AI prompt: "Build a stock tracker with portfolio table and charts"
+
+## Run
+pip install -r requirements.txt
+python manage.py runserver
+
+## Stack
+Django, React, Tailwind, Chart.js
+
+## Security Note
+Scanned by BlaqVibes: ✅ No secrets, ✅ No viruses, ⚠️ 1 npm moderate (fix: npm audit fix)</pre>
+        </div>
+        <div style="margin-top:10px;display:flex;flex-direction:column">
+          <div class="side-row"><span>Tech Stack</span><span>Django • React • Tailwind</span></div>
+          <div class="side-row"><span>Publisher</span><span>@nolo.ai • Durban, ZA</span></div>
+          <div class="side-row"><span>License</span><span>MIT • Free to clone</span></div>
+          <div class="side-row"><span>AI Tool</span><span>Lovable • Prompt included</span></div>
+        </div>
+        <div style="margin-top:12px;background:#07070A;border:1px solid #232326;border-radius:10px;padding:10px;display:flex;gap:8px;align-items:center">
+          <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#F59E0B);display:grid;place-items:center;font-weight:700;font-size:12px">N</div>
+          <div style="flex:1"><div style="font-size:12px;font-weight:700">nolo.ai</div><div style="font-size:11px;color:#9A9AAF">12 vibes • 340 stars</div></div>
+          <button class="btn-ghost" style="padding:6px 10px;font-size:11px">Follow</button>
+        </div>
+      </div>
+      <div class="side-card" style="background:#07070A">
+        <h4 style="font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:#F59E0B;margin-bottom:8px">🔒 Security Report</h4>
+        <div style="font-size:12px;line-height:1.6;color:#CFCFD9">
+          <div>✅ ClamAV: Clean</div>
+          <div>✅ Secrets: None found</div>
+          <div>⚠️ npm audit: 1 moderate (esbuild)</div>
+          <div>✅ Path traversal: Blocked</div>
+          <div style="margin-top:8px;color:#9A9AAF;font-size:11px">Full report generated 2m ago by BlaqVibes worker. Quarantine bucket → Public after pass.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FRAME 3 -->
+<div class="page" id="frame3">
+  <div class="nav">
+    <div class="logo"><div class="logo-mark">◈</div> BlaqVibes</div>
+    <div class="nav-links"><a href="#" onclick="switchFrame('frame1')">← Back</a><span class="active">Publish</span></div>
+    <div class="nav-actions"><span style="font-size:12px;color:#9A9AAF">Draft auto-saved</span><button class="btn-ghost">Save Draft</button></div>
+  </div>
+  <div class="publish-wrap">
+    <h2 style="font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;letter-spacing:-.02em">Publish your vibe</h2>
+    <p style="font-size:13px;color:#9A9AAF;margin:6px 0 16px">Share your unpublished app. ZIP or Git — BlaqVibes handles security, preview & distribution.</p>
+    
+    <div class="drop" id="drop">
+      <div class="drop-icon">⬆</div>
+      <div style="font-weight:700;font-size:14px">Drop your app ZIP here</div>
+      <div style="font-size:12px;color:#9A9AAF;margin:6px 0">or click to browse • Max 100MB • ZIP only</div>
+      <div style="margin-top:10px;display:flex;gap:8px;justify-content:center">
+        <button class="btn-violet" style="padding:8px 14px;font-size:12px">Browse files</button>
+        <button class="btn-ghost" style="padding:8px 14px;font-size:12px">Connect Git</button>
+      </div>
+      <div style="margin-top:10px;font-size:11px;color:#6A6A7A">We auto-block node_modules, .env, .exe and scan for viruses</div>
+    </div>
+
+    <div class="form">
+      <div class="form-grid">
+        <input class="input" placeholder="App title — e.g. StockVibe Tracker">
+        <select class="select"><option>Category — Track Stock</option><option>Landing Page</option><option>Dashboard</option><option>Full AI App</option></select>
+      </div>
+      <textarea class="textarea" placeholder="Short description — what does it do? (for cards)"></textarea>
+      <textarea class="textarea" placeholder="README.md — Markdown supported. Include stack, setup steps, and prompt if AI-generated"></textarea>
+      <div class="form-grid">
+        <input class="input" placeholder="Tech stack — e.g. Django, React, Tailwind">
+        <input class="input" placeholder="Live demo URL (optional)">
+      </div>
+      <label class="check"><input type="checkbox"> 🤖 This was AI-generated &nbsp; <select class="select" style="width:auto;padding:6px 10px"><option>Lovable</option><option>v0</option><option>ChatGPT</option><option>Cursor</option></select></label>
+      <input class="input" placeholder="If AI, paste the prompt you used (helps others)">
+      <div class="security-note">
+        <span style="font-size:16px">🔒</span>
+        <div><strong style="color:#fff">Security by default:</strong> On publish, BlaqVibes runs ClamAV + secrets scan + npm audit in a worker. You'll see "Scanning..." then "● Secure" badge. Quarantined files never go public. <a href="#" style="color:#7C3AED">Learn more</a></div>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end">
+        <button class="btn-ghost">Cancel</button>
+        <button class="btn-violet" onclick="toast('Vibe published! Scanner running…')">Publish Vibe →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- FRAME 4 -->
+<div class="page" id="frame4">
+  <div class="nav">
+    <div class="logo"><div class="logo-mark">◈</div> BlaqVibes</div>
+    <div class="nav-links"><a href="#" onclick="switchFrame('frame1')">← Vibes</a><span class="active">Profile</span></div>
+    <div class="nav-actions"><button class="btn-ghost">Edit Profile</button><button class="btn-violet">Follow</button></div>
+  </div>
+  <div class="profile-head">
+    <div class="p-avatar">N</div>
+    <div>
+      <div style="font-weight:700;font-size:18px;display:flex;align-items:center;gap:8px">nolo.ai <span style="font-size:11px;background:#EDE9FE;color:#6D28D9;padding:4px 8px;border-radius:8px">Creator</span><span style="font-size:11px;background:#07070A;border:1px solid #232326;padding:4px 8px;border-radius:8px">Durban, ZA</span></div>
+      <div style="font-size:13px;color:#9A9AAF;margin:4px 0">AI builder • 12 vibes • 3.2k clones • Prompt engineer</div>
+      <div style="font-size:12px;color:#CFCFD9">I build stock tools with Lovable and ship the vibes here. Clone, remix, vibe.</div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:16px;text-align:center">
+      <div><div style="font-weight:800;font-size:18px">12</div><div style="font-size:11px;color:#9A9AAF;letter-spacing:.06em;text-transform:uppercase">Vibes</div></div>
+      <div><div style="font-weight:800;font-size:18px">3.2k</div><div style="font-size:11px;color:#9A9AAF;letter-spacing:.06em;text-transform:uppercase">Clones</div></div>
+      <div><div style="font-weight:800;font-size:18px">340</div><div style="font-size:11px;color:#9A9AAF;letter-spacing:.06em;text-transform:uppercase">Stars</div></div>
+    </div>
+  </div>
+  <div style="padding:16px 32px;display:flex;gap:8px;border-bottom:1px solid #1F1F23">
+    <button class="chip active">All Vibes (12)</button><button class="chip">Full Apps (7)</button><button class="chip">Snippets (5)</button><button class="chip">AI Generated (9)</button>
+  </div>
+  <div style="padding:20px 32px;display:grid;grid-template-columns:repeat(3,1fr);gap:16px">
+    <div class="card"><div class="card-media" style="background:linear-gradient(135deg,#1E1B4B,#0F172A)"><div style="width:90%;height:86%;background:#fff;border-radius:10px"></div></div><div class="card-body"><div class="card-topline"><span class="tag tag-app">Full App</span><span style="font-size:11px;color:#6A6A7A">★ 42</span></div><h3>CryptoVibe Wallet</h3><p>Track BTC/ETH, P&L. Django + Chart.js.</p></div></div>
+    <div class="card"><div class="card-media" style="background:#0A0A0F"><div style="width:90%;height:86%;background:#F8FAFC;border-radius:10px"></div></div><div class="card-body"><div class="card-topline"><span class="tag tag-snippet">Snippet</span><span style="font-size:11px;color:#10B981">● Secure</span></div><h3>Landing Pricing Table</h3><p>3-tier pricing with toggle.</p></div></div>
+    <div class="card"><div class="card-media" style="background:linear-gradient(135deg,#2E220F,#1A140A)"><div style="width:90%;height:86%;background:#fff;border-radius:10px"></div></div><div class="card-body"><div class="card-topline"><span class="tag tag-app">Full App</span><span class="tag tag-ai">🤖</span></div><h3>StockVibe — Featured</h3><p>Portfolio tracker — 892 clones.</p></div></div>
+  </div>
+</div>
+
+<div id="toast" style="position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(80px);background:#fff;color:#000;padding:10px 16px;border-radius:10px;font-weight:700;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.4);transition:.25s;z-index:200">✓ Copied!</div>
+
+<script>
+function switchFrame(id){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.frame-btn').forEach(b=>b.classList.toggle('active', b.dataset.frame===id));
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+document.querySelectorAll('.frame-btn').forEach(b=>b.addEventListener('click',()=>switchFrame(b.dataset.frame)));
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.transform='translateX(-50%) translateY(0)';
+  setTimeout(()=>t.style.transform='translateX(-50%) translateY(80px)',1800);
+}
+const drop=document.getElementById('drop');
+if(drop){
+  ['dragenter','dragover'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('dragover')}));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('dragover')}));
+  drop.addEventListener('drop',()=>toast('ZIP dropped — scanning (ClamAV + secrets)...'));
+}
+</script>
+</body>
+</html>

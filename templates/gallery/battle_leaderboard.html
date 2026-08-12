@@ -1,0 +1,45 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Leaderboard — BlaqVibes{% endblock %}
+{% block content %}
+<div style="max-width:1100px;margin:0 auto;padding:20px">
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">🏆 Leaderboard — Battle Wins + Ranks</h1>
+  <p style="color:#9A9AAF;font-size:13px">Top vibes by battle wins (winner gets +5 ★) + top creators by rank (Bronze → Platinum). Backend `BattleVote` + `AppProject.stars`, no JS secrets.</p>
+
+  <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div>
+      <h2 style="font-size:14px;font-weight:700">Top Vibes — Most Battle Wins</h2>
+      {% for v in top_vibes %}
+      <div style="background:#121214;border:1px solid {% if forloop.counter == 1 %}#F59E0B{% elif forloop.counter == 2 %}#9A9AAF{% elif forloop.counter == 3 %}#92400E{% else %}#1F1F23{% endif %};border-radius:12px;padding:12px;margin-top:8px;display:flex;gap:10px;align-items:center">
+        <div style="width:32px;height:32px;border-radius:8px;background:{% if forloop.counter == 1 %}linear-gradient(135deg,#F59E0B,#FBBF24){% elif forloop.counter == 2 %}#9A9AAF{% elif forloop.counter == 3 %}#92400E{% else %}#1A1A1E{% endif %};display:grid;place-items:center;font-weight:800;color:{% if forloop.counter <= 3 %}#fff{% else %}#9A9AAF{% endif %}">#{{ forloop.counter }}</div>
+        <img src="/static/branding/icon-32.png" style="width:36px;height:36px;border-radius:8px">
+        <div style="flex:1">
+          <div style="font-weight:700">{{ v.title|truncatechars:28 }} <span style="font-size:11px;background:#FEF3C7;color:#92400E;padding:2px 6px;border-radius:6px">{{ v.battle_wins }} wins</span></div>
+          <div style="font-size:11px;color:#9A9AAF">@{{ v.owner.username }} • ★ {{ v.stars }} • {{ v.language_stats|default:"" }}</div>
+        </div>
+        <a href="{{ v.get_absolute_url }}" style="font-size:11px;color:#7C3AED">View →</a>
+      </div>
+      {% empty %}<div style="color:#6A6A7A">No battles yet.</div>{% endfor %}
+    </div>
+
+    <div>
+      <h2 style="font-size:14px;font-weight:700">Top Creators — Rank & Stars</h2>
+      {% for u in top_users %}
+      <div style="background:#121214;border:1px solid #1F1F23;border-radius:12px;padding:12px;margin-top:8px;display:flex;gap:10px;align-items:center">
+        <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#F59E0B);display:grid;place-items:center;font-weight:800;font-size:12px">#{{ forloop.counter }}</div>
+        <img src="{% if u.profile.avatar %}{{ u.profile.avatar.url }}{% else %}/static/branding/icon-32.png{% endif %}" style="width:32px;height:32px;border-radius:8px;object-fit:cover">
+        <div style="flex:1">
+          <div style="font-weight:700">@{{ u.username }} <span style="font-size:10px;background:{% if u.rank.name == 'Platinum' %}linear-gradient(135deg,#7C3AED,#F59E0B){% elif u.rank.name == 'Gold' %}#F59E0B{% elif u.rank.name == 'Silver' %}#9A9AAF{% else %}#1A1A1E{% endif %};color:{% if u.rank.name == 'Platinum' %}#fff{% else %}#fff{% endif %};padding:2px 6px;border-radius:6px">{{ u.rank.name }}</span></div>
+          <div style="font-size:11px;color:#9A9AAF">{{ u.rank.stars }} ★ • {{ u.rank.discount }}% Pro discount • {{ u.vibes_count }} vibes</div>
+        </div>
+        <a href="{% url 'profile_view' u.username %}" style="font-size:11px;color:#7C3AED">Profile →</a>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div style="margin-top:16px;display:flex;gap:8px;justify-content:center">
+    <a href="{% url 'battle' %}" class="btnV">Battle Now →</a>
+    <a href="{% url 'battle_history' %}" class="btnG">History</a>
+  </div>
+</div>
+{% endblock %}

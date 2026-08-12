@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlaqVibes — PR Diff Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07070A;--card:#121214;--line:#1F1F23;--muted:#9A9AAF;--text:#fff}
+[data-theme="light"]{--bg:#F8FAFC;--card:#FFFFFF;--line:#E2E8F0;--muted:#64748B;--text:#0F172A}
+*{margin:0;padding:0;box-sizing:border-box} body{font-family:Inter,sans-serif;background:var(--bg);color:var(--text)}
+.nav{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.badge{font-size:10px;padding:3px 7px;border-radius:8px;font-weight:700}
+.btnV{background:#7C3AED;color:#fff;border:none;padding:8px 12px;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer}
+.btnG{border:1px solid var(--line);background:transparent;color:var(--text);padding:8px 12px;border-radius:10px;font-weight:600;font-size:12px;cursor:pointer}
+</style>
+</head>
+<body data-theme="dark">
+<nav class="nav">
+  <div style="display:flex;align-items:center;gap:8px"><img src="/static/branding/icon-32.png" style="width:28px;height:28px;border-radius:8px"><span style="font-family:Space Grotesk,sans-serif;font-weight:700">BlaqVibes</span><span style="font-size:11px;background:#7C3AED;color:#fff;padding:4px 8px;border-radius:8px">PR Diff • Live</span></div>
+  <span style="font-size:11px;color:var(--muted)">PR #2 • stock-app-vibes-forked-forked → stock-app-vibes</span>
+</nav>
+
+<div style="max-width:1000px;margin:0 auto;padding:20px">
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <a href="#" style="border:1px solid var(--line);padding:8px 12px;border-radius:10px;font-size:12px;color:var(--text);text-decoration:none">← PRs for stock-app-vibes</a>
+    <span style="font-size:11px;padding:4px 8px;border-radius:8px;background:#FEF3C7;color:#92400E;font-weight:700">open</span>
+    <span style="font-size:12px;color:var(--muted)">#2 • by @blaq • 2h ago</span>
+  </div>
+
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:20px;margin-top:12px">Add TradingView + better README</h1>
+  <p style="color:var(--muted);font-size:13px;margin-top:4px">Added TradingView widget and improved README with how to run. Nolo 10/10. Fork: stock-app-vibes-forked-forked (19 files) → Target: stock-app-vibes (18 files)</p>
+
+  <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div class="card">
+      <div style="font-size:11px;color:#F59E0B;font-weight:700">Source — stock-app-vibes-forked-forked</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px">@blaq • 19 files • ★0 • Django, React, Tailwind, TradingView</div>
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="background:#1A1A1E;border:1px solid var(--line);padding:3px 7px;border-radius:8px;font-size:11px">Python 55%</span><span style="background:#1A1A1E;border:1px solid var(--line);padding:3px 7px;border-radius:8px;font-size:11px">JS 25%</span></div>
+    </div>
+    <div class="card">
+      <div style="font-size:11px;color:#7C3AED;font-weight:700">Target — stock-app-vibes</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px">@nolo.ai • 18 files • ★142 • Django, React, Tailwind</div>
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap"><span style="background:#1A1A1E;border:1px solid var(--line);padding:3px 7px;border-radius:8px;font-size:11px">Python 58%</span><span style="background:#1A1A1E;border:1px solid var(--line);padding:3px 7px;border-radius:8px;font-size:11px">JS 25%</span></div>
+    </div>
+  </div>
+
+  <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div class="card">
+      <div style="font-size:12px;font-weight:700">Files Diff — Backend, No JS Secrets</div>
+      <div style="margin-top:8px;font-family:JetBrains Mono,monospace;font-size:11px;line-height:1.6">
+        <div style="color:#10B981">+ frontend/src/TradingView.jsx</div>
+        <div style="color:#10B981">+ README.md (updated)</div>
+        <div style="color:#6A6A7A">  manage.py</div>
+        <div style="color:#6A6A7A">  stock_app/views.py</div>
+        <div style="color:#6A6A7A">  requirements.txt</div>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:var(--muted)">Added: 2, Removed: 0, Common: 18</div>
+    </div>
+    <div class="card">
+      <div style="font-size:12px;font-weight:700">Nolo Compare Diff</div>
+      <div style="margin-top:8px;font-size:12px;line-height:1.6">
+        <div><b style="color:#F59E0B">Only in Source:</b> TradingView</div>
+        <div><b style="color:#7C3AED">Only in Target:</b> —</div>
+        <div><b style="color:var(--muted)">Common:</b> Chart, Django, React, Table, Tailwind, TwelveData</div>
+      </div>
+      <div style="margin-top:8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px">
+        <div style="font-size:11px;font-weight:700">Nolo Auto-Review of Source — 10/10</div>
+        <div style="font-size:11px;color:var(--muted)">Pros: Good README, 19 files, Tech stack declared<br>Fixes: —</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:12px;display:flex;gap:8px">
+    <button class="btnV" onclick="toast('Merged PR #2 — thanks @blaq!')">✓ Merge PR #2</button>
+    <button class="btnG" onclick="toast('Closed')">Close</button>
+    <span style="font-size:11px;color:var(--muted);align-self:center">Only target owner @nolo.ai can merge/close • Rate limit 5/h</span>
+  </div>
+
+  <div style="margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+    <div style="font-size:12px;font-weight:700">Live at /app/stock-app-vibes/prs/2/view/</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:4px">Try: Login <b>nolo.ai</b> → open PR #2 diff → Merge. Or login <b>blaq</b> → fork → edit → Create PR.</div>
+  </div>
+</div>
+
+<div id="toast" style="position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;transition:.25s">✓</div>
+<script>function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.transform='translateX(-50%) translateY(0)';setTimeout(()=>t.style.transform='translateX(-50%) translateY(80px)',1600)}</script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Edit {{ project.title }} — BlaqVibes{% endblock %}
+{% block content %}
+<div style="max-width:760px;margin:0 auto;padding:20px">
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:20px">Edit Vibe — {{ project.title }}</h1>
+  <p style="color:#9A9AAF;font-size:13px">Re-upload creates version v1.{{ project.versions.count|add:1 }}.0 and re-queues for scan (every edit is checked).</p>
+  <form method="post" enctype="multipart/form-data" style="margin-top:12px;display:grid;gap:12px">
+    {% csrf_token %}
+    {% if form.errors %}<div style="background:#3F1A1A;color:#FECACA;padding:10px;border-radius:10px;font-size:13px">{{ form.errors }}</div>{% endif %}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><label style="font-size:12px;color:#9A9AAF">Title</label>{{ form.title }}</div><div><label style="font-size:12px;color:#9A9AAF">Category</label>{{ form.category }}</div></div>
+    <div><label style="font-size:12px;color:#9A9AAF">Short desc</label>{{ form.short_description }}</div>
+    <div><label style="font-size:12px;color:#9A9AAF">README</label>{{ form.readme }}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><label style="font-size:12px;color:#9A9AAF">Tech stack</label>{{ form.tech_stack }}</div><div><label style="font-size:12px;color:#9A9AAF">ZIP (re-upload to version)</label>{{ form.zip_file }}</div></div>
+    <div><label style="font-size:12px;color:#9A9AAF">Changelog (for version)</label><input name="changelog" placeholder="Fixed chart bug, added TwelveData" style="width:100%;background:#15151A;border:1px solid #232326;border-radius:10px;padding:10px;color:#fff;font-size:13px"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><a href="{{ project.get_absolute_url }}" class="btnG">Cancel</a><button class="btnV">Save & Re-queue Scan</button></div>
+  </form>
+  {% if project.versions.all %}
+  <div style="margin-top:16px;background:#07070A;border:1px solid #232326;border-radius:12px;padding:12px">
+    <div style="font-size:12px;font-weight:700">Versions</div>
+    {% for v in project.versions.all %}<div style="font-size:12px;display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #1F1F23"><span>v{{ v.version }} — {{ v.changelog|default:"Update" }} • {{ v.created_at|date:"Y-m-d" }}</span><a href="{{ v.zip_file.url }}" style="color:#7C3AED">Download</a></div>{% endfor %}
+  </div>
+  {% endif %}
+</div>
+<link rel="stylesheet" href="/static/gallery/css/forms.css">
+{% endblock %}

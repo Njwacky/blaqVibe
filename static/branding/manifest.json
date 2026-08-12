@@ -1,0 +1,20 @@
+{
+  "name": "BlaqVibes — Publish the Vibes",
+  "short_name": "BlaqVibes",
+  "description": "Git-like hub for AI-built apps that never shipped — copy snippets, clone full apps, trade stars.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#07070A",
+  "theme_color": "#7C3AED",
+  "icons": [
+    {"src": "/static/branding/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable"},
+    {"src": "/static/branding/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable"},
+    {"src": "/static/branding/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+    {"src": "/static/branding/icon-180.png", "sizes": "180x180", "type": "image/png"}
+  ],
+  "shortcuts": [
+    {"name": "Feed", "url": "/", "icons": [{"src": "/static/branding/icon-192.png", "sizes": "192x192"}]},
+    {"name": "Publish", "url": "/publish/", "icons": [{"src": "/static/branding/icon-192.png", "sizes": "192x192"}]},
+    {"name": "My Vibes", "url": "/my-vibes/", "icons": [{"src": "/static/branding/icon-192.png", "sizes": "192x192"}]}
+  ]
+}

@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlaqVibes — Swipe Battles</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07070A;--card:#121214;--line:#1F1F23;--muted:#9A9AAF;--text:#fff}
+*{margin:0;padding:0;box-sizing:border-box} body{font-family:Inter,sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+.nav{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--line);background:var(--bg)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.btnV{background:#7C3AED;color:#fff;border:none;padding:10px 14px;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;flex:1}
+.btnG{border:1px solid var(--line);background:transparent;color:var(--text);padding:10px 14px;border-radius:10px;font-weight:600;font-size:12px;cursor:pointer;flex:1}
+.battle-wrap{height:calc(100vh - 56px);display:flex;align-items:center;justify-content:center;padding:16px}
+.battle{width:100%;max-width:900px;touch-action:pan-y;user-select:none}
+.hint{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--line);padding:8px 12px;border-radius:100px;font-size:11px;color:var(--muted);display:flex;gap:8px;align-items:center}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div style="display:flex;align-items:center;gap:10px"><img src="/static/branding/icon-32.png" style="width:28px;height:28px;border-radius:8px"><span style="font-family:Space Grotesk,sans-serif;font-weight:700">BlaqVibes</span><span style="font-size:11px;background:#F59E0B;color:#000;padding:4px 8px;border-radius:8px;font-weight:700">Swipe Battles</span></div>
+  <span style="font-size:11px;color:var(--muted)">Like Arena AI — swipe right for next</span>
+</nav>
+
+<div class="battle-wrap">
+  <div class="battle" id="battle">
+    <div style="text-align:center;margin-bottom:12px">
+      <div style="font-family:Space Grotesk,sans-serif;font-size:18px">Which vibe would you pick?</div>
+      <div style="font-size:11px;color:var(--muted)">Swipe right ➡️ for next battle • Tap to choose → reveals who’s app it is</div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="card" id="card-a" style="cursor:pointer" onclick="pick('a')">
+        <div style="height:140px;background:linear-gradient(135deg,#1E1B4B,#0F172A);border-radius:10px;padding:10px;display:grid;place-items:center">
+          <div style="width:100%;height:100%;background:#fff;border-radius:8px;padding:10px;color:#111">
+            <div style="font-weight:700;font-size:12px">SaaS Launch Hero Pro</div>
+            <div style="font-size:11px;color:#64748B">Tailwind • 1 file • ★24</div>
+          </div>
+        </div>
+        <div style="margin-top:10px"><div style="font-weight:700">SaaS Launch Hero Pro</div><div style="font-size:11px;color:var(--muted)">High-converting hero with badge</div></div>
+        <div id="reveal-a" style="display:none;margin-top:8px;background:#1A1A1E;border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:12px;font-weight:700">This is <span style="color:#7C3AED">@blaq</span>’s app</div>
+          <div style="font-size:11px;color:var(--muted)">★24 • Trading +5 → now top</div>
+        </div>
+        <button class="btnV" style="width:100%;margin-top:8px">Pick This → Reveal</button>
+      </div>
+
+      <div class="card" id="card-b" style="cursor:pointer" onclick="pick('b')">
+        <div style="height:140px;background:linear-gradient(135deg,#2E220F,#1A140A);border-radius:10px;padding:10px;display:grid;place-items:center">
+          <div style="width:100%;height:100%;background:#fff;border-radius:8px;padding:10px;color:#111">
+            <div style="font-weight:700;font-size:12px">Stock Portfolio Table</div>
+            <div style="font-size:11px;color:#64748B">Tailwind • 1 file • ★0</div>
+          </div>
+        </div>
+        <div style="margin-top:10px"><div style="font-weight:700">Stock Portfolio Table</div><div style="font-size:11px;color:var(--muted)">Real table • Tailwind • ★0</div></div>
+        <div id="reveal-b" style="display:none;margin-top:8px;background:#1A1A1E;border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center">
+          <div style="font-size:12px;font-weight:700">This is <span style="color:#7C3AED">@blaq</span>’s app too</div>
+          <div style="font-size:11px;color:var(--muted)">Try another battle →</div>
+        </div>
+        <button class="btnV" style="width:100%;margin-top:8px;background:#F59E0B">Pick This → Reveal</button>
+      </div>
+    </div>
+
+    <div style="margin-top:12px;display:flex;align-items:center;gap:12px;justify-content:center;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px 12px">
+      <span style="font-size:11px;color:var(--muted)">Swipe right ➡️ for next battle</span>
+      <span style="flex:1;max-width:160px;height:6px;background:var(--line);border-radius:100px;display:flex;overflow:hidden"><span style="flex:1;background:#7C3AED"></span><span style="flex:0;background:#F59E0B"></span></span>
+      <button class="btnG" style="padding:6px 10px;font-size:11px" onclick="nextBattle()">Next →</button>
+    </div>
+  </div>
+</div>
+
+<div class="hint">👆 Tap a card to pick • Swipe right ➡️ for next battle • Like Arena</div>
+
+<div id="toast" style="position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;transition:.25s">✓</div>
+<script>
+let startX=0;
+const battle=document.getElementById('battle');
+battle.addEventListener('touchstart', e=>{ startX=e.touches[0].clientX; }, {passive:true});
+battle.addEventListener('touchend', e=>{
+  const dx=e.changedTouches[0].clientX - startX;
+  if(dx > 60){ nextBattle(); }
+});
+function pick(which){
+  document.getElementById('reveal-'+which).style.display='block';
+  const name = which==='a' ? '@blaq — SaaS Launch Hero' : '@blaq — Stock Portfolio';
+  toast('You picked — this is ' + name + ' • +5 ★');
+  document.getElementById('card-'+which).style.borderColor='#10B981';
+  document.getElementById('card-'+which).style.boxShadow='0 0 0 1px #10B981';
+}
+function nextBattle(){
+  // Simulate next battle — in live, fetch /battle/ via GET
+  document.querySelectorAll('[id^="reveal-"]').forEach(el=>el.style.display='none');
+  document.querySelectorAll('.card').forEach(c=>{c.style.borderColor='var(--line)';c.style.boxShadow='none'});
+  toast('Next battle — swipe again ➡️');
+}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.transform='translateX(-50%) translateY(0)';setTimeout(()=>t.style.transform='translateX(-50%) translateY(80px)',1600)}
+</script>
+</body>
+</html>

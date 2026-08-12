@@ -1,0 +1,124 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Publish — BlaqVibes{% endblock %}
+{% block content %}
+<div style="max-width:640px;margin:0 auto;padding:20px">
+  <!-- Progress -->
+  <div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:8px" id="step-ind-1"><div class="step on" data-step="1">1</div><span style="font-size:12px;font-weight:700">Details</span></div>
+    <div style="flex:1;height:2px;background:#1F1F23" id="bar-1"></div>
+    <div style="display:flex;align-items:center;gap:8px;opacity:.5" id="step-ind-2"><div class="step" data-step="2">2</div><span style="font-size:12px">Upload</span></div>
+    <div style="flex:1;height:2px;background:#1F1F23" id="bar-2"></div>
+    <div style="display:flex;align-items:center;gap:8px;opacity:.5" id="step-ind-3"><div class="step" data-step="3">3</div><span style="font-size:12px">Live</span></div>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" id="wizard-form">
+    {% csrf_token %}
+    {% if form.errors %}<div style="background:#3F1A1A;border:1px solid #7C2D2D;color:#FECACA;padding:10px;border-radius:10px;font-size:13px;margin-bottom:12px">{{ form.errors }}</div>{% endif %}
+
+    <!-- Step 1 — Details -->
+    <div class="wizard-step" data-step="1">
+      <div style="background:#121214;border:1px solid #1F1F23;border-radius:12px;padding:16px">
+        <h2 style="font-family:Space Grotesk,sans-serif;font-size:18px">Step 1 — Details</h2>
+        <p style="font-size:12px;color:#9A9AAF;margin-top:4px">One column, truthful — just tell us what it is.</p>
+        <div style="margin-top:12px;display:grid;gap:12px">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div><label style="font-size:12px;color:#9A9AAF">Title*</label>{{ form.title }}</div>
+            <div><label style="font-size:12px;color:#9A9AAF">Category*</label>{{ form.category }}</div>
+          </div>
+          <div><label style="font-size:12px;color:#9A9AAF">Short description*</label>{{ form.short_description }}</div>
+          <div><label style="font-size:12px;color:#9A9AAF">README.md* — min 100 chars, must include heading</label>{{ form.readme }}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div><label style="font-size:12px;color:#9A9AAF">Tech stack</label>{{ form.tech_stack }}</div>
+            <div><label style="font-size:12px;color:#9A9AAF">Thumbnail</label>{{ form.thumbnail }}</div>
+          </div>
+          <label style="display:flex;gap:8px;align-items:center;font-size:13px">{{ form.ai_generated }} 🤖 AI-generated</label>
+          {% if challenge %}
+          <div style="background:linear-gradient(135deg,#1A1A00 0%,#1A1400 100%);border:1px solid #F59E0B;border-radius:10px;padding:10px;display:flex;gap:8px;align-items:center">
+            <input type="checkbox" name="challenge_join" id="challenge_join" style="width:auto">
+            <label for="challenge_join" style="flex:1;font-size:12px">Join Challenge of the Week — <b style="color:#F59E0B">{{ challenge.title }}</b> ({{ challenge.bounty_stars }} ★ bounty, tag #{{ challenge.tag }})<br><span style="color:#9A9AAF">{{ challenge.description|truncatechars:80 }}</span></label>
+          </div>
+          {% endif %}
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div><label style="font-size:12px;color:#9A9AAF">AI tool</label>{{ form.ai_tool }}</div>
+            <div><label style="font-size:12px;color:#9A9AAF">AI prompt</label>{{ form.ai_prompt }}</div>
+          </div>
+        </div>
+        <div style="margin-top:14px;display:flex;justify-content:flex-end"><button type="button" class="btnV" onclick="goStep(2)">Next → Upload</button></div>
+      </div>
+    </div>
+
+    <!-- Step 2 — Upload -->
+    <div class="wizard-step" data-step="2" style="display:none">
+      <div style="background:#121214;border:1px solid #1F1F23;border-radius:12px;padding:16px">
+        <h2 style="font-family:Space Grotesk,sans-serif;font-size:18px">Step 2 — Upload</h2>
+        <p style="font-size:12px;color:#9A9AAF;margin-top:4px">Drop ZIP or paste snippet — we auto-block bad files, count files, detect languages.</p>
+        <div style="margin-top:12px;border:1px dashed #3A3A40;border-radius:12px;padding:14px;background:#0F0F12;text-align:center">
+          <div style="font-weight:700;font-size:13px">ZIP file (for Full App) — Max 100MB</div>
+          <div style="font-size:11px;color:#6A6A7A">We auto-block node_modules, .env, .exe and count files. If ZIP has README.md, we keep it; else inject yours.</div>
+          <div style="margin-top:8px">{{ form.zip_file }}</div>
+          <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:left">
+            <div><label style="font-size:12px;color:#9A9AAF">Trade Cost — Stars</label>{{ form.star_cost }}<div style="font-size:11px;color:#6A6A7A">0=free, 1=Bronze, 3=Silver</div></div>
+            <div><label style="font-size:12px;color:#9A9AAF">Money Price — ZAR</label>{{ form.price_zar }}<div style="font-size:11px;color:#6A6A7A">0=free, 50=R50 — you get 85%</div></div>
+          </div>
+        </div>
+        <div style="margin-top:12px;border:1px solid #232326;border-radius:12px;padding:12px;background:#07070A">
+          <div style="font-weight:700;font-size:13px">Or snippet code (for HTML/CSS)</div>
+          <div style="display:grid;gap:8px;margin-top:8px"><label style="font-size:12px;color:#9A9AAF">HTML</label>{{ form.html_code }}<label style="font-size:12px;color:#9A9AAF">CSS</label>{{ form.css_code }}<label style="font-size:12px;color:#9A9AAF">JS (optional)</label>{{ form.js_code }}</div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;justify-content:space-between">
+          <button type="button" class="btnG" onclick="goStep(1)">← Back</button>
+          <button type="button" class="btnV" onclick="goStep(3)">Next → Live</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 3 — Live -->
+    <div class="wizard-step" data-step="3" style="display:none">
+      <div style="background:#121214;border:1px solid #1F1F23;border-radius:12px;padding:16px">
+        <h2 style="font-family:Space Grotesk,sans-serif;font-size:18px">Step 3 — Live</h2>
+        <p style="font-size:12px;color:#9A9AAF;margin-top:4px">Docker & queue run automatically — you’ll see live URL after publish.</p>
+        <div style="margin-top:12px;background:#07070A;border:1px solid #232326;border-radius:12px;padding:12px;display:flex;gap:10px;font-size:12px;color:#9A9AAF"><span>🔔</span><div><b style="color:#fff">What happens after Publish:</b><br>• ZIP validated (path traversal, zip bomb)<br>• README sanitized via bleach/nh3, preview sandboxed<br>• Queue: ClamAV → secrets → vuln → Nolo (Gemini/Groq) → Published<br>• If Auto-run On → live at <code>/deploy/&lt;token&gt;/</code> for 1h</div></div>
+        <div style="margin-top:12px;background:#07070A;border:1px solid #232326;border-radius:12px;padding:12px;display:flex;gap:10px;font-size:12px;color:#9A9AAF"><span>🔒</span><div><b style="color:#fff">Security:</b> You have {{ user.profile.stars_balance }} ★ — rank {{ user.profile.rank.name }} ({{ user.profile.rank.discount }}% Pro discount). Very critical toggles (ClamAV, R2) are locked On.</div></div>
+        <div style="margin-top:12px;display:flex;gap:8px;justify-content:space-between">
+          <button type="button" class="btnG" onclick="startAgain()">↺ Start Again — Clear Form</button>
+          <button type="button" class="btnG" onclick="goStep(2)">← Back</button>
+          <button type="submit" class="btnV">Publish Vibe →</button>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+
+<style>
+.step{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:12px;background:#1F1F23;color:#6A6A7A;border:1px solid #232326;transition:.2s}
+.step.on{background:#7C3AED;color:#fff;border-color:#7C3AED}
+input,select,textarea{width:100%;background:#15151A;border:1px solid #232326;border-radius:10px;padding:10px;color:#fff;font-size:13px}
+input[type=checkbox]{width:auto}
+</style>
+
+<script>
+function goStep(n){
+  document.querySelectorAll('.wizard-step').forEach(el=>el.style.display='none');
+  document.querySelector('[data-step="'+n+'"]').style.display='block';
+  document.querySelectorAll('.step').forEach(el=>{
+    const step=parseInt(el.dataset.step);
+    el.classList.toggle('on', step===n);
+    el.style.opacity = step<=n ? '1' : '.5';
+    document.getElementById('step-ind-'+step)?.classList.toggle('on', step===n);
+  });
+  // Update progress bars
+  document.getElementById('bar-1').style.background = n>=2 ? '#7C3AED' : '#1F1F23';
+  document.getElementById('bar-2').style.background = n>=3 ? '#7C3AED' : '#1F1F23';
+  document.getElementById('step-ind-2').style.opacity = n>=2 ? '1' : '.5';
+  document.getElementById('step-ind-3').style.opacity = n>=3 ? '1' : '.5';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function startAgain(){
+  if(confirm('Start again? This will clear the form.')){
+    document.getElementById('wizard-form').reset();
+    goStep(1);
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+}
+</script>
+{% endblock %}

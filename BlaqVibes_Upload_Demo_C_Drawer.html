@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demo C — Fullscreen + Drawer</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>body{margin:0;font-family:Inter,sans-serif;background:#07070A;color:#fff} .nav{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid #1F1F23} .card{background:#121214;border:1px solid #1F1F23;border-radius:12px;padding:14px;max-width:700px;margin:0 auto} .input{width:100%;background:#15151A;border:1px solid #232326;border-radius:10px;padding:10px;color:#fff} .drawer{position:fixed;top:56px;right:0;bottom:0;width:340px;background:#0F0F12;border-left:1px solid #1F1F23;transform:translateX(100%);transition:.25s;padding:14px;overflow:auto;z-index:40} .drawer.open{transform:translateX(0)} .overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;z-index:30} .overlay.open{display:block}</style>
+</head>
+<body>
+<nav class="nav"><span style="font-family:Space Grotesk,sans-serif;font-weight:700">BlaqVibes</span><div style="display:flex;gap:8px"><span style="font-size:11px;color:#9A9AAF">Demo C — Fullscreen + Drawer</span><button onclick="document.getElementById('drawer').classList.add('open');document.getElementById('overlay').classList.add('open')" style="background:#7C3AED;color:#fff;border:none;padding:8px 12px;border-radius:10px;font-weight:700;font-size:12px">🔔 Notifications</button></div></nav>
+<div style="max-width:700px;margin:20px auto;padding:0 16px">
+  <h2 style="font-family:Space Grotesk,sans-serif">Publish your vibe — Fullscreen</h2>
+  <p style="font-size:12px;color:#9A9AAF">Form takes 100% width — notifications slide as drawer only when needed.</p>
+  <div style="margin-top:12px;border:1px dashed #3A3A40;border-radius:12px;padding:20px;background:#121214;text-align:center">⬆ Drop ZIP here — 100% width, no side panels</div>
+  <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px"><input class="input" placeholder="Title"><input class="input" placeholder="Category"></div>
+  <textarea class="input" style="margin-top:12px;min-height:100px" placeholder="README — # My Vibe..."></textarea>
+  <button style="margin-top:12px;background:#7C3AED;color:#fff;border:none;padding:10px 14px;border-radius:10px;font-weight:700;width:100%">Publish Vibe →</button>
+  <div style="margin-top:12px;text-align:center"><button onclick="document.getElementById('drawer').classList.add('open');document.getElementById('overlay').classList.add('open')" style="border:1px solid #232326;background:transparent;color:#fff;padding:8px 12px;border-radius:10px;font-size:12px">Show Docker & Queue Drawer →</button></div>
+</div>
+<div id="overlay" class="overlay" onclick="document.getElementById('drawer').classList.remove('open');this.classList.remove('open')"></div>
+<div id="drawer" class="drawer">
+  <div style="display:flex;align-items:center;gap:8px"><span style="font-weight:700">Notifications</span><span style="margin-left:auto;font-size:11px;background:#7C3AED;color:#fff;padding:4px 8px;border-radius:100px">3 new</span><button onclick="document.getElementById('drawer').classList.remove('open');document.getElementById('overlay').classList.remove('open')" style="background:transparent;border:1px solid #232326;color:#fff;padding:6px 10px;border-radius:8px">✕</button></div>
+  <div style="margin-top:12px;display:flex;flex-direction:column;gap:12px">
+    <div style="background:#121214;border:1px solid #10B981;border-radius:12px;padding:12px"><div style="display:flex;gap:8px;align-items:center"><span style="width:8px;height:8px;background:#10B981;border-radius:50%"></span><span style="font-weight:700;font-size:12px">Docker Running</span></div><div style="font-size:11px;color:#9A9AAF;margin-top:6px">stock-app-vibes-882511 — 42 min left</div></div>
+    <div style="background:#121214;border:1px solid #F59E0B;border-radius:12px;padding:12px"><div style="font-weight:700;font-size:12px">Queue — You #2 in line</div><div style="font-size:11px;color:#9A9AAF;margin-top:4px">ClamAV ✓ Clean • Nolo scanning</div></div>
+    <div style="background:#121214;border:1px solid #1F1F23;border-radius:12px;padding:12px"><div style="font-weight:700;font-size:12px">Everything Else</div><div style="font-size:11px;color:#9A9AAF;margin-top:4px">Languages 58% • File tree 18 • Stars 2 ★</div></div>
+  </div>
+</div>
+</body>
+</html>

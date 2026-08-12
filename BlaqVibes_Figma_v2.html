@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlaqVibes — App Detail with Tree & Comments</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box} body{font-family:Inter,sans-serif;background:#07070A;color:#fff}
+.nav{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid #232326;background:#07070A;position:sticky;top:0;z-index:50}
+.logo{font-family:Space Grotesk,sans-serif;font-weight:700;display:flex;align-items:center;gap:8px}
+.logo-mark{width:30px;height:30px;background:linear-gradient(135deg,#7C3AED,#F59E0B);border-radius:8px;display:grid;place-items:center}
+.btn-violet{background:#7C3AED;color:#fff;border:none;padding:8px 14px;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer}
+.btn-ghost{background:transparent;border:1px solid #232326;color:#fff;padding:8px 14px;border-radius:10px;font-weight:600;font-size:12px;cursor:pointer}
+.wrap{max-width:1280px;margin:0 auto;padding:16px 20px;display:grid;grid-template-columns:1.6fr .95fr;gap:16px}
+@media(max-width:900px){.wrap{grid-template-columns:1fr}}
+.card{background:#121214;border:1px solid #232326;border-radius:16px;overflow:hidden}
+.toolbar{height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:#15151A;border-bottom:1px solid #232326}
+.preview{height:320px;background:#fff;overflow:auto;padding:14px;color:#111}
+.clone{margin:12px;background:#07070A;border:1px solid #232326;border-radius:12px;padding:12px}
+.clone-code{display:flex;gap:8px;align-items:center;background:#15151A;border:1px solid #232326;border-radius:10px;padding:8px 10px;font-family:JetBrains Mono,monospace;font-size:11px;overflow:auto}
+.tabs{display:flex;gap:6px;margin:12px 12px 0}
+.tab{flex:1;padding:10px;border-radius:10px;font-size:12px;font-weight:700;text-align:center;cursor:pointer;border:1px solid #232326}
+.tab.on{background:#fff;color:#000} .tab.off{background:#15151A;color:#9A9AAF}
+.pane{margin:12px;background:#07070A;border:1px solid #232326;border-radius:12px;padding:12px;max-height:420px;overflow:auto}
+.tree{font-family:JetBrains Mono,monospace;font-size:12px;line-height:1.8}
+.tree .folder{cursor:pointer;color:#F59E0B} .tree .file{color:#CFCFD9;cursor:pointer} .tree .file:hover{color:#fff}
+.tree ul{list-style:none;margin-left:14px;border-left:1px solid #232326;padding-left:10px}
+.comment{padding:12px;background:#07070A;border:1px solid #232326;border-radius:12px;margin-bottom:10px;display:flex;gap:10px}
+.avatar{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#EC4899);display:grid;place-items:center;font-weight:800;font-size:12px;flex-shrink:0}
+</style>
+</head>
+<body>
+<div class="nav">
+  <div class="logo"><div class="logo-mark">◈</div> BlaqVibes</div>
+  <div style="display:flex;gap:8px"><button class="btn-ghost" onclick="history.back()">← Back</button><button class="btn-violet">★ Star 142</button></div>
+</div>
+
+<div class="wrap">
+  <!-- LEFT -->
+  <div>
+    <div class="card">
+      <div class="toolbar">
+        <div style="display:flex;gap:6px;align-items:center"><span style="width:10px;height:10px;background:#EF4444;border-radius:50%"></span><span style="width:10px;height:10px;background:#F59E0B;border-radius:50%"></span><span style="width:10px;height:10px;background:#10B981;border-radius:50%"></span><span style="font-size:12px;color:#9A9AAF;margin-left:6px">stock_app_vibes — Preview</span></div>
+        <span style="font-size:11px;background:#DCFCE7;color:#15803D;padding:4px 8px;border-radius:8px;font-weight:700">● Secure</span>
+      </div>
+      <div class="preview" id="preview">
+        <div style="display:flex;justify-content:space-between;border-bottom:1px solid #E5E7EB;padding-bottom:8px"><b>Stock App Vibes — Portfolio</b><span style="background:#DCFCE7;color:#15803D;padding:4px 8px;border-radius:100px;font-size:11px">● LIVE</span></div>
+        <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:8px"><tr style="color:#64748B"><th style="text-align:left;padding:6px">Symbol</th><th>Price</th><th>Change</th></tr><tr style="border-top:1px solid #E5E7EB"><td style="padding:6px;font-weight:700">AAPL</td><td>$182.52</td><td style="color:#16A34A;font-weight:700">+2.34%</td></tr><tr style="border-top:1px solid #E5E7EB"><td style="padding:6px;font-weight:700">NVDA</td><td>$903.12</td><td style="color:#16A34A;font-weight:700">+5.80%</td></tr></table>
+      </div>
+      <div class="clone">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:11px;letter-spacing:.06em;color:#9A9AAF;font-weight:700">CLONE WITH GIT</span><span style="font-size:11px;color:#F59E0B">14.2 MB • MIT</span></div>
+        <div class="clone-code"><span style="color:#9A9AAF">$</span> git clone https://blaqvibes.co.za/git/nolo.ai/stock_app_vibes.git <button class="btn-violet" style="margin-left:auto;padding:6px 10px;font-size:11px" onclick="showToast('Copied clone command!')">Copy</button></div>
+        <div style="display:flex;gap:8px;margin-top:8px"><button class="btn-violet" style="flex:1;justify-content:center;display:flex" onclick="showToast('Download ZIP — signed URL 5 min')">⬇ Download ZIP</button><button class="btn-ghost">View Files</button></div>
+      </div>
+    </div>
+
+    <!-- TABS: README / TREE -->
+    <div class="card" style="margin-top:12px;padding-bottom:12px">
+      <div class="tabs">
+        <div class="tab on" id="tabReadme" onclick="switchTab('readme')">📄 README.md</div>
+        <div class="tab off" id="tabTree" onclick="switchTab('tree')">📁 Files — Tree (18)</div>
+      </div>
+      <div class="pane" id="paneReadme">
+<pre style="font-family:JetBrains Mono,monospace;font-size:11px;line-height:1.6;white-space:pre-wrap;color:#CFCFD9"># Stock App Vibes
+AI Stock portfolio tracker — Django + React + Tailwind.
+
+## What is this?
+Tracks real-time stock prices, portfolio P&L, and sparkline charts. Built with Lovable in 2 hours, never published.
+
+## Tech Stack
+- Django 5, DRF
+- React + Vite + Tailwind
+- TwelveData API
+
+## How to Run
+```bash
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+# frontend
+cd frontend && npm i && npm run dev
+```
+
+## AI Prompt
+"Build a stock tracker with portfolio table and TradingView chart"
+
+## Security
+Scanned by BlaqVibes: ✅ Clean, no secrets</pre>
+      </div>
+      <div class="pane" id="paneTree" style="display:none">
+        <div class="tree">
+          <div class="folder" onclick="toggle('a')">📁 stock_app_vibes/ ▾</div>
+          <ul id="a">
+            <li class="file" onclick="openFile('README.md')">📄 README.md <span style="color:#6A6A7A">— 1.2 KB</span></li>
+            <li class="file">📄 manage.py</li>
+            <li class="file">📄 requirements.txt</li>
+            <li class="folder" onclick="toggle('b')">📁 stock_app/ ▾
+              <ul id="b">
+                <li class="file" onclick="openFile('stock_app/views.py')">📄 views.py <span style="color:#6A6A7A">— 3.4 KB</span></li>
+                <li class="file">📄 models.py</li>
+                <li class="file">📄 urls.py</li>
+              </ul>
+            </li>
+            <li class="folder" onclick="toggle('c')">📁 frontend/ ▸
+              <ul id="c" style="display:none">
+                <li>📄 package.json</li>
+                <li>📁 src/ — App.jsx, components/StockTable.jsx</li>
+              </ul>
+            </li>
+            <li>📁 screenshots/ — dashboard.png</li>
+          </ul>
+        </div>
+        <div id="filePreview" style="margin-top:12px;background:#121214;border:1px solid #232326;border-radius:10px;padding:10px;display:none">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px"><b id="fileName" style="font-family:JetBrains Mono,monospace;font-size:12px"></b><button class="btn-ghost" style="padding:4px 8px;font-size:11px" onclick="document.getElementById('filePreview').style.display='none'">✕</button></div>
+          <pre id="fileCode" style="font-family:JetBrains Mono,monospace;font-size:11px;line-height:1.6;overflow:auto;max-height:220px;white-space:pre-wrap;color:#CFCFD9"></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMMENTS -->
+    <div class="card" style="margin-top:12px;padding:14px">
+      <h3 style="font-weight:700">Comments • 3</h3>
+      <div style="margin-top:10px;display:flex;gap:8px">
+        <div class="avatar">T</div>
+        <div style="flex:1">
+          <textarea id="commentInput" placeholder="Ask about setup, report a bug, share a vibe... (Markdown supported)" style="width:100%;background:#07070A;border:1px solid #232326;border-radius:10px;padding:10px;color:#fff;font-size:13px;min-height:72px"></textarea>
+          <div style="display:flex;justify-content:space-between;margin-top:6px"><span style="font-size:11px;color:#6A6A7A">Markdown: **bold** `code` [link](url)</span><button class="btn-violet" onclick="postComment()">Comment</button></div>
+        </div>
+      </div>
+      <div id="commentsList" style="margin-top:14px">
+        <div class="comment"><div class="avatar">S</div><div style="flex:1"><div style="display:flex;gap:6px;align-items:center"><b style="font-size:13px">@sbu</b><span style="font-size:11px;color:#6A6A7A">2h ago</span></div><div style="font-size:13px;margin-top:4px;line-height:1.5">Does this work with Django 5? I get `psycopg2` error.</div><div style="margin-top:6px;display:flex;gap:8px"><span style="font-size:11px;color:#7C3AED;cursor:pointer">Reply</span><span style="font-size:11px;color:#6A6A7A">Report</span></div><div style="margin-top:8px;margin-left:12px;padding-left:10px;border-left:2px solid #232326;display:flex;gap:8px"><div class="avatar" style="width:24px;height:24px;font-size:10px">N</div><div><b style="font-size:12px">@nolo.ai (owner)</b><div style="font-size:13px;margin-top:2px">Yes! Use `psycopg[binary]` instead — I pushed a fix. Check `requirements.txt` now.</div></div></div></div></div>
+        <div class="comment"><div class="avatar" style="background:linear-gradient(135deg,#F59E0B,#EF4444)">K</div><div style="flex:1"><b style="font-size:13px">@kay</b><span style="font-size:11px;color:#6A6A7A;margin-left:6px">5h ago</span><div style="font-size:13px;margin-top:4px">Cloned `stock_app_vibes` — runs smooth! Added my TwelveData key and it live-updates. 🔥</div></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div>
+    <div class="card" style="padding:14px">
+      <div style="display:flex;gap:6px;margin-bottom:8px"><span style="font-size:10px;font-weight:700;background:#FEF3C7;color:#92400E;padding:4px 7px;border-radius:8px">FULL APP</span><span style="font-size:10px;font-weight:700;border:1px solid #F59E0B;color:#F59E0B;padding:4px 7px;border-radius:8px">🤖 AI • Lovable</span></div>
+      <h3 style="font-weight:700">Stock App Vibes</h3>
+      <p style="font-size:12px;color:#9A9AAF;margin:6px 0 10px;line-height:1.5">Full-stack tracker that never shipped. The README + Tree below is what people read before they clone — no blind ZIPs.</p>
+      <div style="display:flex;flex-direction:column;font-size:12px">
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #232326"><span style="color:#9A9AAF">Publisher</span><b>@nolo.ai</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #232326"><span style="color:#9A9AAF">Stack</span><b>Django • React • Tailwind</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #232326"><span style="color:#9A9AAF">Files</span><b>18 • 14.2 MB</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0"><span style="color:#9A9AAF">License</span><b>MIT</b></div>
+      </div>
+      <div style="margin-top:10px;background:#07070A;border:1px solid #232326;border-radius:10px;padding:10px">
+        <div style="font-size:11px;letter-spacing:.06em;color:#F59E0B;font-weight:700">🔒 SECURITY</div>
+        <div style="font-size:12px;line-height:1.6;margin-top:4px">✅ ClamAV clean<br>✅ No secrets<br>⚠️ npm moderate — fix available</div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:12px;padding:14px;background:#07070A">
+      <h4 style="font-size:12px;letter-spacing:.06em;color:#9A9AAF">HOW TO ACCESS</h4>
+      <ol style="font-size:12px;line-height:1.7;margin-top:6px;padding-left:16px;color:#CFCFD9">
+        <li>Read README (what it does)</li>
+        <li>Explore Files tree</li>
+        <li>Read comments</li>
+        <li>Then Download ZIP / git clone</li>
+      </ol>
+    </div>
+  </div>
+</div>
+
+<div id="toast" style="position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(80px);background:#fff;color:#000;padding:10px 16px;border-radius:10px;font-weight:700;font-size:13px;transition:.25s;z-index:100">✓ Copied!</div>
+
+<script>
+function switchTab(t){
+  document.getElementById('tabReadme').className = t==='readme' ? 'tab on' : 'tab off';
+  document.getElementById('tabTree').className = t==='tree' ? 'tab on' : 'tab off';
+  document.getElementById('paneReadme').style.display = t==='readme' ? 'block' : 'none';
+  document.getElementById('paneTree').style.display = t==='tree' ? 'block' : 'none';
+}
+function toggle(id){ const el=document.getElementById(id); el.style.display = el.style.display==='none' ? 'block' : 'none'; }
+function openFile(name){
+  const codes={
+    'README.md':'# Stock App Vibes\nSee README tab',
+    'stock_app/views.py':"from django.shortcuts import render\nfrom .models import Stock\n\ndef portfolio(request):\n    stocks = Stock.objects.all()\n    return render(request, 'portfolio.html', {'stocks': stocks})"
+  };
+  document.getElementById('fileName').textContent=name;
+  document.getElementById('fileCode').textContent=codes[name]||'// '+name+' — preview';
+  document.getElementById('filePreview').style.display='block';
+}
+function postComment(){
+  const v=document.getElementById('commentInput').value.trim();
+  if(!v) return;
+  const list=document.getElementById('commentsList');
+  const div=document.createElement('div');
+  div.className='comment';
+  div.innerHTML=`<div class="avatar">Y</div><div style="flex:1"><b style="font-size:13px">@you</b><span style="font-size:11px;color:#6A6A7A;margin-left:6px">just now</span><div style="font-size:13px;margin-top:4px">${v.replace(/</g,'&lt;')}</div></div>`;
+  list.prepend(div);
+  document.getElementById('commentInput').value='';
+  showToast('Comment posted!');
+}
+function showToast(m){ const t=document.getElementById('toast'); t.textContent=m; t.style.transform='translateX(-50%) translateY(0)'; setTimeout(()=>t.style.transform='translateX(-50%) translateY(80px)',1800); }
+</script>
+</body>
+</html>

@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlaqVibes — Settings Toggles Live Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07070A;--card:#121214;--line:#1F1F23;--muted:#9A9AAF;--text:#fff}
+[data-theme="light"]{--bg:#F8FAFC;--card:#FFFFFF;--line:#E2E8F0;--muted:#64748B;--text:#0F172A}
+*{margin:0;padding:0;box-sizing:border-box} body{font-family:Inter,sans-serif;background:var(--bg);color:var(--text)}
+.nav{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.switch{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;cursor:pointer;inset:0;background:#232326;border-radius:100px;transition:.2s}
+.slider:before{content:"";position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s}
+input:checked + .slider{background:#7C3AED}
+input:checked + .slider:before{transform:translateX(20px)}
+.badge{font-size:10px;padding:3px 7px;border-radius:8px;font-weight:700}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;transition:.25s;z-index:999}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.risk{border-left:3px solid #EF4444;padding-left:10px}
+.risk.ok{border-left-color:#10B981}
+</style>
+</head>
+<body data-theme="dark">
+<nav class="nav">
+  <div style="display:flex;align-items:center;gap:10px"><img src="/static/branding/icon-32.png" style="width:28px;height:28px;border-radius:8px"><span style="font-family:Space Grotesk,sans-serif;font-weight:700">BlaqVibes</span><span style="font-size:11px;background:#7C3AED;color:#fff;padding:4px 8px;border-radius:8px">Settings • Live Demo</span></div>
+  <div style="display:flex;gap:8px;align-items:center"><span style="font-size:11px;color:var(--muted)">Live at /settings/ • try toggling</span><button class="theme" onclick="document.body.setAttribute('data-theme', document.body.getAttribute('data-theme')==='dark'?'light':'dark')" style="width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;cursor:pointer">🌙</button></div>
+</nav>
+
+<div style="max-width:900px;margin:0 auto;padding:20px">
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">⚙️ Settings — Toggles Live Demo</h1>
+  <p style="color:var(--muted);font-size:13px">Vibe coders = 1 tap. Try toggling — backend saves via <code>POST /settings/toggle/</code>, no reload, crush silently.</p>
+
+  <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div>
+      <h2 style="font-size:14px;font-weight:700">Your Vibes — 10 toggles (all On) — details in separate card below</h2>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:12px" id="toggles-user">
+        <div style="display:flex;flex-direction:column;gap:4px">
+          <div class="card" style="display:flex;align-items:center;gap:12px"><div style="flex:1"><div style="font-weight:700;font-size:13px">Auto language detect</div></div><label class="switch"><input type="checkbox" checked data-key="auto_language"><span class="slider"></span></label></div>
+          <div class="card" style="background:var(--bg);border:1px dashed var(--line);padding:10px;margin-left:12px"><div style="font-size:11px;color:var(--muted)">Detect Python/JS % from ZIP — size-weighted. Details in separate card below toggle.</div></div>
+        </div>
+        <div class="card" style="display:flex;align-items:center;gap:12px"><div style="flex:1"><div style="font-weight:700;font-size:13px">Nolo auto-review</div><div style="font-size:11px;color:var(--muted)">Score 0-10 on every upload</div></div><label class="switch"><input type="checkbox" checked data-key="nolo_enabled"><span class="slider"></span></label></div>
+        <div class="card" style="display:flex;align-items:center;gap:12px"><div style="flex:1"><div style="font-weight:700;font-size:13px">Allow trading (charge stars)</div><div style="font-size:11px;color:var(--muted)">If off → your vibes free (0 ★)</div></div><label class="switch"><input type="checkbox" checked data-key="allow_trading"><span class="slider"></span></label></div>
+        <div class="card" style="display:flex;align-items:center;gap:12px"><div style="flex:1"><div style="font-weight:700;font-size:13px">Email on trade</div><div style="font-size:11px;color:var(--muted)">We’ll tell you when traded</div></div><label class="switch"><input type="checkbox" checked data-key="email_on_trade"><span class="slider"></span></label></div>
+        <div class="card" style="display:flex;align-items:center;gap:12px"><div style="flex:1"><div style="font-weight:700;font-size:13px">Show language %</div><div style="font-size:11px;color:var(--muted)">Donut visible to others</div></div><label class="switch"><input type="checkbox" checked data-key="show_language"><span class="slider"></span></label></div>
+        <div class="card" style="display:flex;align-items:center;gap:12px"><div style="flex:1"><div style="font-weight:700;font-size:13px">Allow forks</div><div style="font-size:11px;color:var(--muted)">Others can fork</div></div><label class="switch"><input type="checkbox" checked data-key="allow_forks"><span class="slider"></span></label></div>
+        <div class="card" style="display:flex;align-items:center;gap:12px"><div style="flex:1"><div style="font-weight:700;font-size:13px">Allow PRs</div><div style="font-size:11px;color:var(--muted)">Others can PR</div></div><label class="switch"><input type="checkbox" checked data-key="allow_prs"><span class="slider"></span></label></div>
+        <div class="card" style="display:flex;align-items:center;gap:12px"><div style="flex:1"><div style="font-weight:700;font-size:13px">Comments</div><div style="font-size:11px;color:var(--muted)">On your vibes</div></div><label class="switch"><input type="checkbox" checked data-key="allow_comments"><span class="slider"></span></label></div>
+        <div class="card" style="display:flex;align-items:center;gap:12px"><div style="flex:1"><div style="font-weight:700;font-size:13px">Reviews (1-5 ★)</div><div style="font-size:11px;color:var(--muted)">Human reviews</div></div><label class="switch"><input type="checkbox" checked data-key="allow_reviews"><span class="slider"></span></label></div>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:var(--muted)">Live at <code>/settings/</code> — try toggling Allow trading Off → publish a new vibe → it will be 0 ★ Free even if you set 2 ★.</div>
+    </div>
+
+    <div>
+      <h2 style="font-size:14px;font-weight:700">What Would Go Wrong</h2>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+        <div class="card risk">
+          <div style="font-weight:700;font-size:13px;color:#EF4444">🔴 Turning off trading by accident</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">You toggle Allow trading Off → all your vibes become free → you lose stars income. <b>Mitigation:</b> Confirm dialog “Make all your vibes free? You’ll lose ★ income” + show “Free” badge before toggle.</div>
+        </div>
+        <div class="card risk">
+          <div style="font-weight:700;font-size:13px;color:#EF4444">🔴 Disabling Nolo + language — quality drops</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Nolo Off → no review, language Off → no donut → buyers can’t judge → fewer trades. <b>Mitigation:</b> Default On, show “Recommended” badge, explain value.</div>
+        </div>
+        <div class="card risk">
+          <div style="font-weight:700;font-size:13px;color:#F59E0B">🟡 Forks/PRs off breaks network</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Allow forks Off → 10 existing forks stay, but new forks blocked → “Fork” button hidden, POST returns 403 fork page. <b>Mitigation:</b> Show “Forks disabled for your vibes” + keep existing forks.</div>
+        </div>
+        <div class="card risk">
+          <div style="font-weight:700;font-size:13px;color:#F59E0B">🟡 Email off = missed trade</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Email on trade Off → you don’t know someone traded → balance changes silently. <b>Mitigation:</b> In-app bell still shows (Trades page), email is extra.</div>
+        </div>
+        <div class="card risk ok" style="opacity:.7">
+          <div style="font-weight:700;font-size:13px;color:#10B981">🔒 ClamAV & R2 — Locked Always On (Critical)</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Very critical — cannot be toggled. Virus scan and storage stay on. Attempt to toggle → 400 “Critical — always on”.</div>
+        </div>
+        <div class="card risk ok">
+          <div style="font-weight:700;font-size:13px;color:#10B981">🟢 Rapid toggling</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">User spams toggle 10x/sec → 10 POSTs. <b>Mitigation:</b> Backend `toggle_setting` is idempotent, `update_fields=[key]`, no race, crush silently + 200.</div>
+        </div>
+        <div class="card risk ok">
+          <div style="font-weight:700;font-size:13px;color:#10B981">🟢 JS disabled</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:4px">Switch needs JS. <b>Mitigation:</b> Form fallback — page still works without JS, toggle via POST + reload (progressive enhancement).</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast">✓ Enabled allow_trading</div>
+<script>
+document.querySelectorAll('.switch input').forEach(el=>{
+  el.addEventListener('change', ()=>{
+    const key=el.dataset.key;
+    const value=el.checked;
+    // Simulate backend POST — in live it’s fetch to /settings/toggle/
+    const t=document.getElementById('toast');
+    t.textContent=(value?'Enabled ':'Disabled ')+key;
+    t.classList.add('show');
+    setTimeout(()=>t.classList.remove('show'),1600);
+    // Highlight risk if trading off
+    if(key==='allow_trading' && !value){
+      setTimeout(()=>{ t.textContent='⚠️ All your vibes now free — you’ll lose ★ income'; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),2000); },800);
+    }
+  });
+});
+</script>
+</body>
+</html>

@@ -1,0 +1,395 @@
+{% extends 'gallery/base.html' %} {% block title %}Vibe Battles — BlaqVibes{%
+endblock %} {% block content %}
+<div
+  style="
+    height: calc(100vh - 56px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  "
+>
+  <div
+    style="
+      padding: 12px 16px;
+      border-bottom: 1px solid #1f1f23;
+      flex-shrink: 0;
+      background: var(--bg);
+    "
+  >
+    <h1
+      style="
+        font-family:
+          Space Grotesk,
+          sans-serif;
+        font-size: 18px;
+      "
+    >
+      ⚔️ Vibe Battles — Which would you pick?
+    </h1>
+    <p style="color: #9a9aaf; font-size: 12px">
+      Two random vibes side-by-side — vote → winner gets
+      <b style="color: #f59e0b">+5 ★</b> and appears <b>top 1st</b>. Swipe right
+      --> on mobile for next battle.
+    </p>
+  </div>
+
+  {% if not battle %}
+  <div
+    style="
+      flex: 1;
+      display: grid;
+      place-items: center;
+      padding: 20px;
+      text-align: center;
+      color: #6a6a7a;
+    "
+  >
+    Not enough vibes for battle — publish at least 2 vibes!
+    <a href="{% url 'publish' %}" style="color: #7c3aed">Publish →</a>
+  </div>
+  {% else %}
+  <div
+    id="battle-swipe"
+    style="
+      flex: 1;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0;
+      overflow: hidden;
+    "
+  >
+    <!-- A — full height -->
+    <div
+      class="card"
+      style="
+        margin: 0;
+        border-radius: 0;
+        border: none;
+        border-right: 1px solid #1f1f23;
+        display: flex;
+        flex-direction: column;
+        overflow: auto;
+      "
+    >
+      <div
+        style="
+          height: 160px;
+          background: linear-gradient(135deg, #1e1b4b, #0f172a);
+          padding: 12px;
+          flex-shrink: 0;
+          display: grid;
+          place-items: center;
+        "
+      >
+        <div
+          style="
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            border-radius: 10px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            color: #111;
+          "
+        >
+          <div style="font-weight: 700; font-size: 13px">
+            {{ battle.vibe_a.title|truncatechars:30 }}
+          </div>
+          <div style="font-size: 11px; color: #64748b">
+            {{ battle.vibe_a.tech_stack|default:"—" }} • {{
+            battle.vibe_a.file_count }} files
+          </div>
+        </div>
+      </div>
+      <div style="padding: 14px; flex: 1; overflow: auto">
+        <div style="font-weight: 700; font-size: 15px">
+          {{ battle.vibe_a.title }}
+        </div>
+        <div style="font-size: 12px; color: #9a9aaf; margin-top: 4px">
+          {{ battle.vibe_a.short_description|truncatechars:100 }}
+        </div>
+        <div style="font-size: 11px; color: #6a6a7a; margin-top: 6px">
+          @{{ battle.vibe_a.owner.username }} • ★ {{ battle.vibe_a.stars }}
+        </div>
+        <div
+          style="margin-top: 10px; display: flex; gap: 6px; align-items: center"
+        >
+          <span
+            style="
+              font-size: 11px;
+              background: #1a1a1e;
+              border: 1px solid #232326;
+              padding: 4px 8px;
+              border-radius: 8px;
+            "
+            >{{ battle.votes_a }} votes</span
+          >
+          {% if battle.votes_a > battle.votes_b %}<span
+            style="
+              font-size: 11px;
+              background: #dcfce7;
+              color: #15803d;
+              padding: 4px 8px;
+              border-radius: 8px;
+            "
+            >Leading</span
+          >{% endif %}
+        </div>
+      </div>
+      <div style="padding: 0 14px 14px; flex-shrink: 0">
+        <form method="post" action="{% url 'vote_battle' battle.id %}">
+          {% csrf_token %}<input type="hidden" name="choice" value="a" /><button
+            class="btnV"
+            style="width: 100%; padding: 12px; font-size: 13px"
+          >
+            Pick Left — {{ battle.vibe_a.title|truncatechars:20 }}
+          </button>
+        </form>
+        <a
+          href="{{ battle.vibe_a.get_absolute_url }}"
+          style="
+            display: block;
+            margin-top: 6px;
+            text-align: center;
+            font-size: 11px;
+            color: #7c3aed;
+          "
+          >View vibe → reveals @{{ battle.vibe_a.owner.username }}</a
+        >
+      </div>
+    </div>
+
+    <!-- B — full height -->
+    <div
+      class="card"
+      style="
+        margin: 0;
+        border-radius: 0;
+        border: none;
+        display: flex;
+        flex-direction: column;
+        overflow: auto;
+      "
+    >
+      <div
+        style="
+          height: 160px;
+          background: linear-gradient(135deg, #2e220f, #1a140a);
+          padding: 12px;
+          flex-shrink: 0;
+          display: grid;
+          place-items: center;
+        "
+      >
+        <div
+          style="
+            width: 100%;
+            height: 100%;
+            background: #fff;
+            border-radius: 8px;
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            color: #111;
+          "
+        >
+          <div style="font-weight: 700; font-size: 12px">
+            {{ battle.vibe_b.title|truncatechars:30 }}
+          </div>
+          <div style="font-size: 11px; color: #64748b">
+            {{ battle.vibe_b.tech_stack|default:"—" }} • {{
+            battle.vibe_b.file_count }} files
+          </div>
+        </div>
+      </div>
+      <div style="padding: 14px; flex: 1; overflow: auto">
+        <div style="font-weight: 700; font-size: 15px">
+          {{ battle.vibe_b.title }}
+        </div>
+        <div style="font-size: 12px; color: #9a9aaf; margin-top: 4px">
+          {{ battle.vibe_b.short_description|truncatechars:100 }}
+        </div>
+        <div style="font-size: 11px; color: #6a6a7a; margin-top: 6px">
+          @{{ battle.vibe_b.owner.username }} • ★ {{ battle.vibe_b.stars }}
+        </div>
+        <div
+          style="margin-top: 10px; display: flex; gap: 6px; align-items: center"
+        >
+          <span
+            style="
+              font-size: 11px;
+              background: #1a1a1e;
+              border: 1px solid #232326;
+              padding: 4px 8px;
+              border-radius: 8px;
+            "
+            >{{ battle.votes_b }} votes</span
+          >
+          {% if battle.votes_b > battle.votes_a %}<span
+            style="
+              font-size: 11px;
+              background: #dcfce7;
+              color: #15803d;
+              padding: 4px 8px;
+              border-radius: 8px;
+            "
+            >Leading</span
+          >{% endif %}
+        </div>
+      </div>
+      <div style="padding: 0 14px 14px; flex-shrink: 0">
+        <form method="post" action="{% url 'vote_battle' battle.id %}">
+          {% csrf_token %}<input type="hidden" name="choice" value="b" /><button
+            class="btnV"
+            style="
+              width: 100%;
+              background: #f59e0b;
+              padding: 12px;
+              font-size: 13px;
+            "
+          >
+            Pick Right — {{ battle.vibe_b.title|truncatechars:20 }}
+          </button>
+        </form>
+        <a
+          href="{{ battle.vibe_b.get_absolute_url }}"
+          style="
+            display: block;
+            margin-top: 6px;
+            text-align: center;
+            font-size: 11px;
+            color: #7c3aed;
+          "
+          >View vibe → reveals @{{ battle.vibe_b.owner.username }}</a
+        >
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom bar — VS small -->
+  <div
+    style="
+      height: 48px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      justify-content: center;
+      background: var(--card);
+      border-top: 1px solid var(--line);
+      padding: 0 12px;
+      flex-shrink: 0;
+    "
+  >
+    <span style="font-size: 11px; color: var(--muted)"
+      >{{ battle.votes_a }} votes</span
+    >
+    <span
+      style="
+        font-size: 12px;
+        font-weight: 800;
+        background: linear-gradient(135deg, #7c3aed, #f59e0b);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      "
+      >VS</span
+    >
+    <span style="font-size: 11px; color: var(--muted)"
+      >{{ battle.votes_b }} votes</span
+    >
+    <div
+      style="
+        flex: 1;
+        max-width: 200px;
+        height: 6px;
+        background: #1f1f23;
+        border-radius: 100px;
+        display: flex;
+        overflow: hidden;
+        margin-left: 8px;
+      "
+    >
+      <div style="flex:{{ battle.votes_a|default:1 }};background:#7C3AED"></div>
+      <div style="flex:{{ battle.votes_b|default:1 }};background:#F59E0B"></div>
+    </div>
+    <span style="font-size: 11px; color: var(--muted)"
+      >{{ battle.votes_a }} — {{ battle.votes_b }}</span
+    >
+    <a
+      href="{% url 'battle' %}"
+      id="next-battle"
+      class="btnG"
+      style="padding: 6px 10px; font-size: 11px; margin-left: 8px"
+      >Next Battle →</a
+    >
+    <a
+      href="{% url 'battle_history' %}"
+      class="btnG"
+      style="padding: 6px 10px; font-size: 11px"
+      >History</a
+    >
+    <span
+      style="font-size: 10px; color: var(--muted); display: none"
+      class="mobile-hint"
+      >Swipe right ➡️ on mobile for next</span
+    >
+  </div>
+  {% endif %}
+</div>
+<style>
+  @media (max-width: 720px) {
+    #battle-swipe {
+      grid-template-columns: 1fr;
+      overflow: auto;
+    }
+    #battle-swipe .card {
+      border-right: none !important;
+      border-bottom: 1px solid #1f1f23;
+    }
+    .mobile-hint {
+      display: inline !important;
+    }
+  }
+</style>
+<script>
+  // Swipe right → next battle — mobile only, desktop uses buttons
+  try {
+    const wrap = document.getElementById("battle-swipe");
+    if (wrap) {
+      let startX = 0,
+        isMobile = window.matchMedia("(max-width: 720px)").matches;
+      if (isMobile) {
+        wrap.addEventListener(
+          "touchstart",
+          (e) => {
+            startX = e.touches[0].clientX;
+          },
+          { passive: true },
+        );
+        wrap.addEventListener("touchend", (e) => {
+          const dx = e.changedTouches[0].clientX - startX;
+          if (dx > 80) {
+            window.location.href = document.getElementById("next-battle").href;
+          }
+          if (dx < -80) {
+            window.location.href = document.getElementById("next-battle").href;
+          }
+        });
+        wrap.style.touchAction = "pan-y";
+      }
+      document.querySelectorAll('form[action*="/vote/"]').forEach((form) => {
+        form.addEventListener("submit", function () {
+          const choice = form.querySelector("[name=choice]").value;
+          const card = form.closest(".card");
+          const owner = card.textContent.match(/@\w+/)?.[0] || "@creator";
+          try {
+            toast(`You picked ${owner}'s app • +5 ★`);
+          } catch (e) {}
+        });
+      });
+    }
+  } catch (e) {}
+</script>
+{% endblock %}

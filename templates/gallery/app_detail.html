@@ -1,0 +1,318 @@
+{% extends 'gallery/base.html' %}
+{% block title %}{{ project.title }} — BlaqVibes{% endblock %}
+{% block content %}
+{% if project.status != 'published' %}
+<div id="scan-banner" data-scan-url="{% url 'scan_status' project.slug %}" style="max-width:1280px;margin:12px auto 0;padding:14px 16px;background:linear-gradient(135deg,#1A1A00 0%,#1A1400 100%);border:1px solid #F59E0B;border-radius:12px;display:flex;align-items:center;gap:12px;font-size:13px;box-shadow:0 4px 16px rgba(245,158,11,.15)">
+  <span style="width:10px;height:10px;background:#F59E0B;border-radius:50%;animation:pulse 1.2s infinite;flex-shrink:0"></span>
+  <div>
+    <div style="font-weight:700;color:#FDE68A">⏳ Your vibe is in the queue — we’ll tell you when it’s uploaded!</div>
+    <div style="font-size:12px;color:#FDE68A;opacity:.9">Status: <b id="scan-text" style="color:#fff">{{ scan_status }}</b> • Every app is checked for vulnerabilities, even when many upload at once. This is backend only — no sensitive info in JS.</div>
+  </div>
+  <span style="margin-left:auto;font-size:11px;color:#F59E0B;white-space:nowrap">🔒 scan → vuln → publish</span>
+</div>
+{% endif %}
+<div style="max-width:1280px;margin:0 auto;padding:16px 20px;display:grid;grid-template-columns:1.6fr .95fr;gap:16px">
+  <!-- LEFT -->
+  <div>
+    <div class="card">
+      <div style="height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:#15151A;border-bottom:1px solid #232326">
+        <div style="display:flex;gap:6px;align-items:center"><span style="width:10px;height:10px;background:#EF4444;border-radius:50%"></span><span style="width:10px;height:10px;background:#F59E0B;border-radius:50%"></span><span style="width:10px;height:10px;background:#10B981;border-radius:50%"></span><span style="font-size:12px;color:#9A9AAF;margin-left:6px">{{ project.slug }} — Preview</span></div>
+        <span style="font-size:11px;background:#DCFCE7;color:#15803D;padding:4px 8px;border-radius:8px;font-weight:700">● Secure</span>
+      </div>
+      {% if project.html_code %}
+        <iframe src="{% url 'preview' project.slug %}" style="width:100%;height:380px;border:none;background:#fff"></iframe>
+      {% else %}
+        <div style="height:320px;background:#fff;display:grid;place-items:center;color:#111;padding:20px">
+          <div style="text-align:center"><div style="font-weight:700">{{ project.title }}</div><div style="font-size:12px;color:#64748B;margin:6px 0">{{ project.tech_stack }} • {{ project.file_count }} files</div><div style="font-size:11px;color:#9A9AAF">Full app — preview screenshots in README. Download ZIP to run locally.</div></div>
+        </div>
+      {% endif %}
+      <div style="margin:12px;background:#07070A;border:1px solid #232326;border-radius:12px;padding:12px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:11px;letter-spacing:.06em;color:#9A9AAF;font-weight:700">CLONE WITH GIT</span><span style="font-size:11px;color:#F59E0B">{{ project.file_count }} files • {{ project.clones }} clones</span></div>
+        <div style="display:flex;gap:8px;align-items:center;background:#15151A;border:1px solid #232326;border-radius:10px;padding:8px 10px;font-family:JetBrains Mono,monospace;font-size:11px;overflow:auto">
+          <span style="color:#9A9AAF">$</span> git clone https://blaqvibes.co.za/git/{{ project.owner.username }}/{{ project.slug }}.git
+          <button class="btn-white js-copy" data-copy="git clone https://blaqvibes.co.za/git/{{ project.owner.username }}/{{ project.slug }}.git" style="margin-left:auto;padding:6px 10px;font-size:11px">Copy</button>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
+          {% if project.zip_file %}
+            {% if project.star_cost and user.is_authenticated and user != project.owner and not has_traded %}
+              <form method="post" action="{% url 'trade_download' project.slug %}" style="flex:1">{% csrf_token %}<button class="btn-violet" style="width:100%">⬇ Trade {{ project.star_cost }} ★ to Download</button></form>
+              <div style="width:100%;font-size:11px;color:#9A9AAF;text-align:center">You have {{ user.profile.stars_balance }} ★ • Seller @{{ project.owner.username }} is {{ owner_rank.name }} ({{ owner_rank.discount }}% Pro discount) → Top rank = appears 1st</div>
+            {% else %}
+              <a href="{% url 'download_zip' project.slug %}" class="btn-violet" style="flex:1;justify-content:center">⬇ Download ZIP {% if project.star_cost %}({{ project.star_cost }} ★){% else %}(Free){% endif %}</a>
+            {% endif %}
+          {% endif %}
+          <a href="{% url 'git_clone' project.owner.username project.slug %}" class="btn-ghost" style="flex:1;justify-content:center;text-align:center">⎇ Git Clone</a>
+          <button class="btn-ghost js-copy-snippet" data-target="html-code">⎘ Copy Snippet</button>
+          <form method="post" action="{% url 'toggle_star' project.slug %}" class="js-star-form" style="display:inline">
+            {% csrf_token %}<button class="btn-ghost">{% if is_starred %}★ Starred{% else %}☆ Star{% endif %} {{ project.stars }}</button>
+          </form>
+          <form method="post" action="{% url 'fork_vibe' project.slug %}" class="js-fork-form" style="display:inline">{% csrf_token %}<button class="btn-ghost">⑂ Fork {{ project.forks.count }}</button></form>
+          <form method="post" action="{% url 'run_vibe' project.slug %}" style="display:inline;flex:1">{% csrf_token %}<button class="btn-ghost" style="width:100%;background:#10B981;color:#fff">▶ Run — Live 1h</button></form>
+        </div>
+        {% if user_rank %}<div style="font-size:11px;color:#9A9AAF;margin-top:6px">Your rank: <b style="color:#F59E0B">{{ user_rank.name }}</b> ({{ user_rank.discount }}% Pro discount) • Earn stars when others star/trade your vibes → appears 1st when exploring</div>{% endif %}
+        {% if project.price_zar and project.price_zar > 0 %}
+        <div style="margin-top:8px;background:#0A1A0F;border:1px solid #F59E0B;border-radius:10px;padding:10px">
+          <div style="font-size:11px;color:#F59E0B;font-weight:700">💰 Money — R{{ project.price_zar }} via Paystack</div>
+          {% if user.is_authenticated and user != project.owner and not has_bought %}
+            <form method="post" action="{% url 'buy_vibe' project.slug %}" style="margin-top:6px">{% csrf_token %}<button class="btnV" style="width:100%">💳 Buy for R{{ project.price_zar }} — Seller gets R{{ project.price_zar|floatformat:0 }} (85%)</button></form>
+            <div style="font-size:11px;color:#9A9AAF;margin-top:4px">Demo mode if PAYSTACK_SECRET not set — creates Sale without real payment.</div>
+          {% elif has_bought %}<div style="font-size:11px;color:#10B981;margin-top:4px">✓ You bought this — <a href="{% url 'download_zip' project.slug %}" style="color:#10B981">Download ZIP</a></div>
+          {% elif user == project.owner %}<div style="font-size:11px;color:#9A9AAF;margin-top:4px">Your vibe — buyers pay R{{ project.price_zar }}, you get 85%.</div>
+          {% endif %}
+        </div>
+        {% endif %}
+        {% if user.is_authenticated and user == project.owner %}
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <a href="{% url 'edit_vibe' project.slug %}" class="btn-ghost" style="flex:1;text-align:center">✎ Edit / Re-upload</a>
+          <form method="post" action="{% url 'delete_vibe' project.slug %}" class="js-delete-form" style="flex:1">{% csrf_token %}<button class="btn-ghost" style="width:100%;color:#EF4444">🗑 Delete</button></form>
+        </div>
+        {% endif %}
+        <form method="post" action="{% url 'report_vibe' project.slug %}" style="margin-top:8px;display:flex;gap:6px">{% csrf_token %}
+          <select name="reason" style="flex:1;background:#15151A;border:1px solid #232326;border-radius:8px;padding:6px;color:#fff;font-size:12px"><option value="spam">Spam</option><option value="malware">Malware</option><option value="copyright">Copyright</option><option value="other">Other</option></select>
+          <input name="details" placeholder="Details (optional)" style="flex:2;background:#15151A;border:1px solid #232326;border-radius:8px;padding:6px;color:#fff;font-size:12px">
+          <button class="btn-ghost" style="padding:6px 10px;font-size:12px">Report</button>
+        </form>
+      </div>
+    </div>
+
+    {% if user == project.owner %}
+    <div class="card" id="ai-readme" style="margin-top:12px;padding:14px;background:linear-gradient(135deg,#0F0F12 0%,#0F141A 100%);border-color:#7C3AED">
+      <div style="display:flex;align-items:center;gap:8px"><span style="font-size:16px">🤖</span><div><div style="font-weight:800">AI README — Gemini/Groq</div><div style="font-size:11px;color:#9A9AAF">Generate from file_tree + tech_stack + code. Backend only, crush silently.</div></div></div>
+      <div style="margin-top:8px;display:flex;gap:8px">
+        <form method="post" action="{% url 'generate_ai_readme' project.slug %}" style="flex:1">{% csrf_token %}<button class="btnV" style="width:100%">✨ Generate AI README</button></form>
+        {% if project.ai_readme %}<form method="post" action="{% url 'apply_ai_readme' project.slug %}" style="flex:1">{% csrf_token %}<button class="btnG" style="width:100%">Apply AI README to vibe</button></form>{% endif %}
+      </div>
+      {% if project.ai_readme %}<div style="margin-top:8px;background:#07070A;border:1px solid #232326;border-radius:10px;padding:10px;max-height:200px;overflow:auto"><div style="font-size:11px;color:#9A9AAF;font-weight:700">AI README PREVIEW</div><div style="font-size:12px;white-space:pre-wrap;color:#CFCFD9;margin-top:4px">{{ project.ai_readme|truncatechars:800 }}</div></div>{% endif %}
+    </div>
+    {% endif %}
+
+    <!-- TABS README / TREE / CODE -->
+    <div class="card" style="margin-top:12px;padding-bottom:12px" x-data="{tab:'readme'}">
+      <div style="display:flex;gap:6px;margin:12px 12px 0">
+        <button @click="tab='readme'" :class="tab==='readme'?'btn-white':'btn-ghost'" style="flex:1">📄 README.md</button>
+        <button @click="tab='tree'" :class="tab==='tree'?'btn-white':'btn-ghost'" style="flex:1">📁 Files ({{ project.file_count }})</button>
+        {% if project.html_code %}<button @click="tab='code'" :class="tab==='code'?'btn-white':'btn-ghost'" style="flex:1">💻 Code</button>{% endif %}
+      </div>
+
+      <div x-show="tab==='readme'" style="margin:12px;background:#07070A;border:1px solid #232326;border-radius:12px;padding:14px">
+        <div style="font-size:11px;letter-spacing:.06em;color:#9A9AAF;font-weight:700;margin-bottom:8px">README — REQUIRED FOR EVERY VIBE</div>
+        <div style="font-size:13px;line-height:1.7;color:#CFCFD9">{{ project.readme_html|safe }}</div>
+      </div>
+
+      <div x-show="tab==='tree'" style="margin:12px;background:#07070A;border:1px solid #232326;border-radius:12px;padding:12px" x-data="{open:true}">
+        <div style="font-size:11px;letter-spacing:.06em;color:#9A9AAF;font-weight:700;margin-bottom:8px">FILE TREE — stock_app_vibes</div>
+        {% if project.file_tree %}
+          <div style="font-family:JetBrains Mono,monospace;font-size:12px;line-height:1.8">
+            <div id="tree-root" data-tree='{{ project.file_tree|safe }}' data-slug="{{ project.slug }}"></div>
+          </div>
+          <div id="filePreview" style="display:none;margin-top:12px;background:#121214;border:1px solid #232326;border-radius:10px;padding:10px">
+            <div style="display:flex;justify-content:space-between"><b id="fileName" style="font-family:JetBrains Mono,monospace;font-size:12px"></b><button class="btn-ghost js-close-preview" style="padding:4px 8px;font-size:11px">✕</button></div>
+            <pre id="fileCode" style="font-family:JetBrains Mono,monospace;font-size:11px;white-space:pre-wrap;overflow:auto;max-height:240px;margin-top:6px;color:#CFCFD9"></pre>
+          </div>
+        {% else %}
+          <div style="color:#6A6A7A;font-size:12px">No file tree — this is a snippet. See Code tab for HTML/CSS.</div>
+        {% endif %}
+        <div style="margin-top:8px;font-size:11px;color:#6A6A7A">Click any file to preview (200KB max). Full ZIP has everything.</div>
+      </div>
+
+      {% if project.html_code %}
+      <div x-show="tab==='code'" style="margin:12px;background:#07070A;border:1px solid #232326;border-radius:12px;padding:12px">
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <button class="btn-white js-copy-code" data-target="html-code" data-copy-url="{% url 'copy_increment' project.slug %}" data-csrf="{{ csrf_token }}">Copy HTML</button>
+          <button class="btn-ghost js-copy-code" data-target="css-code">Copy CSS</button>
+        </div>
+        <pre id="html-code" style="background:#121214;padding:10px;border-radius:8px;overflow:auto;font-family:JetBrains Mono,monospace;font-size:11px;white-space:pre-wrap">{{ project.html_code }}</pre>
+        {% if project.css_code %}<pre id="css-code" style="background:#121214;padding:10px;border-radius:8px;overflow:auto;margin-top:8px;font-family:JetBrains Mono,monospace;font-size:11px;white-space:pre-wrap">{{ project.css_code }}</pre>{% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- COMMENTS -->
+    <div class="card" id="comments" style="margin-top:12px;padding:14px">
+      <h3 style="font-weight:700">Comments • {{ comments.count }}</h3>
+      {% if user.is_authenticated %}
+      <form method="post" action="{% url 'post_comment' project.slug %}" style="margin-top:10px;display:flex;gap:8px">
+        {% csrf_token %}
+        <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#EC4899);display:grid;place-items:center;font-weight:800;font-size:12px;flex-shrink:0">{{ user.username|first|upper }}</div>
+        <div style="flex:1">
+          <textarea name="body" placeholder="Ask about setup, report a bug, share a vibe... (Markdown **bold** `code` allowed)" required style="width:100%;background:#07070A;border:1px solid #232326;border-radius:10px;padding:10px;color:#fff;font-size:13px;min-height:72px"></textarea>
+          <div style="display:flex;justify-content:space-between;margin-top:6px"><span style="font-size:11px;color:#6A6A7A">Be respectful • Markdown supported</span><button class="btn-violet">Comment</button></div>
+        </div>
+      </form>
+      {% else %}
+        <div style="margin-top:10px;background:#07070A;border:1px solid #232326;border-radius:10px;padding:10px;font-size:13px;color:#9A9AAF">Please <a href="{% url 'login' %}" style="color:#7C3AED">sign in</a> to comment.</div>
+      {% endif %}
+      <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
+        {% for c in comments %}
+        <div style="padding:12px;background:#07070A;border:1px solid #232326;border-radius:12px;display:flex;gap:10px">
+          <div style="width:32px;height:32px;border-radius:50%;background:#232326;display:grid;place-items:center;font-weight:700;font-size:12px;flex-shrink:0">{{ c.user.username|first|upper }}</div>
+          <div style="flex:1">
+            <div style="display:flex;gap:6px;align-items:center"><b style="font-size:13px">@{{ c.user.username }}</b><span style="font-size:11px;color:#6A6A7A">{{ c.created_at|timesince }} ago</span></div>
+            <div style="font-size:13px;margin-top:4px;line-height:1.6;color:#CFCFD9">{{ c.body_html|safe }}</div>
+            {% for r in c.replies.all %}{% if not r.is_hidden %}
+              <div style="margin-top:8px;margin-left:12px;padding-left:10px;border-left:2px solid #232326;display:flex;gap:8px">
+                <div style="width:24px;height:24px;border-radius:50%;background:#1A1A1E;display:grid;place-items:center;font-size:10px">{{ r.user.username|first|upper }}</div>
+                <div><b style="font-size:12px">@{{ r.user.username }}</b><div style="font-size:13px">{{ r.body_html|safe }}</div></div>
+              </div>
+            {% endif %}{% endfor %}
+            {% if user.is_authenticated %}
+            <form method="post" action="{% url 'post_comment' project.slug %}" style="margin-top:6px;display:flex;gap:6px">
+              {% csrf_token %}<input type="hidden" name="parent_id" value="{{ c.id }}"><input name="body" placeholder="Reply..." style="flex:1;background:#15151A;border:1px solid #232326;border-radius:8px;padding:6px 8px;color:#fff;font-size:12px"><button class="btn-ghost" style="padding:6px 10px;font-size:12px">Reply</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+        {% empty %}
+          <div style="color:#6A6A7A;font-size:13px;text-align:center;padding:12px">No comments yet. Be the first to vibe!</div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- NOLO COMPARE — Backend logic, no judgment, side-by-side -->
+    <div class="card" style="margin-top:12px;padding:14px;background:#07070A">
+      <div style="display:flex;align-items:center;gap:8px">
+        <a href="https://www.flaticon.com/free-icons/ui" title="Ui icons created by lakonicon - Flaticon" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:#15151A;border:1px solid #232326;border-radius:8px;color:#F59E0B;text-decoration:none;font-size:16px">
+          🤖
+        </a>
+        <div>
+          <div style="font-weight:800">Ask Nolo to Compare</div>
+          <div style="font-size:11px;color:#9A9AAF">Nolo doesn’t judge — she just shows features side-by-side. You pick the function you want. Backend only.</div>
+        </div>
+      </div>
+      <div style="margin-top:6px;font-size:10px;color:#6A6A7A">Icon: <a href="https://www.flaticon.com/free-icons/ui" title="Ui icons created by lakonicon - Flaticon" target="_blank" rel="noopener noreferrer" style="color:#7C3AED;text-decoration:none">Ui icons created by lakonicon - Flaticon</a></div>
+      <div style="margin-top:8px;font-size:12px;color:#9A9AAF">Need help asking Nolo about this app or finding new templates? <a href="{% url 'nolo_chat' %}" style="color:#7C3AED;text-decoration:none">Open Nolo Chat</a>.</div>
+      <form id="nolo-form" data-url="{% url 'nolo_compare' %}" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+        {% csrf_token %}
+        <input type="hidden" name="a_slug" value="{{ project.slug }}">
+        <select name="b_slug" id="nolo-b" style="flex:1;background:#15151A;border:1px solid #232326;border-radius:10px;padding:8px;color:#fff;font-size:12px">
+          <option value="">Compare with...</option>
+          {% for p in project.category.projects.all|slice:":10" %}{% if p.slug != project.slug and p.status == 'published' %}<option value="{{ p.slug }}">{{ p.title }} — {{ p.tech_stack }}</option>{% endif %}{% endfor %}
+        </select>
+        <button class="btn-violet" style="padding:8px 14px;font-size:12px">Compare</button>
+      </form>
+      <div id="nolo-result" style="display:none;margin-top:10px;background:#121214;border:1px solid #232326;border-radius:10px;padding:10px;font-size:12px;line-height:1.6"></div>
+    </div>
+
+    <!-- NOLO AUTO-REVIEW + HUMAN REVIEWS -->
+    {% if nolo_review %}
+    <div class="card" style="margin-top:12px;padding:14px;background:linear-gradient(135deg,#0F0F12 0%,#1A0F1A 100%);border-color:#7C3AED">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:22px">🤖</span>
+        <div style="flex:1">
+          <div style="font-weight:800">Nolo Auto-Review — {{ nolo_review.score }}/10</div>
+          <div style="font-size:11px;color:#9A9AAF">Heuristic (no LLM key) • Backend only, crush silently</div>
+        </div>
+        <span style="font-size:24px;font-weight:800;color:#F59E0B">{{ nolo_review.score }}<span style="font-size:12px;color:var(--muted)">/10</span></span>
+      </div>
+      <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div><div style="font-size:11px;font-weight:700;color:#10B981">Pros</div><div style="font-size:12px;margin-top:4px">{% for p in nolo_review.pros %}<div>• {{ p }}</div>{% empty %}<div style="color:#6A6A7A">—</div>{% endfor %}</div></div>
+        <div><div style="font-size:11px;font-weight:700;color:#F59E0B">Fixes</div><div style="font-size:12px;margin-top:4px">{% for f in nolo_review.fixes %}<div>• {{ f }}</div>{% empty %}<div style="color:#6A6A7A">No fixes — great vibe!</div>{% endfor %}</div></div>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card" id="reviews" style="margin-top:12px;padding:14px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <h3 style="font-weight:700">Reviews • {{ project.review_count }} {% if project.avg_rating %}<span style="color:#F59E0B">★ {{ project.avg_rating }}/5</span>{% endif %}</h3>
+        <span style="margin-left:auto;font-size:11px;color:#9A9AAF">Nolo 0-10 + Humans 1-5</span>
+      </div>
+      {% if user.is_authenticated %}
+      <form method="post" action="{% url 'post_review' project.slug %}" style="margin-top:10px;display:flex;gap:8px;align-items:center">
+        {% csrf_token %}
+        <select name="rating" style="background:#15151A;border:1px solid #232326;border-radius:10px;padding:8px;color:#fff;font-size:12px"><option value="5">5 ★</option><option value="4">4 ★</option><option value="3">3 ★</option><option value="2">2 ★</option><option value="1">1 ★</option></select>
+        <input name="text" placeholder="Write a review (sanitized, crush silently)..." style="flex:1;background:#07070A;border:1px solid #232326;border-radius:10px;padding:8px;color:#fff;font-size:12px">
+        <button class="btn-violet" style="padding:8px 12px;font-size:12px">Post Review</button>
+      </form>
+      <div style="font-size:11px;color:#6A6A7A;margin-top:4px">Must trade or star first to review — backend checks Trade/Star.</div>
+      {% else %}
+      <div style="margin-top:8px;font-size:12px;color:#9A9AAF">Please <a href="{% url 'login' %}" style="color:#7C3AED">sign in</a> to review. Trade or star first.</div>
+      {% endif %}
+      <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
+        {% for r in reviews %}
+        <div style="padding:10px;background:#07070A;border:1px solid #232326;border-radius:10px;display:flex;gap:10px">
+          <div style="width:28px;height:28px;border-radius:50%;background:#232326;display:grid;place-items:center;font-weight:700;font-size:11px">{{ r.user.username|first|upper }}</div>
+          <div style="flex:1">
+            <div style="display:flex;gap:6px;align-items:center"><b style="font-size:13px">@{{ r.user.username }}</b><span style="color:#F59E0B">★ {{ r.rating }}/5</span><span style="font-size:11px;color:#6A6A7A">{{ r.created_at|timesince }} ago</span></div>
+            <div style="font-size:12px;margin-top:2px;color:#CFCFD9">{{ r.text|default:"—" }}</div>
+          </div>
+        </div>
+        {% empty %}<div style="color:#6A6A7A;font-size:12px;text-align:center;padding:8px">No human reviews yet. Be the first!</div>{% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div>
+    <div class="card" style="padding:14px">
+      <div style="display:flex;gap:6px;margin-bottom:8px">
+        {% if project.zip_file %}<span class="badge" style="background:#FEF3C7;color:#92400E">Full App</span>{% else %}<span class="badge" style="background:#EDE9FE;color:#6D28D9">Snippet</span>{% endif %}
+        {% if project.ai_generated %}<span class="badge" style="border:1px solid #F59E0B;color:#F59E0B">🤖 {{ project.ai_tool }}</span>{% endif %}
+      </div>
+      <h3 style="font-weight:700">{{ project.title }}</h3>
+      <p style="font-size:12px;color:#9A9AAF;margin:6px 0;line-height:1.5">{{ project.short_description }}</p>
+      <div style="font-size:12px;display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #232326"><span style="color:#9A9AAF">Publisher</span><b>@{{ project.owner.username }} {% if project.owner.profile.rank %}<span style="font-size:10px;background:#FEF3C7;color:#92400E;padding:2px 6px;border-radius:6px">{{ project.owner.profile.rank.name }}</span>{% endif %}</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #232326"><span style="color:#9A9AAF">Stack</span><b>{{ project.tech_stack|default:"HTML/CSS" }}</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #232326"><span style="color:#9A9AAF">Files</span><b>{{ project.file_count }} • {{ project.clones }} clones</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #232326"><span style="color:#9A9AAF">Trade Cost</span><b>{% if project.star_cost %}{{ project.star_cost }} ★ {% if project.star_cost == 1 %}Bronze{% elif project.star_cost == 2 %}Bronze{% elif project.star_cost <= 3 %}Silver{% else %}Gold{% endif %}{% else %}0 ★ Free{% endif %}</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #232326"><span style="color:#9A9AAF">Forks</span><b>⑂ {{ project.forks.count }} • {% if project.forked_from %}Forked from <a href="{{ project.forked_from.get_absolute_url }}" style="color:#7C3AED">@{{ project.forked_from.owner.username }}</a>{% else %}Original{% endif %}</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0"><span style="color:#9A9AAF">License</span><b>MIT</b></div>
+      </div>
+      {% if project.language_stats %}
+      <div style="margin-top:10px;background:#07070A;border:1px solid #232326;border-radius:10px;padding:10px">
+        <div style="font-size:11px;color:#9A9AAF;font-weight:700">LANGUAGES — % OF CODE</div>
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+          {% for lang, pct in project.language_stats.items %}
+          <span style="background:#15151A;border:1px solid #232326;padding:4px 8px;border-radius:8px;font-size:11px"><span style="width:8px;height:8px;border-radius:50%;background:{% if lang == 'Python' %}#3776AB{% elif lang == 'JavaScript' %}#F7DF1E{% elif lang == 'CSS' %}#1572B6{% elif lang == 'HTML' %}#E34F26{% else %}#7C3AED{% endif %};display:inline-block"></span> {{ lang }} {{ pct }}%</span>
+          {% endfor %}
+        </div>
+        <div style="margin-top:8px;height:8px;border-radius:100px;display:flex;overflow:hidden;background:#15151A">
+          {% for lang, pct in project.language_stats.items %}<div style="width:{{ pct }}%;background:{% if lang == 'Python' %}#3776AB{% elif lang == 'JavaScript' %}#F7DF1E{% elif lang == 'CSS' %}#1572B6{% elif lang == 'HTML' %}#E34F26{% else %}#7C3AED{% endif %}"></div>{% endfor %}
+        </div>
+        <div style="font-size:10px;color:#6A6A7A;margin-top:4px">Backend detected from ZIP extensions, size-weighted — no JS can fake it.</div>
+      </div>
+      {% endif %}
+      {% if project.ai_prompt %}<div style="margin-top:10px;background:#07070A;border:1px solid #232326;border-radius:10px;padding:10px"><div style="font-size:11px;color:#F59E0B;font-weight:700">🤖 AI PROMPT</div><div style="font-size:12px;color:#CFCFD9;margin-top:4px;white-space:pre-wrap">{{ project.ai_prompt }}</div></div>{% endif %}
+      <div style="margin-top:10px;background:#07070A;border:1px solid #232326;border-radius:10px;padding:10px"><div style="font-size:11px;color:#10B981;font-weight:700">🔒 SECURITY</div><div style="font-size:12px;line-height:1.6;margin-top:4px">✅ Sanitized README<br>✅ Path traversal blocked<br>✅ Sandboxed preview</div></div>
+      {% if project.forks.all %}
+      <div style="margin-top:10px;background:#07070A;border:1px solid #232326;border-radius:10px;padding:10px">
+        <div style="font-size:11px;color:#9A9AAF;font-weight:700">⑂ FORKS ({{ project.forks.count }}) — <a href="{% url 'fork_network' project.slug %}" style="color:#7C3AED">View network →</a> • <a href="{% url 'pr_list' project.slug %}" style="color:#7C3AED">PRs ({{ project.prs_incoming.count }}) →</a></div>
+        {% for f in project.forks.all|slice:":5" %}<div style="font-size:12px;padding:4px 0;border-bottom:1px solid #1F1F23"><a href="{{ f.get_absolute_url }}" style="color:#7C3AED">{{ f.title }}</a> by @{{ f.owner.username }} • {{ f.stars }} ★</div>{% endfor %}
+      </div>
+      {% else %}
+      <div style="margin-top:10px;background:#07070A;border:1px solid #232326;border-radius:10px;padding:10px">
+        <div style="font-size:11px;color:#9A9AAF;font-weight:700">⑂ FORKS — <a href="{% url 'fork_network' project.slug %}" style="color:#7C3AED">View network →</a> • <a href="{% url 'pr_list' project.slug %}" style="color:#7C3AED">PRs ({{ project.prs_incoming.count }}) →</a></div>
+        <div style="font-size:12px;color:#6A6A7A">No forks yet — be the first!</div>
+      </div>
+      {% endif %}
+      {% if project.forked_from %}
+      <div style="margin-top:10px;background:#1A1A00;border:1px solid #F59E0B;border-radius:10px;padding:10px">
+        <div style="font-size:11px;color:#F59E0B;font-weight:700">⑂ Forked from <a href="{{ project.forked_from.get_absolute_url }}" style="color:#F59E0B">@{{ project.forked_from.owner.username }}/{{ project.forked_from.slug }}</a></div>
+        {% if user == project.owner and project.status == 'published' %}
+        <form method="post" action="{% url 'create_pr' project.slug %}" style="margin-top:8px;display:flex;gap:6px">{% csrf_token %}<input name="title" placeholder="PR title" required style="flex:1;background:#15151A;border:1px solid #232326;border-radius:8px;padding:6px;color:#fff;font-size:11px"><button class="btnV" style="padding:6px 10px;font-size:11px">Create PR → {{ project.forked_from.slug }}</button></form>
+        {% endif %}
+      </div>
+      {% endif %}
+      <!-- Who Viewed — Pro only -->
+      {% if viewers is not None %}
+      <div style="margin-top:10px;background:#07070A;border:1px solid #7C3AED;border-radius:10px;padding:10px">
+        <div style="font-size:11px;color:#7C3AED;font-weight:700">👁 Who Viewed Your Vibe — Pro ({{ viewer_count }} views)</div>
+        {% if viewers %}
+          {% for v in viewers %}<div style="font-size:12px;padding:4px 0;border-bottom:1px solid #1F1F23;display:flex;justify-content:space-between"><span><a href="{% url 'profile_view' v.viewer.username %}" style="color:#7C3AED">@{{ v.viewer.username }}</a> • {{ v.count }}×</span><span style="color:#9A9AAF;font-size:11px">{{ v.last_viewed|timesince }} ago</span></div>{% endfor %}
+        {% else %}<div style="font-size:11px;color:#6A6A7A">No views yet — share your vibe!</div>{% endif %}
+      </div>
+      {% elif project.owner == user and not user.profile.is_pro %}
+      <div style="margin-top:10px;background:#1A1A00;border:1px solid #F59E0B;border-radius:10px;padding:10px">
+        <div style="font-size:11px;color:#F59E0B;font-weight:700">👁 Who Viewed — Pro Only</div>
+        <div style="font-size:12px;color:#9A9AAF;margin-top:4px">{{ viewer_count }} views — <a href="#" style="color:#F59E0B">Upgrade to Pro</a> to see who viewed (names + times). Free sees count only.</div>
+      </div>
+      {% endif %}
+    </div>
+    <div class="card" style="margin-top:12px;padding:14px;background:#07070A">
+      <h4 style="font-size:11px;letter-spacing:.06em;color:#9A9AAF">HOW TO ACCESS</h4>
+      <ol style="font-size:12px;line-height:1.7;margin-top:6px;padding-left:16px;color:#CFCFD9"><li>Read README</li><li>Explore Files tree</li><li>Read comments</li><li>Download ZIP / git clone</li></ol>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="/static/gallery/js/detail.js"></script>{% endblock %}

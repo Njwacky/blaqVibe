@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlaqVibes — Final Demo (All Features)</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07070A;--card:#121214;--line:#1F1F23;--muted:#9A9AAF;--text:#fff}
+*{margin:0;padding:0;box-sizing:border-box} body{font-family:Inter,sans-serif;background:var(--bg);color:var(--text)}
+.nav{height:56px;display:flex;align-items:center;gap:12px;padding:0 16px;border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0;z-index:50;overflow:auto}
+.nav a{font-size:12px;color:var(--muted);text-decoration:none;white-space:nowrap;padding:6px 10px;border-radius:8px;border:1px solid transparent}
+.nav a.on{background:var(--card);border-color:var(--line);color:var(--text);font-weight:700}
+.hero{max-width:1100px;margin:0 auto;padding:20px;display:grid;grid-template-columns:1.2fr .8fr;gap:16px;align-items:center}
+@media(max-width:800px){.hero{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.badge{font-size:10px;padding:4px 8px;border-radius:8px;font-weight:700}
+.btnV{background:#7C3AED;color:#fff;border:none;padding:8px 12px;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer}
+.btnG{border:1px solid var(--line);background:transparent;color:var(--text);padding:8px 12px;border-radius:10px;font-weight:600;font-size:12px;cursor:pointer}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+@media(max-width:900px){.grid{grid-template-columns:1fr 1fr}} @media(max-width:600px){.grid{grid-template-columns:1fr}}
+.view{display:none;max-width:1100px;margin:0 auto;padding:0 16px 20px} .view.on{display:block}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <span style="display:flex;align-items:center;gap:8px"><img src="/static/branding/icon-32.png" style="width:28px;height:28px;border-radius:8px"><b style="font-family:Space Grotesk,sans-serif">BlaqVibes</b></span>
+  <a href="#" class="on" onclick="showView('landing')">Landing</a>
+  <a href="#" onclick="showView('feed')">Feed</a>
+  <a href="#" onclick="showView('detail')">Detail</a>
+  <a href="#" onclick="showView('profile')">Profile</a>
+  <a href="#" onclick="showView('battle')">Battle</a>
+  <a href="#" onclick="showView('challenge')">Challenge</a>
+  <a href="#" onclick="showView('admin')">Admin</a>
+  <span style="font-size:11px;color:var(--muted)">Live at port 8000 • venv or Docker</span>
+</nav>
+
+<!-- Landing -->
+<div id="view-landing" class="view on">
+  <div class="hero">
+    <div>
+      <div style="display:inline-flex;background:#1F1F23;border:1px solid #7C3AED;padding:6px 10px;border-radius:100px;font-size:11px;color:#F59E0B">✦ MYVIBE VOL.1 → VOL.2</div>
+      <h1 style="font-family:Space Grotesk,sans-serif;font-size:32px;line-height:1.05;margin:12px 0;font-weight:700">Hey there,<br><span style="background:linear-gradient(90deg,#7C3AED,#EC4899,#F59E0B);-webkit-background-clip:text;-webkit-text-fill-color:transparent">I know we all don’t like coding with our bare hands</span></h1>
+      <p style="color:var(--muted);font-size:14px;line-height:1.6">Too much thinking. So we just <b style="color:var(--text)">vibe-coded</b> and left all our <b style="color:#F59E0B">MyVibe Vol.1</b> sitting. Now do something <b>useful</b> — publish, clone, trade ★, earn, appear top 1st.</p>
+      <div style="margin-top:12px;display:flex;gap:8px"><button class="btnV" onclick="showView('feed')">Explore Vibes →</button><button class="btnG" onclick="showView('publish')">Publish →</button></div>
+    </div>
+    <div class="card"><div style="height:160px;background:#fff;border-radius:10px;padding:12px;color:#111"><div style="font-weight:700">SaaS Launch Hero Pro</div><div style="font-size:11px;color:#64748B">Real Tailwind • Copy → Publish → Live in 1h via Docker</div><div style="margin-top:8px;height:28px;background:linear-gradient(90deg,#7C3AED,#EC4899);border-radius:8px"></div></div></div>
+  </div>
+</div>
+
+<!-- Feed -->
+<div id="view-feed" class="view">
+  <div style="padding:12px;display:flex;gap:8px;flex-wrap:wrap"><span class="badge" style="background:#FEF3C7;color:#92400E">Full App • 2 ★</span><span class="badge" style="background:#EDE9FE;color:#6D28D9">Snippet • Free</span><span class="badge" style="border:1px solid #F59E0B;color:#F59E0B">🤖 Lovable</span><span class="badge" style="background:#1A1A1E;border:1px solid var(--line);color:var(--muted)">⑂ Forked</span></div>
+  <div class="grid" style="padding:0 16px">
+    <div class="card"><div style="height:100px;background:linear-gradient(135deg,#2E220F,#1A140A);border-radius:10px;display:grid;place-items:center;color:#fff;font-size:11px">Stock App Vibes — AI Portfolio • Python 58% • 18 files • ★142 • 2 forks</div><div style="margin-top:8px;font-weight:700">Stock App Vibes — AI Portfolio</div><div style="font-size:11px;color:var(--muted)">@nolo.ai • Platinum • 50% Pro discount • Trading 2 ★</div></div>
+    <div class="card"><div style="height:100px;background:linear-gradient(135deg,#1E1B4B,#0F172A);border-radius:10px;display:grid;place-items:center;color:#fff;font-size:11px">SaaS Launch Hero Pro — Tailwind • Free snippet</div><div style="margin-top:8px;font-weight:700">SaaS Launch Hero Pro</div><div style="font-size:11px;color:var(--muted)">@blaq • Copy → Preview</div></div>
+    <div class="card"><div style="height:100px;background:#0A0A0F;border-radius:10px;display:grid;place-items:center;color:#fff;font-size:11px">Analytics Dashboard — Real • Dark Grid</div><div style="margin-top:8px;font-weight:700">Analytics Dashboard</div><div style="font-size:11px;color:var(--muted)">@thando • ★89</div></div>
+  </div>
+</div>
+
+<!-- Detail -->
+<div id="view-detail" class="view">
+  <div style="max-width:1100px;margin:0 auto;padding:16px;display:grid;grid-template-columns:1.6fr .9fr;gap:12px">
+    <div class="card"><div style="height:140px;background:#fff;border-radius:10px;display:grid;place-items:center;color:#111">Stock App Vibes — Preview iframe (sandboxed) + Tree (18 files) + Languages Python 58%</div><div style="margin-top:8px;display:flex;gap:6px"><span class="badge" style="background:#FEF3C7;color:#92400E">Full App • 2 ★ Bronze</span><span class="badge" style="background:#DCFCE7;color:#15803D">● Live — /deploy/stock-app-vibes-882511/</span></div><div style="margin-top:8px;display:flex;gap:6px"><button class="btnV" style="flex:1">⬇ Trade 2 ★ to Download</button><button class="btnG" style="flex:1">▶ Run — Live 1h (Docker)</button></div></div>
+    <div class="card"><div style="font-weight:700">Stock App Vibes</div><div style="font-size:12px;color:var(--muted)">@nolo.ai • Platinum • Languages Python 58% • Files 18 • Forks 2 • PRs 2 • Reviews 4.5 ★ (2) • Nolo 10/10</div><div style="margin-top:8px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;font-size:11px">Who Viewed (Pro): @blaq • 1× • 2h ago<br>Trade: 2 ★ → Seller @nolo.ai<br>Nolo: 10/10 — Good README, 18 files</div></div>
+  </div>
+</div>
+
+<!-- Profile -->
+<div id="view-profile" class="view">
+  <div style="max-width:900px;margin:0 auto;padding:16px">
+    <div class="card" style="padding:16px;display:flex;gap:12px;align-items:center">
+      <img src="/static/branding/icon-192.png" style="width:56px;height:56px;border-radius:12px"><div style="flex:1"><div style="font-weight:800">@nolo.ai <span style="font-size:10px;background:linear-gradient(135deg,#7C3AED,#F59E0B);color:#fff;padding:3px 7px;border-radius:6px">Platinum</span></div><div style="font-size:12px;color:var(--muted)">AI builder • Durban, ZA • 9 vibes • 142 ★ • 42 ★ balance • 50% Pro discount</div></div><span style="font-size:11px;background:#1A1A1E;border:1px solid var(--line);padding:6px 10px;border-radius:8px">340 followers</span>
+    </div>
+  </div>
+</div>
+
+<!-- Battle -->
+<div id="view-battle" class="view">
+  <div style="max-width:900px;margin:0 auto;padding:16px">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div class="card"><div style="font-weight:700">SaaS Launch Hero</div><div style="font-size:11px;color:var(--muted)">Pick Left → Reveal @blaq • +5 ★</div></div>
+      <div class="card"><div style="font-weight:700">Stock Portfolio Table</div><div style="font-size:11px;color:var(--muted)">Pick Right → Reveal @blaq • +5 ★</div></div>
+    </div>
+    <div style="margin-top:8px;text-align:center;font-size:11px;color:var(--muted)">VS at bottom • Swipe right on mobile for next battle • Live at /battle/</div>
+  </div>
+</div>
+
+<!-- Challenge -->
+<div id="view-challenge" class="view">
+  <div style="max-width:900px;margin:0 auto;padding:16px">
+    <div class="card" style="border-color:#F59E0B;background:linear-gradient(135deg,#1A1A00 0%,#1A1400 100%)"><div style="font-weight:800">🏆 Challenge — Clinic Landing in Setswana (10 ★ bounty) #challenge-week-12</div><div style="font-size:11px;color:var(--muted)">Active • Ends in 7 days • Winner gets 10 ★ + Pro</div></div>
+  </div>
+</div>
+
+<!-- Admin -->
+<div id="view-admin" class="view">
+  <div style="max-width:900px;margin:0 auto;padding:16px">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+      <div class="card" style="text-align:center"><div style="font-size:11px;color:var(--muted)">TOTAL VIBES</div><div style="font-weight:800;font-size:20px">19</div></div>
+      <div class="card" style="text-align:center;border-color:#F59E0B"><div style="font-size:11px;color:var(--muted)">PENDING</div><div style="font-weight:800;font-size:20px;color:#F59E0B">3</div></div>
+      <div class="card" style="text-align:center;border-color:#EF4444"><div style="font-size:11px;color:var(--muted)">QUARANTINED</div><div style="font-size:20px;color:#EF4444;font-weight:800">1</div></div>
+      <div class="card" style="text-align:center"><div style="font-size:11px;color:var(--muted)">TRADES</div><div style="font-weight:800;font-size:20px">12</div></div>
+    </div>
+  </div>
+</div>
+
+<script>
+function showView(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.getElementById('view-'+id).classList.add('on');
+  document.querySelectorAll('.nav a').forEach(a=>a.classList.remove('on'));
+  event.currentTarget.classList.add('on');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+</script>
+</body>
+</html>

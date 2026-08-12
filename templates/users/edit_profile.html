@@ -1,0 +1,28 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Edit Profile — BlaqVibes{% endblock %}
+{% block content %}
+<div style="max-width:640px;margin:0 auto;padding:20px">
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">Edit Profile — @{{ user.username }}</h1>
+  <p style="color:#9A9AAF;font-size:13px">All fields sanitized backend (bleach), avatar validated (2MB, image/*). No secrets in JS.</p>
+  <form method="post" enctype="multipart/form-data" style="margin-top:16px;display:grid;gap:12px" class="card" style="padding:16px">
+    {% csrf_token %}
+    {% if form.errors %}<div style="background:#3F1A1A;border:1px solid #7C2D2D;color:#FECACA;padding:10px;border-radius:10px;font-size:13px">{{ form.errors }}</div>{% endif %}
+    <div><label style="font-size:12px;color:#9A9AAF">Bio (280 max)</label>{{ form.bio }}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div><label style="font-size:12px;color:#9A9AAF">Location</label>{{ form.location }}</div>
+      <div><label style="font-size:12px;color:#9A9AAF">Website</label>{{ form.website }}</div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div><label style="font-size:12px;color:#9A9AAF">GitHub username</label>{{ form.github }}</div>
+      <div><label style="font-size:12px;color:#9A9AAF">Twitter/X username</label>{{ form.twitter }}</div>
+    </div>
+    <div>
+      <label style="font-size:12px;color:#9A9AAF">Avatar (2MB max)</label>
+      {% if profile.avatar %}<img src="{{ profile.avatar.url }}" style="width:64px;height:64px;border-radius:12px;object-fit:cover;margin-bottom:8px">{% endif %}
+      {{ form.avatar }}
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><a href="{% url 'profile_view' user.username %}" class="btn-ghost">Cancel</a><button class="btn-violet">Save Profile</button></div>
+  </form>
+</div>
+<link rel="stylesheet" href="/static/gallery/css/forms.css">
+{% endblock %}

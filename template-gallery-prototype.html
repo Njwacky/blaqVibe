@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TemplateFolio - Django Template Gallery Prototype</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:'Inter',sans-serif;background:#0a0a0f;color:#fff;overflow-x:hidden}
+  /* Navbar */
+  nav{position:sticky;top:0;z-index:50;background:rgba(10,10,15,0.8);backdrop-filter:blur(12px);border-bottom:1px solid #1f1f2a;display:flex;align-items:center;justify-content:space-between;padding:14px 32px}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:18px}
+  .logo-icon{width:32px;height:32px;background:linear-gradient(135deg,#7c3aed,#ec4899);border-radius:8px;display:grid;place-items:center;font-size:14px}
+  .nav-links{display:flex;gap:24px;font-size:13px;color:#a1a1b5}
+  .nav-links span{cursor:pointer}
+  .nav-links span.active{color:#fff;font-weight:600}
+  .nav-right{display:flex;gap:12px;align-items:center}
+  .search{ background:#16161f;border:1px solid #26263a;border-radius:10px;padding:8px 12px;display:flex;align-items:center;gap:8px;width:260px}
+  .search input{background:transparent;border:none;outline:none;color:#fff;width:100%;font-size:13px}
+  .search input::placeholder{color:#6b6b80}
+  .btn-primary{background:#fff;color:#000;padding:8px 16px;border-radius:10px;font-weight:600;font-size:13px;border:none;cursor:pointer}
+  /* Hero */
+  .hero{padding:48px 32px 20px;text-align:center}
+  .badge{display:inline-flex;align-items:center;gap:6px;background:#16161f;border:1px solid #26263a;padding:6px 12px;border-radius:100px;font-size:11px;letter-spacing:0.08em;color:#a78bfa;text-transform:uppercase}
+  .hero h1{font-size:42px;font-weight:800;letter-spacing:-0.03em;margin:16px 0 12px;line-height:1.05}
+  .hero h1 span{background:linear-gradient(90deg,#7c3aed,#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  .hero p{color:#a1a1b5;max-width:560px;margin:0 auto 24px;font-size:15px;line-height:1.6}
+  .filters{display:flex;justify-content:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+  .chip{padding:8px 16px;border-radius:100px;font-size:13px;font-weight:500;border:1px solid #26263a;background:#16161f;color:#a1a1b5;cursor:pointer;transition:.2s}
+  .chip.active{background:#fff;color:#000;border-color:#fff}
+  /* Grid */
+  .grid{padding:24px 32px 40px;display:grid;grid-template-columns:repeat(3,1fr);gap:20px;max-width:1180px;margin:0 auto}
+  .card{background:#121219;border:1px solid #1f1f2a;border-radius:16px;overflow:hidden;transition:.2s;cursor:pointer}
+  .card:hover{border-color:#7c3aed;transform:translateY(-2px)}
+  .card-preview{height:180px;position:relative;overflow:hidden;display:grid;place-items:center;padding:16px}
+  .card-preview.landing{background:linear-gradient(135deg,#0f172a,#1e1b4b)}
+  .card-preview.dashboard{background:linear-gradient(135deg,#0a1a14,#0f2e26)}
+  .card-preview.stock{background:linear-gradient(135deg,#1a140a,#2e220f)}
+  .mini-ui{background:#fff;border-radius:10px;width:100%;height:100%;padding:12px;box-shadow:0 10px 30px rgba(0,0,0,.3);overflow:hidden}
+  .mini-ui *{font-family:Inter,sans-serif}
+  .mini-bar{height:8px;background:#f1f1f5;border-radius:100px;margin-bottom:10px;width:60%}
+  .mini-hero{height:36px;background:linear-gradient(90deg,#7c3aed,#ec4899);border-radius:8px;margin-bottom:8px}
+  .mini-lines{display:flex;flex-direction:column;gap:6px}
+  .mini-line{height:6px;background:#e4e4e7;border-radius:100px}
+  .mini-line.short{width:70%}
+  .mini-sidebar{width:28%;background:#0f172a;border-radius:8px;height:100%}
+  .mini-main{flex:1;display:flex;flex-direction:column;gap:6px}
+  .mini-card{height:28px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px}
+  .card-body{padding:14px 16px}
+  .card-meta{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .tag{font-size:10px;letter-spacing:0.08em;text-transform:uppercase;padding:4px 8px;border-radius:6px;font-weight:700}
+  .tag.landing{background:#ede9fe;color:#6d28d9}
+  .tag.dashboard{background:#dcfce7;color:#15803d}
+  .tag.stock{background:#fef3c7;color:#92400e}
+  .dots{color:#3f3f4a;font-size:14px;letter-spacing:2px}
+  .card h3{font-size:15px;font-weight:600;margin-bottom:4px}
+  .card p{font-size:12.5px;color:#8b8b9e;line-height:1.5;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .card-footer{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding-top:12px;border-top:1px solid #1f1f2a}
+  .avatars{display:flex}
+  .av{width:22px;height:22px;border-radius:50%;border:2px solid #121219;margin-left:-6px;background:linear-gradient(135deg,#7c3aed,#ec4899)}
+  .av:first-child{margin-left:0}
+  .likes{font-size:12px;color:#6b6b80;display:flex;align-items:center;gap:4px}
+  /* Detail Modal */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(8px);display:none;z-index:100;overflow:auto;padding:24px}
+  .modal.open{display:flex;justify-content:center;align-items:flex-start}
+  .modal-box{background:#0f0f14;border:1px solid #26263a;border-radius:16px;width:100%;max-width:980px;overflow:hidden;margin:auto}
+  .modal-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #1f1f2a}
+  .modal-head h2{font-size:16px;font-weight:700}
+  .close{width:32px;height:32px;border-radius:8px;background:#1f1f2a;border:none;color:#fff;cursor:pointer;display:grid;place-items:center}
+  .modal-preview{background:#fff;height:380px;position:relative;overflow:auto}
+  .code-section{background:#0a0a0f}
+  .code-tabs{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid #1f1f2a;border-top:1px solid #1f1f2a}
+  .tabs{display:flex;gap:8px}
+  .tab{padding:6px 14px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:1px solid transparent}
+  .tab.active{background:#1f1f2a;color:#fff;border-color:#2a2a3a}
+  .tab.inactive{color:#6b6b80}
+  .copy-btn{background:#7c3aed;color:#fff;border:none;padding:8px 14px;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;gap:6px}
+  .copy-btn:active{transform:scale(0.98)}
+  .code-wrap{position:relative}
+  pre{margin:0;padding:16px;overflow:auto;max-height:280px;font-family:'JetBrains Mono',monospace;font-size:12.5px;line-height:1.6;color:#c8c8d0;background:#0a0a0f}
+  .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:#fff;color:#000;padding:10px 16px;border-radius:10px;font-weight:600;font-size:13px;box-shadow:0 10px 30px rgba(0,0,0,.3);transition:.3s;z-index:200}
+  .toast.show{transform:translateX(-50%) translateY(0)}
+  /* Django explainer */
+  .explain{max-width:1180px;margin:0 auto 32px;background:#121219;border:1px solid #1f1f2a;border-radius:16px;padding:20px 24px;display:grid;grid-template-columns:1fr 1fr;gap:24px}
+  .explain h4{font-size:13px;letter-spacing:0.08em;text-transform:uppercase;color:#a78bfa;margin-bottom:8px}
+  .explain p{font-size:13px;color:#a1a1b5;line-height:1.6}
+  .explain code{font-family:'JetBrains Mono',monospace;background:#1f1f2a;padding:2px 6px;border-radius:6px;font-size:12px;color:#fff}
+  @media(max-width:900px){.grid{grid-template-columns:1fr 1fr}.explain{grid-template-columns:1fr}}
+  @media(max-width:600px){.grid{grid-template-columns:1fr}nav{padding:12px 16px}.search{display:none}.hero h1{font-size:32px}}
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="logo"><div class="logo-icon">◈</div> TemplateFolio</div>
+  <div class="nav-links"><span class="active">Gallery</span><span>Docs</span><span>Django Admin</span></div>
+  <div class="nav-right">
+    <div class="search"><span style="opacity:.4">⌕</span><input placeholder="Search templates..."></div>
+    <button class="btn-primary">+ Add Template</button>
+  </div>
+</nav>
+
+<div class="hero">
+  <div class="badge">● BUILT WITH DJANGO + HTML/CSS</div>
+  <h1>Copy-paste templates<br><span>for your next project</span></h1>
+  <p>Browse 50+ ready-to-use landing pages, dashboards and stock tracking UIs. Preview live, copy HTML & CSS in one click — just like you wanted with Django.</p>
+  <div class="filters" id="filters">
+    <button class="chip active" data-filter="all">All Templates (6)</button>
+    <button class="chip" data-filter="landing">Landing Pages (2)</button>
+    <button class="chip" data-filter="dashboard">Dashboards (2)</button>
+    <button class="chip" data-filter="stock">Track Stock (2)</button>
+  </div>
+</div>
+
+<div class="grid" id="grid">
+  <!-- Card 1 -->
+  <div class="card" data-cat="landing" onclick="openModal('landing1')">
+    <div class="card-preview landing">
+      <div class="mini-ui">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><div style="width:36px;height:10px;background:#0f172a;border-radius:6px"></div><div style="display:flex;gap:6px"><div style="width:40px;height:14px;background:#7c3aed;border-radius:6px"></div><div style="width:40px;height:14px;border:1px solid #e4e4e7;border-radius:6px"></div></div></div>
+        <div class="mini-hero" style="display:grid;place-items:center;color:#fff;font-weight:700;font-size:10px">HERO SECTION</div>
+        <div class="mini-lines"><div class="mini-line"></div><div class="mini-line short"></div></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="card-meta"><span class="tag landing">Landing Page</span><span class="dots">⋯</span></div>
+      <h3>SaaS Launch Hero</h3>
+      <p>Modern gradient hero with CTA, social proof and feature grid. Perfect for startups.</p>
+      <div class="card-footer"><div class="avatars"><div class="av"></div><div class="av" style="background:linear-gradient(135deg,#06b6d4,#3b82f6)"></div></div><div class="likes">♡ 2.4k</div></div>
+    </div>
+  </div>
+  <!-- Card 2 -->
+  <div class="card" data-cat="dashboard" onclick="openModal('dash1')">
+    <div class="card-preview dashboard">
+      <div class="mini-ui" style="display:flex;gap:10px;background:#f8fafc">
+        <div class="mini-sidebar" style="display:flex;flex-direction:column;gap:6px;padding:8px"><div style="height:8px;background:#7c3aed;border-radius:6px"></div><div style="height:6px;background:#334155;border-radius:6px;width:70%"></div><div style="height:6px;background:#334155;border-radius:6px"></div><div style="height:6px;background:#334155;border-radius:6px;width:80%"></div></div>
+        <div class="mini-main"><div style="display:flex;gap:6px"><div class="mini-card" style="flex:1"></div><div class="mini-card" style="flex:1"></div><div class="mini-card" style="flex:1"></div></div><div class="mini-card" style="height:58px"></div></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="card-meta"><span class="tag dashboard">Dashboard</span><span class="dots">⋯</span></div>
+      <h3>Analytics Dashboard</h3>
+      <p>Sidebar, stat cards, and chart area. Built with CSS Grid, ready to plug into Django.</p>
+      <div class="card-footer"><div class="avatars"><div class="av"></div></div><div class="likes">♡ 1.8k</div></div>
+    </div>
+  </div>
+  <!-- Card 3 -->
+  <div class="card" data-cat="stock" onclick="openModal('stock1')">
+    <div class="card-preview stock">
+      <div class="mini-ui">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span style="font-size:8px;font-weight:700;letter-spacing:.08em">MY PORTFOLIO</span><span style="font-size:7px;background:#dcfce7;color:#15803d;padding:2px 6px;border-radius:6px">● LIVE</span></div>
+        <div style="display:flex;flex-direction:column;gap:6px"><div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0"><span style="font-size:8px;font-weight:700">AAPL</span><span style="font-size:7px;color:#16a34a">+2.34%</span></div><div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0"><span style="font-size:8px;font-weight:700">TSLA</span><span style="font-size:7px;color:#dc2626">-1.12%</span></div><div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0"><span style="font-size:8px;font-weight:700">NVDA</span><span style="font-size:7px;color:#16a34a">+5.80%</span></div></div>
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="card-meta"><span class="tag stock">Track Stock</span><span class="dots">⋯</span></div>
+      <h3>Stock Tracker Table</h3>
+      <p>Real-time stock table with price, change, and sparkline charts. Perfect for Django + API.</p>
+      <div class="card-footer"><div class="avatars"><div class="av" style="background:linear-gradient(135deg,#f59e0b,#ef4444)"></div></div><div class="likes">♡ 3.1k</div></div>
+    </div>
+  </div>
+  <!-- Card 4 -->
+  <div class="card" data-cat="landing" onclick="openModal('landing2')">
+    <div class="card-preview landing">
+      <div class="mini-ui" style="text-align:center;padding-top:18px"><div style="width:40px;height:40px;background:linear-gradient(135deg,#ec4899,#7c3aed);border-radius:12px;margin:0 auto 10px;display:grid;place-items:center;color:#fff;font-size:16px">✦</div><div style="height:8px;background:#0f172a;border-radius:6px;width:60%;margin:0 auto 6px"></div><div style="height:6px;background:#e4e4e7;border-radius:6px;width:80%;margin:0 auto"></div></div>
+    </div>
+    <div class="card-body">
+      <div class="card-meta"><span class="tag landing">Landing Page</span><span class="dots">⋯</span></div>
+      <h3>Waitlist Minimal</h3>
+      <p>Centered waitlist page with email capture and gradient glow. High converting.</p>
+      <div class="card-footer"><div class="avatars"><div class="av"></div></div><div class="likes">♡ 890</div></div>
+    </div>
+  </div>
+  <!-- Card 5 -->
+  <div class="card" data-cat="dashboard" onclick="openModal('dash2')">
+    <div class="card-preview dashboard">
+      <div class="mini-ui" style="background:#0f172a;color:#fff;padding:10px"><div style="display:flex;gap:6px;margin-bottom:8px"><div style="flex:1;height:40px;background:#1e293b;border-radius:8px"></div><div style="flex:1;height:40px;background:#1e293b;border-radius:8px"></div></div><div style="height:56px;background:#1e293b;border-radius:8px"></div></div>
+    </div>
+    <div class="card-body">
+      <div class="card-meta"><span class="tag dashboard">Dashboard</span><span class="dots">⋯</span></div>
+      <h3>Dark SaaS Dashboard</h3>
+      <p>Dark mode admin with revenue chart and recent transactions table.</p>
+      <div class="card-footer"><div class="avatars"><div class="av"></div><div class="av" style="background:#334155"></div></div><div class="likes">♡ 1.2k</div></div>
+    </div>
+  </div>
+  <!-- Card 6 -->
+  <div class="card" data-cat="stock" onclick="openModal('stock2')">
+    <div class="card-preview stock">
+      <div class="mini-ui"><div style="height:24px;background:#0f172a;border-radius:8px;display:flex;align-items:center;justify-content:space-between;padding:0 8px;margin-bottom:8px"><span style="color:#fff;font-size:7px;font-weight:700">BTC $67,420</span><span style="color:#22c55e;font-size:7px">▲ 4.2%</span></div><div style="height:50px;background:linear-gradient(to top,#fef3c7,transparent);border-radius:8px;border:1px dashed #fbbf24;display:grid;place-items:center;color:#92400e;font-size:7px;font-weight:700">CHART AREA</div></div>
+    </div>
+    <div class="card-body">
+      <div class="card-meta"><span class="tag stock">Track Stock</span><span class="dots">⋯</span></div>
+      <h3>Crypto / Stock Chart Card</h3>
+      <p>Single-stock detail with candlestick chart placeholder and buy/sell CTA.</p>
+      <div class="card-footer"><div class="avatars"><div class="av" style="background:linear-gradient(135deg,#22c55e,#16a34a)"></div></div><div class="likes">♡ 2.0k</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="explain">
+  <div>
+    <h4>⚙️ How Django handles this</h4>
+    <p>Each card above is a <code>Template</code> row in Django DB. Admin pastes <code>html_code</code> + <code>css_code</code>. The gallery page loops <code>{% for t in templates %}</code> and filters by <code>category.slug</code>. The modal below is your <code>template_detail.html</code> with an <code>&lt;iframe src="/preview/slug/"&gt;</code> for isolation.</p>
+  </div>
+  <div>
+    <h4>📋 The copy-paste magic</h4>
+    <p>Click any card → see live preview + code tabs. The <code>Copy</code> button runs <code>navigator.clipboard.writeText(code)</code>. That's all the frontend needs — Django just serves the strings. Add <code>Prism.js</code> for highlighting and you're done.</p>
+  </div>
+</div>
+
+<!-- MODAL -->
+<div class="modal" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <h2 id="modalTitle">Template Preview</h2>
+      <button class="close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-preview" id="modalPreview"></div>
+    <div class="code-section">
+      <div class="code-tabs">
+        <div class="tabs"><button class="tab active" id="tabHtml" onclick="switchTab('html')">HTML</button><button class="tab inactive" id="tabCss" onclick="switchTab('css')">CSS</button></div>
+        <button class="copy-btn" id="copyBtn" onclick="copyActive()">⎘ Copy HTML</button>
+      </div>
+      <div class="code-wrap"><pre id="codeBlock"><code id="codeText"></code></pre></div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast">✓ Copied to clipboard!</div>
+
+<script>
+const templates = {
+  landing1: {
+    title: 'SaaS Launch Hero — Landing Page',
+    html: `<nav class="nav">\n  <div class="logo">LaunchCo</div>\n  <div class="links"><a>Features</a><a>Pricing</a><button class="btn">Get Started</button></div>\n</nav>\n<section class="hero">\n  <span class="badge">✨ New: AI-powered analytics</span>\n  <h1>Build faster with <em>LaunchCo</em></h1>\n  <p>The all-in-one platform for founders to ship landing pages in minutes.</p>\n  <div class="cta"><button class="btn-primary">Start free trial</button><button class="btn-ghost">View demo →</button></div>\n</section>`,
+    css: `.hero{padding:60px;text-align:center;font-family:Inter}\n.hero h1{font-size:42px;font-weight:800}\n.hero em{color:#7c3aed}\n.badge{background:#ede9fe;color:#6d28d9;padding:6px 12px;border-radius:100px;font-size:12px}\n.btn-primary{background:#0f172a;color:#fff;padding:12px 20px;border-radius:10px;border:none}`,
+    preview: `<div style="font-family:Inter;padding:24px;background:#fff;height:100%"><div style="display:flex;justify-content:space-between;align-items:center"><div style="font-weight:800">LaunchCo</div><div style="display:flex;gap:8px;align-items:center"><span style="font-size:12px;color:#64748b">Features</span><span style="font-size:12px;color:#64748b">Pricing</span><span style="background:#0f172a;color:#fff;padding:6px 12px;border-radius:8px;font-size:12px">Get Started</span></div></div><div style="text-align:center;padding:36px 20px"><div style="display:inline-block;background:#ede9fe;color:#6d28d9;padding:6px 12px;border-radius:100px;font-size:11px;margin-bottom:12px">✨ New: AI-powered analytics</div><div style="font-size:32px;font-weight:800;line-height:1.1">Build faster with <em style="color:#7c3aed">LaunchCo</em></div><p style="color:#64748b;margin:12px 0 16px">The all-in-one platform for founders to ship landing pages in minutes.</p><div style="display:flex;gap:10px;justify-content:center"><span style="background:#0f172a;color:#fff;padding:10px 16px;border-radius:10px;font-size:13px">Start free trial</span><span style="border:1px solid #e2e8f0;padding:10px 16px;border-radius:10px;font-size:13px">View demo →</span></div></div></div>`
+  },
+  dash1: {
+    title: 'Analytics Dashboard',
+    html: `<div class="dashboard">\n  <aside class="sidebar">\n    <div class="brand">● Dashboard</div>\n    <nav><a class="active">Overview</a><a>Analytics</a><a>Orders</a></nav>\n  </aside>\n  <main>\n    <div class="stats">\n      <div class="card"><span>Revenue</span><strong>$42,430</strong></div>\n      <div class="card"><span>Users</span><strong>12,340</strong></div>\n      <div class="card"><span>Orders</span><strong>1,204</strong></div>\n    </div>\n    <div class="chart">Chart goes here</div>\n  </main>\n</div>`,
+    css: `.dashboard{display:grid;grid-template-columns:220px 1fr;min-height:400px}\n.sidebar{background:#0f172a;color:#fff;padding:20px}\n.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:20px}\n.card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px}\n.chart{margin:0 20px;background:#f1f5f9;border-radius:12px;height:160px;display:grid;place-items:center;color:#64748b}`,
+    preview: `<div style="display:grid;grid-template-columns:160px 1fr;height:100%;font-family:Inter"><div style="background:#0f172a;color:#fff;padding:16px"><div style="font-weight:700;font-size:13px;margin-bottom:16px">● Dashboard</div><div style="display:flex;flex-direction:column;gap:8px;font-size:12px"><div style="background:#1e293b;padding:8px;border-radius:8px;color:#fff">Overview</div><div style="color:#94a3b8">Analytics</div><div style="color:#94a3b8">Orders</div></div></div><div style="background:#f8fafc;padding:16px"><div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:12px"><div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px"><div style="font-size:11px;color:#64748b">Revenue</div><div style="font-weight:700">$42,430</div></div><div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px"><div style="font-size:11px;color:#64748b">Users</div><div style="font-weight:700">12,340</div></div><div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px"><div style="font-size:11px;color:#64748b">Orders</div><div style="font-weight:700">1,204</div></div></div><div style="background:#fff;border:1px dashed #cbd5e1;border-radius:12px;height:140px;display:grid;place-items:center;color:#64748b;font-size:12px">📈 Chart area (plug Chart.js here)</div></div></div>`
+  },
+  stock1: {
+    title: 'Stock Tracker — Portfolio Table',
+    html: `<div class="stock-app">\n  <header>\n    <h2>My Portfolio</h2><span class="live">● LIVE</span>\n  </header>\n  <table>\n    <thead><tr><th>Symbol</th><th>Price</th><th>Change</th><th>Chart</th></tr></thead>\n    <tbody>\n      <tr><td>AAPL</td><td>$182.52</td><td class="up">+2.34%</td><td>▁▂▃▅▇</td></tr>\n      <tr><td>TSLA</td><td>$248.50</td><td class="down">-1.12%</td><td>▇▅▃▂▁</td></tr>\n    </tbody>\n  </table>\n</div>`,
+    css: `.stock-app{font-family:Inter;max-width:600px;margin:auto}\ntable{width:100%;border-collapse:collapse;margin-top:12px}\nth{font-size:11px;letter-spacing:.08em;color:#64748b;text-align:left;padding:8px}\ntd{padding:10px 8px;border-top:1px solid #e2e8f0;font-size:13px}\n.up{color:#16a34a;font-weight:600}.down{color:#dc2626}\n.live{background:#dcfce7;color:#15803d;padding:4px 8px;border-radius:100px;font-size:11px}`,
+    preview: `<div style="font-family:Inter;padding:20px;background:#fff;height:100%"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="font-size:16px">My Portfolio</h3><span style="background:#dcfce7;color:#15803d;padding:4px 10px;border-radius:100px;font-size:11px;font-weight:600">● LIVE</span></div><table style="width:100%;border-collapse:collapse;font-size:13px"><thead><tr style="color:#64748b;font-size:11px;text-align:left"><th style="padding:8px">Symbol</th><th>Price</th><th>Change</th><th>Chart</th></tr></thead><tbody><tr style="border-top:1px solid #e2e8f0"><td style="padding:10px 8px;font-weight:700">AAPL</td><td>$182.52</td><td style="color:#16a34a;font-weight:600">+2.34%</td><td>▁▂▃▅▇</td></tr><tr style="border-top:1px solid #e2e8f0"><td style="padding:10px 8px;font-weight:700">TSLA</td><td>$248.50</td><td style="color:#dc2626;font-weight:600">-1.12%</td><td>▇▅▃▂▁</td></tr><tr style="border-top:1px solid #e2e8f0"><td style="padding:10px 8px;font-weight:700">NVDA</td><td>$903.12</td><td style="color:#16a34a;font-weight:600">+5.80%</td><td>▂▃▅▆▇</td></tr></tbody></table></div>`
+  },
+  landing2: { title:'Waitlist Minimal — Landing', html:`<section class="waitlist">\n  <div class="icon">✦</div>\n  <h1>Something amazing is coming</h1>\n  <p>Join 10,000+ waiting for launch.</p>\n  <form><input placeholder="Enter your email"><button>Join waitlist</button></form>\n</section>`, css:`.waitlist{text-align:center;padding:60px;font-family:Inter}\n.waitlist .icon{width:48px;height:48px;background:linear-gradient(135deg,#ec4899,#7c3aed);border-radius:12px;display:grid;place-items:center;margin:0 auto 16px;color:#fff}\ninput{padding:10px 14px;border:1px solid #e2e8f0;border-radius:10px;width:220px}\nbutton{background:#0f172a;color:#fff;padding:10px 16px;border-radius:10px;border:none;margin-left:8px}`, preview:`<div style="text-align:center;padding:36px;background:#fff;height:100%;font-family:Inter"><div style="width:48px;height:48px;background:linear-gradient(135deg,#ec4899,#7c3aed);border-radius:12px;display:grid;place-items:center;color:#fff;margin:0 auto 16px">✦</div><div style="font-size:22px;font-weight:800">Something amazing is coming</div><p style="color:#64748b;margin:8px 0 16px">Join 10,000+ waiting for launch.</p><div><input placeholder="Enter your email" style="padding:10px 14px;border:1px solid #e2e8f0;border-radius:10px;width:180px"><span style="background:#0f172a;color:#fff;padding:10px 14px;border-radius:10px;margin-left:8px;font-size:13px">Join waitlist</span></div></div>` },
+  dash2: { title:'Dark SaaS Dashboard', html:`<div class="dark-dash">\n  <div class="top"><div class="stat"><small>Revenue</small><b>$84k</b></div><div class="stat"><small>Expenses</small><b>$21k</b></div></div>\n  <div class="main-chart">Revenue chart</div>\n</div>`, css:`.dark-dash{background:#0f172a;color:#fff;padding:20px;border-radius:12px}\n.top{display:flex;gap:12px}\n.stat{background:#1e293b;padding:14px;border-radius:10px;flex:1}\n.main-chart{margin-top:12px;background:#1e293b;height:120px;border-radius:10px;display:grid;place-items:center;color:#94a3b8}`, preview:`<div style="background:#0f172a;padding:20px;height:100%;font-family:Inter"><div style="display:flex;gap:10px"><div style="flex:1;background:#1e293b;padding:14px;border-radius:10px"><div style="color:#94a3b8;font-size:11px">Revenue</div><div style="color:#fff;font-weight:700;font-size:18px">$84k</div></div><div style="flex:1;background:#1e293b;padding:14px;border-radius:10px"><div style="color:#94a3b8;font-size:11px">Expenses</div><div style="color:#fff;font-weight:700;font-size:18px">$21k</div></div></div><div style="margin-top:12px;background:#1e293b;height:120px;border-radius:10px;display:grid;place-items:center;color:#94a3b8;font-size:12px">📊 Revenue chart</div></div>` },
+  stock2: { title:'Crypto / Stock Chart Card', html:`<div class="stock-card">\n  <div class="head"><strong>BTC $67,420</strong><span class="up">▲ 4.2%</span></div>\n  <div class="chart">Candlestick chart placeholder</div>\n  <div class="actions"><button class="buy">Buy</button><button class="sell">Sell</button></div>\n</div>`, css:`.stock-card{border:1px solid #e2e8f0;border-radius:16px;padding:16px;max-width:360px;font-family:Inter}\n.head{display:flex;justify-content:space-between;font-weight:700}\n.chart{height:80px;background:linear-gradient(to top,#fef3c7,transparent);border:1px dashed #fbbf24;border-radius:10px;display:grid;place-items:center;margin:12px 0;color:#92400e}\n.buy{background:#16a34a;color:#fff;padding:8px 16px;border-radius:8px;border:none}.sell{border:1px solid #e2e8f0;padding:8px 16px;border-radius:8px;background:#fff;margin-left:8px}`, preview:`<div style="padding:20px;background:#fff;height:100%;display:grid;place-items:center;font-family:Inter"><div style="border:1px solid #e2e8f0;border-radius:16px;padding:16px;width:100%;max-width:320px"><div style="display:flex;justify-content:space-between;font-weight:700"><span>BTC $67,420</span><span style="color:#16a34a">▲ 4.2%</span></div><div style="height:80px;background:linear-gradient(to top,#fef3c7,transparent);border:1px dashed #fbbf24;border-radius:10px;display:grid;place-items:center;color:#92400e;font-size:12px;margin:12px 0">Candlestick chart</div><div><span style="background:#16a34a;color:#fff;padding:8px 16px;border-radius:8px;font-size:13px">Buy</span><span style="border:1px solid #e2e8f0;padding:8px 16px;border-radius:8px;margin-left:8px;font-size:13px">Sell</span></div></div></div>` }
+};
+
+let active='landing1', activeTab='html';
+function openModal(id){
+  active=id; activeTab='html';
+  const t=templates[id];
+  document.getElementById('modalTitle').textContent=t.title;
+  document.getElementById('modalPreview').innerHTML=t.preview;
+  switchTab('html');
+  document.getElementById('modal').classList.add('open');
+  document.body.style.overflow='hidden';
+}
+function closeModal(){document.getElementById('modal').classList.remove('open');document.body.style.overflow=''}
+function switchTab(tab){
+  activeTab=tab;
+  const t=templates[active];
+  document.getElementById('tabHtml').className= tab==='html' ? 'tab active' : 'tab inactive';
+  document.getElementById('tabCss').className= tab==='css' ? 'tab active' : 'tab inactive';
+  document.getElementById('codeText').textContent= tab==='html' ? t.html : t.css;
+  document.getElementById('copyBtn').innerHTML= tab==='html' ? '⎘ Copy HTML' : '⎘ Copy CSS';
+}
+function copyActive(){
+  const t=templates[active];
+  const text= activeTab==='html' ? t.html : t.css;
+  navigator.clipboard.writeText(text).then(()=>{
+    const toast=document.getElementById('toast');
+    toast.textContent= activeTab==='html' ? '✓ HTML copied!' : '✓ CSS copied!';
+    toast.classList.add('show');
+    setTimeout(()=>toast.classList.remove('show'),1800);
+    document.getElementById('copyBtn').textContent='✓ Copied!';
+    setTimeout(()=>document.getElementById('copyBtn').innerHTML= activeTab==='html'?'⎘ Copy HTML':'⎘ Copy CSS',1500);
+  });
+}
+document.querySelectorAll('.chip').forEach(chip=>{
+  chip.addEventListener('click',()=>{
+    document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
+    chip.classList.add('active');
+    const f=chip.dataset.filter;
+    document.querySelectorAll('.card').forEach(card=>{
+      card.style.display= (f==='all' || card.dataset.cat===f) ? '' : 'none';
+    });
+  });
+});
+switchTab('html');
+</script>
+</body>
+</html>

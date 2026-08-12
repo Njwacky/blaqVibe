@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlaqVibes — Demo Updated (Critical 6)</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07070A;--bg2:#0F0F12;--card:#121214;--panel:#0F0F12;--muted:#9A9AAF;--line:#1F1F23;--input:#15151A;--text:#fff;--text2:#CFCFD9}
+[data-theme="light"]{--bg:#F8FAFC;--bg2:#FFFFFF;--card:#FFFFFF;--panel:#FFFFFF;--muted:#64748B;--line:#E2E8F0;--input:#F1F5F9;--text:#0F172A;--text2:#334155}
+*{margin:0;padding:0;box-sizing:border-box} body{font-family:Inter,sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+button{font-family:inherit} a{color:inherit;text-decoration:none}
+.app{height:100vh;display:grid;grid-template-columns:250px 1fr 380px;grid-template-rows:56px 1fr}
+@media(max-width:1100px){.app{grid-template-columns:220px 1fr 0} .right{position:fixed;right:0;top:56px;bottom:0;width:380px;z-index:40;transform:translateX(100%);transition:.25s} .right.open{transform:translateX(0)}}
+@media(max-width:720px){.app{grid-template-columns:1fr;grid-template-rows:56px 1fr} .sidebar{position:fixed;left:0;top:0;bottom:0;width:250px;transform:translateX(-100%);z-index:50;transition:.25s} .sidebar.open{transform:translateX(0)} .right{width:100%}}
+.sidebar{grid-row:1/3;background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column}
+.sb-top{height:56px;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid var(--line)}
+.mark{width:30px;height:30px;background:linear-gradient(135deg,#7C3AED,#F59E0B);border-radius:8px;display:grid;place-items:center;font-weight:800;color:#fff}
+.sb-nav{padding:10px 8px;flex:1;overflow:auto;display:flex;flex-direction:column;gap:14px}
+.nav-group{font-size:11px;letter-spacing:.08em;color:var(--muted);font-weight:700;padding:0 8px}
+.nav-item{padding:8px 10px;border-radius:10px;font-size:13px;font-weight:500;color:var(--muted);display:flex;align-items:center;gap:8px;cursor:pointer}
+.nav-item.on{background:var(--input);color:var(--text);border:1px solid var(--line)}
+.sb-bottom{border-top:1px solid var(--line);padding:10px;display:flex;align-items:center;gap:8px}
+.avatar{width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,#7C3AED,#EC4899);display:grid;place-items:center;font-weight:800;color:#fff}
+.badge{font-size:10px;padding:3px 7px;border-radius:8px;font-weight:700}
+.btnV{background:#7C3AED;color:#fff;border:none;padding:9px 14px;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;justify-content:center}
+.btnG{background:transparent;border:1px solid var(--line);color:var(--text);padding:8px 12px;border-radius:10px;font-weight:600;font-size:12px;cursor:pointer}
+.btnW{background:var(--text);color:var(--bg);border:none;padding:8px 12px;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer}
+.theme{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--input);display:grid;place-items:center;cursor:pointer}
+.topbar{grid-column:2/4;background:var(--bg);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 16px}
+.search{flex:1;max-width:640px;height:36px;background:var(--input);border:1px solid var(--line);border-radius:10px;display:flex;align-items:center;gap:8px;padding:0 12px}
+.search input,.search select{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:12px}
+.main{overflow:auto;background:var(--bg)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden;cursor:pointer;transition:.15s}
+.card:hover{filter:brightness(1.03)} .card.on{border-color:#7C3AED;box-shadow:0 0 0 1px #7C3AED}
+.right{background:var(--panel);border-left:1px solid var(--line);overflow:auto;display:flex;flex-direction:column}
+.right-head{height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel);z-index:2}
+.tabs{display:flex;gap:6px;margin:10px 0}
+.tab{flex:1;padding:8px;border-radius:10px;font-size:12px;font-weight:700;text-align:center;cursor:pointer;border:1px solid var(--line)}
+.tab.on{background:var(--text);color:var(--bg)} .tab.off{background:var(--input);color:var(--muted)}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;transition:.25s;z-index:999}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.pill{font-size:11px;padding:4px 8px;border-radius:8px;font-weight:700;border:1px solid var(--line)}
+</style>
+</head>
+<body data-theme="dark">
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="sb-top">
+      <div class="mark">◈</div>
+      <div><div style="font-family:Space Grotesk,sans-serif;font-weight:700;font-size:14px;line-height:1">BlaqVibes</div><div style="font-size:10px;color:var(--muted)">CRITICAL 6 • DEMO</div></div>
+      <button class="theme" onclick="toggleTheme()" id="t1">🌙</button>
+    </div>
+    <div class="sb-nav">
+      <div><div class="nav-group">Navigate</div>
+        <div class="nav-item on">◈ Feed <span style="margin-left:auto;font-size:11px;color:var(--muted)">12/page</span></div>
+        <div class="nav-item">⬢ My Vibes <span style="margin-left:auto;background:#FEF3C7;color:#92400E;padding:2px 6px;border-radius:6px;font-size:10px">3 pending</span></div>
+        <div class="nav-item">★ Stars</div>
+        <div class="nav-item">🛡️ Moderation Queue <span style="margin-left:auto;background:#F59E0B;color:#000;padding:2px 6px;border-radius:6px;font-size:10px">1</span></div>
+      </div>
+      <div><div class="nav-group">Categories</div>
+        <div class="nav-item">▦ Landing Pages (2 real)</div>
+        <div class="nav-item">▦ Dashboards (2 real)</div>
+        <div class="nav-item on">▦ Track Stock (2 real)</div>
+      </div>
+      <button class="btnV">+ Publish Vibe</button>
+      <div style="background:var(--input);border:1px solid var(--line);border-radius:12px;padding:10px">
+        <div style="font-size:11px;color:#F59E0B;font-weight:700">✉ Email notify</div>
+        <div style="font-size:11px;color:var(--muted)">When queue finishes, backend sends email + in-app bell. Toast dies, email persists.</div>
+      </div>
+      <div style="background:var(--input);border:1px solid var(--line);border-radius:12px;padding:10px">
+        <div style="font-size:11px;color:#7C3AED;font-weight:700">⎇ Real Git</div>
+        <div style="font-size:11px;color:var(--muted)">git clone https://... works (Dulwich HTTP, fallback ZIP). Push also queued & scanned.</div>
+      </div>
+    </div>
+    <div class="sb-bottom"><div class="avatar">N</div><div style="flex:1"><div style="font-size:13px;font-weight:700">@nolo.ai</div><div style="font-size:11px;color:var(--muted)">Durban, ZA • Pro</div></div><span style="width:8px;height:8px;background:#10B981;border-radius:50%"></span></div>
+  </aside>
+
+  <header class="topbar">
+    <button class="btnG" onclick="document.getElementById('sidebar').classList.toggle('open')" style="padding:6px 8px">☰</button>
+    <div class="search">
+      ⌕ <input placeholder="Search stock_app_vibes...">
+      <select style="max-width:110px"><option>Newest</option><option selected>Trending</option><option>Most Stars</option><option>Most Clones</option></select>
+      <label style="font-size:11px;color:var(--muted);display:flex;gap:4px;align-items:center"><input type="checkbox" checked> 🤖 AI</label>
+    </div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <span style="font-size:11px;color:var(--muted)">12/page • Search v2</span>
+      <button class="theme" onclick="toggleTheme()" id="t2">🌙</button>
+      <button class="btnG" onclick="document.getElementById('right').classList.toggle('open')" style="padding:6px 10px">◧ Inspector</button>
+    </div>
+  </header>
+
+  <main class="main">
+    <div style="padding:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+        <h2 style="font-family:Space Grotesk,sans-serif;font-size:16px">Feed — Real Templates (6) <span style="font-size:12px;color:var(--muted);font-weight:500">• pagination 12/page • trending rank</span></h2>
+        <span style="font-size:11px;color:var(--muted)">Page 1 of 2 • 15 vibes</span>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
+        <div class="card on" onclick="toast('Opened in right panel — no scroll')">
+          <div style="height:120px;background:linear-gradient(135deg,#2E220F,#1A140A);padding:10px;display:grid;place-items:center"><div style="width:100%;height:100%;background:#fff;border-radius:10px;padding:10px"><div style="display:flex;justify-content:space-between"><b style="font-size:10px;color:#111">STOCK PORTFOLIO TABLE — REAL</b><span style="background:#DCFCE7;color:#15803D;padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700">● LIVE</span></div><div style="margin-top:6px;height:60px;border:1px solid #E2E8F0;border-radius:8px;display:grid;place-items:center;color:#64748B;font-size:10px">Real table — AAPL/TSLA/NVDA</div></div></div>
+          <div style="padding:10px"><span class="badge" style="background:#FEF3C7;color:#92400E">Full App • Real</span><div style="font-weight:700;font-size:13px;margin-top:6px">Stock Portfolio Table — Real</div><div style="font-size:11px;color:var(--muted)">Copy-paste Tailwind • sparkline ▁▂▃▅▇</div><div style="font-size:11px;color:var(--muted);margin-top:6px">★ 12 • ⬇ 34 • @blaq</div></div>
+        </div>
+        <div class="card">
+          <div style="height:120px;background:linear-gradient(135deg,#1E1B4B,#0F172A);padding:10px;display:grid;place-items:center"><div style="width:100%;height:100%;background:#fff;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px"><div style="height:10px;background:#0A0A0F;border-radius:6px;width:60%"></div><div style="height:24px;background:linear-gradient(90deg,#7C3AED,#EC4899);border-radius:8px"></div></div></div>
+          <div style="padding:10px"><span class="badge" style="background:#EDE9FE;color:#6D28D9">Snippet • Real</span><div style="font-weight:700;font-size:13px;margin-top:6px">SaaS Launch Hero Pro — Real</div><div style="font-size:11px;color:var(--muted)">Nav + badge + gradient H1 + dual CTA</div><div style="font-size:11px;color:var(--muted);margin-top:6px">♡ 24 • @blaq</div></div>
+        </div>
+        <div class="card">
+          <div style="height:120px;background:#0A0A0F;display:grid;place-items:center;padding:10px"><div style="width:100%;height:100%;background:#F8FAFC;border-radius:10px;padding:10px;display:flex;gap:8px"><div style="width:28%;background:#0F172A;border-radius:8px"></div><div style="flex:1;display:flex;flex-direction:column;gap:6px"><div style="display:flex;gap:6px"><div style="flex:1;height:20px;background:#fff;border:1px solid #E2E8F0;border-radius:8px"></div><div style="flex:1;height:20px;background:#fff;border:1px solid #E2E8F0;border-radius:8px"></div></div><div style="height:44px;background:#fff;border:1px dashed #CBD5E1;border-radius:8px;display:grid;place-items:center;color:#64748B;font-size:10px">Chart</div></div></div></div>
+          <div style="padding:10px"><span class="badge" style="background:#EDE9FE;color:#6D28D9">Snippet • Real</span><div style="font-weight:700;font-size:13px;margin-top:6px">Analytics Dashboard — Real</div><div style="font-size:11px;color:var(--muted)">Sidebar + 3 KPIs + table • copy</div></div>
+        </div>
+        <div class="card" style="opacity:.9;border-color:#F59E0B">
+          <div style="height:120px;background:#1A1A00;display:grid;place-items:center;padding:10px"><div style="width:100%;height:100%;background:#FEF3C7;border:1px dashed #F59E0B;border-radius:10px;display:grid;place-items:center;color:#92400E;font-size:11px">Queued — we’ll tell you when it’s uploaded!</div></div>
+          <div style="padding:10px"><span class="badge" style="background:#FEF3C7;color:#92400E">⏳ Queued — pending</span><div style="font-weight:700;font-size:13px;margin-top:6px">Queue Notify Test</div><div style="font-size:11px;color:var(--muted)">Scanning → vuln → publish • #1 in line</div></div>
+        </div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;justify-content:center;align-items:center">
+        <button class="btnG" style="padding:6px 10px;font-size:11px">← Prev</button>
+        <span style="font-size:12px;color:var(--muted)">Page 1 of 2 • 12/page • trending</span>
+        <button class="btnG" style="padding:6px 10px;font-size:11px">Next →</button>
+      </div>
+    </div>
+  </main>
+
+  <aside class="right open" id="right">
+    <div class="right-head">
+      <div style="font-weight:700;font-size:13px">Inspector — Stock Portfolio Table (Real)</div>
+      <button class="btnG" style="padding:6px 8px;font-size:11px" onclick="document.getElementById('right').classList.remove('open')">✕</button>
+    </div>
+    <div style="padding:12px;overflow:auto;flex:1">
+      <div style="padding:10px;background:var(--input);border:1px solid var(--line);border-radius:10px;display:flex;gap:8px">
+        <span style="width:8px;height:8px;background:#10B981;border-radius:50%;margin-top:6px"></span>
+        <div><div style="font-weight:700;font-size:12px;color:#10B981">✓ Published — email sent</div><div style="font-size:11px;color:var(--muted)">We told you when it was uploaded! Check your email @blaq + My Vibes.</div></div>
+      </div>
+      <div style="margin-top:10px;height:150px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px;color:#111;overflow:auto">
+        <div style="display:flex;justify-content:space-between;border-bottom:1px solid #E5E7EB;padding-bottom:6px"><b style="font-size:11px">My Portfolio</b><span style="background:#DCFCE7;color:#15803D;padding:3px 7px;border-radius:100px;font-size:10px">● LIVE</span></div>
+        <table style="width:100%;font-size:11px;border-collapse:collapse;margin-top:6px"><tr style="color:#64748B"><th style="text-align:left;padding:4px">Symbol</th><th>Price</th><th>Change</th></tr><tr style="border-top:1px solid #E5E7EB"><td style="padding:4px;font-weight:700">NVDA</td><td>$903.12</td><td style="color:#16A34A;font-weight:700">+5.80%</td></tr></table>
+      </div>
+      <div style="margin-top:10px;background:var(--input);border:1px solid var(--line);border-radius:12px;padding:10px">
+        <div style="font-size:11px;letter-spacing:.06em;color:var(--muted);font-weight:700">CLONE WITH GIT — REAL</div>
+        <div style="margin-top:6px;display:flex;gap:6px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px 8px;font-family:JetBrains Mono,monospace;font-size:10px;overflow:auto"><span style="color:var(--muted)">$</span> git clone https://blaqvibes.co.za/git/blaq/stock-portfolio-table-real.git <button class="btnW" style="margin-left:auto;padding:5px 8px;font-size:10px" onclick="toast('Copied git clone!')">Copy</button></div>
+        <div style="display:flex;gap:6px;margin-top:8px"><button class="btnV" style="flex:1" onclick="toast('Download ZIP — signed URL 5 min')">⬇ Download ZIP</button><button class="btnG" onclick="toast('Edit → re-upload version v1.1.0')">✎ Edit</button><button class="btnG" style="color:#EF4444" onclick="toast('Deleted — soft quarantine')">🗑</button></div>
+        <div style="display:flex;gap:6px;margin-top:6px"><select style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px;font-size:11px;color:var(--text)"><option>Report: Spam</option><option>Malware</option><option>Copyright</option></select><button class="btnG" style="padding:6px 10px;font-size:11px" onclick="toast('Reported — moderators will review')">Report</button></div>
+      </div>
+      <div style="display:flex;gap:6px;margin:10px 0"><div class="tab on" style="flex:1;text-align:center">README</div><div class="tab off" style="flex:1;text-align:center">Tree (1)</div><div class="tab off" style="flex:1;text-align:center">Versions</div></div>
+      <div style="background:var(--input);border:1px solid var(--line);border-radius:10px;padding:10px">
+        <div style="font-size:11px;color:var(--muted);font-weight:700">README</div>
+        <div style="font-size:12px;line-height:1.6;color:var(--text2)"><b>Stock Portfolio Table</b> — Real Tailwind table.<br>Copy HTML/CSS, add Tailwind CDN.</div>
+      </div>
+      <div style="margin-top:8px;background:var(--input);border:1px solid var(--line);border-radius:10px;padding:10px">
+        <div style="font-size:11px;color:var(--muted);font-weight:700">VERSIONS</div>
+        <div style="font-size:11px;display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)"><span>v1.0.0 — Initial</span><span style="color:#7C3AED">Download</span></div>
+        <div style="font-size:11px;display:flex;justify-content:space-between;padding:6px 0"><span>v1.1.0 — Fixed chart bug</span><span style="color:#7C3AED">Download</span></div>
+      </div>
+    </div>
+  </aside>
+</div>
+<div id="toast" class="toast">✓ Copied!</div>
+<script>
+function toggleTheme(){
+  const cur=document.body.getAttribute('data-theme');
+  const next=cur==='dark'?'light':'dark';
+  document.body.setAttribute('data-theme',next);
+  document.getElementById('t1').textContent=next==='dark'?'🌙':'☀️';
+  toast(next==='light'?'☀️ Light mode':'🌙 Dark mode');
+}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1600)}
+</script>
+</body>
+</html>

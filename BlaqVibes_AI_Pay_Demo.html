@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlaqVibes — AI README + Pay Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07070A;--card:#121214;--line:#1F1F23;--muted:#9A9AAF;--text:#fff}
+[data-theme="light"]{--bg:#F8FAFC;--card:#FFFFFF;--line:#E2E8F0;--muted:#64748B;--text:#0F172A}
+*{margin:0;padding:0;box-sizing:border-box} body{font-family:Inter,sans-serif;background:var(--bg);color:var(--text)}
+.nav{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.badge{font-size:10px;padding:3px 7px;border-radius:8px;font-weight:700}
+.btnV{background:#7C3AED;color:#fff;border:none;padding:8px 12px;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer}
+.btnG{border:1px solid var(--line);background:transparent;color:var(--text);padding:8px 12px;border-radius:10px;font-weight:600;font-size:12px;cursor:pointer}
+.btnP{background:#10B981;color:#fff;border:none;padding:8px 12px;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer}
+.theme{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;cursor:pointer}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;transition:.25s;z-index:999}
+.toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body data-theme="dark">
+<nav class="nav">
+  <div style="display:flex;align-items:center;gap:10px"><img src="/static/branding/icon-32.png" style="width:28px;height:28px;border-radius:8px"><span style="font-family:Space Grotesk,sans-serif;font-weight:700">BlaqVibes</span><span style="font-size:11px;background:linear-gradient(135deg,#7C3AED,#F59E0B);color:#fff;padding:4px 8px;border-radius:8px">AI + Pay • Live Demo</span></div>
+  <button class="theme" onclick="document.body.setAttribute('data-theme', document.body.getAttribute('data-theme')==='dark'?'light':'dark')">🌙</button>
+</nav>
+
+<div style="max-width:1100px;margin:0 auto;padding:20px">
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">🤖 AI README + 💰 Pay — Live Demo</h1>
+  <p style="color:var(--muted);font-size:13px">AI README: Gemini/Groq → markdown. Pay: Paystack R50 → 85% to seller. Both backend only, crush silently.</p>
+
+  <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <!-- AI README -->
+    <div class="card" style="border-color:#7C3AED">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:22px">🤖</span>
+        <div style="flex:1">
+          <div style="font-weight:800">AI README — Generate from file_tree + code</div>
+          <div style="font-size:11px;color:var(--muted)">Backend: Gemini free → Groq → heuristic. Live at <code>/app/&lt;slug&gt;/ai-readme/generate/</code></div>
+        </div>
+        <span style="font-size:11px;background:#7C3AED;color:#fff;padding:4px 8px;border-radius:8px">Pro</span>
+      </div>
+
+      <div style="margin-top:12px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted)">BEFORE — Short README (owner wrote)</div>
+        <div style="font-size:12px;margin-top:4px;color:var(--muted)"># Stock App Vibes<br>AI Stock portfolio tracker...</div>
+      </div>
+
+      <button class="btnV" style="width:100%;margin-top:8px" onclick="generateAI()">✨ Generate AI README</button>
+
+      <div id="ai-preview" style="display:none;margin-top:10px;background:var(--bg);border:1px solid #7C3AED;border-radius:10px;padding:10px;max-height:220px;overflow:auto">
+        <div style="font-size:11px;color:#7C3AED;font-weight:700">AI README PREVIEW — 319 chars</div>
+        <div style="font-size:12px;white-space:pre-wrap;margin-top:6px;color:var(--text)"># Stock App Vibes
+AI Stock portfolio tracker — Django + React + Tailwind. Built with Lovable.
+
+## What is this?
+Tracks real-time prices, P&L, sparkline charts. 18 files.
+
+## Tech Stack
+- Django 5, DRF
+- React + Vite + Tailwind
+- TwelveData API
+- Python 58% • JS 25%
+
+## How to Run
+```bash
+pip install -r requirements.txt
+python manage.py migrate
+python manage.py runserver
+# frontend
+cd frontend && npm i && npm run dev
+```
+
+## Features
+- Portfolio table
+- TradingView chart
+- CSV import
+</div>
+      </div>
+      <button id="ai-apply" style="display:none;width:100%;margin-top:8px;background:#10B981;color:#fff;border:none;padding:8px;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer" onclick="toast('✓ AI README applied — your vibe now has the new README!')">Apply AI README to vibe</button>
+      <div style="margin-top:8px;font-size:11px;color:var(--muted)">Live: <code>POST /app/stock-app-vibes/ai-readme/generate/</code> → saves <code>ai_readme</code> → <code>POST /apply/</code> → <code>readme = ai_readme</code></div>
+    </div>
+
+    <!-- Pay -->
+    <div class="card" style="border-color:#10B981">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:22px">💰</span>
+        <div style="flex:1">
+          <div style="font-weight:800">Pay — Real Money via Paystack</div>
+          <div style="font-size:11px;color:var(--muted)">Price in Publish: R50 • Buyer pays → 85% to seller</div>
+        </div>
+        <span style="font-size:11px;background:#10B981;color:#fff;padding:4px 8px;border-radius:8px">R50</span>
+      </div>
+
+      <div style="margin-top:12px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><div style="font-weight:700">Stock App Vibes</div><div style="font-size:11px;color:var(--muted)">by @nolo.ai • 18 files • ★142</div></div>
+          <span style="font-size:11px;background:#FEF3C7;color:#92400E;padding:4px 8px;border-radius:8px">2 ★ Bronze</span>
+        </div>
+        <div style="margin-top:8px;height:6px;border-radius:100px;display:flex;overflow:hidden;background:var(--card)"><div style="flex:58;background:#3776AB"></div><div style="flex:25;background:#F7DF1E"></div></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Python 58% • JS 25% • Free snippet vs Paid full app</div>
+      </div>
+
+      <div style="margin-top:10px;background:var(--bg);border:1px solid #F59E0B;border-radius:10px;padding:10px">
+        <div style="font-size:11px;color:#F59E0B;font-weight:700">💳 Buy for R50 — Seller gets R42 (85%)</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Demo mode if <code>PAYSTACK_SECRET_KEY</code> not set → creates <code>Sale</code> without real Paystack. Real: <code>POST https://api.paystack.co/transaction/initialize</code> → <code>authorization_url</code></div>
+        <button class="btnV" style="width:100%;margin-top:8px;background:#10B981" onclick="toast('✓ Bought Stock App Vibes for R50 — seller @nolo.ai gets R42! Download ZIP...')">💳 Buy for R50 — Paystack</button>
+        <button class="btnG" style="width:100%;margin-top:6px" onclick="toast('Traded 2 ★ to download — stars economy')">⬇ Trade 2 ★ to Download (alternative)</button>
+      </div>
+
+      <div style="margin-top:8px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px">
+        <div style="font-size:11px;font-weight:700">Payout Dashboard — Seller</div>
+        <div style="margin-top:6px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:var(--muted)">TOTAL SALES</div><div style="font-weight:800">R50</div></div>
+          <div style="background:var(--bg);border:1px solid #10B981;border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:var(--muted)">YOUR PAYOUT (85%)</div><div style="font-weight:800;color:#10B981">R42</div></div>
+        </div>
+        <div style="margin-top:6px;font-size:11px;color:var(--muted)">Live at <code>/payout/</code> — shows Sales + Trades + Pro trial. Webhook <code>POST /paystack/webhook/</code> verifies <code>x-paystack-signature</code> HMAC.</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+    <div style="font-weight:700">Live at port 8000 — try it</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:4px">1. Login <b>nolo.ai</b> → <b>/app/stock-app-vibes/</b> → <b>Generate AI README</b> → <b>Apply</b><br>2. Publish new vibe → set <b>Price R50</b> → as <b>blaq</b> → <b>Buy for R50</b> → check <b>/payout/</b> → R42 payout<br>3. Without <code>PAYSTACK_SECRET_KEY</code> → demo Sale, no real charge.</div>
+  </div>
+</div>
+
+<div id="toast" class="toast">✓</div>
+<script>
+function generateAI(){
+  document.getElementById('ai-preview').style.display='block';
+  document.getElementById('ai-apply').style.display='block';
+  toast('AI README generated — 319 chars');
+}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)}
+</script>
+</body>
+</html>

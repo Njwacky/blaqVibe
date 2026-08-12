@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlaqVibes — Pull Request Live Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07070A;--card:#121214;--line:#1F1F23;--muted:#9A9AAF;--text:#fff}
+[data-theme="light"]{--bg:#F8FAFC;--card:#FFFFFF;--line:#E2E8F0;--muted:#64748B;--text:#0F172A}
+*{margin:0;padding:0;box-sizing:border-box} body{font-family:Inter,sans-serif;background:var(--bg);color:var(--text)}
+.nav{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0;z-index:50}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.badge{font-size:10px;padding:3px 7px;border-radius:8px;font-weight:700}
+.btnV{background:#7C3AED;color:#fff;border:none;padding:8px 12px;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer}
+.btnG{border:1px solid var(--line);background:transparent;color:var(--text);padding:8px 12px;border-radius:10px;font-weight:600;font-size:12px;cursor:pointer}
+.theme{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;cursor:pointer}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;transition:.25s;z-index:999}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.step{width:32px;height:32px;border-radius:50%;background:var(--card);border:1px solid var(--line);display:grid;place-items:center;font-weight:800;font-size:12px;flex-shrink:0}
+.step.on{background:#7C3AED;color:#fff;border-color:#7C3AED}
+.arrow{color:var(--muted);font-size:18px}
+</style>
+</head>
+<body data-theme="dark">
+<nav class="nav">
+  <div style="display:flex;align-items:center;gap:10px"><img src="/static/branding/icon-32.png" style="width:28px;height:28px;border-radius:8px"><span style="font-family:Space Grotesk,sans-serif;font-weight:700">BlaqVibes</span><span style="font-size:11px;background:#7C3AED;color:#fff;padding:4px 8px;border-radius:8px">PR Live Demo</span></div>
+  <div style="display:flex;gap:8px;align-items:center"><button class="theme" onclick="toggleTheme()">🌙</button><span style="font-size:12px;color:var(--muted)">Live at /app/stock-app-vibes/prs/</span></div>
+</nav>
+
+<div style="max-width:1100px;margin:0 auto;padding:20px">
+  <!-- Steps -->
+  <div style="display:flex;align-items:center;gap:8px;overflow:auto;padding:8px 0">
+    <div style="display:flex;align-items:center;gap:8px"><div class="step on">1</div><span style="font-size:12px;font-weight:700">Fork</span></div><span class="arrow">→</span>
+    <div style="display:flex;align-items:center;gap:8px"><div class="step on">2</div><span style="font-size:12px;font-weight:700">Edit</span></div><span class="arrow">→</span>
+    <div style="display:flex;align-items:center;gap:8px"><div class="step on">3</div><span style="font-size:12px;font-weight:700">Create PR</span></div><span class="arrow">→</span>
+    <div style="display:flex;align-items:center;gap:8px"><div class="step" style="background:#10B981;color:#fff;border-color:#10B981">4</div><span style="font-size:12px;font-weight:700">Merge</span></div>
+  </div>
+
+  <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <!-- Left: Original + Fork -->
+    <div>
+      <h3 style="font-size:14px;font-weight:700">Original Vibe</h3>
+      <div class="card" style="margin-top:8px;border-color:#7C3AED;box-shadow:0 0 0 1px #7C3AED">
+        <div style="display:flex;gap:8px;align-items:center"><img src="/static/branding/icon-32.png" style="width:36px;height:36px;border-radius:8px"><div style="flex:1"><div style="font-weight:800">Stock App Vibes</div><div style="font-size:11px;color:var(--muted)">@nolo.ai • 18 files • ★142 • 2 forks</div></div><span style="font-size:11px;background:#DCFCE7;color:#15803D;padding:4px 8px;border-radius:8px;font-weight:700">● Live</span></div>
+        <div style="margin-top:8px;display:flex;gap:6px"><span class="badge" style="background:#FEF3C7;color:#92400E">Full App • 2 ★ Bronze</span><span class="badge" style="background:#1A1A1E;border:1px solid var(--line);color:var(--muted)">⑂ 2 forks</span></div>
+        <div style="margin-top:8px;display:flex;gap:6px"><button class="btnG" style="flex:1" onclick="toast('Opened network')">View Network</button><button class="btnV" style="flex:1" onclick="toast('PRs — 1 open, 1 merged')">PRs (1 open)</button></div>
+      </div>
+
+      <h3 style="font-size:14px;font-weight:700;margin-top:16px">Your Fork (Remix)</h3>
+      <div class="card" style="margin-top:8px;background:linear-gradient(135deg,#121214 0%,#1A1A00 100%);border-color:#F59E0B">
+        <div style="display:flex;gap:8px;align-items:center"><img src="/static/branding/icon-32.png" style="width:36px;height:36px;border-radius:8px"><div style="flex:1"><div style="font-weight:800">Stock App Vibes (forked) <span style="font-size:10px;background:#FEF3C7;color:#92400E;padding:2px 6px;border-radius:6px">forked</span></div><div style="font-size:11px;color:var(--muted)">@sbu • forked from @nolo.ai • 18 files • 5 ★</div></div></div>
+        <div style="margin-top:8px;font-size:11px;color:var(--muted)">Forked from <span style="color:#F59E0B">@nolo.ai/stock-app-vibes</span> • Re-queued scan → clean • Ready to edit</div>
+        <div style="margin-top:8px;display:flex;gap:6px"><button class="btnG" style="flex:1" onclick="toast('Edit fork')">✎ Edit</button><button class="btnV" style="flex:1" onclick="document.getElementById('pr-form').style.display='block'; toast('Create PR form opened')">Create PR →</button></div>
+        <div id="pr-form" style="display:none;margin-top:10px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px">
+          <div style="font-size:12px;font-weight:700">Create Pull Request</div>
+          <input placeholder="PR title — e.g., Fix chart bug" value="Fix chart bug" style="width:100%;margin-top:6px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px;color:var(--text);font-size:12px">
+          <textarea placeholder="What changed? (sanitized)" style="width:100%;margin-top:6px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px;color:var(--text);font-size:12px;min-height:50px">Added TradingView fix + better README. Nolo 10/10.</textarea>
+          <button class="btnV" style="width:100%;margin-top:6px" onclick="toast('PR #1 created — open'); document.getElementById('pr-open').style.display='flex'">Create PR → stock-app-vibes</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Right: PR List -->
+    <div>
+      <h3 style="font-size:14px;font-weight:700">Pull Requests — stock-app-vibes</h3>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">
+        <div id="pr-open" class="card" style="border-color:#F59E0B">
+          <div style="display:flex;gap:8px;align-items:center">
+            <div style="width:36px;height:36px;border-radius:8px;background:#FEF3C7;display:grid;place-items:center;font-weight:800;color:#92400E">#2</div>
+            <div style="flex:1">
+              <div style="font-weight:700">Add TradingView + better README <span style="font-size:10px;background:#FEF3C7;color:#92400E;padding:3px 7px;border-radius:6px">open</span></div>
+              <div style="font-size:11px;color:var(--muted)">stock-app-vibes-forked-forked (@blaq) → stock-app-vibes (@nolo.ai) • 2h ago</div>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px">“Added TradingView widget and improved README. Nolo 10/10.”</div>
+            </div>
+          </div>
+          <div style="margin-top:8px;display:flex;gap:6px">
+            <span style="font-size:11px;background:var(--bg);border:1px solid var(--line);padding:4px 8px;border-radius:8px">Python 58% • 19 files</span>
+            <button class="btnV" style="padding:6px 10px;font-size:11px" onclick="toast('Merged PR #2 — thanks @blaq!'); this.closest('.card').style.borderColor='#10B981'; this.closest('.card').querySelector('.badge-open').textContent='merged'">Merge</button>
+            <button class="btnG" style="padding:6px 10px;font-size:11px" onclick="toast('Closed PR #2')">Close</button>
+            <span class="badge badge-open" style="background:#FEF3C7;color:#92400E">open</span>
+          </div>
+        </div>
+
+        <div class="card" style="opacity:.9">
+          <div style="display:flex;gap:8px;align-items:center">
+            <div style="width:36px;height:36px;border-radius:8px;background:#DCFCE7;display:grid;place-items:center;font-weight:800;color:#15803D">#1</div>
+            <div style="flex:1">
+              <div style="font-weight:700">Fix chart bug <span style="font-size:10px;background:#DCFCE7;color:#15803D;padding:3px 7px;border-radius:6px">merged</span></div>
+              <div style="font-size:11px;color:var(--muted)">stock-app-vibes-forked (@sbu) → stock-app-vibes • merged by @nolo.ai</div>
+            </div>
+          </div>
+        </div>
+
+        <div style="font-size:11px;color:var(--muted);text-align:center;padding:8px;background:var(--card);border:1px dashed var(--line);border-radius:10px">Backend checks <code>forked_from == target</code>, rate limit 5/h, only target owner can merge/close. No JS secrets.</div>
+      </div>
+
+      <div style="margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+        <div style="font-size:12px;font-weight:700">Live at /app/stock-app-vibes/prs/</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Try: Login <b>sbu</b> → fork → Create PR → Login <b>nolo.ai</b> → Merge. Fork network at <b>/forks/</b> shows tree.</div>
+        <div style="margin-top:8px;display:flex;gap:6px"><button class="btnG" style="flex:1;font-size:11px" onclick="toast('Opening live PRs...')">View Live PRs →</button><button class="btnG" style="flex:1;font-size:11px" onclick="toast('Network: fork → fork-of-fork')">View Network →</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast">✓</div>
+<script>
+function toggleTheme(){
+  const cur=document.body.getAttribute('data-theme');
+  const next=cur==='dark'?'light':'dark';
+  document.body.setAttribute('data-theme',next);
+}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1600)}
+</script>
+</body>
+</html>

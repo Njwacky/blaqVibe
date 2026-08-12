@@ -1,0 +1,33 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Audit Log — BlaqVibes{% endblock %}
+{% block content %}
+<div style="max-width:1100px;margin:0 auto;padding:20px">
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">📜 Audit Log — Admin History</h1>
+  <p style="color:#9A9AAF;font-size:13px">Backend only, never in JS. Every admin action is logged — who, what, when. Crush silently + Sentry.</p>
+  <div style="margin-top:16px;display:grid;grid-template-columns:1.2fr .8fr;gap:16px">
+    <div>
+      <h2 style="font-size:14px;font-weight:700">Admin Actions (Role Changes, Approvals)</h2>
+      {% for log in logs %}
+      <div style="background:#121214;border:1px solid #232326;border-radius:10px;padding:10px;margin-top:8px;display:flex;gap:10px;align-items:center">
+        <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#7C3AED,#F59E0B);display:grid;place-items:center;font-weight:800;font-size:12px">{{ log.actor.username|first|upper }}</div>
+        <div style="flex:1">
+          <div style="font-size:13px"><b>@{{ log.actor.username }}</b> <span style="color:#9A9AAF">{{ log.action }}</span> {{ log.target }}</div>
+          <div style="font-size:11px;color:#6A6A7A">{{ log.created_at|date:"Y-m-d H:i" }} • {{ log.created_at|timesince }} ago</div>
+        </div>
+        <span style="font-size:10px;background:#1A1A1E;border:1px solid #232326;padding:4px 8px;border-radius:8px">{{ log.action }}</span>
+      </div>
+      {% empty %}<div style="color:#6A6A7A;font-size:13px;padding:12px;border:1px dashed #232326;border-radius:10px;margin-top:8px">No admin actions yet.</div>{% endfor %}
+    </div>
+    <div>
+      <h2 style="font-size:14px;font-weight:700">Trading History (Who Traded With Whom)</h2>
+      {% for t in trades %}
+      <div style="background:#121214;border:1px solid #232326;border-radius:10px;padding:10px;margin-top:8px">
+        <div style="font-size:13px;font-weight:700">{{ t.project.title }} <span style="font-size:11px;background:#FEF3C7;color:#92400E;padding:3px 7px;border-radius:8px">{{ t.cost }} ★</span></div>
+        <div style="font-size:12px;color:#9A9AAF;margin-top:4px"><a href="{% url 'profile_view' t.buyer.username %}" style="color:#7C3AED">@{{ t.buyer.username }}</a> → <a href="{% url 'profile_view' t.seller.username %}" style="color:#7C3AED">@{{ t.seller.username }}</a> • {{ t.created_at|date:"Y-m-d H:i" }}</div>
+      </div>
+      {% empty %}<div style="color:#6A6A7A;font-size:13px;padding:12px;border:1px dashed #232326;border-radius:10px;margin-top:8px">No trades yet.</div>{% endfor %}
+      <a href="{% url 'trading_history' %}" style="display:block;margin-top:8px;text-align:center;background:#7C3AED;color:#fff;padding:8px;border-radius:10px;font-weight:700;font-size:12px;text-decoration:none">View My Trades →</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

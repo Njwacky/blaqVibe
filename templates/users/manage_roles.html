@@ -1,0 +1,28 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Manage Roles — BlaqVibes{% endblock %}
+{% block content %}
+<div style="max-width:1100px;margin:0 auto;padding:20px">
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">Manage Roles — Super Admin Only</h1>
+  <p style="color:#9A9AAF;font-size:13px">Backend only, never in JS. Choose: user / moderator (queue) / admin (queue+delete+ban) / superadmin (all+assign).</p>
+  <table style="width:100%;margin-top:12px;border-collapse:collapse;font-size:13px">
+    <tr style="color:#9A9AAF;text-align:left;border-bottom:1px solid #232326"><th style="padding:8px">User</th><th>Current Role</th><th>Stars</th><th>Change To</th></tr>
+    {% for u in users %}
+    <tr style="border-bottom:1px solid #1F1F23"><td style="padding:8px">@{{ u.username }} {% if u.is_staff %}<span style="font-size:10px;background:#F59E0B;color:#000;padding:2px 6px;border-radius:6px">STAFF</span>{% endif %}</td>
+      <td style="padding:8px"><span style="background:#15151A;border:1px solid #232326;padding:4px 8px;border-radius:8px;font-size:11px">{{ u.profile.role }}</span></td>
+      <td style="padding:8px">{{ u.profile.stars_balance }} ★</td>
+      <td style="padding:8px">
+        <form method="post" action="{% url 'set_role' u.username %}" style="display:flex;gap:6px">{% csrf_token %}
+          <select name="role" style="background:#15151A;border:1px solid #232326;border-radius:8px;padding:6px;color:#fff;font-size:12px">
+            <option value="user" {% if u.profile.role == 'user' %}selected{% endif %}>user</option>
+            <option value="moderator" {% if u.profile.role == 'moderator' %}selected{% endif %}>moderator</option>
+            <option value="admin" {% if u.profile.role == 'admin' %}selected{% endif %}>admin</option>
+            <option value="superadmin" {% if u.profile.role == 'superadmin' %}selected{% endif %}>superadmin</option>
+          </select>
+          <button class="btnV" style="padding:6px 10px;font-size:11px">Set</button>
+        </form>
+      </td>
+    </tr>
+    {% endfor %}
+  </table>
+</div>
+{% endblock %}

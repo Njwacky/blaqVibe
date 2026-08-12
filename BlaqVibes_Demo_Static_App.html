@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlaqVibes — Demo Static App</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box} body{font-family:Inter,sans-serif;background:#07070A;color:#fff}
+a{color:inherit;text-decoration:none} button{font-family:inherit;cursor:pointer}
+.nav{height:60px;display:flex;align-items:center;justify-content:space-between;padding:0 20px;border-bottom:1px solid #1F1F23;background:rgba(7,7,10,.95);backdrop-filter:blur(10px);position:sticky;top:0;z-index:50}
+.logo{font-family:Space Grotesk,sans-serif;font-weight:700;display:flex;align-items:center;gap:10px}
+.mark{width:34px;height:34px;background:linear-gradient(135deg,#7C3AED,#F59E0B);border-radius:10px;display:grid;place-items:center;font-weight:800}
+.badge{font-size:10px;padding:4px 8px;border-radius:8px;font-weight:700;letter-spacing:.04em}
+.btnV{background:#7C3AED;color:#fff;border:none;padding:9px 14px;border-radius:10px;font-weight:700;font-size:12px;display:inline-flex;align-items:center;gap:6px}
+.btnG{background:transparent;border:1px solid #232326;color:#fff;padding:8px 14px;border-radius:10px;font-weight:600;font-size:12px}
+.btnW{background:#fff;color:#000;border:none;padding:8px 14px;border-radius:10px;font-weight:700;font-size:12px}
+.card{background:#121214;border:1px solid #1F1F23;border-radius:16px;overflow:hidden}
+.shell{max-width:1280px;margin:0 auto}
+.hero{padding:28px 20px;display:grid;grid-template-columns:1.1fr .9fr;gap:20px;align-items:center}
+.hero h1{font-family:Space Grotesk,sans-serif;font-size:38px;line-height:.95;letter-spacing:-.02em}
+.hero h1 em{background:linear-gradient(90deg,#7C3AED,#EC4899,#F59E0B);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-style:normal}
+.tabs{position:sticky;top:60px;z-index:40;background:#07070A;border-top:1px solid #1F1F23;border-bottom:1px solid #1F1F23;display:flex;gap:8px;padding:10px 20px;align-items:center;flex-wrap:wrap}
+.chip{padding:7px 12px;border-radius:100px;font-size:12px;font-weight:600;border:1px solid #232326;background:#15151A;color:#9A9AAF;cursor:pointer}
+.chip.on{background:#fff;color:#000;border-color:#fff}
+.grid{padding:16px 20px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+@media(max-width:900px){.hero{grid-template-columns:1fr}.grid{grid-template-columns:1fr 1fr}}
+@media(max-width:600px){.grid{grid-template-columns:1fr}}
+.view{display:none}.view.on{display:block}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%) translateY(80px);background:#fff;color:#000;padding:10px 16px;border-radius:10px;font-weight:700;transition:.25s;z-index:999}
+.toast.show{transform:translateX(-50%) translateY(0)}
+.tree{font-family:JetBrains Mono,monospace;font-size:12px;line-height:1.7}
+.file{color:#CFCFD9;cursor:pointer}.file:hover{color:#fff}
+.folder{color:#F59E0B;cursor:pointer}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="logo"><div class="mark">◈</div> BlaqVibes <span style="font-size:11px;color:#9A9AAF;font-weight:500">DEMO STATIC</span></div>
+  <div style="display:flex;gap:8px;align-items:center">
+    <a href="#" onclick="showView('feed')" style="font-size:13px;color:#9A9AAF">Vibes</a>
+    <a href="#" onclick="showView('profile')" style="font-size:13px;color:#9A9AAF">My Vibes</a>
+    <a href="#" onclick="showView('moderation')" style="font-size:11px;background:#F59E0B;color:#000;padding:6px 10px;border-radius:8px;font-weight:700">🛡️ Queue</a>
+    <a href="#" onclick="showView('publish')" class="btnV">+ Publish</a>
+    <span style="font-size:12px;color:#9A9AAF">@nolo.ai</span>
+  </div>
+</nav>
+
+<!-- FEED -->
+<div id="view-feed" class="view on">
+  <div class="hero shell">
+    <div>
+      <div style="display:inline-flex;background:#15151A;border:1px solid #232326;padding:6px 10px;border-radius:100px;font-size:11px;color:#F59E0B">● BLAQVIBES — PUBLISH THE VIBES</div>
+      <h1>Unpublished apps<br><em>deserve an audience</em></h1>
+      <p style="color:#9A9AAF;font-size:14px;line-height:1.6;margin:10px 0">Git-like hub for AI-built & hand-coded apps that never shipped. Browse, copy snippets, clone full apps. <code style="background:#1F1F23;padding:2px 6px;border-radius:6px">git clone</code></p>
+      <div style="display:flex;gap:8px"><button class="btnV" onclick="document.getElementById('grid').scrollIntoView({behavior:'smooth'})">Explore Vibes →</button><button class="btnG" onclick="showView('publish')">Publish Your App</button></div>
+      <div style="display:flex;gap:16px;margin-top:12px;font-size:12px;color:#9A9AAF"><span><b style="color:#fff">2,430+</b> vibes</span><span><b style="color:#fff">18k</b> clones</span><span style="color:#10B981">● Secure</span></div>
+    </div>
+    <div class="card" style="padding:12px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:8px"><span class="badge" style="background:#F59E0B;color:#000">Featured • Full App</span><span style="font-size:11px;color:#9A9AAF">★ 142 • ⬇ 892 clones</span></div>
+      <div style="height:160px;background:#fff;border-radius:12px;padding:10px;color:#111;display:flex;flex-direction:column;gap:6px">
+        <div style="display:flex;justify-content:space-between"><b style="font-size:11px">Stock App Vibes — Portfolio</b><span style="background:#DCFCE7;color:#15803D;padding:3px 7px;border-radius:6px;font-size:10px;font-weight:700">● LIVE</span></div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px"><div style="height:32px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px"></div><div style="height:32px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px"></div><div style="height:32px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px"></div></div>
+        <div style="height:56px;background:#07070A;border:1px dashed #232326;border-radius:8px;display:grid;place-items:center;color:#6A6A7A;font-size:11px">Chart preview</div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px"><span class="badge" style="background:#FEF3C7;color:#92400E">Django + React</span><span class="badge" style="border:1px solid #F59E0B;color:#F59E0B">🤖 Lovable</span></div>
+    </div>
+  </div>
+
+  <div class="tabs shell">
+    <button class="chip on">All Vibes</button><button class="chip">Landing Pages</button><button class="chip">Dashboards</button><button class="chip">Track Stock</button><button class="chip">Full AI Apps</button>
+    <span style="margin-left:auto;display:flex;gap:6px"><span style="font-size:11px;color:#9A9AAF;align-self:center">Demo filters</span><button class="btnG" style="padding:6px 10px;font-size:11px">Snippets</button><button class="btnW" style="padding:6px 10px;font-size:11px">Full Apps</button></span>
+  </div>
+
+  <div id="grid" class="grid shell">
+    <div class="card" onclick="showView('detail')" style="cursor:pointer">
+      <div style="height:150px;background:linear-gradient(135deg,#1E1B4B,#0F172A);display:grid;place-items:center;padding:10px"><div style="width:100%;height:100%;background:#fff;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px"><div style="height:10px;background:#0A0A0F;border-radius:6px;width:60%"></div><div style="height:28px;background:linear-gradient(90deg,#7C3AED,#EC4899);border-radius:8px"></div><div style="height:6px;background:#E5E7EB;border-radius:6px"></div></div></div>
+      <div style="padding:12px"><div style="display:flex;gap:6px;margin-bottom:6px"><span class="badge" style="background:#EDE9FE;color:#6D28D9">Snippet • Landing</span></div><div style="font-weight:700;font-size:14px">SaaS Launch Hero</div><div style="font-size:12px;color:#9A9AAF">High-converting hero with badge + dual CTA.</div><div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid #1F1F23;font-size:12px;color:#6A6A7A"><span>@zandi • Tailwind</span><span>♡ 124 • ⎘ 892</span></div></div>
+    </div>
+    <div class="card" onclick="showView('detail')" style="cursor:pointer">
+      <div style="height:150px;background:#0A0A0F;display:grid;place-items:center;padding:10px"><div style="width:100%;height:100%;background:#F8FAFC;border-radius:10px;padding:10px;display:flex;gap:8px"><div style="width:30%;background:#0F172A;border-radius:8px"></div><div style="flex:1;display:flex;flex-direction:column;gap:6px"><div style="display:flex;gap:6px"><div style="flex:1;height:24px;background:#fff;border:1px solid #E2E8F0;border-radius:8px"></div><div style="flex:1;height:24px;background:#fff;border:1px solid #E2E8F0;border-radius:8px"></div></div><div style="height:60px;background:#fff;border:1px dashed #CBD5E1;border-radius:8px;display:grid;place-items:center;color:#64748B;font-size:10px">Chart</div></div></div></div>
+      <div style="padding:12px"><span class="badge" style="background:#EDE9FE;color:#6D28D9">Snippet • Dashboard</span><div style="font-weight:700;font-size:14px;margin-top:6px">Analytics Dashboard — Dark Grid</div><div style="font-size:12px;color:#9A9AAF">Sidebar, KPI cards, chart scaffold.</div><div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid #1F1F23;font-size:12px;color:#6A6A7A"><span>@thando • CSS Grid</span><span>♡ 89</span></div></div>
+    </div>
+    <div class="card" onclick="showView('detail')" style="cursor:pointer;border-color:#7C3AED">
+      <div style="height:150px;background:linear-gradient(135deg,#2E220F,#1A140A);display:grid;place-items:center;padding:10px"><div style="width:100%;height:100%;background:#fff;border-radius:10px;padding:10px"><div style="display:flex;justify-content:space-between"><b style="font-size:10px">STOCK APP VIBES</b><span style="background:#DCFCE7;color:#15803D;padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700">● LIVE</span></div><div style="margin-top:8px;display:flex;flex-direction:column;gap:6px"><div style="display:flex;justify-content:space-between;padding:6px 8px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;font-size:11px"><b>AAPL</b><span style="color:#16A34A">+2.34%</span></div><div style="display:flex;justify-content:space-between;padding:6px 8px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:8px;font-size:11px"><b>NVDA</b><span style="color:#16A34A">+5.80%</span></div></div></div></div>
+      <div style="padding:12px"><div style="display:flex;gap:6px"><span class="badge" style="background:#FEF3C7;color:#92400E">Full App • Stock</span><span class="badge" style="border:1px solid #F59E0B;color:#F59E0B">🤖 Lovable</span></div><div style="font-weight:700;font-size:14px;margin-top:6px">Stock App Vibes — AI Portfolio Tracker</div><div style="font-size:12px;color:#9A9AAF">Django + React • Clone → add TwelveData key → run. 14 MB</div><div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid #1F1F23;font-size:12px;color:#6A6A7A"><span>@nolo.ai • Django</span><span>★ 142 • ⬇ 892</span></div></div>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL -->
+<div id="view-detail" class="view">
+  <div style="max-width:1280px;margin:0 auto;padding:16px 20px;display:grid;grid-template-columns:1.6fr .95fr;gap:16px">
+    <div>
+      <!-- Queue banner — backend only, no secrets in JS -->
+      <div style="padding:14px;background:linear-gradient(135deg,#1A1A00,#1A1400);border:1px solid #F59E0B;border-radius:12px;display:flex;gap:10px;align-items:center;margin-bottom:12px">
+        <span style="width:10px;height:10px;background:#F59E0B;border-radius:50%;animation: pulse 1.2s infinite"></span>
+        <div><div style="font-weight:700;color:#FDE68A">⏳ Your vibe is in the queue — we’ll tell you when it’s uploaded!</div><div style="font-size:12px;color:#FDE68A">Status: <b style="color:#fff">scanning</b> • Every app is checked, even with concurrent uploads. Backend only.</div></div>
+        <span style="margin-left:auto;font-size:11px;color:#F59E0B">scan → vuln → publish</span>
+      </div>
+      <div class="card">
+        <div style="height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:#15151A;border-bottom:1px solid #232326"><span style="font-size:12px;color:#9A9AAF">stock_app_vibes — Preview</span><span style="font-size:11px;background:#DCFCE7;color:#15803D;padding:4px 8px;border-radius:8px;font-weight:700">● Secure</span></div>
+        <div style="height:260px;background:#fff;color:#111;padding:14px">
+          <div style="display:flex;justify-content:space-between;border-bottom:1px solid #E5E7EB;padding-bottom:8px"><b>Stock App Vibes — Portfolio</b><span style="background:#DCFCE7;color:#15803D;padding:4px 8px;border-radius:100px;font-size:11px">● LIVE</span></div>
+          <table style="width:100%;font-size:12px;border-collapse:collapse;margin-top:8px"><tr style="color:#64748B"><th style="text-align:left;padding:6px">Symbol</th><th>Price</th><th>Change</th></tr><tr style="border-top:1px solid #E5E7EB"><td style="padding:6px;font-weight:700">AAPL</td><td>$182.52</td><td style="color:#16A34A;font-weight:700">+2.34%</td></tr><tr style="border-top:1px solid #E5E7EB"><td style="padding:6px;font-weight:700">NVDA</td><td>$903.12</td><td style="color:#16A34A;font-weight:700">+5.80%</td></tr></table>
+        </div>
+        <div style="margin:12px;background:#07070A;border:1px solid #232326;border-radius:12px;padding:12px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:11px;letter-spacing:.06em;color:#9A9AAF;font-weight:700">CLONE WITH GIT</span><span style="font-size:11px;color:#F59E0B">18 files • 892 clones</span></div>
+          <div style="display:flex;gap:8px;align-items:center;background:#15151A;border:1px solid #232326;border-radius:10px;padding:8px 10px;font-family:JetBrains Mono,monospace;font-size:11px;overflow:auto"><span style="color:#9A9AAF">$</span> git clone https://blaqvibes.co.za/git/nolo.ai/stock_app_vibes.git <button class="btnW" style="margin-left:auto;padding:6px 10px;font-size:11px" onclick="toast('Copied clone command!')">Copy</button></div>
+          <div style="display:flex;gap:8px;margin-top:8px"><button class="btnV" style="flex:1" onclick="toast('Download ZIP — signed URL 5 min')">⬇ Download ZIP — 14 MB</button><button class="btnG">★ Star 142</button></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:12px;padding:12px">
+        <div style="display:flex;gap:6px">
+          <button class="btnW" style="flex:1">📄 README.md</button><button class="btnG" style="flex:1" onclick="toast('Tree view — backend only')">📁 Files (18)</button><button class="btnG" style="flex:1">💻 Code</button>
+        </div>
+        <div style="margin-top:12px;background:#07070A;border:1px solid #232326;border-radius:12px;padding:12px">
+          <div style="font-size:11px;letter-spacing:.06em;color:#9A9AAF;font-weight:700;margin-bottom:6px">README — REQUIRED FOR EVERY VIBE</div>
+          <div style="font-size:13px;line-height:1.7;color:#CFCFD9">
+            <b>Stock App Vibes</b> — AI portfolio tracker.<br>
+            <b>What:</b> Real-time prices, P&L, sparkline.<br>
+            <b>Stack:</b> Django + React + Tailwind • TwelveData API<br>
+            <b>Run:</b> <code style="background:#1F1F23;padding:2px 6px;border-radius:6px">pip install -r requirements.txt && python manage.py runserver</code>
+          </div>
+        </div>
+        <div class="card" style="margin-top:8px;background:#07070A">
+          <div style="padding:10px;font-size:11px;color:#9A9AAF;font-weight:700">📁 FILE TREE — stock_app_vibes (backend built)</div>
+          <div class="tree" style="padding:0 10px 10px">
+            <div class="folder">📁 stock_app_vibes/</div>
+            <div style="margin-left:14px;border-left:1px solid #232326;padding-left:10px">
+              <div class="file" onclick="toast('Preview views.py — 3.4 KB (backend, 200KB limit)')">📄 README.md — 1.2 KB</div>
+              <div class="file" onclick="toast('Preview views.py — backend sanitized')">📄 manage.py</div>
+              <div class="file">📄 requirements.txt</div>
+              <div class="folder">📁 stock_app/</div>
+              <div style="margin-left:14px;border-left:1px solid #232326;padding-left:10px"><div class="file">📄 views.py</div><div class="file">📄 models.py</div></div>
+              <div class="folder">📁 frontend/src/ — App.jsx</div>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:12px;padding:12px">
+          <div style="font-weight:700">Comments • 2</div>
+          <div style="margin-top:8px;padding:10px;background:#07070A;border:1px solid #232326;border-radius:10px;display:flex;gap:8px">
+            <div style="width:28px;height:28px;border-radius:50%;background:linear-gradient(135deg,#7C3AED,#EC4899);display:grid;place-items:center;font-weight:800;font-size:11px">S</div>
+            <div style="flex:1"><b style="font-size:13px">@sbu</b><span style="font-size:11px;color:#6A6A7A"> • 2h ago</span><div style="font-size:13px;margin-top:4px">Does this work with Django 5?</div></div>
+          </div>
+          <div style="margin-top:8px;padding:10px;background:#07070A;border:1px solid #232326;border-radius:10px"><b style="font-size:13px">@nolo.ai (owner)</b><div style="font-size:13px">Yes! Use psycopg[binary] — I pushed a fix.</div></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card" style="padding:14px">
+        <div style="display:flex;gap:6px;margin-bottom:8px"><span class="badge" style="background:#FEF3C7;color:#92400E">Full App</span><span class="badge" style="border:1px solid #F59E0B;color:#F59E0B">🤖 Lovable</span></div>
+        <div style="font-weight:700">Stock App Vibes</div><div style="font-size:12px;color:#9A9AAF;margin:6px 0">Vibe that never shipped. The README + Tree is what people read before clone.</div>
+        <div style="margin-top:10px;background:#07070A;border:1px solid #232326;border-radius:10px;padding:10px"><div style="font-size:11px;color:#10B981;font-weight:700">🔒 SECURITY</div><div style="font-size:12px;line-height:1.6">✅ ClamAV clean<br>✅ No secrets<br>✅ Backend queue — every app checked</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- PROFILE -->
+<div id="view-profile" class="view">
+  <div style="max-width:1100px;margin:0 auto;padding:20px">
+    <div class="card" style="padding:16px;display:flex;gap:14px;align-items:center;flex-wrap:wrap">
+      <div style="width:68px;height:68px;border-radius:16px;background:linear-gradient(135deg,#7C3AED,#F59E0B);display:grid;place-items:center;font-weight:800;font-size:20px">N</div>
+      <div style="flex:1;min-width:220px">
+        <div style="font-weight:800;font-size:18px">@nolo.ai <span style="font-size:11px;background:#07070A;border:1px solid #232326;padding:3px 7px;border-radius:8px">Durban, ZA</span></div>
+        <div style="font-size:13px;color:#CFCFD9;margin-top:4px">AI builder • Stock tools with Lovable • 9 vibes • 340 stars</div>
+        <div style="font-size:12px;color:#7C3AED;margin-top:2px">github.com/nolo-ai • x.com/nol0ai</div>
+      </div>
+      <div style="display:flex;gap:14px;text-align:center"><div><b>9</b><div style="font-size:11px;color:#9A9AAF">VIBES</div></div><div><b>340</b><div style="font-size:11px;color:#9A9AAF">FOLLOWERS</div></div><div><b>12</b><div style="font-size:11px;color:#9A9AAF">FOLLOWING</div></div></div>
+      <button class="btnV">✓ Following</button>
+    </div>
+    <div style="margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+      <div class="card" style="padding:12px"><div style="font-weight:700">Stock App Vibes</div><div style="font-size:12px;color:#9A9AAF">Full App • Django • 892 clones</div></div>
+      <div class="card" style="padding:12px"><div style="font-weight:700">RevenueOS</div><div style="font-size:12px;color:#9A9AAF">Full App • 430 clones</div></div>
+      <div class="card" style="padding:12px"><div style="font-weight:700">SaaS Launch Hero</div><div style="font-size:12px;color:#9A9AAF">Snippet • 540 copies</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- PUBLISH -->
+<div id="view-publish" class="view">
+  <div style="max-width:700px;margin:0 auto;padding:20px">
+    <h2 style="font-family:Space Grotesk,sans-serif">Publish your vibe</h2><p style="color:#9A9AAF;font-size:13px;margin:6px 0 12px">Every vibe requires README.md — queue checks it. We’ll tell you when it’s uploaded!</p>
+    <div style="border:1.5px dashed #3A3A40;border-radius:16px;padding:20px;text-align:center;background:#121214">
+      <div style="width:44px;height:44px;background:linear-gradient(135deg,#7C3AED,#EC4899);border-radius:10px;display:grid;place-items:center;margin:0 auto 8px">⬆</div>
+      <b>Drop your app ZIP here</b><div style="font-size:12px;color:#9A9AAF">Max 100MB • ZIP only • We block node_modules/.env</div>
+      <div style="margin-top:10px;display:flex;gap:8px;justify-content:center"><button class="btnV" onclick="toast('ZIP dropped — queued for scan')">Browse</button><button class="btnG">Connect Git</button></div>
+    </div>
+    <div style="margin-top:12px;background:#07070A;border:1px solid #232326;border-radius:12px;padding:12px;display:flex;gap:8px;font-size:12px;color:#9A9AAF"><span>🔒</span><div><b style="color:#fff">Queue:</b> Every app goes to <code>scan</code> queue (virus → secrets → vuln → publish). Concurrent uploads are serialized. No secrets in JS.</div></div>
+  </div>
+</div>
+
+<!-- MODERATION -->
+<div id="view-moderation" class="view">
+  <div style="max-width:1000px;margin:0 auto;padding:20px">
+    <h2 style="font-family:Space Grotesk,sans-serif">🛡️ Moderation Queue</h2><p style="color:#9A9AAF;font-size:13px">Staff only — pending & quarantined. Backend only.</p>
+    <div style="margin-top:12px;background:#121214;border:1px solid #232326;border-radius:12px;padding:12px;display:flex;justify-content:space-between;align-items:center"><div><b>Queue Notify Test</b> <span style="font-size:11px;color:#F59E0B">● pending</span><div style="font-size:12px;color:#9A9AAF">@nolo.ai • Test notify • scanning</div></div><button class="btnV" onclick="toast('Approved → Published')">✓ Approve</button></div>
+    <div style="margin-top:8px;background:#1A0A0A;border:1px solid #4A1A1A;border-radius:12px;padding:12px;display:flex;justify-content:space-between"><div><b>Fake Malware</b> <span style="font-size:11px;color:#EF4444">● quarantined</span><div style="font-size:12px;color:#FCA5A5">Virus • scan_report hidden from JS</div></div><button class="btnG" style="color:#EF4444" onclick="toast('Deleted')">Delete</button></div>
+  </div>
+</div>
+
+<div id="toast" class="toast">✓ Copied!</div>
+<script>
+function showView(id){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('on'));
+  document.getElementById('view-'+id).classList.add('on');
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1800)}
+</script>
+<style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}</style>
+</body>
+</html>

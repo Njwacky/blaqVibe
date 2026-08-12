@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>@nolo.ai — BlaqVibes Profile Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07070A;--bg2:#0F0F12;--card:#121214;--panel:#0F0F12;--muted:#9A9AAF;--line:#1F1F23;--input:#15151A;--text:#fff;--text2:#CFCFD9}
+[data-theme="light"]{--bg:#F8FAFC;--bg2:#FFFFFF;--card:#FFFFFF;--panel:#FFFFFF;--muted:#64748B;--line:#E2E8F0;--input:#F1F5F9;--text:#0F172A;--text2:#334155}
+*{margin:0;padding:0;box-sizing:border-box} body{font-family:Inter,sans-serif;background:var(--bg);color:var(--text)}
+.nav{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0;z-index:50}
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden}
+.btnV{background:#7C3AED;color:#fff;border:none;padding:9px 14px;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer}
+.btnG{background:transparent;border:1px solid var(--line);color:var(--text);padding:8px 12px;border-radius:10px;font-weight:600;font-size:12px;cursor:pointer}
+.badge{font-size:10px;padding:3px 7px;border-radius:8px;font-weight:700}
+.theme{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--input);display:grid;place-items:center;cursor:pointer}
+.tabs{display:flex;gap:8px;margin-top:12px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.tab{padding:8px 14px;border-radius:100px;font-size:13px;font-weight:700;cursor:pointer;border:1px solid var(--line)}
+.tab.on{background:var(--text);color:var(--bg)} .tab.off{background:var(--input);color:var(--muted)}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;transition:.25s;z-index:999}
+.toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body data-theme="dark">
+<nav class="nav">
+  <div style="display:flex;align-items:center;gap:8px"><img src="/static/branding/icon-32.png" style="width:28px;height:28px;border-radius:8px"><span style="font-family:Space Grotesk,sans-serif;font-weight:700">BlaqVibes</span><span style="font-size:11px;color:var(--muted);margin-left:6px">/u/nolo.ai</span></div>
+  <div style="display:flex;gap:8px;align-items:center"><button class="theme" onclick="toggleTheme()" id="t1">🌙</button><a href="#" class="btnG">Vibes</a><a href="#" class="btnG">My Vibes</a><span style="font-size:12px;color:var(--muted)">@sbu • viewing</span></div>
+</nav>
+
+<div style="max-width:1100px;margin:0 auto;padding:20px">
+  <!-- Header -->
+  <div class="card" style="padding:18px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+    <img src="/static/branding/icon-192.png" style="width:72px;height:72px;border-radius:16px;object-fit:cover;border:1px solid var(--line)">
+    <div style="flex:1;min-width:240px">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span style="font-weight:800;font-size:20px">@nolo.ai</span>
+        <span style="font-size:11px;background:linear-gradient(135deg,#7C3AED,#F59E0B);color:#fff;padding:4px 8px;border-radius:8px;font-weight:700">Platinum • 142 ★</span>
+        <span style="font-size:11px;background:var(--input);border:1px solid var(--line);padding:4px 8px;border-radius:8px">Durban, ZA</span>
+        <span style="font-size:11px;background:#DCFCE7;color:#15803D;padding:4px 8px;border-radius:8px;font-weight:700">50% Pro discount</span>
+      </div>
+      <div style="font-size:13px;color:var(--text2);margin:6px 0">AI builder • Stock tools with Lovable • I ship vibes that never died on my laptop. 9 vibes, 18 files avg, Python 58%.</div>
+      <div style="display:flex;gap:12px;font-size:12px;color:var(--muted);flex-wrap:wrap">
+        <span>↗ blaqvibes.co.za/u/nolo.ai</span><span>GitHub @nolo-ai</span><span>𝕏 @nol0ai</span><span>• 5 ★ balance</span>
+      </div>
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+        <span style="font-size:11px;background:var(--input);border:1px solid var(--line);padding:4px 8px;border-radius:8px">Python 58%</span>
+        <span style="font-size:11px;background:var(--input);border:1px solid var(--line);padding:4px 8px;border-radius:8px">JavaScript 25%</span>
+        <span style="font-size:11px;background:var(--input);border:1px solid var(--line);padding:4px 8px;border-radius:8px">Tailwind</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:16px;text-align:center;align-items:center">
+      <div><div style="font-weight:800;font-size:18px">9</div><div style="font-size:11px;color:var(--muted);letter-spacing:.06em">VIBES</div></div>
+      <div><div id="fc" style="font-weight:800;font-size:18px">340</div><div style="font-size:11px;color:var(--muted);letter-spacing:.06em">FOLLOWERS</div></div>
+      <div><div style="font-weight:800;font-size:18px">12</div><div style="font-size:11px;color:var(--muted);letter-spacing:.06em">FOLLOWING</div></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <button id="followBtn" class="btnV" onclick="toggleFollow()">✓ Following</button>
+      <button class="btnG" onclick="toast('Copied profile link!')">Share</button>
+    </div>
+  </div>
+
+  <!-- Stats bar -->
+  <div style="margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+    <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted);letter-spacing:.06em">TOTAL STARS</div><div style="font-weight:800;font-size:18px;color:#F59E0B">142 ★</div><div style="font-size:11px;color:var(--muted)">Rank: Platinum</div></div>
+    <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted);letter-spacing:.06em">TOTAL CLONES</div><div style="font-weight:800;font-size:18px">892</div><div style="font-size:11px;color:var(--muted)">Top 1st when exploring</div></div>
+    <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted);letter-spacing:.06em">STARS BALANCE</div><div style="font-weight:800;font-size:18px">42 ★</div><div style="font-size:11px;color:var(--muted)">Trade to download</div></div>
+    <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted);letter-spacing:.06em">PRO DISCOUNT</div><div style="font-weight:800;font-size:18px;color:#10B981">50% off</div><div style="font-size:11px;color:var(--muted)">Platinum perk</div></div>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab on" onclick="switchTab('vibes',this)">Vibes (9)</button>
+    <button class="tab off" onclick="switchTab('stars',this)">Stars</button>
+    <button class="tab off" onclick="switchTab('trades',this)">Trades</button>
+    <button class="tab off" onclick="switchTab('about',this)">About</button>
+  </div>
+
+  <!-- Vibes Grid -->
+  <div id="tab-vibes">
+    <div style="margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+      <div class="card" style="padding:12px;border-color:#7C3AED"><div style="display:flex;gap:6px;margin-bottom:6px"><span class="badge" style="background:#FEF3C7;color:#92400E">Full App • 2 ★</span><span class="badge" style="background:#DCFCE7;color:#15803D">● Live</span></div><div style="font-weight:700">Stock App Vibes</div><div style="font-size:12px;color:var(--muted)">Python 58% • 18 files • 892 clones</div><div style="font-size:11px;color:var(--muted);margin-top:6px">★ 142 • Trending #1</div></div>
+      <div class="card" style="padding:12px"><span class="badge" style="background:#EDE9FE;color:#6D28D9">Snippet • Free</span><div style="font-weight:700;margin-top:6px">SaaS Launch Hero Pro</div><div style="font-size:12px;color:var(--muted)">Tailwind • Copy-paste • 24 stars</div></div>
+      <div class="card" style="padding:12px"><span class="badge" style="background:#FEF3C7;color:#92400E">Full App • 2 ★</span><div style="font-weight:700;margin-top:6px">RevenueOS — SaaS Admin</div><div style="font-size:12px;color:var(--muted)">Django • 24 files • 98 stars</div></div>
+      <div class="card" style="padding:12px;opacity:.9;border-color:#F59E0B"><span class="badge" style="background:#FEF3C7;color:#92400E">⏳ Queued</span><div style="font-weight:700;margin-top:6px">Queue Notify Test</div><div style="font-size:11px;color:var(--muted)">Scanning → we’ll tell you when it’s live</div></div>
+      <div class="card" style="padding:12px"><span class="badge" style="background:#EDE9FE;color:#6D28D9">Snippet • Free</span><div style="font-weight:700;margin-top:6px">Waitlist Minimal</div><div style="font-size:12px;color:var(--muted)">High converting • 12 stars</div></div>
+      <div class="card" style="padding:12px"><span class="badge" style="background:#FEF3C7;color:#92400E">Full App • 2 ★</span><div style="font-weight:700;margin-top:6px">Concurrent Vibe 2</div><div style="font-size:12px;color:var(--muted)">Python 50% • 2 files</div></div>
+    </div>
+  </div>
+
+  <div id="tab-stars" style="display:none">
+    <div style="margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+      <div class="card" style="padding:12px"><div style="font-weight:700">Stock Portfolio Table — Real</div><div style="font-size:12px;color:var(--muted)">by @blaq • Tailwind • ★0 (you starred)</div></div>
+      <div class="card" style="padding:12px"><div style="font-weight:700">Analytics Dashboard — Real</div><div style="font-size:12px;color:var(--muted)">by @blaq • ★0</div></div>
+    </div>
+  </div>
+
+  <div id="tab-trades" style="display:none">
+    <div style="margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+      <div style="font-weight:700">Recent Trades — Backend only, no secrets in JS</div>
+      <div style="margin-top:8px;font-size:12px;display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span>@sbu traded 2 ★ for <b>Stock App Vibes</b></span><span style="color:var(--muted)">2h ago</span></div>
+      <div style="font-size:12px;display:flex;justify-content:space-between;padding:8px 0"><span>@blaq traded 2 ★ for <b>Test ClamAV</b></span><span style="color:var(--muted)">5h ago</span></div>
+    </div>
+  </div>
+
+  <div id="tab-about" style="display:none">
+    <div style="margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px">
+      <div style="font-weight:700">About @nolo.ai</div>
+      <div style="font-size:13px;color:var(--text2);margin-top:6px;line-height:1.6">AI builder from Durban. I ship stock tools with Lovable. Every vibe has README + language % + file tree. High stars → Platinum → top of feed → 50% Pro discount. New? Build good vibes, get stars.<br><br><b>Languages:</b> Python 58%, JavaScript 25%, CSS 12%, HTML 5% (size-weighted from ZIP, backend detected).<br><b>Rank:</b> Platinum (142 ★) — earned from stars + trades.</div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast">✓ Following!</div>
+<script>
+function toggleTheme(){
+  const cur=document.body.getAttribute('data-theme');
+  const next=cur==='dark'?'light':'dark';
+  document.body.setAttribute('data-theme',next);
+  document.getElementById('t1').textContent=next==='dark'?'🌙':'☀️';
+}
+function switchTab(id, el){
+  document.querySelectorAll('[id^="tab-"]').forEach(e=>e.style.display='none');
+  document.getElementById('tab-'+id).style.display='block';
+  document.querySelectorAll('.tab').forEach(t=>t.className='tab off');
+  el.className='tab on';
+}
+let following=true;
+function toggleFollow(){
+  following=!following;
+  document.getElementById('followBtn').textContent=following?'✓ Following':'Follow';
+  document.getElementById('followBtn').style.background=following?'#232326':'#7C3AED';
+  const c=document.getElementById('fc');
+  c.textContent = following ? '340' : '339';
+  toast(following?'Following @nolo.ai':'Unfollowed');
+}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1600)}
+</script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Battle History — BlaqVibes{% endblock %}
+{% block content %}
+<div style="max-width:900px;margin:0 auto;padding:20px">
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">📜 Battle History</h1>
+  <p style="color:#9A9AAF;font-size:13px">Every battle you voted — who you picked, who won, and who’s app it was. Backend `BattleVote` + `VibeBattle`, no JS secrets.</p>
+
+  <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div>
+      <h2 style="font-size:14px;font-weight:700">Your Battles — {{ my_votes.count }} votes</h2>
+      {% for vote in my_votes %}
+      <div style="background:#121214;border:1px solid #1F1F23;border-radius:12px;padding:12px;margin-top:8px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <span style="font-size:11px;padding:3px 7px;border-radius:8px;background:{% if vote.choice == 'a' %}#7C3AED;color:#fff{% else %}#1A1A1E;color:#9A9AAF{% endif %}">You: {{ vote.choice|upper }}</span>
+          <span style="font-size:11px;color:#9A9AAF">{{ vote.created_at|timesince }} ago</span>
+          {% if vote.choice == 'a' and vote.battle.votes_a > vote.battle.votes_b or vote.choice == 'b' and vote.battle.votes_b > vote.battle.votes_a %}<span style="font-size:11px;background:#DCFCE7;color:#15803D;padding:3px 7px;border-radius:8px">Winner ✓</span>{% else %}<span style="font-size:11px;background:#FEE2E2;color:#991B1B;padding:3px 7px;border-radius:8px">Lost</span>{% endif %}
+        </div>
+        <div style="margin-top:8px;display:grid;grid-template-columns:1fr auto 1fr;gap:8px;align-items:center;font-size:12px">
+          <div style="background:#1A1A1E;border:1px solid #232326;border-radius:8px;padding:8px;text-align:center {% if vote.choice == 'a' %}border-color:#7C3AED{% endif %}">
+            <div style="font-weight:700">{{ vote.battle.vibe_a.title|truncatechars:24 }}</div>
+            <div style="font-size:11px;color:#9A9AAF">@{{ vote.battle.vibe_a.owner.username }} • ★{{ vote.battle.vibe_a.stars }}</div>
+            <div style="font-size:11px;color:var(--muted)">{{ vote.battle.votes_a }} votes</div>
+          </div>
+          <div style="font-weight:800;color:var(--muted);font-size:12px">VS</div>
+          <div style="background:#1A1A1E;border:1px solid #232326;border-radius:8px;padding:8px;text-align:center {% if vote.choice == 'b' %}border-color:#F59E0B{% endif %}">
+            <div style="font-weight:700">{{ vote.battle.vibe_b.title|truncatechars:24 }}</div>
+            <div style="font-size:11px;color:#9A9AAF">@{{ vote.battle.vibe_b.owner.username }} • ★{{ vote.battle.vibe_b.stars }}</div>
+            <div style="font-size:11px;color:var(--muted)">{{ vote.battle.votes_b }} votes</div>
+          </div>
+        </div>
+        <div style="margin-top:6px;font-size:11px;color:var(--muted)">Battle #{{ vote.battle.id }} • {% if vote.choice == 'a' %}You picked <b style="color:#7C3AED">@{{ vote.battle.vibe_a.owner.username }}</b>'s app{% else %}You picked <b style="color:#F59E0B">@{{ vote.battle.vibe_b.owner.username }}</b>'s app{% endif %} • +5 ★ to winner</div>
+      </div>
+      {% empty %}
+      <div style="color:#6A6A7A;font-size:13px;padding:12px;border:1px dashed #232326;border-radius:10px;margin-top:8px">No battles yet — go to <a href="{% url 'battle' %}" style="color:#7C3AED">Battle</a> and pick!</div>
+      {% endfor %}
+    </div>
+
+    <div>
+      <h2 style="font-size:14px;font-weight:700">Recent Battles — Global</h2>
+      {% for b in recent %}
+      <div style="background:#121214;border:1px solid #1F1F23;border-radius:10px;padding:10px;margin-top:8px;display:flex;align-items:center;gap:8px;font-size:12px">
+        <span style="font-size:10px;background:#1A1A1E;border:1px solid #232326;padding:3px 7px;border-radius:8px">#{{ b.id }}</span>
+        <span style="flex:1"><b>{{ b.vibe_a.title|truncatechars:18 }}</b> vs <b>{{ b.vibe_b.title|truncatechars:18 }}</b></span>
+        <span style="font-size:11px;color:var(--muted)">{{ b.votes_a }}-{{ b.votes_b }}</span>
+      </div>
+      {% empty %}<div style="color:#6A6A7A;font-size:12px">No battles yet.</div>{% endfor %}
+      <a href="{% url 'battle' %}" style="display:block;margin-top:8px;text-align:center;background:var(--card);border:1px solid var(--line);padding:8px;border-radius:10px;font-size:12px;font-weight:700;color:var(--text);text-decoration:none">Battle Now →</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

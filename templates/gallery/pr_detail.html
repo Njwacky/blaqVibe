@@ -1,0 +1,67 @@
+{% extends 'gallery/base.html' %}
+{% block title %}PR #{{ pr.id }} — {{ pr.title }} — BlaqVibes{% endblock %}
+{% block content %}
+<div style="max-width:1000px;margin:0 auto;padding:20px">
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <a href="{% url 'pr_list' pr.target.slug %}" class="btnG">← PRs for {{ pr.target.slug }}</a>
+    <span style="font-size:11px;padding:4px 8px;border-radius:8px;font-weight:700;background:{% if pr.status == 'open' %}#FEF3C7;color:#92400E{% elif pr.status == 'merged' %}#DCFCE7;color:#15803D{% else %}#1F1F23;color:#9A9AAF{% endif %}">{{ pr.status }}</span>
+    <span style="font-size:12px;color:#9A9AAF">#{{ pr.id }} • {{ pr.source.slug }} → {{ pr.target.slug }} • by @{{ pr.author.username }} • {{ pr.created_at|timesince }} ago</span>
+  </div>
+
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:20px;margin-top:12px">{{ pr.title }}</h1>
+  <p style="color:#9A9AAF;font-size:13px;margin-top:4px">{{ pr.description|default:"No description — Nolo auto-review below." }}</p>
+
+  <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div class="card" style="padding:12px">
+      <div style="font-size:11px;color:#F59E0B;font-weight:700">Source (Fork) — {{ pr.source.title }}</div>
+      <div style="font-size:12px;color:#9A9AAF;margin-top:4px">@{{ pr.source.owner.username }} • {{ pr.source.file_count }} files • ★{{ pr.source.stars }} • {{ pr.source.tech_stack|default:"—" }}</div>
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+        {% for lang,pct in pr.source.language_stats.items %}<span style="background:#15151A;border:1px solid #232326;padding:3px 7px;border-radius:8px;font-size:11px">{{ lang }} {{ pct }}%</span>{% endfor %}
+      </div>
+      <a href="{{ pr.source.get_absolute_url }}" style="display:block;margin-top:8px;text-align:center;background:#1A1A1E;border:1px solid #232326;padding:6px;border-radius:8px;font-size:12px;color:#fff;text-decoration:none">View Source Vibe →</a>
+    </div>
+    <div class="card" style="padding:12px">
+      <div style="font-size:11px;color:#7C3AED;font-weight:700">Target (Original) — {{ pr.target.title }}</div>
+      <div style="font-size:12px;color:#9A9AAF;margin-top:4px">@{{ pr.target.owner.username }} • {{ pr.target.file_count }} files • ★{{ pr.target.stars }} • {{ pr.target.tech_stack|default:"—" }}</div>
+      <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
+        {% for lang,pct in pr.target.language_stats.items %}<span style="background:#15151A;border:1px solid #232326;padding:3px 7px;border-radius:8px;font-size:11px">{{ lang }} {{ pct }}%</span>{% endfor %}
+      </div>
+      <a href="{{ pr.target.get_absolute_url }}" style="display:block;margin-top:8px;text-align:center;background:#1A1A1E;border:1px solid #232326;padding:6px;border-radius:8px;font-size:12px;color:#fff;text-decoration:none">View Target Vibe →</a>
+    </div>
+  </div>
+
+  <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div class="card" style="padding:12px">
+      <div style="font-size:12px;font-weight:700">Files Diff — Backend, No JS Secrets</div>
+      <div style="margin-top:8px;font-family:JetBrains Mono,monospace;font-size:11px;line-height:1.6">
+        {% for f in diff.added %}<div style="color:#10B981">+ {{ f }}</div>{% endfor %}
+        {% for f in diff.removed %}<div style="color:#EF4444">- {{ f }}</div>{% endfor %}
+        {% for f in diff.common %}<div style="color:#6A6A7A">  {{ f }}</div>{% endfor %}
+        {% if not diff.added and not diff.removed %}<div style="color:#6A6A7A">No file changes — maybe README/tech_stack only.</div>{% endif %}
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:#9A9AAF">Added: {{ diff.added|length }}, Removed: {{ diff.removed|length }}, Common: {{ diff.common|length }}</div>
+    </div>
+    <div class="card" style="padding:12px">
+      <div style="font-size:12px;font-weight:700">Nolo Compare Diff (Features)</div>
+      <div style="margin-top:8px;font-size:12px;line-height:1.6">
+        <div><b style="color:#F59E0B">Only in Source:</b> {{ nolo_diff.only_in_a|join:", "|default:"—" }}</div>
+        <div><b style="color:#7C3AED">Only in Target:</b> {{ nolo_diff.only_in_b|join:", "|default:"—" }}</div>
+        <div><b style="color:#9A9AAF">Common:</b> {{ nolo_diff.common|join:", "|default:"—" }}</div>
+      </div>
+      {% if nolo_review %}
+      <div style="margin-top:8px;background:#07070A;border:1px solid #232326;border-radius:10px;padding:8px">
+        <div style="font-size:11px;font-weight:700">Nolo Auto-Review of Source — {{ nolo_review.score }}/10</div>
+        <div style="font-size:11px;color:#9A9AAF">Pros: {{ nolo_review.pros|join:", "|default:"—" }}<br>Fixes: {{ nolo_review.fixes|join:", "|default:"—" }}</div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if user == pr.target.owner and pr.status == 'open' %}
+  <div style="margin-top:12px;display:flex;gap:8px">
+    <form method="post" action="{% url 'pr_action' pr.target.slug pr.id %}">{% csrf_token %}<input type="hidden" name="action" value="merge"><button class="btnV">✓ Merge PR #{{ pr.id }}</button></form>
+    <form method="post" action="{% url 'pr_action' pr.target.slug pr.id %}">{% csrf_token %}<input type="hidden" name="action" value="close"><button class="btnG">Close</button></form>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

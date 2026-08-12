@@ -1,0 +1,21 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Admin Dashboard — BlaqVibes{% endblock %}
+{% block content %}
+<div style="max-width:1100px;margin:0 auto;padding:20px">
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">🛡️ Admin Dashboard — {{ user.profile.role }}</h1>
+  <p style="color:#9A9AAF;font-size:13px">Backend only, no JS secrets. Role: {{ user.profile.role }} — {{ stats.published }} published, {{ stats.pending }} pending, {{ stats.quarantined }} quarantined.</p>
+  <div style="margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+    <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:#9A9AAF">TOTAL VIBES</div><div style="font-weight:800;font-size:20px">{{ stats.total_vibes }}</div></div>
+    <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:#9A9AAF">PENDING</div><div style="font-weight:800;font-size:20px;color:#F59E0B">{{ stats.pending }}</div></div>
+    <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:#9A9AAF">QUARANTINED</div><div style="font-weight:800;font-size:20px;color:#EF4444">{{ stats.quarantined }}</div></div>
+    <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:#9A9AAF">TRADES</div><div style="font-weight:800;font-size:20px">{{ stats.total_trades }}</div></div>
+  </div>
+  <div style="margin-top:16px;display:flex;gap:8px">
+    <a href="{% url 'moderation_queue' %}" class="btnV">🛡️ Moderation Queue</a>
+    {% if user.profile.is_superadmin %}<a href="{% url 'manage_roles' %}" class="btnG">Manage Roles</a>{% endif %}
+    <a href="/blaq-admin-secure/" class="btnG">Django Admin</a>
+  </div>
+  <h2 style="margin-top:16px;font-size:14px">Recent Reports</h2>
+  {% for r in recent_reports %}<div style="background:#0F0F12;border:1px solid #232326;border-radius:10px;padding:10px;margin-top:6px;font-size:12px"><b>{{ r.project.title }}</b> — {{ r.reason }} • {{ r.details|default:"—" }} • by {% if r.user %}@{{ r.user.username }}{% else %}anon{% endif %} • {{ r.created_at|timesince }} ago</div>{% empty %}<div style="color:#6A6A7A;font-size:12px">No reports</div>{% endfor %}
+</div>
+{% endblock %}

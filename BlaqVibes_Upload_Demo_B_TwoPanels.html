@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demo B — Two Panels</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>body{margin:0;font-family:Inter,sans-serif;background:#07070A;color:#fff} .nav{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid #1F1F23} .shell{display:grid;grid-template-columns:1fr 360px;min-height:calc(100vh - 56px)} @media(max-width:700px){.shell{grid-template-columns:1fr}} .card{background:#121214;border:1px solid #1F1F23;border-radius:12px;padding:14px} .input{width:100%;background:#15151A;border:1px solid #232326;border-radius:10px;padding:10px;color:#fff}</style>
+</head>
+<body>
+<nav class="nav"><span style="font-family:Space Grotesk,sans-serif;font-weight:700">BlaqVibes</span><span style="font-size:11px;color:#9A9AAF">Demo B — Two Panels (70/30)</span></nav>
+<div class="shell">
+  <div style="padding:20px;overflow:auto">
+    <h2 style="font-family:Space Grotesk,sans-serif">Publish your vibe</h2>
+    <p style="font-size:12px;color:#9A9AAF">Left 70% form — no left nav, nav is top bar only.</p>
+    <div style="margin-top:12px;border:1px dashed #3A3A40;border-radius:12px;padding:20px;background:#121214;text-align:center">⬆ Drop ZIP here — Max 100MB<br><span style="font-size:11px;color:#6A6A7A">Docker will run if Auto-run On</span></div>
+    <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px"><input class="input" placeholder="Title"><input class="input" placeholder="Category"></div>
+    <textarea class="input" style="margin-top:12px;min-height:80px" placeholder="README — # My Vibe..."></textarea>
+    <button style="margin-top:12px;background:#7C3AED;color:#fff;border:none;padding:10px 14px;border-radius:10px;font-weight:700;width:100%">Publish Vibe →</button>
+  </div>
+  <div style="background:#0F0F12;border-left:1px solid #1F1F23;padding:14px;display:flex;flex-direction:column;gap:12px;overflow:auto">
+    <div style="font-weight:700;font-size:13px">Live Preview + Docker</div>
+    <div class="card" style="border-color:#10B981"><div style="display:flex;gap:8px;align-items:center"><span style="width:8px;height:8px;background:#10B981;border-radius:50%"></span><span style="font-weight:700;font-size:12px">Docker Running</span></div><div style="font-size:11px;color:#9A9AAF;margin-top:6px">stock-app-vibes-882511 at /deploy/.../ — 42 min left</div></div>
+    <div class="card"><div style="font-weight:700;font-size:12px">Queue & Scan</div><div style="font-size:11px;color:#9A9AAF;margin-top:4px">You #2 in line • ClamAV ✓ • Nolo scanning</div></div>
+    <div class="card"><div style="font-weight:700;font-size:12px">Preview</div><div style="height:120px;background:#fff;border-radius:8px;margin-top:8px;display:grid;place-items:center;color:#111;font-size:11px">Your vibe preview here</div></div>
+  </div>
+</div>
+</body>
+</html>

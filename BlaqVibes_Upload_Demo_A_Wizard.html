@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Demo A — Wizard Steps</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>body{margin:0;font-family:Inter,sans-serif;background:#07070A;color:#fff} .nav{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid #1F1F23} .card{background:#121214;border:1px solid #1F1F23;border-radius:12px;padding:14px;max-width:640px;margin:0 auto} .btnV{background:#7C3AED;color:#fff;border:none;padding:10px 14px;border-radius:10px;font-weight:700;cursor:pointer} .step{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:12px}</style>
+</head>
+<body>
+<nav class="nav"><span style="font-family:Space Grotesk,sans-serif;font-weight:700">BlaqVibes</span><span style="font-size:11px;color:#9A9AAF">Demo A — Wizard Steps</span></nav>
+<div style="max-width:640px;margin:20px auto;padding:0 16px">
+  <div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:16px">
+    <div style="display:flex;align-items:center;gap:8px"><div class="step" style="background:#7C3AED;color:#fff">1</div><span style="font-size:12px;font-weight:700">Details</span></div>
+    <div style="flex:1;height:2px;background:#7C3AED"></div>
+    <div style="display:flex;align-items:center;gap:8px"><div class="step" style="background:#1F1F23;color:#6A6A7A;border:1px solid #232326">2</div><span style="font-size:12px;color:#6A6A7A">Upload</span></div>
+    <div style="flex:1;height:2px;background:#1F1F23"></div>
+    <div style="display:flex;align-items:center;gap:8px"><div class="step" style="background:#1F1F23;color:#6A6A7A;border:1px solid #232326">3</div><span style="font-size:12px;color:#6A6A7A">Live</span></div>
+  </div>
+  <div class="card">
+    <h2 style="font-family:Space Grotesk,sans-serif">Step 1 — Details</h2>
+    <p style="font-size:12px;color:#9A9AAF;margin-top:4px">One column, full width — just Next, no side panels.</p>
+    <div style="margin-top:12px;display:grid;gap:10px">
+      <input placeholder="Title — My Vibe Vol.2" style="background:#15151A;border:1px solid #232326;border-radius:10px;padding:10px;color:#fff">
+      <textarea placeholder="README — # My Vibe..." style="background:#15151A;border:1px solid #232326;border-radius:10px;padding:10px;color:#fff;min-height:80px"></textarea>
+      <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btnV" onclick="alert('Next → Step 2: Upload')">Next →</button></div>
+    </div>
+  </div>
+  <div style="margin-top:12px;text-align:center;font-size:11px;color:#6A6A7A">Wizard: 1 → 2 → 3, progress bar on top, Docker & queue show only on Step 3 as toast.</div>
+</div>
+</body>
+</html>

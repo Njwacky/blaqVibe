@@ -1,0 +1,77 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: blaqvibes
+      POSTGRES_USER: blaq
+      POSTGRES_PASSWORD: blaq123
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U blaq"]
+      interval: 5s
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  clamav:
+    image: clamav/clamav:latest
+    # Real ClamAV daemon — gallery/tasks.py will use clamd socket, not subprocess
+
+  gitea:
+    image: gitea/gitea:1.21
+    environment:
+      - RUN_MODE=prod
+    ports:
+      - "3000:3000"
+      - "2222:22"
+    volumes:
+      - gitea:/data
+
+  web:
+    build: .
+    command: gunicorn blaqvibes.wsgi:application --bind 0.0.0.0:8000 --workers 3
+    volumes:
+      - .:/app
+      - media:/app/media
+    ports:
+      - "8000:8000"
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgres://blaq:blaq123@db:5432/blaqvibes
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_EAGER=0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+
+  celery:
+    build: .
+    command: celery -A blaqvibes worker -Q scan --loglevel=info -c 2
+    volumes:
+      - .:/app
+      - media:/app/media
+    env_file: .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - CELERY_EAGER=0
+    depends_on: [redis, db]
+
+  celery-beat:
+    build: .
+    command: celery -A blaqvibes beat --loglevel=info
+    volumes:
+      - .:/app
+    env_file: .env
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+    depends_on: [redis, db]
+
+volumes:
+  pgdata:
+  media:
+  gitea:

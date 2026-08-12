@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlaqVibes — Upload with Side Panels Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07070A;--card:#121214;--line:#1F1F23;--muted:#9A9AAF;--text:#fff;--input:#15151A}
+[data-theme="light"]{--bg:#F8FAFC;--card:#FFFFFF;--line:#E2E8F0;--muted:#64748B;--text:#0F172A;--input:#F1F5F9}
+*{margin:0;padding:0;box-sizing:border-box} body{font-family:Inter,sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+.nav{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--line);background:var(--bg)}
+.shell{height:calc(100vh - 56px);display:grid;grid-template-columns:240px 1fr 320px}
+@media(max-width:900px){.shell{grid-template-columns:1fr} .side,.right{display:none} .shell.mobile-side .side{display:flex} .shell.mobile-right .right{display:flex}}
+.side{background:#0F0F12;border-right:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+.main{padding:20px;overflow:auto}
+.right{background:#0F0F12;border-left:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:12px;overflow:auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.input{width:100%;background:var(--input);border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--text);font-size:13px}
+.btnV{background:#7C3AED;color:#fff;border:none;padding:10px 14px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer;width:100%}
+.theme{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;cursor:pointer}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;transition:.25s;z-index:999}
+.toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body data-theme="dark">
+<nav class="nav">
+  <div style="display:flex;align-items:center;gap:10px"><img src="/static/branding/icon-32.png" style="width:28px;height:28px;border-radius:8px"><span style="font-family:Space Grotesk,sans-serif;font-weight:700">BlaqVibes</span><span style="font-size:11px;background:#7C3AED;color:#fff;padding:4px 8px;border-radius:8px">Upload • Side Panels</span></div>
+  <div style="display:flex;gap:6px;align-items:center"><button class="theme" onclick="document.body.setAttribute('data-theme', document.body.getAttribute('data-theme')==='dark'?'light':'dark')">🌙</button><span style="font-size:11px;color:var(--muted)">Live at /publish/ • Docker + Queue</span></div>
+</nav>
+
+<div class="shell" id="shell">
+  <!-- Left Panel -->
+  <aside class="side">
+    <div style="font-size:11px;letter-spacing:.08em;color:var(--muted);font-weight:700">PUBLISH</div>
+    <a href="#" style="padding:8px 10px;border-radius:10px;background:var(--card);border:1px solid var(--line);color:var(--muted);font-size:13px;text-decoration:none">← Back to Feed</a>
+    <div class="card">
+      <div style="font-size:12px;font-weight:700">Progress</div>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;font-size:11px">
+        <div style="display:flex;align-items:center;gap:6px"><span style="width:18px;height:18px;border-radius:50%;background:#7C3AED;color:#fff;display:grid;place-items:center;font-size:10px">1</span> Details ✓</div>
+        <div style="display:flex;align-items:center;gap:6px;color:#10B981"><span style="width:18px;height:18px;border-radius:50%;background:#10B981;color:#fff;display:grid;place-items:center;font-size:10px">2</span> Upload & Scan — Scanning</div>
+        <div style="display:flex;align-items:center;gap:6px;color:var(--muted)"><span style="width:18px;height:18px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-size:10px">3</span> Live</div>
+      </div>
+    </div>
+    <div class="card" style="background:var(--bg)">
+      <div style="font-size:11px;color:var(--muted)">Tip: Vibe coders — just drop ZIP, we auto-fill most. Toggle details in separate cards.</div>
+    </div>
+    <button class="theme" onclick="document.getElementById('shell').classList.toggle('mobile-right'); toast('Right panel — Docker & queue') " style="width:100%;padding:8px;font-size:11px">Show Right Panel (mobile) →</button>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <h2 style="font-family:Space Grotesk,sans-serif;font-size:22px">Publish your vibe</h2>
+    <p style="font-size:13px;color:var(--muted);margin:6px 0 16px">Every vibe <b style="color:var(--text)">requires a README.md</b> — we auto-fill most. <span style="color:#F59E0B">Docker & queue run automatically</span> — see right panel.</p>
+
+    <div style="border:1px dashed #3A3A40;border-radius:12px;padding:14px;background:var(--card);text-align:center">
+      <div style="width:44px;height:44px;background:linear-gradient(135deg,#7C3AED,#EC4899);border-radius:10px;display:grid;place-items:center;margin:0 auto">⬆</div>
+      <div style="font-weight:700;margin-top:8px">Drop ZIP here — Max 100MB</div>
+      <div style="font-size:11px;color:var(--muted)">We auto-block node_modules, .env, .exe • Docker will run if Auto-run On</div>
+      <button class="btnV" style="margin-top:10px;width:auto;padding:8px 14px" onclick="simulateUpload()">Simulate Upload → Notifications</button>
+    </div>
+
+    <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
+      <div><label style="font-size:11px;color:var(--muted)">Title*</label><input class="input" value="My Vibe Vol.2 — Stock App"></div>
+      <div><label style="font-size:11px;color:var(--muted)">Category*</label><input class="input" value="Track Stock"></div>
+    </div>
+    <div style="margin-top:12px"><label style="font-size:11px;color:var(--muted)">README.md* — 100 chars, heading</label><textarea class="input" style="min-height:80px"># My Vibe Vol.2
+AI Stock tracker — Django + React</textarea></div>
+    <div style="margin-top:12px;display:flex;gap:8px;justify-content:flex-end"><button class="btnV" onclick="simulateUpload()">Publish Vibe →</button></div>
+  </main>
+
+  <!-- Right Panel — Notifications about Docker & Everything -->
+  <aside class="right">
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:14px">🔔</span><span style="font-weight:700;font-size:13px">Notifications</span><span style="margin-left:auto;font-size:11px;background:#7C3AED;color:#fff;padding:4px 8px;border-radius:100px">3 new</span>
+    </div>
+
+    <div class="card" style="border-color:#10B981">
+      <div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;background:#10B981;border-radius:50%;animation:pulse 1.2s infinite"></span><span style="font-weight:700;font-size:13px">Docker</span><span style="margin-left:auto;font-size:10px;background:#10B981;color:#fff;padding:3px 7px;border-radius:6px">Running</span></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">Container <b style="color:var(--text)">stock-app-vibes-882511</b> is live at<br><code style="background:var(--bg);border:1px solid var(--line);padding:2px 6px;border-radius:6px;font-size:10px">/deploy/stock-app-vibes-882511/</code> — expires in <span id="docker-timer">42 min</span></div>
+      <div style="margin-top:8px;height:6px;background:var(--line);border-radius:100px;overflow:hidden"><div id="docker-bar" style="width:42%;background:#10B981;height:100%"></div></div>
+      <div style="font-size:10px;color:var(--muted);margin-top:4px">Auto-run: <span id="auto-run-status">On (every ZIP auto-runs)</span> • Toggle in Settings → Global</div>
+    </div>
+
+    <div class="card" style="border-color:#F59E0B">
+      <div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px">⏳</span><span style="font-weight:700;font-size:13px">Queue & Scan</span><span style="margin-left:auto;font-size:11px;background:#FEF3C7;color:#92400E;padding:3px 7px;border-radius:6px">You #2 in line</span></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">Your vibe is in <b style="color:#F59E0B">scan</b> queue (ClamAV → secrets → vuln → Nolo). Every app checked, even with 20 concurrent.</div>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;font-size:11px">
+        <div style="display:flex;justify-content:space-between"><span>ClamAV</span><span style="color:#10B981">✓ Clean</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Secrets</span><span style="color:#10B981">✓ None</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Nolo review</span><span style="color:#F59E0B" id="nolo-status">● Scanning</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-weight:700;font-size:13px">Everything Else</div>
+      <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;font-size:11px">
+        <div style="display:flex;justify-content:space-between"><span>Languages</span><span style="color:#10B981">Python 58% detected</span></div>
+        <div style="display:flex;justify-content:space-between"><span>File tree</span><span style="color:#10B981">18 files</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Stars cost</span><span>2 ★ Bronze</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Price</span><span>R50 → R42 payout</span></div>
+        <div style="display:flex;justify-content:space-between"><span>PWA</span><span style="color:#10B981">Install prompt ready</span></div>
+      </div>
+    </div>
+
+    <div style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px">
+      <div style="font-size:11px;color:#F59E0B;font-weight:700">💡 Live Demo — Side Panels Working</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">Left: nav + progress • Center: form • Right: Docker & queue notifications — all panels scroll independently. On mobile, tap “Show Right Panel”.</div>
+    </div>
+  </aside>
+</div>
+
+<style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}</style>
+<div id="toast" class="toast">✓ Published!</div>
+<script>
+let dockerMin=42;
+function simulateUpload(){
+  toast('⏳ Queued — #2 in line, scanning...');
+  document.querySelectorAll('.card')[1].style.borderColor='#F59E0B';
+  setTimeout(()=>{ document.getElementById('nolo-status').textContent='✓ Done — 8/10'; document.getElementById('nolo-status').style.color='#10B981'; toast('✓ Nolo: 8/10 — Good README'); },1500);
+  setTimeout(()=>{ toast('▶ Auto-run: live at /deploy/stock-app-vibes-xyz/ for 1h!'); document.querySelector('.card').style.borderColor='#10B981'; },2500);
+  // Docker countdown
+  setInterval(()=>{
+    dockerMin=Math.max(0,dockerMin-1);
+    const el=document.getElementById('docker-timer');
+    const bar=document.getElementById('docker-bar');
+    if(el) el.textContent=dockerMin+' min';
+    if(bar) bar.style.width=(dockerMin/60*100)+'%';
+  },800);
+}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1600)}
+</script>
+</body>
+</html>

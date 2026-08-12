@@ -1,0 +1,158 @@
+{% extends 'gallery/base.html' %}
+{% block head %}
+<style>
+.terminal-window { background: #090A12; border: 1px solid #1F1F23; border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; min-height: 200px; }
+.terminal-window .term-bar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid #1F1F23; background: #090A12; }
+.terminal-window .term-dot { width: 8px; height: 8px; border-radius: 50%; }
+.terminal-window .term-label { margin-left: 6px; font-size: 10px; color: #6A6A7A; font-weight: 600; letter-spacing: .5px; }
+.terminal-window .term-body { padding: 10px 12px; font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 10px; line-height: 1.5; overflow: hidden; flex-grow: 1; display: flex; flex-direction: column; justify-content: flex-end; }
+.terminal-window .line { margin-bottom: 2px; word-wrap: break-word; white-space: pre-wrap; opacity: 1; transition: opacity .4s ease, transform .4s ease; }
+.terminal-window .line.fading { opacity: 0; transform: translateY(-10px); }
+.terminal-window .c-path { color: #F59E0B; }
+.terminal-window .c-prompt { color: #9CA3AF; }
+.terminal-window .c-cmd { color: #FFFFFF; }
+.terminal-window .c-log { color: #6A6A7A; }
+.terminal-window .c-success { color: #10B981; }
+.terminal-window .cursor { display: inline-block; width: 6px; height: 12px; background-color: #10B981; margin-left: 2px; vertical-align: middle; animation: blink 1s step-end infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+</style>
+{% endblock %}
+{% block content %}
+<div style="max-width:1280px;margin:0 auto;padding:16px 20px">
+  <!-- Hero — Your vibe, polished -->
+  <div style="background:linear-gradient(135deg,#0F0F12 0%,#1A0F1A 50%,#0F141A 100%);border:1px solid #7C3AED;border-radius:20px;padding:28px 24px;display:grid;grid-template-columns:1.2fr .8fr;gap:20px;align-items:center">
+    <div>
+      <div style="display:inline-flex;align-items:center;gap:6px;background:#1F1F23;border:1px solid #7C3AED;padding:6px 10px;border-radius:100px;font-size:11px;color:#F59E0B;letter-spacing:.04em">✦ MYVIBE VOL.1 → VOL.2</div>
+      <h1 style="font-family:Space Grotesk,sans-serif;font-size:32px;line-height:1.05;margin:12px 0;font-weight:700">Hey there,<br><span style="background:linear-gradient(90deg,#7C3AED,#EC4899,#F59E0B);-webkit-background-clip:text;-webkit-text-fill-color:transparent">I know we all don’t like coding with our bare hands</span></h1>
+      <p style="color:#CFCFD9;font-size:14px;line-height:1.6;max-width:560px">Too much thinking. So we just <b style="color:#fff">vibe-coded</b> and left all our <b style="color:#F59E0B">MyVibe Vol.1</b> sitting on our laptops.<br><br>Now it’s time to do something <b style="color:#fff">useful</b> about your app — publish the vibes, let others clone, trade stars, earn, and appear <b style="color:#7C3AED">top 1st</b> when they explore.</p>
+      <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+        <a href="{% url 'publish' %}" style="background:#fff;color:#000;padding:10px 16px;border-radius:10px;font-weight:700;font-size:13px;text-decoration:none">Publish Your Vibe →</a>
+        <a href="#grid" style="border:1px solid #232326;color:#fff;padding:10px 16px;border-radius:10px;font-weight:600;font-size:13px;text-decoration:none">Explore Vibes →</a>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:14px;font-size:11px;color:#9A9AAF"><span><b style="color:#fff">1-click</b> Publish</span><span>•</span><span>No bare-hands coding</span><span>•</span><span>Trade ★ / Rands</span></div>
+    </div>
+    <div style="background:#07070A;border:1px solid #232326;border-radius:16px;padding:14px">
+      <div style="display:flex;gap:6px;margin-bottom:10px"><span style="width:10px;height:10px;background:#EF4444;border-radius:50%"></span><span style="width:10px;height:10px;background:#F59E0B;border-radius:50%"></span><span style="width:10px;height:10px;background:#10B981;border-radius:50%"></span><span style="margin-left:auto;font-size:10px;color:#9A9AAF">MyVibe Vol.1 → Vol.2</span></div>
+      <div class="terminal-window">
+        <div class="term-bar">
+          <span class="term-dot" style="background:#EF4444"></span>
+          <span class="term-dot" style="background:#F59E0B"></span>
+          <span class="term-dot" style="background:#10B981"></span>
+          <span class="term-label">Terminal</span>
+        </div>
+        <div class="term-body" id="terminalBody"></div>
+      </div>
+    </div>
+  </div>
+
+  <form id="grid" method="get" style="margin-top:16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:#07070A;border:1px solid #1F1F23;border-radius:12px;padding:12px;position:sticky;top:64px;z-index:30">
+    <input type="text" name="q" value="{{ q }}" placeholder="Search stock_app_vibes, Django, Lovable..." style="flex:1;min-width:200px;background:#15151A;border:1px solid #232326;border-radius:10px;padding:8px 12px;color:#fff;font-size:13px">
+    <select name="category" style="background:#15151A;border:1px solid #232326;color:#fff;padding:8px 10px;border-radius:10px;font-size:13px">
+      <option value="">All Categories</option>
+      {% for c in categories %}<option value="{{ c.slug }}" {% if cat == c.slug %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+    </select>
+    <select name="kind" style="background:#15151A;border:1px solid #232326;color:#fff;padding:8px 10px;border-radius:10px;font-size:13px">
+      <option value="">Snippets + Full Apps</option><option value="snippet" {% if kind == 'snippet' %}selected{% endif %}>Snippets only</option><option value="full_app" {% if kind == 'full_app' %}selected{% endif %}>Full Apps only</option>
+    </select>
+    <select name="sort" style="background:#15151A;border:1px solid #232326;color:#fff;padding:8px 10px;border-radius:10px;font-size:13px">
+      <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Newest</option><option value="trending" {% if sort == 'trending' %}selected{% endif %}>Trending</option><option value="stars" {% if sort == 'stars' %}selected{% endif %}>Most Stars</option><option value="clones" {% if sort == 'clones' %}selected{% endif %}>Most Clones</option>
+    </select>
+    <label style="font-size:12px;color:#9A9AAF;display:flex;align-items:center;gap:6px"><input type="checkbox" name="ai" value="1" {% if request.GET.ai == '1' %}checked{% endif %}> 🤖 AI</label>
+    <button class="btnW" style="padding:8px 14px">Search</button>
+    <a href="{% url 'feed' %}" class="btnG">Reset</a>
+  </form>
+
+  <div style="margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:14px">
+    {% for p in page %}
+    <a href="{{ p.get_absolute_url }}" class="card" style="display:block">
+      <div style="height:140px;background:linear-gradient(135deg,#1E1B4B,#0F172A);display:grid;place-items:center;padding:10px">
+        <div style="width:100%;height:100%;background:#fff;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px;color:#111">
+          {% if p.html_code %}
+            <div style="height:10px;background:#0A0A0F;border-radius:6px;width:60%"></div><div style="height:28px;background:linear-gradient(90deg,#7C3AED,#EC4899);border-radius:8px"></div>
+          {% else %}
+            <div style="display:flex;justify-content:space-between"><b style="font-size:10px">{{ p.title|truncatechars:18 }}</b><span style="background:#DCFCE7;color:#15803D;padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700">● LIVE</span></div><div style="flex:1;background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:8px;display:grid;place-items:center;color:#64748B;font-size:10px">{{ p.tech_stack|default:"Full App" }}</div>
+          {% endif %}
+        </div>
+      </div>
+      <div style="padding:12px">
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          {% if p.zip_file %}<span class="badge" style="background:#FEF3C7;color:#92400E">Full App</span>{% else %}<span class="badge" style="background:#EDE9FE;color:#6D28D9">Snippet</span>{% endif %}
+          {% if p.ai_generated %}<span class="badge" style="border:1px solid #F59E0B;color:#F59E0B">🤖 {{ p.ai_tool|default:"AI" }}</span>{% endif %}
+          {% if p.forked_from %}<span class="badge" style="background:#1A1A1E;border:1px solid #232326;color:#9A9AAF">⑂ Forked</span>{% endif %}
+        </div>
+        <div style="font-weight:700;font-size:14px">{{ p.title }}</div>
+        <div style="font-size:12px;color:#9A9AAF;margin:4px 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden">{{ p.short_description }}</div>
+        <div style="display:flex;justify-content:space-between;margin-top:8px;padding-top:8px;border-top:1px solid #1F1F23;font-size:12px;color:#6A6A7A"><span>@{{ p.owner.username }} • {{ p.tech_stack|truncatechars:16 }}</span><span>★ {{ p.stars }} • ⬇ {{ p.clones }}</span></div>
+      </div>
+    </a>
+    {% empty %}
+    <div style="grid-column:1/-1;text-align:center;padding:40px;color:#9A9AAF">No vibes. Try Trending or clear filters. <a href="{% url 'publish' %}" style="color:#7C3AED">Publish →</a></div>
+    {% endfor %}
+  </div>
+
+  <div style="margin-top:16px;display:flex;gap:8px;justify-content:center;align-items:center">
+    {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}&q={{ q }}&category={{ cat }}&kind={{ kind }}&sort={{ sort }}&ai={{ request.GET.ai }}" class="btnG">← Prev</a>{% endif %}
+    <span style="padding:8px 12px;color:#9A9AAF;font-size:13px">Page {{ page.number }} of {{ page.paginator.num_pages }} • 12/page</span>
+    {% if page.has_next %}<a href="?page={{ page.next_page_number }}&q={{ q }}&category={{ cat }}&kind={{ kind }}&sort={{ sort }}&ai={{ request.GET.ai }}" class="btnG">Next →</a>{% endif %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+  const terminalBody = document.getElementById('terminalBody');
+  const PROMPT_HTML = `<span class="c-path">~/vibe</span><span class="c-prompt">$</span> `;
+  const MAX_LINES = 6;
+  const sequence = [
+    { type: 'cmd', text: 'pip install vibe-cli' },
+    { type: 'log', text: 'Collecting packages...' },
+    { type: 'success', text: 'Installed v2.0.0' },
+    { type: 'cmd', text: 'vibe generate "neon city"' },
+    { type: 'log', text: 'Processing assets...' },
+    { type: 'log', text: 'Optimizing shaders...' },
+    { type: 'success', text: 'Build complete!' },
+    { type: 'cmd', text: 'deploy --live' },
+    { type: 'success', text: 'Live at vibe.io/8x2' }
+  ];
+  const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+  async function typeText(element, text, speed = 20) {
+    for (let i = 0; i < text.length; i++) {
+      element.textContent += text.charAt(i);
+      await sleep(speed + Math.random() * 15);
+    }
+  }
+  function manageLineLimit() {
+    const lines = Array.from(terminalBody.querySelectorAll('.line'));
+    if (lines.length > MAX_LINES) {
+      const oldest = lines[0];
+      oldest.classList.add('fading');
+      setTimeout(() => {
+        if (oldest.parentNode) oldest.parentNode.removeChild(oldest);
+      }, 400);
+    }
+  }
+  async function runTerminalLoop() {
+    terminalBody.innerHTML = '';
+    for (const step of sequence) {
+      const line = document.createElement('div');
+      line.className = 'line';
+      line.innerHTML = PROMPT_HTML;
+      const contentSpan = document.createElement('span');
+      if (step.type === 'cmd') contentSpan.className = 'c-cmd';
+      if (step.type === 'log') contentSpan.className = 'c-log';
+      if (step.type === 'success') contentSpan.className = 'c-success';
+      const cursor = document.createElement('span');
+      cursor.className = 'cursor';
+      line.appendChild(contentSpan);
+      line.appendChild(cursor);
+      terminalBody.appendChild(line);
+      manageLineLimit();
+      await typeText(contentSpan, step.text, step.type === 'cmd' ? 30 : 15);
+      line.removeChild(cursor);
+      await sleep(400);
+    }
+    await sleep(1500);
+    runTerminalLoop();
+  }
+  window.addEventListener('DOMContentLoaded', runTerminalLoop);
+</script>
+{% endblock %}

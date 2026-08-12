@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none">
+  <defs>
+    <linearGradient id="headphoneGradient" x1="8" y1="8" x2="56" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#F59E0B"/>
+    </linearGradient>
+  </defs>
+  <rect width="64" height="64" rx="16" fill="#07070A"/>
+  <path d="M16 32C16 22.0589 23.9458 14 34 14C44.0542 14 52 22.0589 52 32V44.5C52 48.6421 49.1421 52 45 52H41V34C41 32.8954 40.1046 32 39 32H25C23.8954 32 23 32.8954 23 34V52H19C14.8579 52 12 48.6421 12 44.5V32Z" fill="url(#headphoneGradient)" stroke="#fff" stroke-width="2"/>
+  <path d="M24 32H20V44.5C20 45.8807 21.1193 47 22.5 47H24V32Z" fill="#090A0E"/>
+  <path d="M44 32H48V44.5C48 45.8807 46.8807 47 45.5 47H44V32Z" fill="#090A0E"/>
+  <path d="M24 24H28L22 34L28 44H24" fill="#fff" opacity="0.85"/>
+  <path d="M40 24H36L42 34L36 44H40" fill="#fff" opacity="0.85"/>
+</svg>

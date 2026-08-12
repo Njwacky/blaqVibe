@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlaqVibes — Nolo + Reviews Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07070A;--card:#121214;--line:#1F1F23;--muted:#9A9AAF;--text:#fff}
+[data-theme="light"]{--bg:#F8FAFC;--card:#FFFFFF;--line:#E2E8F0;--muted:#64748B;--text:#0F172A}
+*{margin:0;padding:0;box-sizing:border-box} body{font-family:Inter,sans-serif;background:var(--bg);color:var(--text)}
+.nav{height:56px;display:flex;align-items:center;justify-content:space-between;padding:0 16px;border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.badge{font-size:10px;padding:4px 8px;border-radius:8px;font-weight:700}
+.btnV{background:#7C3AED;color:#fff;border:none;padding:8px 12px;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer}
+.btnG{border:1px solid var(--line);background:transparent;color:var(--text);padding:8px 12px;border-radius:10px;font-weight:600;font-size:12px;cursor:pointer}
+.theme{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;cursor:pointer}
+.star{color:#F59E0B}
+</style>
+</head>
+<body data-theme="dark">
+<nav class="nav">
+  <div style="display:flex;align-items:center;gap:8px"><img src="/static/branding/icon-32.png" style="width:28px;height:28px;border-radius:8px"><span style="font-family:Space Grotesk,sans-serif;font-weight:700">BlaqVibes</span><span style="font-size:11px;background:#7C3AED;color:#fff;padding:4px 8px;border-radius:8px">Nolo + Reviews</span></div>
+  <button class="theme" onclick="document.body.setAttribute('data-theme', document.body.getAttribute('data-theme')==='dark'?'light':'dark')">🌙</button>
+</nav>
+
+<div style="max-width:1100px;margin:0 auto;padding:20px">
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">🤖 Nolo Auto-Review + ⭐ Human Reviews</h1>
+  <p style="color:var(--muted);font-size:13px">Every upload gets Nolo (AI, 0-10, heuristic or LLM, backend only) + humans give 1-5 ★. Both drive trading & ranking. No shortcuts, crush silently.</p>
+
+  <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <!-- Nolo -->
+    <div class="card" style="border-color:#7C3AED">
+      <div style="display:flex;align-items:center;gap:8px"><span style="font-size:20px">🤖</span><div><div style="font-weight:800">Nolo Auto-Review</div><div style="font-size:11px;color:var(--muted)">Backend on every upload — even snippets without ZIP. No JS secrets.</div></div><span style="margin-left:auto;font-size:22px;font-weight:800">10<span style="font-size:12px;color:var(--muted)">/10</span></span></div>
+      <div style="margin-top:10px;display:flex;gap:8px">
+        <span class="badge" style="background:#DCFCE7;color:#15803D">✓ Good README with heading</span>
+        <span class="badge" style="background:#DCFCE7;color:#15803D">✓ 18 files — complete</span>
+        <span class="badge" style="background:#DCFCE7;color:#15803D">✓ Tech stack declared</span>
+      </div>
+      <div style="margin-top:8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px">
+        <div style="font-size:11px;font-weight:700;color:#10B981">Pros</div>
+        <div style="font-size:12px;margin-top:4px">• Good README with heading<br>• 18 files — complete<br>• Tech stack declared: Django, React, Tailwind</div>
+        <div style="font-size:11px;font-weight:700;color:#F59E0B;margin-top:8px">Fixes (if low score)</div>
+        <div style="font-size:12px">• Add requirements.txt<br>• Add more files</div>
+      </div>
+      <div style="margin-top:8px;font-size:11px;color:var(--muted)">Source: heuristic (OPENAI_API_KEY not set → fallback). With key, LLM returns same JSON.</div>
+    </div>
+
+    <!-- Human Reviews -->
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="font-size:28px;font-weight:800">4.5<span style="font-size:14px;color:var(--muted)">/5</span></div>
+        <div>
+          <div style="color:#F59E0B">★★★★★ <span style="font-size:12px;color:var(--muted)">4.5 ★ (2 reviews)</span></div>
+          <div style="font-size:11px;color:var(--muted)">Avg from human 1-5 ★ — separate from Star & Comment. One per user.</div>
+        </div>
+      </div>
+      <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+        <div style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px">
+          <div style="display:flex;gap:8px;align-items:center"><div style="width:28px;height:28px;border-radius:50%;background:#7C3AED;display:grid;place-items:center;font-weight:800;font-size:11px">B</div><div style="flex:1"><b style="font-size:13px">@blaq • 5 ★</b><span style="font-size:11px;color:var(--muted)"> • traded → can review</span><div style="font-size:12px;margin-top:2px">Amazing vibe! Clean code, great README. Nolo gave 10/10 but I give 5★</div></div></div>
+        </div>
+        <div style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px">
+          <div style="display:flex;gap:8px;align-items:center"><div style="width:28px;height:28px;border-radius:50%;background:#232326;display:grid;place-items:center;font-weight:800;font-size:11px">S</div><div style="flex:1"><b style="font-size:13px">@sbu • 4 ★</b><span style="font-size:11px;color:var(--muted)"> • starred → can review</span><div style="font-size:12px;margin-top:2px">Good but missing tests. Nolo said add requirements.txt</div></div></div>
+        </div>
+      </div>
+      <div style="margin-top:10px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;display:flex;gap:8px">
+        <select style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px;color:var(--text);font-size:12px"><option>5 ★</option><option>4 ★</option><option>3 ★</option></select>
+        <input placeholder="Write a review (10-1000 chars, sanitized, crush silently)..." style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px;color:var(--text);font-size:12px">
+        <button class="btnV" onclick="toast('Review posted — avg now 4.5')">Post Review</button>
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">Must trade or star the vibe first to review — earn the right. Backend checks Trade/Star.</div>
+    </div>
+  </div>
+
+  <div style="margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+    <div style="font-weight:700">How Nolo + Reviews drive trading & ranking</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:4px">Nolo score appears right after queue (scanning → clean). Humans see 4.5 ★ avg + 2 reviews before they trade 2 ★ Bronze. High avg (4.5) + high stars (142) → trending `clones*3 + stars + rank_bonus` → appears 1st when exploring → more trades → more stars → Platinum discount. Backend only, never in JS, crush silently with try/except.</div>
+  </div>
+</div>
+
+<div id="toast" style="position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;transition:.25s">✓</div>
+<script>function toast(m){const t=document.getElementById('toast');t.textContent=m;t.style.transform='translateX(-50%) translateY(0)';setTimeout(()=>t.style.transform='translateX(-50%) translateY(80px)',1600)}</script>
+</body>
+</html>

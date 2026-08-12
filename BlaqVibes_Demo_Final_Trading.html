@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlaqVibes — Final Demo (Trading + Language + Nolo)</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#07070A;--bg2:#0F0F12;--card:#121214;--panel:#0F0F12;--muted:#9A9AAF;--line:#1F1F23;--input:#15151A;--text:#fff;--text2:#CFCFD9}
+[data-theme="light"]{--bg:#F8FAFC;--bg2:#FFFFFF;--card:#FFFFFF;--panel:#FFFFFF;--muted:#64748B;--line:#E2E8F0;--input:#F1F5F9;--text:#0F172A;--text2:#334155}
+*{margin:0;padding:0;box-sizing:border-box} body{font-family:Inter,sans-serif;background:var(--bg);color:var(--text);overflow:hidden}
+.app{height:100vh;display:grid;grid-template-columns:250px 1fr 400px;grid-template-rows:56px 1fr}
+@media(max-width:1100px){.app{grid-template-columns:220px 1fr 0} .right{position:fixed;right:0;top:56px;bottom:0;width:400px;z-index:40;transform:translateX(100%);transition:.25s} .right.open{transform:translateX(0)}}
+.sidebar{grid-row:1/3;background:var(--bg2);border-right:1px solid var(--line);display:flex;flex-direction:column}
+.sb-top{height:56px;display:flex;align-items:center;gap:10px;padding:0 14px;border-bottom:1px solid var(--line)}
+.mark{width:30px;height:30px;background:linear-gradient(135deg,#7C3AED,#F59E0B);border-radius:8px;display:grid;place-items:center;font-weight:800;color:#fff}
+.nav-item{padding:8px 10px;border-radius:10px;font-size:13px;color:var(--muted);display:flex;gap:8px;cursor:pointer}
+.nav-item.on{background:var(--input);color:var(--text);border:1px solid var(--line)}
+.btnV{background:#7C3AED;color:#fff;border:none;padding:9px 14px;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer}
+.btnG{background:transparent;border:1px solid var(--line);color:var(--text);padding:8px 12px;border-radius:10px;font-weight:600;font-size:12px;cursor:pointer}
+.btnW{background:var(--text);color:var(--bg);border:none;padding:8px 12px;border-radius:10px;font-weight:700;font-size:12px;cursor:pointer}
+.theme{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--input);display:grid;place-items:center;cursor:pointer}
+.topbar{grid-column:2/4;background:var(--bg);border-bottom:1px solid var(--line);display:flex;align-items:center;gap:12px;padding:0 16px}
+.search{flex:1;max-width:640px;height:36px;background:var(--input);border:1px solid var(--line);border-radius:10px;display:flex;align-items:center;gap:8px;padding:0 12px}
+.search input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-size:12px}
+.main{overflow:auto;background:var(--bg)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.right{background:var(--panel);border-left:1px solid var(--line);overflow:auto;display:flex;flex-direction:column}
+.badge{font-size:10px;padding:3px 7px;border-radius:8px;font-weight:700}
+.donut{width:64px;height:64px;border-radius:50%;background:conic-gradient(#3776AB 0 58%, #F7DF1E 58% 83%, #1572B6 83% 95%, #E34F26 95% 100%);position:relative}
+.donut::after{content:'';position:absolute;inset:10px;background:var(--panel);border-radius:50%}
+.toast{position:fixed;bottom:16px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:10px;font-weight:700;transition:.25s;z-index:999}
+.toast.show{transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body data-theme="dark">
+<div class="app">
+  <aside class="sidebar">
+    <div class="sb-top"><div class="mark">◈</div><div><div style="font-family:Space Grotesk,sans-serif;font-weight:700">BlaqVibes</div><div style="font-size:10px;color:var(--muted)">TRADING • FINAL</div></div><button class="theme" onclick="toggleTheme()" id="t1">🌙</button></div>
+    <div style="padding:10px;flex:1;overflow:auto;display:flex;flex-direction:column;gap:12px">
+      <div style="font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.08em">NAVIGATE</div>
+      <div class="nav-item on">◈ Feed</div><div class="nav-item">⬢ My Vibes</div><div class="nav-item">★ Stars</div><div class="nav-item">🛡️ Queue</div>
+      <button class="btnV">+ Publish Vibe</button>
+      <div style="background:var(--input);border:1px solid var(--line);border-radius:12px;padding:10px">
+        <div style="font-size:11px;color:#F59E0B;font-weight:700">★ Trading Economy</div>
+        <div style="font-size:11px;color:var(--muted)">Download costs stars. You have <b style="color:#F59E0B">5 ★</b> (Bronze). High stars → top 1st → Pro discount.
+        <br><br>• Bronze 0-9 (0% off)<br>• Silver 10+ (10% off)<br>• Gold 50+ (25% off)<br>• Platinum 200+ (50% off)</div>
+      </div>
+      <div style="background:var(--input);border:1px solid var(--line);border-radius:12px;padding:10px">
+        <div style="font-size:11px;color:#7C3AED;font-weight:700">🤖 Nolo Compare</div>
+        <div style="font-size:11px;color:var(--muted)">Nolo doesn’t judge — just compares features side-by-side. You pick the function you want.</div>
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--line);padding:10px;display:flex;gap:8px;align-items:center"><div style="width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg,#7C3AED,#EC4899);display:grid;place-items:center;font-weight:800;color:#fff">N</div><div style="flex:1"><div style="font-size:13px;font-weight:700">@nolo.ai <span style="font-size:10px;background:#FEF3C7;color:#92400E;padding:2px 6px;border-radius:6px">Platinum</span></div><div style="font-size:11px;color:var(--muted)">42 ★ • 50% Pro discount</div></div></div>
+  </aside>
+
+  <header class="topbar">
+    <div class="search">⌕ <input placeholder="Search stock_app_vibes..."><select style="background:transparent;border:none;color:var(--muted);font-size:11px"><option>Trending (stars+bonus)</option><option>Newest</option></select></div>
+    <button class="theme" onclick="toggleTheme()">🌙</button>
+    <span style="font-size:11px;color:var(--muted)">12/page • Every app checked</span>
+  </header>
+
+  <main class="main">
+    <div style="padding:14px">
+      <h2 style="font-family:Space Grotesk,sans-serif;font-size:16px">Feed — Real Templates + Trading</h2>
+      <div style="margin-top:10px;display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
+        <div class="card" style="border-color:#7C3AED">
+          <div style="height:110px;background:linear-gradient(135deg,#2E220F,#1A140A);padding:10px;display:grid;place-items:center"><div style="width:100%;height:100%;background:#fff;border-radius:10px;padding:10px;display:flex;justify-content:space-between;align-items:center"><b style="font-size:10px;color:#111">STOCK APP VIBES</b><span style="background:#FEF3C7;color:#92400E;padding:3px 7px;border-radius:6px;font-size:10px;font-weight:700">2 ★ Bronze</span></div></div>
+          <div style="padding:10px"><div style="display:flex;gap:6px"><span class="badge" style="background:#FEF3C7;color:#92400E">Full App</span><span style="font-size:11px;color:#10B981">● Platinum seller</span></div><div style="font-weight:700;margin-top:6px">Stock App Vibes — AI Portfolio</div><div style="font-size:11px;color:var(--muted)">Python 58% • JS 25% • CSS 12% • ★142 → appears 1st</div></div>
+        </div>
+        <div class="card">
+          <div style="height:110px;background:#0A0A0F;display:grid;place-items:center;padding:10px"><div style="width:100%;height:100%;background:#F8FAFC;border-radius:10px;display:grid;place-items:center;color:#64748B;font-size:11px">Analytics Dashboard — Real</div></div>
+          <div style="padding:10px"><span class="badge" style="background:#EDE9FE;color:#6D28D9">Snippet • Free (0★)</span><div style="font-weight:700;margin-top:6px">Analytics Dashboard — Real</div><div style="font-size:11px;color:var(--muted)">HTML/CSS • 0 ★ Free • Copy</div></div>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <aside class="right open">
+    <div style="height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--panel)">
+      <div style="font-weight:700;font-size:13px">Inspector — Stock App Vibes</div><span style="font-size:11px;background:#DCFCE7;color:#15803D;padding:4px 8px;border-radius:8px;font-weight:700">● Secure</span>
+    </div>
+    <div style="padding:12px;overflow:auto;flex:1">
+      <div style="background:var(--input);border:1px solid var(--line);border-radius:12px;padding:10px;display:flex;gap:10px;align-items:center">
+        <div class="donut"><div style="position:absolute;inset:0;display:grid;place-items:center;font-size:10px;font-weight:700;z-index:1;color:var(--text)">58%</div></div>
+        <div><div style="font-weight:700;font-size:12px">Languages — % of code</div><div style="font-size:11px;color:var(--muted)">Python 58% • JavaScript 25% • CSS 12% • HTML 5%<br>Backend detected from ZIP, size-weighted — no JS fake.</div><div style="margin-top:6px;height:6px;border-radius:100px;display:flex;overflow:hidden"><div style="flex:58;background:#3776AB"></div><div style="flex:25;background:#F7DF1E"></div><div style="flex:12;background:#1572B6"></div><div style="flex:5;background:#E34F26"></div></div></div>
+      </div>
+
+      <div style="margin-top:10px;background:var(--input);border:1px solid var(--line);border-radius:12px;padding:10px">
+        <div style="font-size:11px;letter-spacing:.06em;color:var(--muted);font-weight:700">TRADE TO DOWNLOAD</div>
+        <div style="margin-top:6px;display:flex;gap:8px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px;font-family:JetBrains Mono,monospace;font-size:11px"><span>⬇ Trade 2 ★ Bronze to download</span><button class="btnV" style="margin-left:auto;padding:6px 10px;font-size:11px" onclick="toast('Traded 2 ★ → Download ZIP (signed URL)')">Trade & Download</button></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">You have <b style="color:#F59E0B">5 ★</b> (Bronze, 0% discount) → after trade you have 3 ★. Seller <b>@nolo.ai</b> is <b>Platinum (50% Pro discount)</b> → appears 1st when exploring. New users must build good vibes to earn stars.</div>
+        <div style="margin-top:6px;display:flex;gap:6px"><button class="btnW" style="flex:1;font-size:11px">★ Star (+1 for seller)</button><button class="btnG" style="flex:1;font-size:11px">⎇ Git Clone</button></div>
+      </div>
+
+      <div style="margin-top:10px;background:var(--input);border:1px solid var(--line);border-radius:12px;padding:10px">
+        <div style="font-size:11px;color:var(--muted);font-weight:700">🤖 ASK NOLO TO COMPARE</div>
+        <div style="font-size:11px;color:var(--muted)">Nolo doesn’t judge — just shows side-by-side. You pick the function you want.</div>
+        <div style="margin-top:8px;display:flex;gap:6px">
+          <select style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px;font-size:11px;color:var(--text)"><option>Stock App Vibes (Python 58%)</option></select>
+          <select style="flex:1;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:7px;font-size:11px;color:var(--text)"><option>Stock Portfolio Table (Tailwind)</option></select>
+        </div>
+        <button class="btnV" style="width:100%;margin-top:6px;font-size:11px" onclick="document.getElementById('nolo-box').style.display='block'; toast('Nolo compared — no judgment')">Compare with Nolo</button>
+        <div id="nolo-box" style="display:none;margin-top:8px;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px;font-size:11px;line-height:1.6">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div><b style="color:#F59E0B">Stock App Vibes</b><div style="color:var(--muted)">Python 58% • 18 files • ★142</div><div style="margin-top:4px"><span style="background:var(--input);padding:2px 6px;border-radius:6px">Chart</span> <span style="background:var(--input);padding:2px 6px;border-radius:6px">Django</span></div></div>
+            <div><b style="color:#7C3AED">Portfolio Table</b><div style="color:var(--muted)">Tailwind • 1 file • ★0</div><div style="margin-top:4px"><span style="background:var(--input);padding:2px 6px;border-radius:6px">Table</span></div></div>
+          </div>
+          <div style="margin-top:8px;border-top:1px solid var(--line);padding-top:6px">
+            <div style="color:#F59E0B">Only in A: Chart, Django, React, TradingView</div>
+            <div style="color:var(--muted)">Common: Table, Tailwind, TwelveData</div>
+            <div style="color:var(--muted);margin-top:4px">You pick the function you want → then Trade stars.</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:10px;background:var(--input);border:1px solid var(--line);border-radius:12px;padding:10px">
+        <div style="font-size:11px;color:var(--muted);font-weight:700">CONTRIBUTOR RANK → PRO DISCOUNT</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Your rank: <b style="color:#F59E0B">Bronze (5 ★)</b> → 0% off Pro<br>Seller rank: <b style="color:#F59E0B">Platinum (142 ★ + 30 bonus)</b> → 50% off Pro + appears 1st<br><br>How to earn: publish vibes that get stars. Every star + trade gives +2 ★. High stars = top of feed.</div>
+      </div>
+    </div>
+  </aside>
+</div>
+<div id="toast" class="toast">✓ Copied!</div>
+<script>
+function toggleTheme(){
+  const cur=document.body.getAttribute('data-theme');
+  const next=cur==='dark'?'light':'dark';
+  document.body.setAttribute('data-theme',next);
+  document.getElementById('t1').textContent=next==='dark'?'🌙':'☀️';
+  toast(next==='light'?'☀️ Light':'🌙 Dark');
+}
+function toast(m){const t=document.getElementById('toast');t.textContent=m;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),1600)}
+</script>
+</body>
+</html>

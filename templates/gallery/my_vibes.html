@@ -1,0 +1,22 @@
+{% extends 'gallery/base.html' %}
+{% block title %}My Vibes — BlaqVibes{% endblock %}
+{% block content %}
+<div style="max-width:1100px;margin:0 auto;padding:20px">
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">My Vibes</h1>
+  <p style="color:#9A9AAF;font-size:13px">Track your queue — we’ll tell you when each vibe is live. Backend checks every app, even with concurrent uploads.</p>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:12px">
+    {% for p in vibes %}
+    <a href="{{ p.get_absolute_url }}" class="card" style="padding:12px;display:block">
+      <div style="display:flex;gap:6px;margin-bottom:6px">
+        {% if p.status == 'published' %}<span style="background:#DCFCE7;color:#15803D;padding:4px 8px;border-radius:8px;font-size:11px;font-weight:700">● Live</span>
+        {% elif p.status == 'pending' %}<span style="background:#FEF3C7;color:#92400E;padding:4px 8px;border-radius:8px;font-size:11px;font-weight:700">⏳ Queued — we’ll notify you</span>
+        {% else %}<span style="background:#FEE2E2;color:#991B1B;padding:4px 8px;border-radius:8px;font-size:11px;font-weight:700">🚨 Quarantined</span>{% endif %}
+      </div>
+      <div style="font-weight:700;font-size:14px">{{ p.title }}</div>
+      <div style="font-size:12px;color:#9A9AAF">{{ p.short_description|truncatechars:80 }}</div>
+      <div style="font-size:11px;color:#6A6A7A;margin-top:6px">{{ p.file_count }} files • ★ {{ p.stars }} • ⬇ {{ p.clones }}</div>
+    </a>
+    {% empty %}<div style="grid-column:1/-1;color:#6A6A7A">No vibes yet. <a href="{% url 'publish' %}" style="color:#7C3AED">Publish your first vibe</a></div>{% endfor %}
+  </div>
+</div>
+{% endblock %}
