@@ -2,6 +2,7 @@ from django.db import models
 from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
 
 class Profile(models.Model):
     ROLE_CHOICES = [('user','User'),('moderator','Moderator'),('admin','Admin'),('superadmin','Super Admin')]
@@ -16,6 +17,7 @@ class Profile(models.Model):
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='user', help_text="Admin role — backend only, never in JS")
     is_pro = models.BooleanField(default=False, help_text="Pro plan — can see who viewed your vibes, AI README, money")
     pro_since = models.DateTimeField(null=True, blank=True)
+    pro_until = models.DateTimeField(null=True, blank=True, help_text="When a Pro trial/prize expires. Null + is_pro means permanent (admin).")
     auto_language = models.BooleanField(default=True, help_text="Auto detect language % from ZIP")
     nolo_enabled = models.BooleanField(default=True, help_text="Nolo auto-review on upload")
     auto_thumbnail = models.BooleanField(default=True)
@@ -36,10 +38,21 @@ class Profile(models.Model):
     def is_moderator(self): return self.role in ('moderator','admin','superadmin')
     def is_admin(self): return self.role in ('admin','superadmin')
     def is_superadmin(self): return self.role == 'superadmin'
+
+    @property
+    def is_pro_active(self):
+        if not self.is_pro:
+            return False
+        if self.pro_until and timezone.now() > self.pro_until:
+            return False
+        return True
+
     def followers_count(self): return self.followers.count()
     def following_count(self): return self.user.following.count()
     def vibes_count(self): return self.user.projects.filter(status='published').count()
-    def stars_received(self): return sum(p.stars for p in self.user.projects.all())
+    def stars_received(self):
+        from django.db.models import Sum
+        return self.user.projects.aggregate(s=Sum('stars'))['s'] or 0
     def rank(self):
         from gallery.ranks import contributor_bonus
         return contributor_bonus(self.user)

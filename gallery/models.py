@@ -55,7 +55,12 @@ class AppProject(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     class Meta:
         ordering = ['-created_at']
-        indexes = [models.Index(fields=['slug']), models.Index(fields=['status'])]
+        indexes = [
+            models.Index(fields=['slug']),
+            models.Index(fields=['status']),
+            models.Index(fields=['status', '-created_at']),
+            models.Index(fields=['status', '-stars']),
+        ]
     def save(self, *args, **kwargs):
         try:
             if not self.slug:
@@ -71,13 +76,8 @@ class AppProject(models.Model):
                     self.readme_html = render_readme(self.readme)
                 except Exception:
                     pass  # crush silently
-            # Sanitize html_code — fix Stored XSS (allowlist, not |safe raw)
-            if self.html_code:
-                try:
-                    from .html_sanitize import sanitize_html_code
-                    self.html_code = sanitize_html_code(self.html_code)
-                except Exception:
-                    pass
+            # html_code is stored raw and only rendered inside a sandboxed iframe.
+            # Bleach-on-save guts real snippet dashboards.
             # Sanitize ai_prompt — many prompt fields, must be checked
             if self.ai_prompt:
                 try:

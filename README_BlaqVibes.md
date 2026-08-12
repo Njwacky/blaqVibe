@@ -1,5 +1,10 @@
 # BlaqVibes — Full Code (Updated with ClamAV + R2 Signed URLs)
 
+## Hardening pass (2026-08-12)
+
+Downloads, git clone, and file preview now require a real Trade or Sale when a vibe is priced. Paystack no longer grants access if checkout fails. Pro trials expire after 7 days. Viewer lists are owner-only. Battles need POST and award +1 star. Preview iframes are sandboxed. Auth has styled signup/login and password reset. Light/dark + mobile nav are in the Django app. Run `python manage.py test gallery users` to verify.
+
+
 **5 Whys: No Shortcuts, Full Code**
 
 ## What's New (You said: Yeah add it)

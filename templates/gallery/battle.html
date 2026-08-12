@@ -27,9 +27,9 @@ endblock %} {% block content %}
       ⚔️ Vibe Battles — Which would you pick?
     </h1>
     <p style="color: #9a9aaf; font-size: 12px">
-      Two random vibes side-by-side — vote → winner gets
-      <b style="color: #f59e0b">+5 ★</b> and appears <b>top 1st</b>. Swipe right
-      --> on mobile for next battle.
+      Two vibes side-by-side — vote → winner gets
+      <b style="color: #f59e0b">+1 ★</b>. One vote per battle. Swipe on mobile
+      for the next matchup.
     </p>
   </div>
 
@@ -385,7 +385,7 @@ endblock %} {% block content %}
           const card = form.closest(".card");
           const owner = card.textContent.match(/@\w+/)?.[0] || "@creator";
           try {
-            toast(`You picked ${owner}'s app • +5 ★`);
+            toast(`You picked ${owner}'s app • +1 ★`);
           } catch (e) {}
         });
       });

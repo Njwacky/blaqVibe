@@ -8,29 +8,38 @@
 <link rel="apple-touch-icon" href="/static/branding/icon-180.png">
 <link rel="manifest" href="/static/branding/manifest.json">
 <meta name="theme-color" content="#07070A">
+<meta name="description" content="{% block meta_desc %}Publish the Vibes. Clone the Culture.{% endblock %}">
+<meta property="og:title" content="{% block og_title %}BlaqVibes{% endblock %}">
+<meta property="og:description" content="{% block og_desc %}Publish the Vibes. Clone the Culture.{% endblock %}">
+<meta property="og:image" content="{% block og_image %}/static/branding/blaqvibes-icon.png{% endblock %}">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/gallery/css/blaqvibes.css">
+<script>try{var t=localStorage.getItem('blaq-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
 <script src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-<script src="/static/gallery/js/blaqvibes.js"></script>
+<script src="/static/gallery/js/blaqvibes.js" defer></script>
 {% block head %}{% endblock %}
 </head>
 <body>
 <nav class="nav">
-  <a href="{% url 'feed' %}" class="logo"><img src="/static/branding/ai_assistance.jpeg" style="width:32px;height:32px;border-radius:8px;box-shadow:0 0 12px rgba(124,58,237,.5)"> BlaqVibes</a>
-  <div style="display:flex;gap:12px;align-items:center">
-    <a href="{% url 'feed' %}" style="font-size:13px;color:#9A9AAF">Vibes</a>
-    <a href="{% url 'battle' %}" style="font-size:13px;color:#F59E0B;font-weight:700">⚔️ Battle</a>
-    <a href="{% url 'challenge_list' %}" style="font-size:13px;color:#F59E0B;font-weight:700">🏆 Challenges</a>
-    <a href="{% url 'nolo_chat' %}" style="font-size:13px;color:#9A9AAF">💬 Chat</a>
+  <a href="{% url 'feed' %}" class="logo"><img src="/static/branding/ai_assistance.jpeg" alt="" style="width:32px;height:32px;border-radius:8px;box-shadow:0 0 12px rgba(124,58,237,.5)"> BlaqVibes</a>
+  <div class="nav-actions">
+    <button type="button" id="theme-toggle" class="icon-btn" aria-label="Toggle theme">☀️</button>
+    <button type="button" id="nav-toggle" class="icon-btn nav-burger" aria-label="Open menu">☰</button>
+  </div>
+  <div class="nav-links" id="nav-links">
+    <a href="{% url 'feed' %}">Vibes</a>
+    <a href="{% url 'battle' %}" style="color:#F59E0B;font-weight:700">⚔️ Battle</a>
+    <a href="{% url 'challenge_list' %}" style="color:#F59E0B;font-weight:700">🏆 Challenges</a>
+    <a href="{% url 'nolo_chat' %}">💬 Chat</a>
     {% if user.is_authenticated %}
-      <a href="{% url 'my_vibes' %}" style="font-size:13px;color:#9A9AAF">My Vibes</a>
-      <a href="{% url 'trading_history' %}" style="font-size:13px;color:#9A9AAF">Trades</a>
-      <a href="{% url 'payout_dashboard' %}" style="font-size:13px;color:#9A9AAF">Payouts</a>
-      <a href="{% url 'settings' %}" style="font-size:13px;color:#9A9AAF">Settings</a>
-      {% if user.is_authenticated and user.profile.is_moderator %}<a href="{% url 'moderation_queue' %}" style="font-size:12px;background:#F59E0B;color:#000;padding:6px 10px;border-radius:8px;font-weight:700">🛡️ Queue</a>{% endif %}
-      {% if user.is_authenticated and user.profile.is_admin %}<a href="{% url 'admin_dashboard' %}" style="font-size:12px;background:#7C3AED;color:#fff;padding:6px 10px;border-radius:8px;font-weight:700">Admin</a>{% endif %}
-      <span style="font-size:12px;color:#9A9AAF">@{{ user.username }}</span>
+      <a href="{% url 'my_vibes' %}">My Vibes</a>
+      <a href="{% url 'trading_history' %}">Trades</a>
+      <a href="{% url 'payout_dashboard' %}">Payouts</a>
+      <a href="{% url 'settings' %}">Settings</a>
+      {% if user.profile.is_moderator %}<a href="{% url 'moderation_queue' %}" style="font-size:12px;background:#F59E0B;color:#000;padding:6px 10px;border-radius:8px;font-weight:700">🛡️ Queue</a>{% endif %}
+      {% if user.profile.is_admin %}<a href="{% url 'admin_dashboard' %}" style="font-size:12px;background:#7C3AED;color:#fff;padding:6px 10px;border-radius:8px;font-weight:700">Admin</a>{% endif %}
+      <a href="{% url 'profile_view' user.username %}" style="font-size:12px">@{{ user.username }}</a>
       <a href="{% url 'publish' %}" class="btn-violet">+ Publish</a>
       <a href="#" class="btn-ghost js-logout">Logout</a>
       <form id="logout-form" method="post" action="{% url 'logout' %}" style="display:none">{% csrf_token %}</form>

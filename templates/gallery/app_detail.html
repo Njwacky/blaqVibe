@@ -1,5 +1,8 @@
 {% extends 'gallery/base.html' %}
 {% block title %}{{ project.title }} — BlaqVibes{% endblock %}
+{% block og_title %}{{ project.title }} — BlaqVibes{% endblock %}
+{% block og_desc %}{{ project.short_description }}{% endblock %}
+{% block meta_desc %}{{ project.short_description }}{% endblock %}
 {% block content %}
 {% if project.status != 'published' %}
 <div id="scan-banner" data-scan-url="{% url 'scan_status' project.slug %}" style="max-width:1280px;margin:12px auto 0;padding:14px 16px;background:linear-gradient(135deg,#1A1A00 0%,#1A1400 100%);border:1px solid #F59E0B;border-radius:12px;display:flex;align-items:center;gap:12px;font-size:13px;box-shadow:0 4px 16px rgba(245,158,11,.15)">
@@ -11,7 +14,7 @@
   <span style="margin-left:auto;font-size:11px;color:#F59E0B;white-space:nowrap">🔒 scan → vuln → publish</span>
 </div>
 {% endif %}
-<div style="max-width:1280px;margin:0 auto;padding:16px 20px;display:grid;grid-template-columns:1.6fr .95fr;gap:16px">
+<div class="page detail-layout">
   <!-- LEFT -->
   <div>
     <div class="card">
@@ -20,7 +23,7 @@
         <span style="font-size:11px;background:#DCFCE7;color:#15803D;padding:4px 8px;border-radius:8px;font-weight:700">● Secure</span>
       </div>
       {% if project.html_code %}
-        <iframe src="{% url 'preview' project.slug %}" style="width:100%;height:380px;border:none;background:#fff"></iframe>
+        <iframe src="{% url 'preview' project.slug %}" sandbox="allow-scripts allow-forms" referrerpolicy="no-referrer" style="width:100%;height:380px;border:none;background:#fff" title="{{ project.title }} preview"></iframe>
       {% else %}
         <div style="height:320px;background:#fff;display:grid;place-items:center;color:#111;padding:20px">
           <div style="text-align:center"><div style="font-weight:700">{{ project.title }}</div><div style="font-size:12px;color:#64748B;margin:6px 0">{{ project.tech_stack }} • {{ project.file_count }} files</div><div style="font-size:11px;color:#9A9AAF">Full app — preview screenshots in README. Download ZIP to run locally.</div></div>
@@ -34,19 +37,25 @@
         </div>
         <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
           {% if project.zip_file %}
-            {% if project.star_cost and user.is_authenticated and user != project.owner and not has_traded %}
+            {% if can_download %}
+              <a href="{% url 'download_zip' project.slug %}" class="btn-violet" style="flex:1;justify-content:center">⬇ Download ZIP</a>
+            {% elif project.star_cost and user.is_authenticated and user != project.owner and not has_traded %}
               <form method="post" action="{% url 'trade_download' project.slug %}" style="flex:1">{% csrf_token %}<button class="btn-violet" style="width:100%">⬇ Trade {{ project.star_cost }} ★ to Download</button></form>
-              <div style="width:100%;font-size:11px;color:#9A9AAF;text-align:center">You have {{ user.profile.stars_balance }} ★ • Seller @{{ project.owner.username }} is {{ owner_rank.name }} ({{ owner_rank.discount }}% Pro discount) → Top rank = appears 1st</div>
+              <div style="width:100%;font-size:11px;color:#9A9AAF;text-align:center">You have {{ user.profile.stars_balance }} ★ — download stays locked until you trade or buy.</div>
+            {% elif not user.is_authenticated %}
+              <a href="{% url 'login' %}?next={{ request.path }}" class="btn-violet" style="flex:1;justify-content:center">Sign in to unlock</a>
             {% else %}
-              <a href="{% url 'download_zip' project.slug %}" class="btn-violet" style="flex:1;justify-content:center">⬇ Download ZIP {% if project.star_cost %}({{ project.star_cost }} ★){% else %}(Free){% endif %}</a>
+              <a href="#paywall" class="btn-violet" style="flex:1;justify-content:center">⬇ Unlock to download</a>
             {% endif %}
           {% endif %}
+          {% if can_download %}
           <a href="{% url 'git_clone' project.owner.username project.slug %}" class="btn-ghost" style="flex:1;justify-content:center;text-align:center">⎇ Git Clone</a>
+          {% endif %}
           <button class="btn-ghost js-copy-snippet" data-target="html-code">⎘ Copy Snippet</button>
           <form method="post" action="{% url 'toggle_star' project.slug %}" class="js-star-form" style="display:inline">
             {% csrf_token %}<button class="btn-ghost">{% if is_starred %}★ Starred{% else %}☆ Star{% endif %} {{ project.stars }}</button>
           </form>
-          <form method="post" action="{% url 'fork_vibe' project.slug %}" class="js-fork-form" style="display:inline">{% csrf_token %}<button class="btn-ghost">⑂ Fork {{ project.forks.count }}</button></form>
+          <form method="post" action="{% url 'fork_vibe' project.slug %}" class="js-fork-form" style="display:inline">{% csrf_token %}<button class="btn-ghost">⑂ Fork {{ forks_count }}</button></form>
           <form method="post" action="{% url 'run_vibe' project.slug %}" style="display:inline;flex:1">{% csrf_token %}<button class="btn-ghost" style="width:100%;background:#10B981;color:#fff">▶ Run — Live 1h</button></form>
         </div>
         {% if user_rank %}<div style="font-size:11px;color:#9A9AAF;margin-top:6px">Your rank: <b style="color:#F59E0B">{{ user_rank.name }}</b> ({{ user_rank.discount }}% Pro discount) • Earn stars when others star/trade your vibes → appears 1st when exploring</div>{% endif %}
@@ -54,8 +63,8 @@
         <div style="margin-top:8px;background:#0A1A0F;border:1px solid #F59E0B;border-radius:10px;padding:10px">
           <div style="font-size:11px;color:#F59E0B;font-weight:700">💰 Money — R{{ project.price_zar }} via Paystack</div>
           {% if user.is_authenticated and user != project.owner and not has_bought %}
-            <form method="post" action="{% url 'buy_vibe' project.slug %}" style="margin-top:6px">{% csrf_token %}<button class="btnV" style="width:100%">💳 Buy for R{{ project.price_zar }} — Seller gets R{{ project.price_zar|floatformat:0 }} (85%)</button></form>
-            <div style="font-size:11px;color:#9A9AAF;margin-top:4px">Demo mode if PAYSTACK_SECRET not set — creates Sale without real payment.</div>
+            <form method="post" action="{% url 'buy_vibe' project.slug %}" style="margin-top:6px">{% csrf_token %}<button class="btnV" style="width:100%">💳 Buy for R{{ project.price_zar }} — seller gets 85%</button></form>
+            <div style="font-size:11px;color:#9A9AAF;margin-top:4px">Paystack checkout. You only get the ZIP after a verified payment.</div>
           {% elif has_bought %}<div style="font-size:11px;color:#10B981;margin-top:4px">✓ You bought this — <a href="{% url 'download_zip' project.slug %}" style="color:#10B981">Download ZIP</a></div>
           {% elif user == project.owner %}<div style="font-size:11px;color:#9A9AAF;margin-top:4px">Your vibe — buyers pay R{{ project.price_zar }}, you get 85%.</div>
           {% endif %}
@@ -103,7 +112,8 @@
         <div style="font-size:11px;letter-spacing:.06em;color:#9A9AAF;font-weight:700;margin-bottom:8px">FILE TREE — stock_app_vibes</div>
         {% if project.file_tree %}
           <div style="font-family:JetBrains Mono,monospace;font-size:12px;line-height:1.8">
-            <div id="tree-root" data-tree='{{ project.file_tree|safe }}' data-slug="{{ project.slug }}"></div>
+            {{ project.file_tree|json_script:"tree-data" }}
+            <div id="tree-root" data-slug="{{ project.slug }}"></div>
           </div>
           <div id="filePreview" style="display:none;margin-top:12px;background:#121214;border:1px solid #232326;border-radius:10px;padding:10px">
             <div style="display:flex;justify-content:space-between"><b id="fileName" style="font-family:JetBrains Mono,monospace;font-size:12px"></b><button class="btn-ghost js-close-preview" style="padding:4px 8px;font-size:11px">✕</button></div>
@@ -186,7 +196,7 @@
         <input type="hidden" name="a_slug" value="{{ project.slug }}">
         <select name="b_slug" id="nolo-b" style="flex:1;background:#15151A;border:1px solid #232326;border-radius:10px;padding:8px;color:#fff;font-size:12px">
           <option value="">Compare with...</option>
-          {% for p in project.category.projects.all|slice:":10" %}{% if p.slug != project.slug and p.status == 'published' %}<option value="{{ p.slug }}">{{ p.title }} — {{ p.tech_stack }}</option>{% endif %}{% endfor %}
+          {% for p in compare_options %}<option value="{{ p.slug }}">{{ p.title }} — {{ p.tech_stack }}</option>{% endfor %}
         </select>
         <button class="btn-violet" style="padding:8px 14px;font-size:12px">Compare</button>
       </form>
@@ -255,7 +265,7 @@
         <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #232326"><span style="color:#9A9AAF">Stack</span><b>{{ project.tech_stack|default:"HTML/CSS" }}</b></div>
         <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #232326"><span style="color:#9A9AAF">Files</span><b>{{ project.file_count }} • {{ project.clones }} clones</b></div>
         <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #232326"><span style="color:#9A9AAF">Trade Cost</span><b>{% if project.star_cost %}{{ project.star_cost }} ★ {% if project.star_cost == 1 %}Bronze{% elif project.star_cost == 2 %}Bronze{% elif project.star_cost <= 3 %}Silver{% else %}Gold{% endif %}{% else %}0 ★ Free{% endif %}</b></div>
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #232326"><span style="color:#9A9AAF">Forks</span><b>⑂ {{ project.forks.count }} • {% if project.forked_from %}Forked from <a href="{{ project.forked_from.get_absolute_url }}" style="color:#7C3AED">@{{ project.forked_from.owner.username }}</a>{% else %}Original{% endif %}</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #232326"><span style="color:#9A9AAF">Forks</span><b>⑂ {{ forks_count }} • {% if project.forked_from %}Forked from <a href="{{ project.forked_from.get_absolute_url }}" style="color:#7C3AED">@{{ project.forked_from.owner.username }}</a>{% else %}Original{% endif %}</b></div>
         <div style="display:flex;justify-content:space-between;padding:8px 0"><span style="color:#9A9AAF">License</span><b>MIT</b></div>
       </div>
       {% if project.language_stats %}
@@ -276,12 +286,12 @@
       <div style="margin-top:10px;background:#07070A;border:1px solid #232326;border-radius:10px;padding:10px"><div style="font-size:11px;color:#10B981;font-weight:700">🔒 SECURITY</div><div style="font-size:12px;line-height:1.6;margin-top:4px">✅ Sanitized README<br>✅ Path traversal blocked<br>✅ Sandboxed preview</div></div>
       {% if project.forks.all %}
       <div style="margin-top:10px;background:#07070A;border:1px solid #232326;border-radius:10px;padding:10px">
-        <div style="font-size:11px;color:#9A9AAF;font-weight:700">⑂ FORKS ({{ project.forks.count }}) — <a href="{% url 'fork_network' project.slug %}" style="color:#7C3AED">View network →</a> • <a href="{% url 'pr_list' project.slug %}" style="color:#7C3AED">PRs ({{ project.prs_incoming.count }}) →</a></div>
+        <div style="font-size:11px;color:#9A9AAF;font-weight:700">⑂ FORKS ({{ forks_count }}) — <a href="{% url 'fork_network' project.slug %}" style="color:#7C3AED">View network →</a> • <a href="{% url 'pr_list' project.slug %}" style="color:#7C3AED">PRs ({{ prs_count }}) →</a></div>
         {% for f in project.forks.all|slice:":5" %}<div style="font-size:12px;padding:4px 0;border-bottom:1px solid #1F1F23"><a href="{{ f.get_absolute_url }}" style="color:#7C3AED">{{ f.title }}</a> by @{{ f.owner.username }} • {{ f.stars }} ★</div>{% endfor %}
       </div>
       {% else %}
       <div style="margin-top:10px;background:#07070A;border:1px solid #232326;border-radius:10px;padding:10px">
-        <div style="font-size:11px;color:#9A9AAF;font-weight:700">⑂ FORKS — <a href="{% url 'fork_network' project.slug %}" style="color:#7C3AED">View network →</a> • <a href="{% url 'pr_list' project.slug %}" style="color:#7C3AED">PRs ({{ project.prs_incoming.count }}) →</a></div>
+        <div style="font-size:11px;color:#9A9AAF;font-weight:700">⑂ FORKS — <a href="{% url 'fork_network' project.slug %}" style="color:#7C3AED">View network →</a> • <a href="{% url 'pr_list' project.slug %}" style="color:#7C3AED">PRs ({{ prs_count }}) →</a></div>
         <div style="font-size:12px;color:#6A6A7A">No forks yet — be the first!</div>
       </div>
       {% endif %}
@@ -293,18 +303,18 @@
         {% endif %}
       </div>
       {% endif %}
-      <!-- Who Viewed — Pro only -->
+      <!-- Who viewed — owner + active Pro only -->
       {% if viewers is not None %}
       <div style="margin-top:10px;background:#07070A;border:1px solid #7C3AED;border-radius:10px;padding:10px">
-        <div style="font-size:11px;color:#7C3AED;font-weight:700">👁 Who Viewed Your Vibe — Pro ({{ viewer_count }} views)</div>
+        <div style="font-size:11px;color:#7C3AED;font-weight:700">Who viewed — only you can see this ({{ viewer_count }} views)</div>
         {% if viewers %}
           {% for v in viewers %}<div style="font-size:12px;padding:4px 0;border-bottom:1px solid #1F1F23;display:flex;justify-content:space-between"><span><a href="{% url 'profile_view' v.viewer.username %}" style="color:#7C3AED">@{{ v.viewer.username }}</a> • {{ v.count }}×</span><span style="color:#9A9AAF;font-size:11px">{{ v.last_viewed|timesince }} ago</span></div>{% endfor %}
-        {% else %}<div style="font-size:11px;color:#6A6A7A">No views yet — share your vibe!</div>{% endif %}
+        {% else %}<div style="font-size:11px;color:#6A6A7A">No named views yet — share your vibe!</div>{% endif %}
       </div>
-      {% elif project.owner == user and not user.profile.is_pro %}
+      {% elif show_viewer_upsell %}
       <div style="margin-top:10px;background:#1A1A00;border:1px solid #F59E0B;border-radius:10px;padding:10px">
-        <div style="font-size:11px;color:#F59E0B;font-weight:700">👁 Who Viewed — Pro Only</div>
-        <div style="font-size:12px;color:#9A9AAF;margin-top:4px">{{ viewer_count }} views — <a href="#" style="color:#F59E0B">Upgrade to Pro</a> to see who viewed (names + times). Free sees count only.</div>
+        <div style="font-size:11px;color:#F59E0B;font-weight:700">Who viewed — Pro only</div>
+        <div style="font-size:12px;color:#9A9AAF;margin-top:4px">{{ viewer_count }} views — <a href="{% url 'payout_dashboard' %}" style="color:#F59E0B">start a 7-day Pro trial</a> to see names. Visitors never see this list.</div>
       </div>
       {% endif %}
     </div>

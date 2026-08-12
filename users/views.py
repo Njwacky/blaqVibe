@@ -73,8 +73,9 @@ def payout_dashboard(request):
         'sales': sales, 'trades': trades,
         'total_zar': total_zar, 'payout_zar': payout_zar,
         'total_stars_earned': total_stars_earned,
-        'is_pro': request.user.profile.is_pro,
+        'is_pro': request.user.profile.is_pro_active,
         'pro_since': getattr(request.user.profile, 'pro_since', None),
+        'pro_until': getattr(request.user.profile, 'pro_until', None),
     })
 
 @login_required
@@ -83,13 +84,19 @@ def activate_pro_trial(request):
     try:
         from django.utils import timezone
         profile,_ = Profile.objects.get_or_create(user=request.user)
-        if profile.is_pro:
-            messages.info(request, "You are already Pro — enjoy Who Viewed + AI README + 50% discount!")
+        if profile.is_pro_active:
+            messages.info(request, "You are already Pro — enjoy Who Viewed + AI README.")
             return redirect('payout_dashboard')
+        if profile.pro_until:
+            messages.error(request, "Your free Pro trial already ended. Pro is a paid upgrade now.")
+            return redirect('payout_dashboard')
+        now = timezone.now()
+        from datetime import timedelta
         profile.is_pro = True
-        profile.pro_since = timezone.now()
-        profile.save(update_fields=['is_pro','pro_since'])
-        messages.success(request, "Pro trial activated for 7 days — now you can see who viewed your vibes, use AI README, and get 50% off if Platinum!")
+        profile.pro_since = now
+        profile.pro_until = now + timedelta(days=7)
+        profile.save(update_fields=['is_pro', 'pro_since', 'pro_until'])
+        messages.success(request, "Pro trial activated for 7 days — see who viewed your vibes and use AI README.")
         return redirect('payout_dashboard')
     except Exception as e:
         import logging
@@ -134,3 +141,17 @@ def toggle_setting(request):
         import logging
         logging.getLogger(__name__).exception(f"toggle_setting crush: {e}")
         return JsonResponse({'error': 'Failed silently'}, status=500)
+
+@login_required
+@require_POST
+def delete_account(request):
+    confirm = (request.POST.get('confirm') or '').strip()
+    if confirm != request.user.username:
+        messages.error(request, "Type your username to confirm account deletion.")
+        return redirect('settings')
+    from django.contrib.auth import logout
+    user = request.user
+    logout(request)
+    user.delete()
+    messages.success(request, "Your account and vibes were deleted.")
+    return redirect('feed')

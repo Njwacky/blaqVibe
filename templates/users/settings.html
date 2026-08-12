@@ -176,6 +176,16 @@
 
   </div>
   {% endif %}
+
+  <div style="margin-top:28px;padding:16px;border:1px solid #7C2D2D;background:#1A0A0A;border-radius:12px">
+    <h2 style="font-size:14px;font-weight:700;color:#FECACA">Danger zone — POPIA</h2>
+    <p style="font-size:12px;color:#9A9AAF;margin:6px 0 12px">Delete your account, vibes, comments, and stars. This cannot be undone.</p>
+    <form method="post" action="{% url 'delete_account' %}" class="js-confirm-delete" style="display:flex;gap:8px;flex-wrap:wrap">
+      {% csrf_token %}
+      <input name="confirm" placeholder="Type {{ user.username }} to confirm" class="field-input" style="flex:1;min-width:180px">
+      <button class="btn-ghost" style="color:#EF4444;border-color:#7C2D2D">Delete my account</button>
+    </form>
+  </div>
 </div>
 
 <style>
