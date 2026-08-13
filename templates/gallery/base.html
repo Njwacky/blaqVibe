@@ -37,7 +37,7 @@
       <a href="{% url 'saved_vibes' %}">Saved</a>
       <a href="{% url 'my_vibes' %}">My Vibes</a>
       <a href="{% url 'trading_history' %}">Trades</a>
-      <a href="{% url 'payout_dashboard' %}">Payouts</a>
+      <a href="{% url 'payout_dashboard' %}">Earnings</a>
       <a href="{% url 'settings' %}">Settings</a>
       {% if user.profile.is_moderator %}<a href="{% url 'moderation_queue' %}" style="font-size:12px;background:#F59E0B;color:#000;padding:6px 10px;border-radius:8px;font-weight:700">🛡️ Queue</a>{% endif %}
       {% if user.profile.is_admin %}<a href="{% url 'admin_dashboard' %}" style="font-size:12px;background:#7C3AED;color:#fff;padding:6px 10px;border-radius:8px;font-weight:700">Admin</a>{% endif %}

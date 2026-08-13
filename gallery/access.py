@@ -17,6 +17,16 @@ def effective_star_cost(project) -> int:
 
 
 def effective_price_zar(project) -> int:
+    # 5 Whys: a ZAR-only vibe must not stay locked when cards are off.
+    # Why lock? price_zar > 0. Why can't they pay? no PAYSTACK_SECRET_KEY.
+    # Why no star fallback? star_cost may be 0. Why is that a fake paywall?
+    # Because we hide Buy and still refuse the ZIP. Treat ZAR as 0 until cards work.
+    try:
+        from .payments import paystack_enabled
+        if not paystack_enabled():
+            return 0
+    except Exception:
+        return 0
     return int(project.price_zar or 0)
 
 

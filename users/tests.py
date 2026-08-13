@@ -91,3 +91,26 @@ class AuthAndProTests(TestCase):
         self.assertTrue(User.objects.filter(username='goner').exists())
         response = self.client.post('/settings/delete-account/', {'confirm': 'goner'})
         self.assertFalse(User.objects.filter(username='goner').exists())
+
+    def test_earnings_shows_real_star_totals(self):
+        from gallery.models import AppProject, Category, Trade
+        owner = User.objects.create_user('seller', password='pass12345', email='s@test.com')
+        buyer = User.objects.create_user('buyer', password='pass12345', email='b@test.com')
+        cat = Category.objects.create(name='Apps', slug='apps', type='full_app')
+        project = AppProject.objects.create(
+            owner=owner,
+            title='Priced vibe',
+            category=cat,
+            short_description='A short description of this vibe used in tests.',
+            readme='# Test Vibe\n\n' + ('This is a test readme with enough characters. ' * 4),
+            status='published',
+            star_cost=3,
+        )
+        Trade.objects.create(buyer=buyer, seller=owner, project=project, cost=3)
+        self.client.login(username='seller', password='pass12345')
+        response = self.client.get('/payout/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Earnings')
+        self.assertContains(response, '3 ★')
+        self.assertContains(response, 'stars are the complete money path')
+        self.assertNotContains(response, 'YOUR PAYOUT (85%)')

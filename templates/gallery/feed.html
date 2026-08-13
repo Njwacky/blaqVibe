@@ -73,7 +73,7 @@
           {% if p.html_code %}
             <div style="height:10px;background:#0A0A0F;border-radius:6px;width:60%"></div><div style="height:28px;background:linear-gradient(90deg,#7C3AED,#EC4899);border-radius:8px"></div>
           {% else %}
-            <div style="display:flex;justify-content:space-between"><b style="font-size:10px">{{ p.title|truncatechars:18 }}</b><span style="background:#DCFCE7;color:#15803D;padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700">● LIVE</span></div><div style="flex:1;background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:8px;display:grid;place-items:center;color:#64748B;font-size:10px">{{ p.tech_stack|default:"Full App" }}</div>
+            <div style="display:flex;justify-content:space-between"><b style="font-size:10px">{{ p.title|truncatechars:18 }}</b><span style="background:#EDE9FE;color:#6D28D9;padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700">FILES</span></div><div style="flex:1;background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:8px;display:grid;place-items:center;color:#64748B;font-size:10px">{{ p.tech_stack|default:"Full App" }}</div>
           {% endif %}
         </div>
       </div>
@@ -121,8 +121,8 @@
     { type: 'log', text: 'Processing assets...' },
     { type: 'log', text: 'Optimizing shaders...' },
     { type: 'success', text: 'Build complete!' },
-    { type: 'cmd', text: 'deploy --live' },
-    { type: 'success', text: 'Live at vibe.io/8x2' }
+    { type: 'cmd', text: 'publish vibe' },
+    { type: 'success', text: 'On the feed — preview files' }
   ];
   const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
   async function typeText(element, text, speed = 20) {

@@ -71,15 +71,21 @@ def toggle_follow(request, username):
 @login_required
 def payout_dashboard(request):
     from gallery.models import Sale, Trade
+    from gallery.economy import stars_earned, stars_spent
+    from gallery.payments import paystack_enabled
     sales = Sale.objects.filter(seller=request.user).select_related('project','buyer').order_by('-created_at')[:20]
     trades = Trade.objects.filter(seller=request.user).select_related('project','buyer').order_by('-created_at')[:20]
+    bought = Trade.objects.filter(buyer=request.user).select_related('project','seller').order_by('-created_at')[:20]
     total_zar = sum(s.amount_zar for s in Sale.objects.filter(seller=request.user))
-    payout_zar = int(total_zar * 0.85)
-    total_stars_earned = trades.count() * 2
     return render(request, 'users/payout_dashboard.html', {
-        'sales': sales, 'trades': trades,
-        'total_zar': total_zar, 'payout_zar': payout_zar,
-        'total_stars_earned': total_stars_earned,
+        'sales': sales,
+        'trades': trades,
+        'bought': bought,
+        'stars_balance': request.user.profile.stars_balance,
+        'stars_earned': stars_earned(request.user),
+        'stars_spent': stars_spent(request.user),
+        'total_zar': total_zar,
+        'paystack_enabled': paystack_enabled(),
         'is_pro': request.user.profile.is_pro_active,
         'pro_since': getattr(request.user.profile, 'pro_since', None),
         'pro_until': getattr(request.user.profile, 'pro_until', None),

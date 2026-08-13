@@ -11,7 +11,7 @@
       <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;font-size:11px">
         <div style="display:flex;align-items:center;gap:6px"><span style="width:18px;height:18px;border-radius:50%;background:#7C3AED;color:var(--text);display:grid;place-items:center;font-size:10px">1</span> Details</div>
         <div style="display:flex;align-items:center;gap:6px;color:var(--muted)"><span style="width:18px;height:18px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-size:10px">2</span> Upload & Scan</div>
-        <div style="display:flex;align-items:center;gap:6px;color:var(--muted)"><span style="width:18px;height:18px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-size:10px">3</span> Live</div>
+        <div style="display:flex;align-items:center;gap:6px;color:var(--muted)"><span style="width:18px;height:18px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;font-size:10px">3</span> Review</div>
       </div>
     </div>
     <div style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px">
@@ -22,7 +22,7 @@
   <!-- Main -->
   <main style="padding:20px;overflow:auto">
     <h2 style="font-family:Space Grotesk,sans-serif;font-size:22px;font-weight:700">Publish your vibe</h2>
-    <p style="font-size:13px;color:var(--muted);margin:6px 0 16px">Every vibe <b style="color:var(--text)">requires a README.md</b> — what it does, stack, how to run. People read it + file tree before they clone. <span style="color:#F59E0B">Docker & queue run automatically</span> — see right panel.</p>
+    <p style="font-size:13px;color:var(--muted);margin:6px 0 16px">Every vibe <b style="color:var(--text)">requires a README.md</b> — what it does, stack, how to run. People read it + file tree before they clone. ZIPs are scanned; preview is files, not Docker.</p>
     <form method="post" enctype="multipart/form-data" style="display:grid;gap:14px">
       {% csrf_token %}
       {% if form.errors %}<div style="background:#3F1A1A;border:1px solid #7C2D2D;color:#FECACA;padding:10px;border-radius:10px;font-size:13px">{{ form.errors }}</div>{% endif %}
@@ -43,11 +43,11 @@
       </div>
       <div style="border:1px dashed var(--line);border-radius:12px;padding:14px;background:var(--card)">
         <div style="font-weight:700;font-size:13px">ZIP file (for Full App) — Max 100MB</div>
-        <div style="font-size:11px;color:var(--muted)">We auto-block node_modules, .env, .exe and count files. If ZIP has README.md, we keep it; else inject yours. Docker will run it if Auto-run On.</div>
+        <div style="font-size:11px;color:var(--muted)">We auto-block node_modules, .env, .exe and count files. Preview shows the file list and README — it does not start a container.</div>
         <div style="margin-top:8px">{{ form.zip_file }}</div>
         <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
           <div><label style="font-size:12px;color:var(--muted)">Trade Cost — Stars</label>{{ form.star_cost }}<div style="font-size:11px;color:var(--muted)">0=free, 1=Bronze, 3=Silver, 5=Gold</div></div>
-          <div><label style="font-size:12px;color:var(--muted)">Money Price — ZAR</label>{{ form.price_zar }}<div style="font-size:11px;color:var(--muted)">0=free, 50=R50 — you get 85%</div></div>
+          <div><label style="font-size:12px;color:var(--muted)">Money Price — ZAR</label>{{ form.price_zar }}<div style="font-size:11px;color:var(--muted)">Optional. Cards need PAYSTACK_SECRET_KEY.</div></div>
         </div>
       </div>
       <div style="border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--bg)">
@@ -59,38 +59,24 @@
     </form>
   </main>
 
-  <!-- Right Panel — Notifications about Docker & Everything -->
   <aside style="background:var(--card);border-left:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:12px;overflow:auto">
     <div style="display:flex;align-items:center;gap:8px">
-      <span style="font-size:14px">🔔</span><span style="font-weight:700;font-size:13px">Notifications</span><span style="margin-left:auto;font-size:11px;background:#7C3AED;color:var(--text);padding:4px 8px;border-radius:100px">3 new</span>
+      <span style="font-size:14px">ℹ️</span><span style="font-weight:700;font-size:13px">What actually happens</span>
     </div>
 
     <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
-      <div style="display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;background:#10B981;border-radius:50%;animation:pulse 1.2s infinite"></span><span style="font-weight:700;font-size:13px">Docker</span><span style="margin-left:auto;font-size:10px;background:#10B981;color:var(--text);padding:3px 7px;border-radius:6px">Running</span></div>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px">Container for <b style="color:var(--text)">stock-app-vibes-882511</b> is live at<br><code style="background:var(--line);padding:2px 6px;border-radius:6px;font-size:10px">/deploy/stock-app-vibes-882511/</code> — expires in 42 min</div>
-      <div style="margin-top:8px;height:6px;background:var(--line);border-radius:100px;overflow:hidden"><div style="width:42%;background:#10B981;height:100%"></div></div>
-      <div style="font-size:10px;color:var(--muted);margin-top:4px">Auto-run: {% if site and site.auto_run_enabled %}On (every ZIP auto-runs){% else %}Off (manual ▶ Run){% endif %}</div>
+      <div style="display:flex;align-items:center;gap:8px"><span style="font-weight:700;font-size:13px">Preview files</span><span style="margin-left:auto;font-size:10px;background:var(--input);border:1px solid var(--line);padding:3px 7px;border-radius:6px">In-app</span></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">Snippets open in a sandboxed iframe. ZIP apps show the file list and README. Nothing is started in Docker.</div>
     </div>
 
     <div style="background:var(--card);border:1px solid #F59E0B;border-radius:12px;padding:12px">
-      <div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px">⏳</span><span style="font-weight:700;font-size:13px">Queue & Scan</span><span style="margin-left:auto;font-size:11px;background:#FEF3C7;color:#92400E;padding:3px 7px;border-radius:8px">You #2 in line</span></div>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px">Your vibe is in <b style="color:#F59E0B">scan</b> queue (ClamAV → secrets → vuln → Nolo). Every app is checked, even with 20 concurrent uploads.</div>
-      <div style="margin-top:8px;display:flex;flex-direction:column;gap:4px;font-size:11px">
-        <div style="display:flex;justify-content:space-between"><span>ClamAV</span><span style="color:#10B981">✓ Clean</span></div>
-        <div style="display:flex;justify-content:space-between"><span>Secrets</span><span style="color:#10B981">✓ None</span></div>
-        <div style="display:flex;justify-content:space-between"><span>Nolo review</span><span style="color:#F59E0B">● Scanning</span></div>
-      </div>
+      <div style="display:flex;align-items:center;gap:8px"><span style="font-size:14px">⏳</span><span style="font-weight:700;font-size:13px">Queue & Scan</span></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">After you publish, the ZIP is queued: ClamAV → secrets → Nolo. Status is on the vibe page — this panel is not a live scanner.</div>
     </div>
 
     <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
-      <div style="font-weight:700;font-size:13px">Everything Else</div>
-      <div style="margin-top:8px;display:flex;flex-direction:column;gap:6px;font-size:11px">
-        <div style="display:flex;justify-content:space-between"><span>Languages</span><span style="color:#10B981">Python 58% detected</span></div>
-        <div style="display:flex;justify-content:space-between"><span>File tree</span><span style="color:#10B981">18 files</span></div>
-        <div style="display:flex;justify-content:space-between"><span>Stars cost</span><span>2 ★ Bronze</span></div>
-        <div style="display:flex;justify-content:space-between"><span>Price</span><span>R50 → R42 payout</span></div>
-        <div style="display:flex;justify-content:space-between"><span>PWA</span><span style="color:#10B981">Install prompt ready</span></div>
-      </div>
+      <div style="font-weight:700;font-size:13px">Stars</div>
+      <div style="margin-top:8px;font-size:11px;color:var(--muted)">Set a star cost to get paid in ★ when someone downloads. Card checkout only works if PAYSTACK_SECRET_KEY is set.</div>
     </div>
 
     <div style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px">

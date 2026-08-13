@@ -95,6 +95,24 @@ def feed(request):
             except Exception: pass
             projects = projects.filter(tech_stack__icontains=tech)
         projects = search_projects(projects, q, sort=sort)
+        if not projects.exists() and getattr(settings, 'SEED_DEMO', False):
+            try:
+                from .seed import seed_demo
+                seed_demo()
+                projects = search_projects(
+                    AppProject.objects.filter(status='published').select_related(
+                        'owner', 'owner__profile', 'category'
+                    ).prefetch_related('tags'),
+                    q, sort=sort,
+                )
+                if cat:
+                    projects = projects.filter(category__slug=cat)
+                if kind == 'snippet':
+                    projects = projects.exclude(html_code='')
+                elif kind == 'full_app':
+                    projects = projects.exclude(zip_file='')
+            except Exception:
+                logger.exception('auto seed_demo failed')
         categories = Category.objects.all().order_by('order')
         paginator = Paginator(projects, 12)
         page = paginator.get_page(request.GET.get('page'))
@@ -206,10 +224,25 @@ def scan_status(request, slug):
         data['reason'] = owner_scan_reason(project)
     return JsonResponse(data)
 
+def preview_files(request, slug):
+    """Honest file preview — names + README. Not a Docker host, not a live server."""
+    project = get_object_or_404(AppProject, slug=slug, status='published')
+    if project.html_code and not project.zip_file:
+        return redirect('preview', slug=slug)
+    files = project.files.all()[:100]
+    return render(request, 'gallery/preview_files.html', {
+        'project': project,
+        'files': files,
+        'can_download': user_can_download(request.user, project) if project.zip_file else True,
+    })
+
+
 def preview(request, slug):
     """Safe preview shell — the user's HTML/JS runs only inside a sandboxed
     (opaque-origin) iframe pointed at snippet_doc, never in a privileged context."""
     project = get_object_or_404(AppProject, slug=slug, status='published')
+    if not project.html_code and project.zip_file:
+        return redirect('preview_files', slug=slug)
     resp = render(request, 'gallery/preview.html', {'project': project})
     # This shell has no scripts of its own — lock it down (only our own inline <style>).
     csp = (
@@ -238,9 +271,11 @@ def snippet_doc(request, slug):
         return render(request, 'gallery/snippet_blocked.html', {'project': project}, status=403)
     resp = render(request, 'gallery/snippet_doc.html', {'project': project})
     resp['Content-Security-Policy'] = (
-        "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; "
-        "img-src data: https: http:; media-src data: https:; font-src data:; "
-        "connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'self'"
+        "default-src 'none'; script-src 'unsafe-inline' https://cdn.tailwindcss.com; "
+        "style-src 'unsafe-inline' https://fonts.googleapis.com; "
+        "img-src data: https: http:; media-src data: https:; "
+        "font-src data: https://fonts.gstatic.com; "
+        "connect-src https://cdn.tailwindcss.com; object-src 'none'; base-uri 'none'; form-action 'self'"
     )
     resp['X-Frame-Options'] = 'SAMEORIGIN'
     resp['Referrer-Policy'] = 'no-referrer'
@@ -293,28 +328,18 @@ def publish(request):
                 except Exception as e:
                     logger.warning("Queue error, fallback eager for %s: %s", project.slug, e)
                 messages.info(request, f"⏳ Your vibe “{project.title}” is in the queue — we’re checking for vulnerabilities. We’ll tell you when it’s uploaded! You’re #{ScanJob.objects.filter(status__in=['queued','scanning']).count()} in line, even with concurrent uploads every app is checked.")
-                # Auto-run toggle — if On, auto spin live URL on upload
                 try:
-                    from users.models import SiteSettings
-                    from gallery.models import Deploy
-                    from django.utils import timezone
-                    from datetime import timedelta
-                    import secrets
-                    if SiteSettings.get().auto_run_enabled and project.zip_file:
-                        token = f"{project.slug}-{secrets.token_hex(3)}"
-                        live_url = f"/deploy/{token}/"
-                        expires = timezone.now() + timedelta(hours=1)
-                        Deploy.objects.create(project=project, owner=request.user, token=token, live_url=live_url, status='running', expires_at=expires)
-                        messages.success(request, f"▶ Auto-run enabled — live at {live_url} for 1 hour! (toggle in Settings → Global)")
+                    if SiteSettings.get().auto_run_enabled:
+                        messages.info(request, "File preview is on the vibe page after the scan. This is not a live server.")
                 except Exception:
                     pass
             else:
                 if request.user.projects.filter(status='published').count() >= 3:
                     project.status = 'published'
                     project.save(update_fields=['status'])
-                    messages.success(request, f"✓ Your snippet “{project.title}” is live!")
+                    messages.success(request, f"Your snippet “{project.title}” is published.")
                 else:
-                    messages.info(request, f"⏳ Your vibe “{project.title}” is queued for review — we’ll tell you when it’s uploaded!")
+                    messages.info(request, f"Your vibe “{project.title}” is queued for review — we’ll tell you when it’s uploaded!")
             return redirect(project.get_absolute_url())
     else:
         form = AppUploadForm()
@@ -419,11 +444,16 @@ def post_review(request, slug):
 def toggle_star(request, slug):
     project = get_object_or_404(AppProject, slug=slug, status='published')
     star, created = Star.objects.get_or_create(user=request.user, project=project)
+    from .economy import adjust_owner_stars
     if not created:
         star.delete()
         AppProject.objects.filter(pk=project.pk, stars__gt=0).update(stars=F('stars')-1)
+        if request.user.id != project.owner_id:
+            adjust_owner_stars(project.owner, -1)
         return JsonResponse({'starred': False})
     AppProject.objects.filter(pk=project.pk).update(stars=F('stars')+1)
+    if request.user.id != project.owner_id:
+        adjust_owner_stars(project.owner, 1)
     return JsonResponse({'starred': True})
 
 @login_required
@@ -511,43 +541,25 @@ def git_clone(request, username, slug):
 @login_required
 @require_POST
 def trade_download(request, slug):
-    """Trading: download costs stars. Backend atomically deducts buyer, rewards seller. No JS secrets."""
+    """Stars money path: spend star_cost, seller is credited, ZIP unlocks."""
     project = get_object_or_404(AppProject, slug=slug, status='published')
     if not project.zip_file:
         raise Http404
-    buyer_profile = request.user.profile
     if project.owner == request.user:
-        # Owner free download
         return redirect('download_zip', slug=slug)
-    from .access import effective_star_cost
-    cost = effective_star_cost(project)
-    if cost == 0:
-        return redirect('download_zip', slug=slug)
-    # Check already traded?
-    from .models import Trade
-    if Trade.objects.filter(buyer=request.user, project=project).exists():
-        return redirect('download_zip', slug=slug)
-    if buyer_profile.stars_balance < cost:
-        messages.error(request, f"Need {cost} ★ to trade for “{project.title}” — you have {buyer_profile.stars_balance} ★. Earn stars by publishing vibes that get stars.")
+    from .economy import TradeError, trade_for_download
+    try:
+        trade = trade_for_download(request.user, project)
+    except TradeError as exc:
+        messages.error(request, exc.message)
         return redirect(project.get_absolute_url())
-    # Atomic trade
-    from django.db import transaction
-    from django.db.models import F
-    from users.models import Profile as P
-    with transaction.atomic():
-        # Lock rows
-        buyer = P.objects.select_for_update().get(user=request.user)
-        seller = P.objects.select_for_update().get(user=project.owner)
-        if buyer.stars_balance < cost:
-            raise Http404
-        buyer.stars_balance = F('stars_balance') - cost
-        buyer.save(update_fields=['stars_balance'])
-        seller.stars_balance = F('stars_balance') + cost
-        seller.save(update_fields=['stars_balance'])
-        Trade.objects.create(buyer=request.user, seller=project.owner, project=project, cost=cost)
-        buyer.refresh_from_db(); seller.refresh_from_db()
-    notify(project.owner, 'trade', f'@{request.user.username} traded {cost} ★ for {project.title}', url=project.get_absolute_url())
-    messages.success(request, f"Traded {cost} ★ for “{project.title}” — seller @ {project.owner.username} now has {seller.stars_balance} ★. You have {buyer.stars_balance} ★ left.")
+    if trade:
+        notify(project.owner, 'trade', f'@{request.user.username} traded {trade.cost} ★ for {project.title}', url=project.get_absolute_url())
+        request.user.profile.refresh_from_db()
+        messages.success(
+            request,
+            f"Traded {trade.cost} ★ for “{project.title}”. You have {request.user.profile.stars_balance} ★ left.",
+        )
     return redirect('download_zip', slug=slug)
 
 @login_required
@@ -678,11 +690,11 @@ def buy_vibe(request, slug):
         from .models import Sale
         if Sale.objects.filter(buyer=request.user, project=project).exists():
             return redirect('download_zip', slug=slug)
-        import os
-        paystack_secret = os.getenv('PAYSTACK_SECRET_KEY', '')
-        if not paystack_secret:
-            messages.error(request, "Card payments aren't configured yet. Trade stars to download, or ask the creator.")
+        from .payments import paystack_enabled, paystack_secret
+        if not paystack_enabled():
+            messages.error(request, "Card payments aren't configured. Set PAYSTACK_SECRET_KEY, or trade stars to download.")
             return redirect(project.get_absolute_url())
+        paystack_secret = paystack_secret()
         import requests
         import secrets
         # Unique per attempt — Paystack rejects reused references on retry.
@@ -712,14 +724,13 @@ def paystack_webhook(request):
     Returns 4xx on anything we can't verify/process so Paystack retries;
     returns 200 only once the event is handled (or safely ignored).
     """
-    import hashlib, hmac, json, os
-    secret = os.getenv('PAYSTACK_SECRET_KEY', '')
-    if not secret:
+    import json
+    from .payments import paystack_enabled, verify_paystack_signature
+    if not paystack_enabled():
         return HttpResponse("webhook not configured", status=503)
     body = request.body
     sig = request.headers.get('x-paystack-signature', '')
-    expected = hmac.new(secret.encode(), body, hashlib.sha512).hexdigest()
-    if not sig or not hmac.compare_digest(expected, sig):
+    if not verify_paystack_signature(body, sig):
         return HttpResponse("invalid signature", status=400)
     try:
         data = json.loads(body)
@@ -852,4 +863,3 @@ def sitemap_xml(request):
         rows.append(f'<url><loc>{settings.SITE_URL}/app/{p.slug}/</loc><lastmod>{p.updated_at.date().isoformat()}</lastmod></url>')
     rows.append('</urlset>')
     return HttpResponse('\n'.join(rows), content_type='application/xml')
-
