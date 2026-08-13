@@ -61,9 +61,63 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.sites',
+    'allauth',
+    'allauth.account',
+    'allauth.socialaccount',
+    'allauth.socialaccount.providers.google',
+    'allauth.socialaccount.providers.github',
+    'allauth.socialaccount.providers.facebook',
     'gallery',
     'users',
 ]
+
+SITE_ID = int(os.getenv('SITE_ID', '1'))
+
+GOOGLE_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID', '')
+GOOGLE_CLIENT_SECRET = os.getenv('GOOGLE_CLIENT_SECRET', '')
+GITHUB_CLIENT_ID = os.getenv('GITHUB_CLIENT_ID', '')
+GITHUB_CLIENT_SECRET = os.getenv('GITHUB_CLIENT_SECRET', '')
+FACEBOOK_CLIENT_ID = os.getenv('FACEBOOK_CLIENT_ID', '')
+FACEBOOK_CLIENT_SECRET = os.getenv('FACEBOOK_CLIENT_SECRET', '')
+
+AUTHENTICATION_BACKENDS = [
+    'django.contrib.auth.backends.ModelBackend',
+    'allauth.account.auth_backends.AuthenticationBackend',
+]
+
+ACCOUNT_ADAPTER = 'users.adapters.BlaqAccountAdapter'
+SOCIALACCOUNT_ADAPTER = 'users.adapters.BlaqSocialAccountAdapter'
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_EMAIL_VERIFICATION = 'optional'
+ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
+ACCOUNT_UNIQUE_EMAIL = True
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
+SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
+SOCIALACCOUNT_LOGIN_ON_GET = False
+SOCIALACCOUNT_QUERY_EMAIL = True
+
+_social_providers = {}
+if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
+    _social_providers['google'] = {
+        'APP': {'client_id': GOOGLE_CLIENT_ID, 'secret': GOOGLE_CLIENT_SECRET, 'key': ''},
+        'SCOPE': ['profile', 'email'],
+        'AUTH_PARAMS': {'access_type': 'online'},
+    }
+if GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET:
+    _social_providers['github'] = {
+        'APP': {'client_id': GITHUB_CLIENT_ID, 'secret': GITHUB_CLIENT_SECRET, 'key': ''},
+        'SCOPE': ['read:user', 'user:email'],
+    }
+if FACEBOOK_CLIENT_ID and FACEBOOK_CLIENT_SECRET:
+    _social_providers['facebook'] = {
+        'APP': {'client_id': FACEBOOK_CLIENT_ID, 'secret': FACEBOOK_CLIENT_SECRET, 'key': ''},
+        'METHOD': 'oauth2',
+        'SCOPE': ['email', 'public_profile'],
+        'VERIFIED_EMAIL': True,
+    }
+SOCIALACCOUNT_PROVIDERS = _social_providers
 
 # --- QUEUE: Celery + Redis — 5 Whys: Why queue not sync? ---
 # 1. 10 users upload at same second → sync would timeout workers, drop scans. Queue serializes.
@@ -115,6 +169,7 @@ MIDDLEWARE = [
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
+    'allauth.account.middleware.AccountMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 

@@ -71,6 +71,18 @@ class AuthAndProTests(TestCase):
         user.profile.refresh_from_db()
         self.assertTrue(user.profile.email_verified)
 
+    def test_login_hides_social_when_unconfigured(self):
+        response = self.client.get('/accounts/login/')
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Continue with Google')
+
+    @override_settings(GOOGLE_CLIENT_ID='test-google-id.apps.googleusercontent.com', GOOGLE_CLIENT_SECRET='secret')
+    def test_login_shows_google_when_configured(self):
+        response = self.client.get('/accounts/login/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Continue with Google')
+        self.assertContains(response, '/accounts/social/google/login/')
+
     def test_delete_account_requires_username(self):
         user = User.objects.create_user('goner', password='pass12345', email='g@test.com')
         self.client.login(username='goner', password='pass12345')

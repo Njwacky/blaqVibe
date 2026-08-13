@@ -1,0 +1,9 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Login cancelled{% endblock %}
+{% block content %}
+<div class="auth-wrap card" style="padding:24px">
+  <h2>Sign-in cancelled</h2>
+  <p class="help">You closed the social login window. Nothing was changed.</p>
+  <p><a href="{% url 'login' %}" class="btn-violet">Back to sign in</a></p>
+</div>
+{% endblock %}

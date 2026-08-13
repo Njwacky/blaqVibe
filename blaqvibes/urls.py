@@ -28,6 +28,7 @@ urlpatterns = [
     path('admin/', include('gallery.honeypot_urls')),
     path('', include('gallery.urls')),
     path('', include('users.urls')),
+    path('accounts/social/', include('allauth.socialaccount.urls')),
     path('accounts/login/', auth_views.LoginView.as_view(
         template_name='registration/login.html',
         authentication_form=StyledAuthenticationForm,
