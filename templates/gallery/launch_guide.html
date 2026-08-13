@@ -1,0 +1,150 @@
+{% extends 'gallery/base.html' %}
+{% load static %}
+{% block title %}{{ guide.title }} — BlaqVibes Launch Guide{% endblock %}
+{% block meta_desc %}{{ guide.summary }} Follow prerequisites, ordered publishing steps, production checks, warnings, and official source links.{% endblock %}
+{% block content %}
+<main class="launch-shell launch-guide-shell" data-checklist-key="blaq-launch-{{ guide.slug }}">
+  <nav class="launch-breadcrumb" aria-label="Breadcrumb">
+    <a href="{% url 'launch_hub' %}">Launch guide</a>
+    <span aria-hidden="true">/</span>
+    <span>{{ guide.eyebrow }}</span>
+  </nav>
+
+  <header class="launch-guide-hero">
+    <div class="launch-guide-hero__main">
+      <span class="launch-kicker">{{ guide.icon }} {{ guide.eyebrow }}</span>
+      <h1>{{ guide.title }}</h1>
+      <p>{{ guide.summary }}</p>
+      <div class="launch-good-for">
+        <span>Good for</span>
+        {% for item in guide.good_for %}<b>{{ item }}</b>{% endfor %}
+      </div>
+    </div>
+    <div class="launch-guide-hero__facts">
+      <div><span>Artifact</span><strong>{{ guide.artifact }}</strong></div>
+      <div><span>Outcome</span><strong>{{ guide.result }}</strong></div>
+      <div><span>Planning</span><strong>{{ guide.time }}</strong></div>
+    </div>
+  </header>
+
+  <div class="launch-truth-note">
+    <span aria-hidden="true">!</span>
+    <div><b>This path is not for everything.</b><p>{{ guide.not_for }}</p></div>
+  </div>
+
+  <div class="launch-guide-layout">
+    <div class="launch-guide-main">
+      <section class="launch-preflight card" id="preflight">
+        <div class="launch-block-heading">
+          <span class="launch-section-number">00</span>
+          <div><p class="launch-overline">Preflight</p><h2>Have these ready first</h2></div>
+        </div>
+        <ul class="launch-check-list">
+          {% for item in guide.prerequisites %}<li><span aria-hidden="true">✓</span>{{ item }}</li>{% endfor %}
+        </ul>
+      </section>
+
+      <section class="launch-steps" id="steps" aria-labelledby="steps-title">
+        <div class="launch-section-head">
+          <div><p class="launch-overline">In this order</p><h2 id="steps-title">Step-by-step</h2></div>
+          <p>{{ guide.steps|length }} steps · Finish each check before moving on</p>
+        </div>
+        <ol>
+          {% for step in guide.steps %}
+          <li class="launch-step" id="step-{{ forloop.counter }}">
+            <div class="launch-step__rail"><span>0{{ forloop.counter }}</span></div>
+            <div class="launch-step__body">
+              <h3>{{ step.title }}</h3>
+              <p>{{ step.body }}</p>
+              {% if step.commands %}
+              <div class="launch-commands" aria-label="Commands for {{ step.title }}">
+                {% for command in step.commands %}
+                <div class="launch-command">
+                  <div class="launch-command__label"><span>{{ command.label }}</span>{% if command.replace %}<em>{{ command.replace }}</em>{% endif %}</div>
+                  <div class="launch-command__code"><code>{{ command.text }}</code><button type="button" class="js-launch-copy" data-copy-command="{{ command.text }}" aria-label="Copy {{ command.label }}" aria-live="polite">Copy</button></div>
+                </div>
+                {% endfor %}
+              </div>
+              {% endif %}
+              {% if step.checks %}
+              <div class="launch-step__checks">
+                <b>Check before continuing</b>
+                <ul>{% for check in step.checks %}<li>{{ check }}</li>{% endfor %}</ul>
+              </div>
+              {% endif %}
+            </div>
+          </li>
+          {% endfor %}
+        </ol>
+      </section>
+
+      <section class="launch-final-check card" id="ship-check">
+        <div class="launch-block-heading">
+          <span class="launch-section-number">✓</span>
+          <div><p class="launch-overline">Release gate</p><h2>Do not call it shipped until…</h2></div>
+        </div>
+        <div class="launch-progress" id="launch-progress" role="progressbar" aria-label="Release checklist progress" aria-valuemin="0" aria-valuemax="{{ guide.checklist|length }}" aria-valuenow="0"><span id="launch-progress-bar"></span></div>
+        <p class="launch-progress-label" id="launch-progress-label" aria-live="polite">0 of {{ guide.checklist|length }} complete</p>
+        <div class="launch-final-check__items">
+          {% for item in guide.checklist %}
+          <label><input type="checkbox" class="js-launch-check" value="{{ forloop.counter0 }}"><span aria-hidden="true"></span><b>{{ item }}</b></label>
+          {% endfor %}
+        </div>
+        <p class="launch-local-note">Progress is stored only in this browser. BlaqVibes does not receive your store account or credentials.</p>
+      </section>
+
+      <section class="launch-safety" id="safety">
+        <div class="launch-section-head">
+          <div><p class="launch-overline">Every destination</p><h2>Production safety pass</h2></div>
+        </div>
+        <div class="launch-safety__grid">
+          {% for item in common_safety %}<div><span aria-hidden="true">{{ forloop.counter }}</span><p>{{ item }}</p></div>{% endfor %}
+        </div>
+      </section>
+
+      <section class="launch-sources card" id="sources">
+        <div class="launch-block-heading">
+          <span class="launch-section-number">↗</span>
+          <div><p class="launch-overline">Primary sources</p><h2>Verify against the live platform docs</h2></div>
+        </div>
+        <p>Dashboard labels, prices, policies, and review requirements change. These links—not this page—are the final authority. Sources last reviewed {{ last_reviewed }}.</p>
+        <ul>
+          {% for source in guide.sources %}
+          <li><a href="{{ source.url }}" target="_blank" rel="noopener noreferrer"><span>{{ source.label }}</span><b aria-hidden="true">↗</b></a></li>
+          {% endfor %}
+        </ul>
+      </section>
+    </div>
+
+    <aside class="launch-guide-aside">
+      <nav class="launch-toc card" aria-label="On this page">
+        <p>On this page</p>
+        <a href="#preflight"><span>00</span> Prerequisites</a>
+        <a href="#steps"><span>01</span> Step-by-step</a>
+        <a href="#ship-check"><span>02</span> Release gate</a>
+        <a href="#safety"><span>03</span> Safety pass</a>
+        <a href="#sources"><span>04</span> Official sources</a>
+      </nav>
+      <div class="launch-aside-note">
+        <span aria-hidden="true">⌁</span>
+        <div><b>Stuck on a command?</b><p>Angle brackets mark values you must replace. If your framework needs a build or start command not shown here, use that framework’s own production guide—do not guess.</p></div>
+      </div>
+    </aside>
+  </div>
+
+  <section class="launch-related" aria-labelledby="related-title">
+    <div class="launch-section-head">
+      <div><p class="launch-overline">Other routes</p><h2 id="related-title">You may also need</h2></div>
+      <a href="{% url 'launch_hub' %}#destinations">View all destinations →</a>
+    </div>
+    <div class="launch-related__grid">
+      {% for item in related_guides %}
+      <a href="{% url 'launch_guide' item.slug %}" class="card"><span>{{ item.icon }}</span><div><small>{{ item.eyebrow }}</small><b>{{ item.title }}</b></div><i aria-hidden="true">↗</i></a>
+      {% empty %}
+      <a href="{% url 'launch_hub' %}#destinations" class="card"><span>⌁</span><div><small>Destination map</small><b>Compare all publishing paths</b></div><i aria-hidden="true">↗</i></a>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+{% endblock %}
+{% block scripts %}<script src="{% static 'gallery/js/launch_guides.js' %}" defer></script>{% endblock %}

@@ -2,6 +2,10 @@
 {% block title %}Publish — BlaqVibes{% endblock %}
 {% block content %}
 <div style="max-width:640px;margin:0 auto;padding:20px">
+  <div style="display:flex;gap:10px;align-items:flex-start;background:color-mix(in srgb,#7C3AED 9%,var(--card));border:1px solid color-mix(in srgb,#7C3AED 45%,var(--line));border-radius:12px;padding:12px 14px;margin-bottom:16px">
+    <span style="color:#C4F04D;font-weight:900">↗</span>
+    <div style="font-size:12px;line-height:1.55"><b>This publishes a BlaqVibes listing and safe preview—not a production host or app-store release.</b><div style="color:var(--muted);margin-top:3px">Need a real public URL or store listing? <a href="{% url 'launch_hub' %}" style="color:#C4B5FD;font-weight:700">Find the correct launch path →</a></div></div>
+  </div>
   <!-- Progress -->
   <div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:16px">
     <div style="display:flex;align-items:center;gap:8px" id="step-ind-1"><div class="step on" data-step="1">1</div><span style="font-size:12px;font-weight:700">Details</span></div>

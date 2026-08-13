@@ -1,0 +1,123 @@
+{% extends 'gallery/base.html' %}
+{% load static %}
+{% block title %}Where should I launch my app? — BlaqVibes{% endblock %}
+{% block meta_desc %}Choose the right host or store for a website, mobile app, game, desktop app, container, PWA, or browser extension, then follow source-backed publishing steps.{% endblock %}
+{% block content %}
+<main class="launch-shell">
+  <section class="launch-hero">
+    <div class="launch-hero__copy">
+      <span class="launch-kicker"><span aria-hidden="true">↗</span> From finished build to real users</span>
+      <h1>You built the vibe.<br><span>Now put it somewhere real.</span></h1>
+      <p>Choose what you are holding and get the correct artifact, dashboard steps, exact official commands, checks, and warnings for that destination.</p>
+      <div class="launch-hero__actions">
+        <a class="btnV launch-button" href="#route-finder">Find my route</a>
+        <a class="btnG launch-button" href="#destinations">Browse every destination</a>
+      </div>
+      <div class="launch-proof" aria-label="Guide promises">
+        <span>✓ No store credentials collected</span>
+        <span>✓ Official documentation linked</span>
+        <span>✓ No made-up build commands</span>
+      </div>
+    </div>
+    <aside class="launch-boundary" aria-label="What BlaqVibes does and does not do">
+      <div class="launch-boundary__signal"><span></span> Important boundary</div>
+      <h2>Preview is not hosting.</h2>
+      <p>BlaqVibes can show a sandboxed snippet or file preview. It does not keep your backend running, publish to a store, or become your production URL.</p>
+      <div class="launch-boundary__flow">
+        <div><strong>1</strong><span><b>Preview here</b><small>Check and share the vibe</small></span></div>
+        <i aria-hidden="true">→</i>
+        <div><strong>2</strong><span><b>Export a build</b><small>Use your real framework</small></span></div>
+        <i aria-hidden="true">→</i>
+        <div><strong>3</strong><span><b>Ship elsewhere</b><small>Host or submit it</small></span></div>
+      </div>
+    </aside>
+  </section>
+
+  <section class="launch-router card" id="route-finder" aria-labelledby="route-title">
+    <div class="launch-router__intro">
+      <span class="launch-section-number">01</span>
+      <div>
+        <p class="launch-overline">Start with the artifact</p>
+        <h2 id="route-title">What do you have right now?</h2>
+        <p>Do not choose by logo. Choose by the file or build your users actually need.</p>
+      </div>
+    </div>
+    <div class="launch-router__control">
+      <label for="launch-artifact">My finished output looks like…</label>
+      <select id="launch-artifact">
+        <option value="">Choose an artifact</option>
+        {% for route in artifact_routes %}
+        <option value="{{ route.value }}" data-guides="{{ route.guides|join:',' }}" data-note="{{ route.note }}">{{ route.label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div id="launch-recommendation" class="launch-recommendation" aria-live="polite">
+      <div class="launch-recommendation__empty">
+        <span aria-hidden="true">⌁</span>
+        <p>Select your output and the matching paths will appear here.</p>
+      </div>
+    </div>
+    <div id="launch-route-links" hidden>
+      {% for item in all_guides %}
+      <a href="{% url 'launch_guide' item.slug %}" data-guide-link="{{ item.slug }}" data-guide-title="{{ item.title }}" data-guide-eyebrow="{{ item.eyebrow }}">{{ item.title }}</a>
+      {% endfor %}
+    </div>
+    <noscript><p class="launch-noscript">JavaScript is off. Browse every destination below; each card states its required artifact.</p></noscript>
+  </section>
+
+  <section id="destinations" class="launch-destinations" aria-labelledby="destinations-title">
+    <div class="launch-section-head">
+      <div>
+        <p class="launch-overline">Destination map</p>
+        <h2 id="destinations-title">Pick where users should find it</h2>
+      </div>
+      <p>{{ guides|length }} path{{ guides|length|pluralize }} shown · Sources checked {{ last_reviewed }}</p>
+    </div>
+
+    <nav class="launch-filters" aria-label="Filter launch destinations">
+      {% for category in categories %}
+      <a href="{% url 'launch_hub' %}{% if category.slug != 'all' %}?category={{ category.slug }}{% endif %}#destinations" class="{% if category.slug == active_category %}is-active{% endif %}" {% if category.slug == active_category %}aria-current="page"{% endif %}>{{ category.label }}</a>
+      {% endfor %}
+    </nav>
+
+    <div class="launch-card-grid">
+      {% for item in guides %}
+      <article class="launch-card" data-guide-slug="{{ item.slug }}">
+        <div class="launch-card__top">
+          <span class="launch-card__icon" aria-hidden="true">{{ item.icon }}</span>
+          <span class="launch-card__category">{{ item.eyebrow }}</span>
+        </div>
+        <h3><a href="{% url 'launch_guide' item.slug %}">{{ item.title }}</a></h3>
+        <p>{{ item.summary }}</p>
+        <dl>
+          <div><dt>You need</dt><dd>{{ item.artifact }}</dd></div>
+          <div><dt>You get</dt><dd>{{ item.result }}</dd></div>
+        </dl>
+        <div class="launch-card__footer">
+          <span>{{ item.steps|length }} steps</span>
+          <a href="{% url 'launch_guide' item.slug %}" aria-label="Open {{ item.title }}">Open guide <span aria-hidden="true">↗</span></a>
+        </div>
+      </article>
+      {% empty %}
+      <div class="launch-empty card">
+        <h3>No path in that filter yet.</h3>
+        <a href="{% url 'launch_hub' %}#destinations">Show all destinations</a>
+      </div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="launch-principles">
+    <div>
+      <p class="launch-overline">Before any upload</p>
+      <h2>Three rules that prevent expensive mistakes</h2>
+    </div>
+    <ol>
+      <li><span>01</span><div><b>Never upload secrets</b><p>Store API keys and credentials in the destination’s secret settings, never in a ZIP, image, source bundle, or browser code.</p></div></li>
+      <li><span>02</span><div><b>Test the shipped artifact</b><p>A local editor run is not enough. Install or open the same build your users will receive through the host or store.</p></div></li>
+      <li><span>03</span><div><b>Read the live policy before paying</b><p>Fees, testing gates, supported countries, review rules, and platform requirements change. Every guide ends with primary sources.</p></div></li>
+    </ol>
+  </section>
+</main>
+{% endblock %}
+{% block scripts %}<script src="{% static 'gallery/js/launch_guides.js' %}" defer></script>{% endblock %}
