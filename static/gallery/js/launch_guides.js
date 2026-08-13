@@ -87,8 +87,8 @@
     if (!artifacts.length || !tiles.length) return;
 
     const emptyCopy = (count && count.dataset.emptyCopy) || "All routes shown";
-    const emptyHint = "Tap a tile on the left — the matching routes light up instantly.";
-    const matchHint = "Lit-up routes match what you are holding. Open one for the source-backed steps.";
+    const emptyHint = "Tap a card above — the matching destinations light up instantly.";
+    const matchHint = "Lit-up cards match what you are holding. Open one for the source-backed steps.";
     const zeroHint = "No matching route in this filter — tap “All destinations” above to see them.";
 
     function currentArtifact() {
