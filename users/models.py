@@ -65,7 +65,7 @@ class SiteSettings(models.Model):
     r2_enabled = models.BooleanField(default=True)
     search_enabled = models.BooleanField(default=True)
     pwa_enabled = models.BooleanField(default=True)
-    auto_run_enabled = models.BooleanField(default=False, help_text="If On, every full app auto-runs on upload to live URL; if Off, manual Run button only")
+    auto_run_enabled = models.BooleanField(default=False, help_text="If On, open the file preview after publish. This is not a Docker host.")
     def save(self, *args, **kwargs):
         self.pk = 1
         super().save(*args, **kwargs)

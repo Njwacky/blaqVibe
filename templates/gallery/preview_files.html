@@ -1,0 +1,37 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Preview files — {{ project.title }} — BlaqVibes{% endblock %}
+{% block content %}
+<div style="max-width:900px;margin:0 auto;padding:20px">
+  <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;gap:12px;align-items:center">
+    <div style="flex:1">
+      <div style="font-weight:800">Preview files — {{ project.title }}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px">File names and README only. This is not a running server and not Docker.</div>
+    </div>
+    <span style="font-size:11px;background:var(--input);border:1px solid var(--line);padding:4px 8px;border-radius:8px;font-weight:700">Files</span>
+  </div>
+
+  <div style="margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px">
+    <div style="font-weight:700">{{ project.file_count }} files</div>
+    <div style="margin-top:8px;font-family:JetBrains Mono,monospace;font-size:12px;line-height:1.7">
+      {% for f in files %}
+      <div>📄 {{ f.path }} <span style="color:var(--muted)">— {{ f.size }} bytes</span></div>
+      {% empty %}
+      <div style="color:var(--muted)">No file list stored. Download the ZIP after you unlock it.</div>
+      {% endfor %}
+    </div>
+    <div style="margin-top:12px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:10px">
+      <div style="font-size:11px;color:var(--muted);font-weight:700">README</div>
+      <div style="font-size:13px;color:var(--text);margin-top:4px">{{ project.readme_html|safe|truncatechars:800 }}</div>
+    </div>
+  </div>
+
+  <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+    <a href="{{ project.get_absolute_url }}" class="btnG">← Back to vibe</a>
+    {% if project.zip_file and can_download %}
+      <a href="{% url 'download_zip' project.slug %}" class="btnV">⬇ Download ZIP</a>
+    {% elif project.zip_file %}
+      <a href="{{ project.get_absolute_url }}#paywall" class="btnV">Unlock to download</a>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

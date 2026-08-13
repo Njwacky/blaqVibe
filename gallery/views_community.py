@@ -312,41 +312,18 @@ def vote_battle(request, battle_id):
         logging.getLogger(__name__).exception(f"vote crush: {e}")
         return redirect('battle')
 
-@login_required
-@require_POST
 def run_vibe(request, slug):
-    """Preview — sandboxed snippet or file list. Not a Docker host."""
-    try:
-        from .models import Deploy
-        from django.utils import timezone
-        from datetime import timedelta
-        import secrets
-        project = get_object_or_404(AppProject, slug=slug, status='published')
-        if not project.zip_file and not project.html_code:
-            messages.error(request, "Nothing to run — no ZIP or snippet")
-            return redirect(project.get_absolute_url())
-        # One active deploy per user per vibe
-        existing = Deploy.objects.filter(project=project, owner=request.user, status='running', expires_at__gt=timezone.now()).first()
-        if existing:
-            messages.info(request, f"Already running: {existing.live_url} — expires in {(existing.expires_at - timezone.now()).seconds//60} min")
-            return redirect(existing.live_url)
-        token = f"{project.slug}-{secrets.token_hex(3)}"
-        live_url = f"/deploy/{token}/"
-        # In prod: live_url = f"https://{token}.blaqvibes.run"
-        expires = timezone.now() + timedelta(hours=1)
-        deploy = Deploy.objects.create(project=project, owner=request.user, token=token, live_url=live_url, status='running', expires_at=expires)
-        # Mock Docker: for MVP, we don't actually docker run, we just serve ZIP via deploy_view
-        # Real: subprocess.run(['docker','run','-d','--name',token,'-p','0:8000', image])
-        messages.success(request, f"Preview ready at {live_url} for 1 hour. This is an in-app preview, not a Docker host.")
-        return redirect(live_url)
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).exception(f"run crush: {e}")
-        messages.error(request, "Run failed silently")
-        return redirect('app_detail', slug=slug)
+    """Send people to the honest preview. Not a Docker host."""
+    project = get_object_or_404(AppProject, slug=slug, status='published')
+    if project.html_code:
+        return redirect('preview', slug=slug)
+    if project.zip_file:
+        return redirect('preview_files', slug=slug)
+    messages.error(request, "Nothing to preview — no snippet or files.")
+    return redirect(project.get_absolute_url())
 
 def deploy_view(request, token):
-    """Live URL — serves the vibe's content. For ZIP, shows file list + README preview. For snippet, renders html_code. Backend only."""
+    """Old shareable preview links — file list or sandboxed snippet. Not a live host."""
     try:
         from .models import Deploy
         from django.utils import timezone
@@ -355,11 +332,10 @@ def deploy_view(request, token):
             deploy.status = 'expired'
             deploy.save(update_fields=['status'])
             return render(request, 'gallery/deploy_expired.html', {'deploy': deploy})
-        # For snippet, just render preview
-        if deploy.project.html_code:
-            return render(request, 'gallery/deploy_live.html', {'deploy': deploy, 'project': deploy.project})
-        # For ZIP, show file list + README
-        return render(request, 'gallery/deploy_live.html', {'deploy': deploy, 'project': deploy.project})
+        project = deploy.project
+        if project.html_code:
+            return redirect('preview', slug=project.slug)
+        return redirect('preview_files', slug=project.slug)
     except Exception as e:
         import logging
         logging.getLogger(__name__).exception(f"deploy view crush: {e}")

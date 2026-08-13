@@ -1,5 +1,6 @@
 from pathlib import Path
 import os
+import sys
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -54,6 +55,17 @@ if LOCAL_DEV or DEBUG:
 # Override via env (e.g. a custom domain) instead of hardcoding URLs in views/tasks.
 SITE_URL = os.getenv('SITE_URL', 'https://blaqvibes.co.za').rstrip('/')
 
+# Paystack — real card checkout only when a secret key is present.
+# Leave blank to run the stars path alone. We never fake a charge or a bank payout.
+PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY', '').strip()
+PAYSTACK_ENABLED = bool(PAYSTACK_SECRET_KEY)
+
+# Seed the demo catalog when the published grid is empty (local / CI).
+# Production stays empty until you run `python manage.py seed_demo` or set SEED_DEMO=1.
+# Tests stay empty unless a test calls seed_demo() itself.
+TESTING = any(arg == 'test' for arg in sys.argv) or os.getenv('DJANGO_TEST') == '1'
+SEED_DEMO = os.getenv('SEED_DEMO', '1' if (LOCAL_DEV and not TESTING) else '0') == '1'
+
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -68,7 +80,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.google',
     'allauth.socialaccount.providers.github',
     'allauth.socialaccount.providers.facebook',
-    'gallery',
+    'gallery.apps.GalleryConfig',
     'users',
 ]
 

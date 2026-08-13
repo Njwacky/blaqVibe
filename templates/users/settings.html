@@ -166,11 +166,11 @@
 
     <div style="display:flex;flex-direction:column;gap:4px">
       <div style="background:#1A0A1A;border:1px solid #7C3AED;border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
-        <div style="flex:1"><div style="font-weight:700;font-size:13px">▶ Auto-run on upload</div></div>
+        <div style="flex:1"><div style="font-weight:700;font-size:13px">Open file preview after publish</div></div>
         <label class="switch"><input type="checkbox" data-key="auto_run_enabled" {% if site.auto_run_enabled %}checked{% endif %}><span class="slider"></span></label>
       </div>
       <div style="background:#0A0A0F;border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
-        <div style="font-size:11px;color:var(--muted)">If On, every full app auto-runs to live URL on upload (for 1h). If Off, manual ▶ Run button only. Toggle in Global → auto or manual.</div>
+        <div style="font-size:11px;color:var(--muted)">If On, we remind you that file preview is on the vibe page. This does not start Docker or a live URL.</div>
       </div>
     </div>
 

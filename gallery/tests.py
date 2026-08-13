@@ -311,3 +311,111 @@ class RemainingHoleTests(TestCase):
         self.project.refresh_from_db()
         self.assertEqual(pr.status, 'merged')
         self.assertTrue(self.project.files.filter(path='new.py').exists())
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False)
+class StarsEconomyTests(TestCase):
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('owner', stars_balance=5)
+        self.buyer = make_user('buyer', stars_balance=10)
+        self.project = make_project(self.owner, self.cat, star_cost=3, price_zar=0)
+        self.project.zip_file.save('paid.zip', make_zip_file({'app.py': 'print(1)\\n'}), save=True)
+
+    def test_trade_moves_stars_and_unlocks(self):
+        self.client.login(username='buyer', password='pass12345')
+        response = self.client.post(f'/app/{self.project.slug}/trade/')
+        self.assertEqual(response.status_code, 302)
+        self.buyer.profile.refresh_from_db()
+        self.owner.profile.refresh_from_db()
+        self.assertEqual(self.buyer.profile.stars_balance, 7)
+        self.assertEqual(self.owner.profile.stars_balance, 8)
+        self.assertTrue(Trade.objects.filter(buyer=self.buyer, project=self.project, cost=3).exists())
+        download = self.client.get(f'/app/{self.project.slug}/download/')
+        self.assertEqual(download.status_code, 200)
+        self.assertEqual(download['Content-Type'], 'application/zip')
+
+    def test_trade_insufficient_stars_does_not_create_trade(self):
+        self.buyer.profile.stars_balance = 1
+        self.buyer.profile.save(update_fields=['stars_balance'])
+        self.client.login(username='buyer', password='pass12345')
+        response = self.client.post(f'/app/{self.project.slug}/trade/')
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Trade.objects.filter(buyer=self.buyer, project=self.project).exists())
+        self.buyer.profile.refresh_from_db()
+        self.owner.profile.refresh_from_db()
+        self.assertEqual(self.buyer.profile.stars_balance, 1)
+        self.assertEqual(self.owner.profile.stars_balance, 5)
+
+    def test_second_trade_is_free_replay(self):
+        Trade.objects.create(buyer=self.buyer, seller=self.owner, project=self.project, cost=3)
+        self.client.login(username='buyer', password='pass12345')
+        response = self.client.post(f'/app/{self.project.slug}/trade/')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Trade.objects.filter(buyer=self.buyer, project=self.project).count(), 1)
+        self.buyer.profile.refresh_from_db()
+        self.assertEqual(self.buyer.profile.stars_balance, 10)
+
+    def test_star_awards_owner_one_star(self):
+        self.client.login(username='buyer', password='pass12345')
+        self.client.post(f'/app/{self.project.slug}/star/')
+        self.owner.profile.refresh_from_db()
+        self.assertEqual(self.owner.profile.stars_balance, 6)
+        self.client.post(f'/app/{self.project.slug}/star/')
+        self.owner.profile.refresh_from_db()
+        self.assertEqual(self.owner.profile.stars_balance, 5)
+
+
+@override_settings(RATELIMIT_ENABLE=False, SEED_DEMO=False)
+class PreviewHonestyTests(TestCase):
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('owner')
+        self.zip_project = make_project(self.owner, self.cat, title='Zip App', star_cost=0)
+        self.zip_project.zip_file.save('app.zip', make_zip_file({'app.py': 'print(1)\\n'}), save=True)
+        from gallery.models import AppFile
+        AppFile.objects.create(project=self.zip_project, path='app.py', size=10)
+        self.snippet = make_project(
+            self.owner, self.cat, title='Hero Snippet', html_code='<h1>Hello</h1>', star_cost=0,
+        )
+
+    def test_preview_files_page_is_honest(self):
+        response = self.client.get(f'/app/{self.zip_project.slug}/files/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Preview files')
+        self.assertContains(response, 'app.py')
+        self.assertNotContains(response, 'blaqvibes.run')
+        self.assertNotContains(response, 'spin a new container')
+        self.assertContains(response, 'not Docker')
+
+    def test_run_redirects_zip_to_file_preview(self):
+        response = self.client.get(f'/app/{self.zip_project.slug}/run/')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/files/', response.url)
+
+    def test_run_redirects_snippet_to_preview(self):
+        response = self.client.get(f'/app/{self.snippet.slug}/run/')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/preview/', response.url)
+
+    def test_detail_uses_preview_files_label(self):
+        response = self.client.get(f'/app/{self.zip_project.slug}/')
+        self.assertContains(response, 'Preview files')
+        self.assertNotContains(response, 'Preview 1h')
+        self.assertNotContains(response, 'Buy R')
+
+
+@override_settings(RATELIMIT_ENABLE=False, SEED_DEMO=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class SeedDemoTests(TestCase):
+    def test_seed_fills_the_feed(self):
+        from django.core.management import call_command
+        from gallery.models import AppProject
+        self.assertEqual(AppProject.objects.filter(status='published').count(), 0)
+        call_command('seed_demo')
+        published = AppProject.objects.filter(status='published').count()
+        self.assertGreaterEqual(published, 6)
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'SaaS Launch Hero')
+        self.assertContains(response, 'Stock Tracker Starter')
+        self.assertNotContains(response, 'Publish your first vibe')

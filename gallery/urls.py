@@ -21,6 +21,7 @@ urlpatterns = [
     path('app/<slug:slug>/report/', views.report_vibe, name='report_vibe'),
     path('app/<slug:slug>/scan-status/', views.scan_status, name='scan_status'),
     path('app/<slug:slug>/preview/', views.preview, name='preview'),
+    path('app/<slug:slug>/files/', views.preview_files, name='preview_files'),
     path('app/<slug:slug>/snippet/', views.snippet_doc, name='snippet_doc'),
     path('app/<slug:slug>/download/', views.download_zip, name='download_zip'),
     path('git/<str:username>/<str:slug>.git/<path:rest>', views.git_clone, name='git_clone_catchall'),

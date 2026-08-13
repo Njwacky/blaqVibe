@@ -32,7 +32,7 @@
         <iframe src="{% url 'preview' project.slug %}" sandbox="allow-scripts allow-forms" referrerpolicy="no-referrer" style="width:100%;height:380px;border:none;background:#fff" title="{{ project.title }} preview"></iframe>
       {% else %}
         <div style="height:320px;background:#fff;display:grid;place-items:center;color:#111;padding:20px">
-          <div style="text-align:center"><div style="font-weight:700">{{ project.title }}</div><div style="font-size:12px;color:#64748B;margin:6px 0">{{ project.tech_stack }} • {{ project.file_count }} files</div><div style="font-size:11px;color:var(--muted)">Full app — preview screenshots in README. Download ZIP to run locally.</div></div>
+          <div style="text-align:center"><div style="font-weight:700">{{ project.title }}</div><div style="font-size:12px;color:#64748B;margin:6px 0">{{ project.tech_stack }} • {{ project.file_count }} files</div><div style="font-size:11px;color:var(--muted)">Full app — preview files and README here. Download the ZIP to run it on your machine. Not a live server.</div></div>
         </div>
       {% endif %}
       <div style="margin:12px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px">
@@ -69,7 +69,11 @@
           {% if user.is_authenticated %}
           <form method="post" action="{% url 'toggle_bookmark' project.slug %}" class="js-save-form" style="display:inline">{% csrf_token %}<button class="btn-ghost">{% if is_bookmarked %}♥ Saved{% else %}♡ Save{% endif %}</button></form>
           {% endif %}
-          <form method="post" action="{% url 'run_vibe' project.slug %}" style="display:inline;flex:1">{% csrf_token %}<button class="btn-ghost" style="width:100%;background:#10B981;color:#fff">▶ Preview 1h</button></form>
+          {% if project.html_code %}
+          <a href="{% url 'preview' project.slug %}" class="btn-ghost" style="flex:1;justify-content:center;text-align:center;background:#10B981;color:#fff">Preview files</a>
+          {% elif project.zip_file %}
+          <a href="{% url 'preview_files' project.slug %}" class="btn-ghost" style="flex:1;justify-content:center;text-align:center;background:#10B981;color:#fff">Preview files</a>
+          {% endif %}
         </div>
 
         {% if project.zip_file and not can_download %}
@@ -82,7 +86,7 @@
           <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
             {% if user.is_authenticated %}
               {% if project.star_cost and not has_traded %}<form method="post" action="{% url 'trade_download' project.slug %}">{% csrf_token %}<button class="btn-violet" style="padding:8px 12px;font-size:12px">Trade {{ project.star_cost }} ★</button></form>{% endif %}
-              {% if project.price_zar and not has_bought %}<form method="post" action="{% url 'buy_vibe' project.slug %}">{% csrf_token %}<button class="btnV" style="padding:8px 12px;font-size:12px">💳 Buy R{{ project.price_zar }}</button></form>{% endif %}
+              {% if paystack_enabled and project.price_zar and not has_bought %}<form method="post" action="{% url 'buy_vibe' project.slug %}">{% csrf_token %}<button class="btnV" style="padding:8px 12px;font-size:12px">💳 Buy R{{ project.price_zar }}</button></form>{% endif %}
             {% else %}
               <a href="{% url 'login' %}?next={{ request.path }}" class="btn-violet" style="padding:8px 12px;font-size:12px">Sign in to unlock</a>
             {% endif %}
@@ -92,12 +96,16 @@
         {% if user_rank %}<div style="font-size:11px;color:var(--muted);margin-top:6px">Your rank: <b style="color:#F59E0B">{{ user_rank.name }}</b> ({{ user_rank.discount }}% Pro discount) • Earn stars when others star/trade your vibes → appears 1st when exploring</div>{% endif %}
         {% if project.price_zar and project.price_zar > 0 %}
         <div style="margin-top:8px;background:#0A1A0F;border:1px solid #F59E0B;border-radius:10px;padding:10px">
-          <div style="font-size:11px;color:#F59E0B;font-weight:700">💰 Money — R{{ project.price_zar }} via Paystack</div>
-          {% if user.is_authenticated and user != project.owner and not has_bought %}
-            <form method="post" action="{% url 'buy_vibe' project.slug %}" style="margin-top:6px">{% csrf_token %}<button class="btnV" style="width:100%">💳 Buy for R{{ project.price_zar }} — seller gets 85%</button></form>
-            <div style="font-size:11px;color:var(--muted);margin-top:4px">Paystack checkout. You only get the ZIP after a verified payment.</div>
-          {% elif has_bought %}<div style="font-size:11px;color:#10B981;margin-top:4px">✓ You bought this — <a href="{% url 'download_zip' project.slug %}" style="color:#10B981">Download ZIP</a></div>
-          {% elif user == project.owner %}<div style="font-size:11px;color:var(--muted);margin-top:4px">Your vibe — buyers pay R{{ project.price_zar }}, you get 85%.</div>
+          <div style="font-size:11px;color:#F59E0B;font-weight:700">ZAR price — R{{ project.price_zar }}</div>
+          {% if paystack_enabled %}
+            {% if user.is_authenticated and user != project.owner and not has_bought %}
+              <form method="post" action="{% url 'buy_vibe' project.slug %}" style="margin-top:6px">{% csrf_token %}<button class="btnV" style="width:100%">💳 Pay R{{ project.price_zar }} with Paystack</button></form>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px">Real Paystack checkout. The ZIP unlocks only after a verified charge.</div>
+            {% elif has_bought %}<div style="font-size:11px;color:#10B981;margin-top:4px">✓ You bought this — <a href="{% url 'download_zip' project.slug %}" style="color:#10B981">Download ZIP</a></div>
+            {% elif user == project.owner %}<div style="font-size:11px;color:var(--muted);margin-top:4px">Listed at R{{ project.price_zar }}. Bank payouts to you are not wired yet.</div>
+            {% endif %}
+          {% else %}
+            <div style="font-size:11px;color:var(--muted);margin-top:4px">Card checkout is off (no PAYSTACK_SECRET_KEY). {% if project.star_cost %}Trade {{ project.star_cost }} ★ to unlock.{% else %}Ask the creator or use stars.{% endif %}</div>
           {% endif %}
         </div>
         {% endif %}

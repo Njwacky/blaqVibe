@@ -1,0 +1,24 @@
+# Copy to .github/workflows/ci.yml (needs the GitHub workflows permission).
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      DJANGO_LOCAL_DEV: '1'
+      DJANGO_TEST: '1'
+      SEED_DEMO: '0'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install
+        run: pip install -r requirements.txt
+      - name: CI
+        run: bash scripts/ci.sh

@@ -14,16 +14,14 @@ def get_rank(total_stars):
     return {'threshold': rank[0], 'name': rank[1], 'discount': rank[2], 'bonus': rank[3]}
 
 def contributor_bonus(user):
-    # Total stars earned from vibes (owner's vibes stars sum + trades earned)
-    # For now: sum of vibes stars + stars field on profile (if we store)
+    from django.db.models import Sum
     try:
-        total = sum(p.stars for p in user.projects.all())
+        total = user.projects.aggregate(s=Sum('stars'))['s'] or 0
     except Exception:
         total = 0
-    # Also add Trade earnings if exists
     try:
-        from .models import Trade
-        earned = Trade.objects.filter(seller=user).count() * 2  # 2 per trade
-        total += earned
-    except Exception: pass
+        from .economy import stars_earned
+        total += stars_earned(user)
+    except Exception:
+        pass
     return get_rank(total)
