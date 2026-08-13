@@ -4,94 +4,94 @@
 {% block meta_desc %}Tap what you built — website, app, game, or extension — and see every real place it can go, with source-backed publishing steps.{% endblock %}
 {% block content %}
 <main class="launch-shell" data-launch-deck>
-  <header class="launch-hero-v2">
-    <div class="launch-hero-v2__copy">
+  <header class="launch-hero card">
+    <div class="launch-hero__copy">
       <span class="launch-kicker"><span aria-hidden="true">↗</span> From finished build to real users</span>
       <h1>You built the vibe.<br><span>Now ship it.</span></h1>
-      <div class="launch-hero-v2__flow" aria-label="Preview is not hosting">
-        <span><b>1</b> Preview here</span><i aria-hidden="true">→</i>
-        <span><b>2</b> Export a build</span><i aria-hidden="true">→</i>
-        <span><b>3</b> Ship elsewhere</span>
-      </div>
+      <p>Pick the card below that matches what you're holding — every destination links to a real, source-backed publishing path.</p>
     </div>
+    <ol class="launch-hero__flow" aria-label="Preview is not hosting">
+      <li><b>1</b> Preview here</li>
+      <li><b>2</b> Export a build</li>
+      <li><b>3</b> Ship elsewhere</li>
+    </ol>
   </header>
 
-  <section class="launch-deck" id="deck" aria-label="Launch route finder">
-    <div class="launch-picker" aria-labelledby="launch-picker-title">
-      <div class="launch-deck__head">
-        <span class="launch-step-tag">Step 01</span>
-        <div>
-          <h2 id="launch-picker-title">What are you holding?</h2>
-          <p>Tap the build you have. Matching routes light up on the right.</p>
-        </div>
+  <section class="launch-card launch-picker" id="deck" aria-labelledby="launch-picker-title">
+    <div class="launch-card__head">
+      <span class="launch-step-tag">Step 01</span>
+      <div>
+        <h2 id="launch-picker-title">What are you holding?</h2>
+        <p>Tap the card that matches your build — matching destinations light up below.</p>
       </div>
-      <div class="launch-picker__grid" role="group" aria-label="Choose your build artifact">
-        {% for route in artifact_routes %}
-        <a class="launch-artifact{% if route.value == active_artifact %} is-active{% endif %}"
-           href="{% url 'launch_hub' %}?artifact={{ route.value }}{% if active_category != 'all' %}&amp;category={{ active_category }}{% endif %}#deck"
-           data-artifact="{{ route.value }}"
-           data-guides="{{ route.guides|join:',' }}"
-           {% if route.value == active_artifact %}aria-pressed="true"{% else %}aria-pressed="false"{% endif %}>
-          <span class="launch-artifact__icon" aria-hidden="true">{{ route.icon }}</span>
-          <span class="launch-artifact__copy"><b>{{ route.name }}</b><small>{{ route.note }}</small></span>
-          <span class="launch-artifact__check" aria-hidden="true">✓</span>
+    </div>
+    <div class="launch-artifacts" role="group" aria-label="Choose your build artifact">
+      {% for route in artifact_routes %}
+      <a class="launch-artifact{% if route.value == active_artifact %} is-active{% endif %}"
+         href="{% url 'launch_hub' %}?artifact={{ route.value }}{% if active_category != 'all' %}&amp;category={{ active_category }}{% endif %}#deck"
+         data-artifact="{{ route.value }}"
+         data-guides="{{ route.guides|join:',' }}"
+         {% if route.value == active_artifact %}aria-pressed="true"{% else %}aria-pressed="false"{% endif %}>
+        <span class="launch-artifact__icon" aria-hidden="true">{{ route.icon }}</span>
+        <span class="launch-artifact__copy"><b>{{ route.name }}</b><small>{{ route.note }}</small></span>
+        <span class="launch-artifact__count">{{ route.guides|length }} route{{ route.guides|length|pluralize }}</span>
+        <span class="launch-artifact__check" aria-hidden="true">✓</span>
+      </a>
+      {% endfor %}
+    </div>
+    <a class="launch-picker__clear" href="{% url 'launch_hub' %}{% if active_category != 'all' %}?category={{ active_category }}{% endif %}#deck" data-artifact-clear{% if not active_artifact %} hidden{% endif %}>✕ Clear selection</a>
+    <noscript><p class="launch-noscript">JavaScript is off — picking a card reloads the page instead of filtering live. Everything still works.</p></noscript>
+  </section>
+
+  <section class="launch-card launch-board" aria-labelledby="launch-board-title">
+    <div class="launch-card__head">
+      <span class="launch-step-tag">Step 02</span>
+      <div>
+        <h2 id="launch-board-title">Where can it go?</h2>
+        <p id="launch-match-count" data-empty-copy="All {{ guides|length }} routes shown">
+          {% if active_artifact %}{{ match_count }} of {{ guides|length }} routes match{% else %}All {{ guides|length }} routes shown{% endif %}
+        </p>
+      </div>
+    </div>
+
+    <nav class="launch-filters" aria-label="Filter launch destinations">
+      {% for category in categories %}
+      <a href="{% url 'launch_hub' %}{% if category.slug != 'all' %}?category={{ category.slug }}{% if active_artifact %}&amp;artifact={{ active_artifact }}{% endif %}{% elif active_artifact %}?artifact={{ active_artifact }}{% endif %}#deck"
+         class="{% if category.slug == active_category %}is-active{% endif %}"
+         {% if category.slug == active_category %}aria-current="page"{% endif %}>{{ category.label }}</a>
+      {% endfor %}
+    </nav>
+
+    <div class="launch-routes">
+      {% for item in guides %}
+      <article class="launch-route{% if active_artifact and item.slug in matching_slugs %} is-match{% elif active_artifact %} is-dimmed{% endif %}" data-guide-slug="{{ item.slug }}">
+        <a href="{% url 'launch_guide' item.slug %}" title="{{ item.title }}">
+          <span class="launch-route__icon" aria-hidden="true">{{ item.emoji }}</span>
+          <span class="launch-route__badge" aria-hidden="true">✓</span>
+          <span class="launch-route__copy">
+            <b>{{ item.name }}</b>
+            <small>{{ item.summary }}</small>
+          </span>
+          <span class="launch-route__meta">
+            <em>⚡ {{ item.pace }}</em>
+            <em>{{ item.steps|length }} steps</em>
+            <span class="launch-route__arrow" aria-hidden="true">↗</span>
+          </span>
         </a>
-        {% endfor %}
+      </article>
+      {% empty %}
+      <div class="launch-empty card">
+        <h3>No path in that filter yet.</h3>
+        <a href="{% url 'launch_hub' %}#deck">Show all destinations</a>
       </div>
-      <a class="launch-picker__clear" href="{% url 'launch_hub' %}{% if active_category != 'all' %}?category={{ active_category }}{% endif %}#deck" data-artifact-clear{% if not active_artifact %} hidden{% endif %}>✕ Clear selection</a>
-      <noscript><p class="launch-noscript">JavaScript is off — picking a tile reloads the page instead of filtering live. Everything still works.</p></noscript>
+      {% endfor %}
     </div>
 
-    <div class="launch-board" aria-labelledby="launch-board-title">
-      <div class="launch-deck__head">
-        <span class="launch-step-tag">Step 02</span>
-        <div>
-          <h2 id="launch-board-title">Where can it go?</h2>
-          <p id="launch-match-count" data-empty-copy="All {{ guides|length }} routes shown">
-            {% if active_artifact %}{{ match_count }} of {{ guides|length }} routes match{% else %}All {{ guides|length }} routes shown{% endif %}
-          </p>
-        </div>
-      </div>
-
-      <nav class="launch-filters" aria-label="Filter launch destinations">
-        {% for category in categories %}
-        <a href="{% url 'launch_hub' %}{% if category.slug != 'all' %}?category={{ category.slug }}{% if active_artifact %}&amp;artifact={{ active_artifact }}{% endif %}{% elif active_artifact %}?artifact={{ active_artifact }}{% endif %}#deck"
-           class="{% if category.slug == active_category %}is-active{% endif %}"
-           {% if category.slug == active_category %}aria-current="page"{% endif %}>{{ category.label }}</a>
-        {% endfor %}
-      </nav>
-
-      <div class="launch-board__grid">
-        {% for item in guides %}
-        <article class="launch-route{% if active_artifact and item.slug in matching_slugs %} is-match{% elif active_artifact %} is-dimmed{% endif %}" data-guide-slug="{{ item.slug }}">
-          <a href="{% url 'launch_guide' item.slug %}" title="{{ item.title }}">
-            <span class="launch-route__icon" aria-hidden="true">{{ item.emoji }}</span>
-            <span class="launch-route__badge" aria-hidden="true">✓</span>
-            <span class="launch-route__copy">
-              <b>{{ item.name }}</b>
-              <small>{{ item.summary }}</small>
-            </span>
-            <span class="launch-route__meta">
-              <em>⚡ {{ item.pace }}</em>
-              <em>{{ item.steps|length }} steps</em>
-              <span class="launch-route__arrow" aria-hidden="true">↗</span>
-            </span>
-          </a>
-        </article>
-        {% empty %}
-        <div class="launch-empty card">
-          <h3>No path in that filter yet.</h3>
-          <a href="{% url 'launch_hub' %}#deck">Show all destinations</a>
-        </div>
-        {% endfor %}
-      </div>
-
-      <p class="launch-board__hint" id="launch-board-hint">
-        {% if active_artifact %}
-          {% if match_count %}<span aria-hidden="true">✓</span> Lit-up routes match what you're holding. Open one for the source-backed steps.{% else %}<span aria-hidden="true">⚠</span> No matching route in this filter — tap “All destinations” above to see them.{% endif %}
-        {% else %}<span aria-hidden="true">👆</span> Tap a tile on the left — the matching routes light up instantly.{% endif %}
-      </p>
-    </div>
+    <p class="launch-board__hint" id="launch-board-hint">
+      {% if active_artifact %}
+        {% if match_count %}<span aria-hidden="true">✓</span> Lit-up cards match what you're holding. Open one for the source-backed steps.{% else %}<span aria-hidden="true">⚠</span> No matching route in this filter — tap “All destinations” above to see them.{% endif %}
+      {% else %}<span aria-hidden="true">👆</span> Tap a card above — the matching destinations light up instantly.{% endif %}
+    </p>
   </section>
 
   <section class="launch-boundary-strip" aria-label="Important boundary">
