@@ -12,7 +12,7 @@
 <meta property="og:title" content="{% block og_title %}BlaqVibes{% endblock %}">
 <meta property="og:description" content="{% block og_desc %}Publish the Vibes. Clone the Culture.{% endblock %}">
 <meta property="og:image" content="{% block og_image %}{% if request.is_secure %}https{% else %}http{% endif %}://{{ request.get_host }}/static/branding/blaqvibes-icon.png{% endblock %}">
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&amp;family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/static/gallery/css/blaqvibes.css">
 <script>try{var t=localStorage.getItem('blaq-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
 <script src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js" defer></script>
@@ -29,6 +29,7 @@
   </div>
   <div class="nav-links" id="nav-links">
     <a href="{% url 'feed' %}">Vibes</a>
+    <a href="{% url 'launch_hub' %}" style="color:#C4F04D;font-weight:700">↗ Launch</a>
     <a href="{% url 'battle' %}" style="color:#F59E0B;font-weight:700">⚔️ Battle</a>
     <a href="{% url 'challenge_list' %}" style="color:#F59E0B;font-weight:700">🏆 Challenges</a>
     <a href="{% url 'nolo_chat' %}">💬 Chat</a>
