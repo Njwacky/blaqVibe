@@ -16,6 +16,21 @@ from .launch_guides import (
 
 def launch_hub(request):
     guides, active_category = guides_for_category(request.GET.get("category", "all"))
+
+    active_artifact = request.GET.get("artifact", "")
+    matching_slugs = ()
+    match_count = 0
+    if active_artifact:
+        for route in ARTIFACT_ROUTES:
+            if route["value"] == active_artifact:
+                matching_slugs = route["guides"]
+                break
+        else:
+            # Unknown input safely falls back to no selection.
+            active_artifact = ""
+        if active_artifact:
+            match_count = sum(1 for guide in guides if guide["slug"] in matching_slugs)
+
     return render(
         request,
         "gallery/launch_hub.html",
@@ -25,6 +40,9 @@ def launch_hub(request):
             "categories": CATEGORIES,
             "active_category": active_category,
             "artifact_routes": ARTIFACT_ROUTES,
+            "active_artifact": active_artifact,
+            "matching_slugs": matching_slugs,
+            "match_count": match_count,
             "last_reviewed": LAST_REVIEWED,
         },
     )
