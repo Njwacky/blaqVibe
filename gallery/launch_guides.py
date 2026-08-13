@@ -684,11 +684,11 @@ LAUNCH_GUIDES = (
             },
             {
                 "title": "Upload in the Developer Dashboard",
-                "body": "In the Chrome Developer Dashboard choose New Item and upload the ZIP. Fix package validation errors before writing the final listing; do not work around them by hiding required code or behavior.",
+                "body": "In the Chrome Developer Dashboard choose Add new item and upload the ZIP. Fix package validation errors before writing the final listing; do not work around them by hiding required code or behavior.",
             },
             {
                 "title": "Complete listing, privacy, and distribution",
-                "body": "Fill the Store listing, Privacy practices, Distribution, and Test instructions tabs. Explain the extension’s single purpose, justify permissions and remote-data use, choose countries and visibility, provide review credentials or setup steps, and certify disclosures truthfully.",
+                "body": "Fill the Store Listing, Privacy, Distribution, and Test instructions tabs. Explain the extension’s single purpose, justify permissions and remote-data use, choose countries and visibility, provide review credentials or setup steps, and certify disclosures truthfully.",
             },
             {
                 "title": "Submit and choose publishing behavior",
