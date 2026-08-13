@@ -1,0 +1,9 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Social login failed{% endblock %}
+{% block content %}
+<div class="auth-wrap card" style="padding:24px">
+  <h2>Social login failed</h2>
+  <p class="help">The provider rejected the login. Check the callback URL and client secret, then try again.</p>
+  <p><a href="{% url 'login' %}" class="btn-violet">Back to sign in</a></p>
+</div>
+{% endblock %}

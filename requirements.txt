@@ -17,3 +17,6 @@ sentry-sdk==2.8.0
 requests==2.32.3
 psycopg[binary]==3.2.3
 pip-audit==2.7.3
+django-allauth==0.63.6
+PyJWT==2.9.0
+cryptography==43.0.1

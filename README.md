@@ -33,5 +33,6 @@ CI runs the same suite on every push and pull request (`.github/workflows/ci.yml
 - PR merge copies the fork ZIP + file list onto the target and re-queues a scan.
 - Preview is an in-app page, not Docker.
 - Inbox, saved vibes, email confirm, sitemap, and `/api/v1/apps/` exist.
+- Google / GitHub / Facebook login: set client IDs in `.env` (see `docs/specs/SOCIAL_AUTH.md`).
 
 Demos and old specs live in `docs/demos/` and `docs/specs/`.

@@ -1,0 +1,12 @@
+{% if social_providers %}
+<div class="social-auth">
+  <div class="social-auth-divider"><span>or continue with</span></div>
+  {% for p in social_providers %}
+  <form method="post" action="/accounts/social/{{ p.id }}/login/?process=login">
+    {% csrf_token %}
+    {% if request.GET.next %}<input type="hidden" name="next" value="{{ request.GET.next }}">{% endif %}
+    <button type="submit" class="btn-social btn-social-{{ p.id }}">{{ p.label }}</button>
+  </form>
+  {% endfor %}
+</div>
+{% endif %}

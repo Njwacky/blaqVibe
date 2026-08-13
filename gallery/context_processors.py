@@ -5,4 +5,10 @@ def extras(request):
             unread = request.user.notifications.filter(is_read=False).count()
         except Exception:
             unread = 0
-    return {'unread_notifications': unread}
+    social_providers = []
+    try:
+        from users.social import configured_social_providers
+        social_providers = configured_social_providers()
+    except Exception:
+        social_providers = []
+    return {'unread_notifications': unread, 'social_providers': social_providers}
