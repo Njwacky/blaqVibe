@@ -78,71 +78,106 @@
     });
   }
 
-  function initArtifactRouter() {
-    const select = document.getElementById("launch-artifact");
-    const result = document.getElementById("launch-recommendation");
-    const linkElements = document.querySelectorAll("#launch-route-links [data-guide-link]");
-    if (!select || !result || !linkElements.length) return;
+  function initArtifactDeck() {
+    const artifacts = Array.from(document.querySelectorAll(".launch-artifact[data-artifact]"));
+    const tiles = Array.from(document.querySelectorAll(".launch-route[data-guide-slug]"));
+    const count = document.getElementById("launch-match-count");
+    const hint = document.getElementById("launch-board-hint");
+    const clear = document.querySelector("[data-artifact-clear]");
+    if (!artifacts.length || !tiles.length) return;
 
-    const guidesBySlug = new Map(
-      Array.from(linkElements).map((link) => [
-        link.dataset.guideLink,
-        {
-          url: link.getAttribute("href"),
-          title: link.dataset.guideTitle,
-          eyebrow: link.dataset.guideEyebrow,
-        },
-      ]),
-    );
+    const emptyCopy = (count && count.dataset.emptyCopy) || "All routes shown";
+    const emptyHint = "Tap a tile on the left — the matching routes light up instantly.";
+    const matchHint = "Lit-up routes match what you are holding. Open one for the source-backed steps.";
+    const zeroHint = "No matching route in this filter — tap “All destinations” above to see them.";
 
-    select.addEventListener("change", () => {
-      const selectedOption = select.selectedOptions[0];
-      const slugs = (selectedOption?.dataset.guides || "")
-        .split(",")
-        .map((slug) => slug.trim())
-        .filter(Boolean);
-      const guides = slugs.map((slug) => guidesBySlug.get(slug)).filter(Boolean);
+    function currentArtifact() {
+      return artifacts.find((el) => el.classList.contains("is-active"));
+    }
 
-      if (!guides.length) {
-        const empty = document.createElement("div");
-        empty.className = "launch-recommendation__empty";
-        const icon = document.createElement("span");
-        icon.setAttribute("aria-hidden", "true");
-        icon.textContent = "⌁";
-        const message = document.createElement("p");
-        message.textContent = "Select an artifact to see the safest next route.";
-        empty.append(icon, message);
-        result.replaceChildren(empty);
-        return;
-      }
-
-      const wrap = document.createElement("div");
-      wrap.className = "launch-recommendation__result";
-      const label = document.createElement("p");
-      label.textContent = "Recommended path";
-      const links = document.createElement("div");
-      links.className = "launch-recommendation__links";
-
-      guides.forEach((guide) => {
-        const anchor = document.createElement("a");
-        anchor.href = guide.url;
-
-        const icon = document.createElement("span");
-        icon.setAttribute("aria-hidden", "true");
-        icon.textContent = "→";
-        const copy = document.createElement("div");
-        const eyebrow = document.createElement("small");
-        eyebrow.textContent = guide.eyebrow;
-        const title = document.createElement("b");
-        title.textContent = guide.title;
-        copy.append(eyebrow, title);
-        anchor.append(icon, copy);
-        links.appendChild(anchor);
+    function apply(artifactValue) {
+      const active = artifacts.find((el) => el.dataset.artifact === artifactValue) || null;
+      artifacts.forEach((el) => {
+        const on = el === active;
+        el.classList.toggle("is-active", on);
+        el.setAttribute("aria-pressed", String(on));
       });
 
-      wrap.append(label, links);
-      result.replaceChildren(wrap);
+      let matchCount = 0;
+      if (active) {
+        const slugs = (active.dataset.guides || "")
+          .split(",")
+          .map((slug) => slug.trim())
+          .filter(Boolean);
+        tiles.forEach((tile) => {
+          const on = slugs.includes(tile.dataset.guideSlug);
+          tile.classList.toggle("is-match", on);
+          tile.classList.toggle("is-dimmed", !on);
+          if (on) matchCount += 1;
+        });
+      } else {
+        tiles.forEach((tile) => tile.classList.remove("is-match", "is-dimmed"));
+      }
+
+      if (count) {
+        count.textContent = active ? `${matchCount} of ${tiles.length} routes match` : emptyCopy;
+      }
+      if (hint) {
+        const icon = document.createElement("span");
+        icon.setAttribute("aria-hidden", "true");
+        icon.textContent = active ? (matchCount ? "✓" : "⚠") : "👆";
+        const copy = active ? (matchCount ? matchHint : zeroHint) : emptyHint;
+        hint.replaceChildren(icon, document.createTextNode(` ${copy}`));
+      }
+      if (clear) clear.hidden = !active;
+    }
+
+    function updateUrl(artifactValue) {
+      const params = new URLSearchParams(window.location.search);
+      if (artifactValue) {
+        params.set("artifact", artifactValue);
+      } else {
+        params.delete("artifact");
+      }
+      const category = params.get("category");
+      if (category && category !== "all") {
+        params.set("category", category);
+      } else {
+        params.delete("category");
+      }
+      const query = params.toString();
+      const url = `${window.location.pathname}${query ? `?${query}` : ""}#deck`;
+      try {
+        window.history.replaceState(null, "", url);
+      } catch (error) {
+        // History updates are cosmetic; the deck still works without them.
+      }
+    }
+
+    artifacts.forEach((artifact) => {
+      artifact.addEventListener("click", (event) => {
+        event.preventDefault();
+        const next = artifact.classList.contains("is-active") ? "" : artifact.dataset.artifact;
+        apply(next);
+        updateUrl(next);
+        if (next && window.innerWidth < 800) {
+          const board = document.querySelector(".launch-board");
+          if (board) board.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
+      });
     });
+
+    if (clear) {
+      clear.addEventListener("click", (event) => {
+        event.preventDefault();
+        apply("");
+        updateUrl("");
+      });
+    }
+
+    // Reconcile server-rendered state (e.g. after a category chip reload).
+    const initial = currentArtifact();
+    apply(initial ? initial.dataset.artifact : "");
   }
 
   function initChecklist() {
@@ -191,7 +226,7 @@
 
   document.addEventListener("DOMContentLoaded", () => {
     initCopyButtons();
-    initArtifactRouter();
+    initArtifactDeck();
     initChecklist();
   });
 })();

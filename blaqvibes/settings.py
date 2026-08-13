@@ -192,7 +192,7 @@ ROOT_URLCONF = 'blaqvibes.urls'
 TEMPLATES = [{
     'BACKEND': 'django.template.backends.django.DjangoTemplates',
     'DIRS': [BASE_DIR / 'templates'],
-    'APP_DIRS': True,
+    'APP_DIRS': False,
     'OPTIONS': {
         'context_processors': [
             'django.template.context_processors.debug',
@@ -202,6 +202,17 @@ TEMPLATES = [{
             'django.template.context_processors.csrf',
             'gallery.context_processors.extras',
         ],
+        # Cache templates in production; re-read them from disk in DEBUG so
+        # local template edits show up without a server restart.
+        'loaders': (
+            [('django.template.loaders.cached.Loader', [
+                'django.template.loaders.filesystem.Loader',
+                'django.template.loaders.app_directories.Loader',
+            ])] if not DEBUG else [
+                'django.template.loaders.filesystem.Loader',
+                'django.template.loaders.app_directories.Loader',
+            ]
+        ),
     },
 }]
 WSGI_APPLICATION = 'blaqvibes.wsgi.application'
