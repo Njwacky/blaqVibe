@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, trading_views, api_views
+from . import views, trading_views, api_views, launch_views
 from .csp_views import csp_report
 from .moderation import moderation_queue, moderation_action
 urlpatterns = [
@@ -11,6 +11,8 @@ urlpatterns = [
     path('saved/', views.saved_vibes, name='saved_vibes'),
     path('oops/', views.oops_demo, name='oops_demo'),
     path('publish/', views.publish, name='publish'),
+    path('launch/', launch_views.launch_hub, name='launch_hub'),
+    path('launch/<slug:slug>/', launch_views.launch_guide, name='launch_guide'),
     path('my-vibes/', views.my_vibes, name='my_vibes'),
     path('trades/', trading_views.trading_history, name='trading_history'),
     path('moderation/queue/', moderation_queue, name='moderation_queue'),

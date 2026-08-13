@@ -605,3 +605,153 @@ class PaystackWebhookTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertFalse(Sale.objects.filter(buyer=self.buyer, project=self.project).exists())
+
+
+@override_settings(RATELIMIT_ENABLE=False, SEED_DEMO=False)
+class LaunchGuideTests(TestCase):
+    def test_hub_is_public_and_truthful_about_preview_boundary(self):
+        response = self.client.get('/launch/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'You built the vibe')
+        self.assertContains(response, 'Preview is not hosting')
+        self.assertContains(response, 'does not keep your backend running')
+        self.assertContains(response, 'No made-up build commands')
+        self.assertGreaterEqual(len(response.context['guides']), 10)
+
+    def test_category_filter_only_returns_matching_guides(self):
+        response = self.client.get('/launch/?category=games')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['active_category'], 'games')
+        self.assertTrue(response.context['guides'])
+        self.assertTrue(all(guide['category'] == 'games' for guide in response.context['guides']))
+        self.assertContains(response, 'Release a game on itch.io')
+        self.assertContains(response, 'Prepare and release a game on Steam')
+        self.assertFalse(any(guide['slug'] == 'google-play' for guide in response.context['guides']))
+
+    def test_unknown_category_falls_back_to_all(self):
+        response = self.client.get('/launch/?category=not-a-real-category')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['active_category'], 'all')
+
+    def test_every_curated_guide_renders_with_official_sources(self):
+        from gallery.launch_guides import LAUNCH_GUIDES
+        for guide in LAUNCH_GUIDES:
+            with self.subTest(slug=guide['slug']):
+                response = self.client.get(f"/launch/{guide['slug']}/")
+                self.assertEqual(response.status_code, 200)
+                self.assertContains(response, guide['title'])
+                self.assertContains(response, 'Verify against the live platform docs')
+                for source in guide['sources']:
+                    self.assertContains(response, source['url'])
+                    self.assertContains(response, source['label'])
+                self.assertContains(response, 'BlaqVibes does not receive your store account or credentials')
+
+    def test_unknown_guide_is_404(self):
+        response = self.client.get('/launch/not-a-real-guide/')
+        self.assertEqual(response.status_code, 404)
+
+    def test_guide_data_has_complete_structure_and_valid_references(self):
+        from gallery.launch_guides import ARTIFACT_ROUTES, CATEGORIES, LAUNCH_GUIDES
+        required_fields = {
+            'slug', 'category', 'icon', 'eyebrow', 'title', 'summary', 'result',
+            'artifact', 'time', 'good_for', 'not_for', 'prerequisites', 'steps',
+            'checklist', 'sources',
+        }
+        allowed_categories = {item['slug'] for item in CATEGORIES} - {'all'}
+        slugs = [guide['slug'] for guide in LAUNCH_GUIDES]
+        self.assertEqual(len(slugs), len(set(slugs)))
+
+        for guide in LAUNCH_GUIDES:
+            with self.subTest(slug=guide['slug']):
+                self.assertTrue(required_fields.issubset(guide))
+                self.assertIn(guide['category'], allowed_categories)
+                self.assertGreaterEqual(len(guide['steps']), 4)
+                self.assertTrue(guide['prerequisites'])
+                self.assertTrue(guide['checklist'])
+                self.assertTrue(guide['sources'])
+                for step in guide['steps']:
+                    self.assertTrue(step['title'].strip())
+                    self.assertTrue(step['body'].strip())
+                    for command in step.get('commands', ()):
+                        self.assertTrue(command['label'].strip())
+                        self.assertTrue(command['text'].strip())
+                        self.assertNotIn('API_KEY=', command['text'])
+                        self.assertNotIn('PASSWORD=', command['text'])
+                        if '<' in command['text']:
+                            self.assertTrue(command.get('replace'))
+
+        known_slugs = set(slugs)
+        route_values = [route['value'] for route in ARTIFACT_ROUTES]
+        self.assertEqual(len(route_values), len(set(route_values)))
+        for route in ARTIFACT_ROUTES:
+            with self.subTest(artifact=route['value']):
+                self.assertTrue(route['label'].strip())
+                self.assertTrue(route['note'].strip())
+                self.assertTrue(route['guides'])
+                self.assertTrue(set(route['guides']).issubset(known_slugs))
+
+    def test_every_source_is_https_and_on_the_expected_official_domain(self):
+        from urllib.parse import urlparse
+        from gallery.launch_guides import LAUNCH_GUIDES
+        expected_hosts = {
+            'cloudflare-pages': {'docs.github.com', 'developers.cloudflare.com'},
+            'vercel-web': {'vercel.com'},
+            'render-web-service': {'render.com'},
+            'installable-pwa': {'developer.mozilla.org', 'web.dev'},
+            'docker-hub': {'docs.docker.com'},
+            'google-play': {'developer.android.com', 'support.google.com'},
+            'apple-app-store': {'developer.apple.com'},
+            'itchio': {'itch.io', 'docs.godotengine.org'},
+            'steam': {'partner.steamgames.com'},
+            'microsoft-store': {'learn.microsoft.com'},
+            'macos-direct': {'developer.apple.com'},
+            'flathub': {'docs.flathub.org'},
+            'chrome-web-store': {'developer.chrome.com'},
+        }
+        self.assertEqual(set(expected_hosts), {guide['slug'] for guide in LAUNCH_GUIDES})
+        for guide in LAUNCH_GUIDES:
+            for source in guide['sources']:
+                with self.subTest(slug=guide['slug'], source=source['url']):
+                    parsed = urlparse(source['url'])
+                    self.assertEqual(parsed.scheme, 'https')
+                    self.assertIn(parsed.hostname, expected_hosts[guide['slug']])
+                    self.assertTrue(source['label'].strip())
+                    self.assertNotIn('/msi/app-overview', parsed.path)
+
+    def test_high_risk_requirements_are_explicit(self):
+        vercel = self.client.get('/launch/vercel-web/')
+        self.assertContains(vercel, 'first deployment of a new project is a production deployment')
+        self.assertContains(vercel, 'Do not assume the first URL is private')
+        steam = self.client.get('/launch/steam/')
+        self.assertContains(steam, '30-day wait')
+        self.assertContains(steam, 'at least two weeks')
+        play = self.client.get('/launch/google-play/')
+        self.assertContains(play, 'release-signed .aab')
+        self.assertContains(play, 'at least 12 testers')
+        self.assertContains(play, 'continuously opted in to a closed test for 14 days')
+        apple = self.client.get('/launch/apple-app-store/')
+        self.assertContains(apple, 'Add for Review')
+        self.assertContains(apple, 'Submit for Review')
+        microsoft = self.client.get('/launch/microsoft-store/')
+        self.assertContains(microsoft, 'Trusted Root Program')
+        self.assertContains(microsoft, 'standalone/offline installer')
+        self.assertContains(microsoft, 'secure versioned HTTPS URL')
+
+    def test_guide_interactions_render_accessible_controls(self):
+        response = self.client.get('/launch/docker-hub/')
+        self.assertContains(response, 'data-copy-command="docker build', html=False)
+        self.assertContains(response, 'aria-live="polite"', html=False)
+        self.assertContains(response, 'role="progressbar"', html=False)
+        self.assertContains(response, 'data-checklist-key="blaq-launch-docker-hub"', html=False)
+
+    def test_registry_and_host_are_not_conflated(self):
+        response = self.client.get('/launch/docker-hub/')
+        self.assertContains(response, 'not a public application URL')
+        self.assertContains(response, 'Docker Hub stores and distributes images')
+        self.assertContains(response, 'Deploy it on a real runtime')
+
+    def test_navigation_links_to_launch_hub(self):
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'href="/launch/"', html=False)
+        self.assertContains(response, 'Launch')
