@@ -28,8 +28,9 @@ Tests:
 DJANGO_LOCAL_DEV=1 DJANGO_TEST=1 python manage.py test gallery users
 ```
 
-CI runs migrate, `seed_demo`, and the same suite on every push and pull
-request (`.github/workflows/ci.yml`).
+CI is `bash scripts/ci.sh` (migrate, `seed_demo`, tests, assert the feed
+is not empty). To run that on GitHub Actions, copy `docs/ci-github-actions.yml`
+to `.github/workflows/ci.yml` (needs the `workflows` permission).
 
 ## What is real
 
