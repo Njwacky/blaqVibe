@@ -724,15 +724,13 @@ def paystack_webhook(request):
     Returns 4xx on anything we can't verify/process so Paystack retries;
     returns 200 only once the event is handled (or safely ignored).
     """
-    import hashlib, hmac, json
-    from .payments import paystack_secret
-    secret = paystack_secret()
-    if not secret:
+    import json
+    from .payments import paystack_enabled, verify_paystack_signature
+    if not paystack_enabled():
         return HttpResponse("webhook not configured", status=503)
     body = request.body
     sig = request.headers.get('x-paystack-signature', '')
-    expected = hmac.new(secret.encode(), body, hashlib.sha512).hexdigest()
-    if not sig or not hmac.compare_digest(expected, sig):
+    if not verify_paystack_signature(body, sig):
         return HttpResponse("invalid signature", status=400)
     try:
         data = json.loads(body)

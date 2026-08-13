@@ -42,8 +42,11 @@ def trade_for_download(buyer, project):
 
     try:
         with transaction.atomic():
-            buyer_p = Profile.objects.select_for_update().get(user=buyer)
-            seller_p = Profile.objects.select_for_update().get(user=project.owner)
+            try:
+                buyer_p = Profile.objects.select_for_update().get(user=buyer)
+                seller_p = Profile.objects.select_for_update().get(user=project.owner)
+            except Profile.DoesNotExist as exc:
+                raise TradeError('Account profile is missing. Refresh and try again.') from exc
             if buyer_p.stars_balance < cost:
                 raise TradeError(
                     f'Need {cost} ★ to trade for “{project.title}” — you have {buyer_p.stars_balance} ★. '
@@ -58,7 +61,10 @@ def trade_for_download(buyer, project):
                 cost=cost,
             )
     except IntegrityError:
-        return Trade.objects.get(buyer=buyer, project=project)
+        existing = Trade.objects.filter(buyer=buyer, project=project).first()
+        if existing:
+            return existing
+        raise TradeError('Could not complete the trade. Try again.')
 
 
 def adjust_owner_stars(owner, delta: int):

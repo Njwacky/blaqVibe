@@ -59,6 +59,9 @@ SITE_URL = os.getenv('SITE_URL', 'https://blaqvibes.co.za').rstrip('/')
 # Leave blank to run the stars path alone. We never fake a charge or a bank payout.
 PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY', '').strip()
 PAYSTACK_ENABLED = bool(PAYSTACK_SECRET_KEY)
+# Optional Nolo backends. Claude is used only when this key is set — never faked.
+ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '').strip()
+ANTHROPIC_MODEL = os.getenv('ANTHROPIC_MODEL', 'claude-3-5-haiku-latest')
 
 # Seed the demo catalog when the published grid is empty (local / CI).
 # Production stays empty until you run `python manage.py seed_demo` or set SEED_DEMO=1.

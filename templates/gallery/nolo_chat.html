@@ -8,7 +8,12 @@
         <span style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:16px;background:#7C3AED;color:#fff;font-size:18px">💬</span>
         <div>
           <div style="font-size:20px;font-weight:800">Nolo Chat</div>
-          <div style="font-size:13px;color:var(--muted);margin-top:4px">Ask questions about apps, templates, new releases, or compare vibes in one place.</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px">Ask questions about apps, templates, new releases, or compare vibes in one place.
+            {% if nolo_backend == 'claude' %}Answers come from Claude (ANTHROPIC_API_KEY).
+            {% elif nolo_backend == 'gemini' %}Answers come from Gemini.
+            {% elif nolo_backend == 'groq' %}Answers come from Groq.
+            {% else %}No AI key is set — this is a short built-in helper, not a live Claude/Gemini model.{% endif %}
+          </div>
         </div>
       </div>
 
@@ -133,7 +138,8 @@
         showError(data.error || 'Nolo could not answer right now.');
         return;
       }
-      appendMessage('nolo', data.reply || 'Nolo did not return an answer.');
+      const src = data.source && data.source !== 'heuristic' ? ` (${data.source})` : ' (built-in helper)';
+      appendMessage('nolo', (data.reply || 'Nolo did not return an answer.') + src);
     }catch(err){
       showError('Network error — try again.');
     }

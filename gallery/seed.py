@@ -192,7 +192,8 @@ def _ensure_user(username: str, password: str, stars: int = 5, **profile_kwargs)
         user.save()
     profile, _ = Profile.objects.get_or_create(user=user)
     updates = []
-    if created or profile.stars_balance == 5:
+    # Only set the starter balance on first create — never reset a live wallet.
+    if created:
         profile.stars_balance = stars
         updates.append('stars_balance')
     for key, value in profile_kwargs.items():

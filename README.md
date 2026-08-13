@@ -42,6 +42,7 @@ to `.github/workflows/ci.yml` (needs the `workflows` permission).
 - Battle votes no longer inflate project stars.
 - PR merge copies the fork ZIP + file list onto the target and re-queues a scan.
 - Inbox, saved vibes, email confirm, sitemap, and `/api/v1/apps/` exist.
+- Nolo chat uses Claude if `ANTHROPIC_API_KEY` is set, else Gemini/Groq, else a short built-in helper. It never pretends to be a live model without a key.
 - Google / GitHub / Facebook login: set client IDs in `.env` (see `docs/specs/SOCIAL_AUTH.md`).
 
 Demos and old specs live in `docs/demos/` and `docs/specs/`.

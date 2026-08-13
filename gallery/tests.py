@@ -97,6 +97,7 @@ class AccessAndPaywallTests(TestCase):
         response = self.client.get(f'/app/{self.project.slug}/download/')
         self.assertEqual(response.status_code, 200)
 
+    @override_settings(PAYSTACK_SECRET_KEY='sk_test_lock', PAYSTACK_ENABLED=True)
     def test_sale_unlocks_priced_vibe(self):
         priced = make_project(self.owner, self.cat, title='Priced', star_cost=0, price_zar=50)
         priced.zip_file.save('priced.zip', make_zip_file({'app.py': 'print(2)\n'}), save=True)
@@ -419,3 +420,188 @@ class SeedDemoTests(TestCase):
         self.assertContains(response, 'SaaS Launch Hero')
         self.assertContains(response, 'Stock Tracker Starter')
         self.assertNotContains(response, 'Publish your first vibe')
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False, PAYSTACK_SECRET_KEY='', PAYSTACK_ENABLED=False)
+class FiveWhysHolesTests(TestCase):
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('owner', stars_balance=5)
+        self.buyer = make_user('buyer', stars_balance=10)
+
+    def test_zar_only_does_not_lock_when_paystack_off(self):
+        from gallery.access import user_can_download
+        priced = make_project(self.owner, self.cat, title='Zar only', star_cost=0, price_zar=80)
+        priced.zip_file.save('zar.zip', make_zip_file({'app.py': 'print(1)\\n'}), save=True)
+        self.assertTrue(user_can_download(self.buyer, priced))
+        self.client.login(username='buyer', password='pass12345')
+        response = self.client.get(f'/app/{priced.slug}/download/')
+        self.assertEqual(response.status_code, 200)
+
+    def test_star_cost_still_locks_when_paystack_off(self):
+        from gallery.access import user_can_download
+        paid = make_project(self.owner, self.cat, title='Stars only', star_cost=2, price_zar=50)
+        paid.zip_file.save('stars.zip', make_zip_file({'app.py': 'print(1)\\n'}), save=True)
+        self.assertFalse(user_can_download(self.buyer, paid))
+
+    def test_allow_trading_off_makes_download_free(self):
+        from gallery.access import user_can_download
+        self.owner.profile.allow_trading = False
+        self.owner.profile.save(update_fields=['allow_trading'])
+        paid = make_project(self.owner, self.cat, title='No trade', star_cost=4)
+        paid.zip_file.save('free.zip', make_zip_file({'app.py': 'print(1)\\n'}), save=True)
+        self.assertTrue(user_can_download(self.buyer, paid))
+
+    def test_anonymous_trade_redirects_to_login(self):
+        paid = make_project(self.owner, self.cat, title='Need login', star_cost=2)
+        paid.zip_file.save('need.zip', make_zip_file({'app.py': 'print(1)\\n'}), save=True)
+        response = self.client.post(f'/app/{paid.slug}/trade/')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn('/accounts/login/', response.url)
+
+    def test_get_trade_is_405(self):
+        paid = make_project(self.owner, self.cat, title='Get trade', star_cost=2)
+        paid.zip_file.save('get.zip', make_zip_file({'app.py': 'print(1)\\n'}), save=True)
+        self.client.login(username='buyer', password='pass12345')
+        response = self.client.get(f'/app/{paid.slug}/trade/')
+        self.assertEqual(response.status_code, 405)
+
+    def test_owner_trade_downloads_without_debit(self):
+        paid = make_project(self.owner, self.cat, title='Own zip', star_cost=3)
+        paid.zip_file.save('own.zip', make_zip_file({'app.py': 'print(1)\\n'}), save=True)
+        self.client.login(username='owner', password='pass12345')
+        response = self.client.post(f'/app/{paid.slug}/trade/')
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Trade.objects.filter(buyer=self.owner, project=paid).exists())
+        self.owner.profile.refresh_from_db()
+        self.assertEqual(self.owner.profile.stars_balance, 5)
+
+    def test_preview_files_does_not_unlock_contents(self):
+        paid = make_project(self.owner, self.cat, title='Names only', star_cost=3)
+        paid.zip_file.save('names.zip', make_zip_file({'app.py': 'print(1)\\n'}), save=True)
+        from gallery.models import AppFile
+        AppFile.objects.create(project=paid, path='app.py', size=10)
+        self.client.login(username='buyer', password='pass12345')
+        listing = self.client.get(f'/app/{paid.slug}/files/')
+        self.assertEqual(listing.status_code, 200)
+        self.assertContains(listing, 'app.py')
+        contents = self.client.get(f'/app/{paid.slug}/file/app.py')
+        self.assertEqual(contents.status_code, 403)
+
+    def test_seed_is_idempotent_and_does_not_reset_wallet(self):
+        from django.core.management import call_command
+        call_command('seed_demo')
+        from django.contrib.auth.models import User
+        blaq = User.objects.get(username='blaq')
+        blaq.profile.stars_balance = 3
+        blaq.profile.save(update_fields=['stars_balance'])
+        first = AppProject.objects.filter(status='published').count()
+        call_command('seed_demo')
+        self.assertEqual(AppProject.objects.filter(status='published').count(), first)
+        blaq.profile.refresh_from_db()
+        self.assertEqual(blaq.profile.stars_balance, 3)
+
+    def test_nolo_without_key_is_honest_helper(self):
+        from gallery.nolo_ai import configured_ai_backend, get_nolo_ai_answer
+        self.assertEqual(configured_ai_backend(), 'heuristic')
+        reply, source = get_nolo_ai_answer('How do I preview files in a ZIP?')
+        self.assertEqual(source, 'heuristic')
+        self.assertIn('not Docker', reply)
+        page = self.client.get('/nolo/chat/')
+        self.assertContains(page, 'not a live Claude')
+        self.client.login(username='buyer', password='pass12345')
+        api = self.client.post(
+            '/nolo/chat/send/',
+            data='{"prompt":"How do I trade stars?"}',
+            content_type='application/json',
+        )
+        self.assertEqual(api.status_code, 200)
+        body = api.json()
+        self.assertEqual(body['source'], 'heuristic')
+        self.assertIn('Stars', body['reply'])
+
+    @override_settings(ANTHROPIC_API_KEY='sk-ant-test')
+    def test_nolo_uses_claude_when_key_set(self):
+        from unittest.mock import Mock, patch
+        from gallery.nolo_ai import configured_ai_backend, get_nolo_ai_answer
+        self.assertEqual(configured_ai_backend(), 'claude')
+        fake = Mock()
+        fake.raise_for_status = Mock()
+        fake.json.return_value = {
+            'content': [{'type': 'text', 'text': 'Preview files is the in-app file list, not a container.'}]
+        }
+        with patch('gallery.nolo_ai.requests.post', return_value=fake) as posted:
+            reply, source = get_nolo_ai_answer('What is preview files?')
+        self.assertEqual(source, 'claude')
+        self.assertIn('not a container', reply)
+        self.assertEqual(posted.call_args.kwargs['headers']['x-api-key'], 'sk-ant-test')
+
+
+@override_settings(RATELIMIT_ENABLE=False, PAYSTACK_SECRET_KEY='sk_test_webhook', PAYSTACK_ENABLED=True)
+class PaystackWebhookTests(TestCase):
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('owner')
+        self.buyer = make_user('buyer')
+        self.project = make_project(self.owner, self.cat, title='Card vibe', star_cost=0, price_zar=50)
+        self.project.zip_file.save('card.zip', make_zip_file({'app.py': 'print(1)\\n'}), save=True)
+
+    def _signed(self, payload: bytes):
+        import hashlib, hmac
+        return hmac.new(b'sk_test_webhook', payload, hashlib.sha512).hexdigest()
+
+    def test_bad_signature_does_not_create_sale(self):
+        import json
+        body = json.dumps({
+            'event': 'charge.success',
+            'data': {
+                'reference': f'blaq-{self.project.id}-{self.buyer.id}-abc',
+                'amount': 5000,
+            },
+        }).encode()
+        response = self.client.post(
+            '/paystack/webhook/',
+            data=body,
+            content_type='application/json',
+            headers={'x-paystack-signature': 'nope'},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Sale.objects.filter(buyer=self.buyer, project=self.project).exists())
+
+    def test_valid_signature_creates_sale_and_unlocks(self):
+        import json
+        from gallery.access import user_can_download
+        body = json.dumps({
+            'event': 'charge.success',
+            'data': {
+                'reference': f'blaq-{self.project.id}-{self.buyer.id}-okref',
+                'amount': 5000,
+            },
+        }).encode()
+        response = self.client.post(
+            '/paystack/webhook/',
+            data=body,
+            content_type='application/json',
+            headers={'x-paystack-signature': self._signed(body)},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Sale.objects.filter(buyer=self.buyer, project=self.project, amount_zar=50).exists())
+        self.assertTrue(user_can_download(self.buyer, self.project))
+
+    def test_amount_mismatch_rejected(self):
+        import json
+        body = json.dumps({
+            'event': 'charge.success',
+            'data': {
+                'reference': f'blaq-{self.project.id}-{self.buyer.id}-low',
+                'amount': 100,
+            },
+        }).encode()
+        response = self.client.post(
+            '/paystack/webhook/',
+            data=body,
+            content_type='application/json',
+            headers={'x-paystack-signature': self._signed(body)},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Sale.objects.filter(buyer=self.buyer, project=self.project).exists())

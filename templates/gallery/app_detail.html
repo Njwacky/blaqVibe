@@ -47,7 +47,7 @@
               <a href="{% url 'download_zip' project.slug %}" class="btn-violet" style="flex:1;justify-content:center">⬇ Download ZIP</a>
             {% elif project.star_cost and user.is_authenticated and user != project.owner and not has_traded %}
               <form method="post" action="{% url 'trade_download' project.slug %}" style="flex:1">{% csrf_token %}<button class="btn-violet" style="width:100%">⬇ Trade {{ project.star_cost }} ★ to Download</button></form>
-              <div style="width:100%;font-size:11px;color:var(--muted);text-align:center">You have {{ user.profile.stars_balance }} ★ — download stays locked until you trade or buy.</div>
+              <div style="width:100%;font-size:11px;color:var(--muted);text-align:center">You have {{ user.profile.stars_balance }} ★ — download stays locked until you trade{% if paystack_enabled %} or buy{% endif %}.</div>
             {% elif not user.is_authenticated %}
               <a href="{% url 'login' %}?next={{ request.path }}" class="btn-violet" style="flex:1;justify-content:center">Sign in to unlock</a>
             {% else %}
@@ -80,7 +80,7 @@
         <div id="paywall" style="margin-top:10px;background:linear-gradient(135deg,#1A1A00 0%,#1A1400 100%);border:1px solid #F59E0B;border-radius:10px;padding:12px">
           <div style="font-size:12px;color:#FDE68A;font-weight:700">🔒 This download is locked</div>
           <div style="font-size:12px;color:var(--muted);margin-top:4px;line-height:1.6">
-            {% if project.star_cost and project.price_zar %}Unlock with <b style="color:#F59E0B">{{ project.star_cost }} ★</b> (trade stars) or buy for <b style="color:#F59E0B">R{{ project.price_zar }}</b>.{% elif project.star_cost %}Unlock by trading <b style="color:#F59E0B">{{ project.star_cost }} ★</b>.{% elif project.price_zar %}Unlock by buying for <b style="color:#F59E0B">R{{ project.price_zar }}</b>.{% else %}Sign in to unlock this download.{% endif %}
+            {% if project.star_cost and paystack_enabled and project.price_zar %}Unlock with <b style="color:#F59E0B">{{ project.star_cost }} ★</b> (trade stars) or buy for <b style="color:#F59E0B">R{{ project.price_zar }}</b>.{% elif project.star_cost %}Unlock by trading <b style="color:#F59E0B">{{ project.star_cost }} ★</b>.{% elif paystack_enabled and project.price_zar %}Unlock by buying for <b style="color:#F59E0B">R{{ project.price_zar }}</b>.{% else %}Sign in to unlock this download.{% endif %}
             {% if user.is_authenticated %}Your balance: <b style="color:#FDE68A">{{ user.profile.stars_balance }} ★</b>.{% endif %}
           </div>
           <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
