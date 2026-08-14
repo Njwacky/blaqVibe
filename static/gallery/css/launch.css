@@ -1099,3 +1099,16 @@
   .launch-sources { padding: 20px; }
   .launch-related__grid { grid-template-columns: 1fr; }
 }
+
+/* Vertical sidebar — the launch pages' sticky offsets were sized for the old
+   64px horizontal top bar. With the nav moved to a left rail there is nothing
+   overlapping the top of the content, so anchors and the TOC would otherwise
+   stop ~80px too low and leave a dead gap under every jump link. */
+@media (min-width: 901px) {
+  .launch-card,
+  .launch-steps,
+  .launch-final-check,
+  .launch-safety,
+  .launch-sources { scroll-margin-top: 20px; }
+  .launch-guide-aside { top: 20px; }
+}

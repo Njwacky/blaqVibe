@@ -23,19 +23,20 @@
 {% block head %}{% endblock %}
 </head>
 <body>
-<nav class="nav">
+<a href="#main" class="skip-link">Skip to content</a>
+<nav class="nav" aria-label="Primary">
   <a href="{% url 'feed' %}" class="logo"><img src="/static/branding/ai_assistance.jpeg" alt="" style="width:32px;height:32px;border-radius:8px;box-shadow:0 0 12px rgba(124,58,237,.5)"> BlaqVibes</a>
   <div class="nav-actions">
     <button type="button" id="theme-toggle" class="icon-btn" aria-label="Toggle theme">☀️</button>
-    <button type="button" id="nav-toggle" class="icon-btn nav-burger" aria-label="Open menu">☰</button>
+    <button type="button" id="nav-toggle" class="icon-btn nav-burger" aria-label="Open menu" aria-expanded="false" aria-controls="nav-links">☰</button>
   </div>
   {# Nav collapsed to what a NEW user needs: Vibes / Launch / Publish. #}
   {# Everything else lives in the avatar menu. 5 Whys: Why three links? #}
   {# 16 top-level links told nobody what the site is. Browse, ship, and #}
   {# publish ARE the product; inbox/trades/settings are account chrome. #}
   <div class="nav-links" id="nav-links">
-    <a href="{% url 'feed' %}">Vibes</a>
-    <a href="{% url 'launch_hub' %}" style="color:#C4F04D;font-weight:700">↗ Launch</a>
+    <a href="{% url 'feed' %}"{% if request.path == '/' %} aria-current="page"{% endif %}>Vibes</a>
+    <a href="{% url 'launch_hub' %}" style="color:#C4F04D;font-weight:700"{% if '/launch/' in request.path %} aria-current="page"{% endif %}>↗ Launch</a>
     {% if user.is_authenticated %}
       <a href="{% url 'publish' %}" class="btn-violet">+ Publish</a>
       <div class="nav-user" id="nav-user">
@@ -66,8 +67,8 @@
       </div>
       <form id="logout-form" method="post" action="{% url 'logout' %}" style="display:none">{% csrf_token %}</form>
     {% else %}
-      <a href="{% url 'battle' %}">⚔️ Battle</a>
-      <a href="{% url 'challenge_list' %}">🏆 Challenges</a>
+      <a href="{% url 'battle' %}"{% if '/battle/' in request.path %} aria-current="page"{% endif %}>⚔️ Battle</a>
+      <a href="{% url 'challenge_list' %}"{% if '/challenges/' in request.path %} aria-current="page"{% endif %}>🏆 Challenges</a>
       <a href="{% url 'login' %}" class="btn-ghost">Sign in</a>
       <a href="{% url 'signup' %}" class="btn-white">Sign up</a>
     {% endif %}
@@ -92,7 +93,7 @@
   {% endfor %}
 </div>
 {% endif %}
-{% block content %}{% endblock %}
+<main id="main">{% block content %}{% endblock %}</main>
 <footer class="site-footer" aria-label="BlaqVibes footer">
   <div class="site-footer__inner">
     <div class="site-footer__brand">
@@ -155,7 +156,7 @@
   </div>
 </footer>
 <div id="toast" class="toast">✓ Copied!</div>
-<div id="pwa-install-banner" style="display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid #7C3AED;border-radius:16px;padding:14px 16px;max-width:380px;width:calc(100% - 32px);box-shadow:0 12px 40px rgba(0,0,0,.5);z-index:999;align-items:center;gap:12px">
+<div id="pwa-install-banner" style="display:none;position:fixed;bottom:20px;background:var(--card);border:1px solid #7C3AED;border-radius:16px;padding:14px 16px;max-width:380px;width:calc(100% - 32px);box-shadow:0 12px 40px rgba(0,0,0,.5);z-index:999;align-items:center;gap:12px">
   <img src="/static/branding/icon-48.png" style="width:48px;height:48px;border-radius:10px;flex-shrink:0">
   <div style="flex:1">
     <div style="font-weight:800;font-size:13px">Install BlaqVibes</div>
@@ -164,7 +165,7 @@
   <button id="pwa-install-btn" class="btnV" style="padding:8px 12px;font-size:12px;flex-shrink:0">Install</button>
   <button id="pwa-dismiss-btn" class="btnG" style="padding:8px 10px;font-size:11px;flex-shrink:0">Not now</button>
 </div>
-<div id="pwa-ios-hint" style="display:none;position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;max-width:340px;width:calc(100% - 32px);z-index:999;text-align:center">
+<div id="pwa-ios-hint" style="display:none;position:fixed;bottom:20px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;max-width:340px;width:calc(100% - 32px);z-index:999;text-align:center">
   <div style="font-weight:700;font-size:13px">Install BlaqVibes</div>
   <div style="font-size:11px;color:var(--muted);margin-top:4px">Tap <span style="background:var(--line);padding:2px 6px;border-radius:6px">Share</span> → <b>Add to Home Screen</b> to install.</div>
   <button onclick="this.parentElement.style.display='none'" class="btnG" style="margin-top:8px;padding:6px 12px;font-size:11px;width:100%">Got it</button>

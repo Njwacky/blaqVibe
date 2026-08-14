@@ -37,7 +37,12 @@ function copyText(t){
     }
     const burger = e.target.closest('#nav-toggle');
     if(burger){
-      document.getElementById('nav-links')?.classList.toggle('open');
+      const links = document.getElementById('nav-links');
+      const open = links ? links.classList.toggle('open') : false;
+      // Keep the button's state announced — screen readers otherwise never
+      // learn the panel opened, and the label stays stuck on "Open menu".
+      burger.setAttribute('aria-expanded', open ? 'true' : 'false');
+      burger.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
       return;
     }
     // Avatar dropdown — toggle on the button, close on any outside click.
