@@ -20,8 +20,15 @@ def user_is_moderator(user) -> bool:
 
 
 def user_can_see_project(user, project) -> bool:
-    """Published is public. Pending/quarantined is owner or moderator only."""
-    if getattr(project, 'status', None) == 'published':
+    """Published is public. Pending/quarantined is owner or moderator only.
+
+    'removed' (soft-deleted): the page is gone for everyone except
+    moderators — buyers keep the *download*, not the listing. 5 Whys:
+    Why hide the page from buyers too? The creator asked for the vibe to
+    be gone; the purchase contract covers the ZIP, not the storefront.
+    """
+    status = getattr(project, 'status', None)
+    if status == 'published':
         return True
     if not getattr(user, 'is_authenticated', False):
         return False
@@ -54,7 +61,22 @@ def effective_price_zar(project) -> int:
 
 
 def user_can_download(user, project) -> bool:
-    if getattr(project, "status", None) != "published":
+    status = getattr(project, "status", None)
+    if status == "removed":
+        # Soft-deleted vibe: only the owner and people who already PAID
+        # keep the ZIP. No new unlocks, no free downloads — the listing
+        # is gone; existing receipts (Trade/Sale) still honour access.
+        if not getattr(project, "zip_file", None):
+            return False
+        if not getattr(user, "is_authenticated", False):
+            return False
+        if user.pk == project.owner_id:
+            return True
+        return (
+            Trade.objects.filter(buyer=user, project=project).exists()
+            or Sale.objects.filter(buyer=user, project=project).exists()
+        )
+    if status != "published":
         return False
     if not getattr(project, "zip_file", None):
         return False

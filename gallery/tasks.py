@@ -24,11 +24,14 @@ def vulnerability_scan(self, *args, project_id=None):
     # Even snippets without zip get Nolo review
     report = {"npm": [], "pip": [], "secrets": []}
     if p.zip_file:
-        zip_path = p.zip_file.path
+        # ziputil.materialized_path works on local AND S3/R2 storage —
+        # FieldFile.path raises NotImplementedError on remote backends.
+        from .ziputil import materialized_path
         tmpdir = tempfile.mkdtemp()
         try:
             from .validators import safe_extract_zip
-            safe_extract_zip(zip_path, tmpdir)
+            with materialized_path(p.zip_file) as zip_path:
+                safe_extract_zip(zip_path, tmpdir)
             for root, _, files in os.walk(tmpdir):
                 if 'package.json' in files:
                     try:
@@ -86,9 +89,12 @@ def scan_zip_with_clamav(self, project_id):
     p = AppProject.objects.get(pk=project_id)
     if not p.zip_file:
         return "no_zip"
-    zip_path = p.zip_file.path
+    # clamscan needs a real filesystem path; on S3/R2 the object is streamed
+    # to a temp file for the duration of the scan (ziputil handles both).
+    from .ziputil import materialized_path, open_zip
     try:
-        result = subprocess.run(['clamscan', '--no-summary', zip_path], capture_output=True, timeout=30)
+        with materialized_path(p.zip_file) as zip_path:
+            result = subprocess.run(['clamscan', '--no-summary', zip_path], capture_output=True, timeout=30)
         if result.returncode == 1:
             p.status = 'quarantined'
             p.save(update_fields=['status'])
@@ -109,10 +115,11 @@ def scan_zip_with_clamav(self, project_id):
     except subprocess.TimeoutExpired:
         logger.warning(f"ClamAV timeout {p.slug}, retry")
         raise self.retry()
-    # Secrets scan — backend only, never sent to JS
+    # Secrets scan — backend only, never sent to JS. Reads via storage API,
+    # so it works identically on local disk and S3/R2.
     secrets = []
     try:
-        with zipfile.ZipFile(zip_path) as z:
+        with open_zip(p.zip_file) as z:
             for name in z.namelist():
                 if name.lower().endswith(('.py','.js','.env','.txt','.json','.md')):
                     try:
@@ -191,8 +198,8 @@ def finalize_publish(*args, project_id=None):
         return "pending_secrets"
     if not p.file_tree and p.zip_file:
         try:
-            from .utils import build_tree_from_zip
-            tree, file_list = build_tree_from_zip(p.zip_file.path)
+            from .ziputil import build_tree
+            tree, file_list = build_tree(p.zip_file)
             p.file_tree = tree
             p.file_count = len(file_list)
             p.save(update_fields=['file_tree', 'file_count'])
@@ -205,7 +212,20 @@ def finalize_publish(*args, project_id=None):
         p.save(update_fields=['status'])
     if p.status == 'published':
         from .notify import notify
-        notify(p.owner, 'published', f'“{p.title}” is live', url=p.get_absolute_url())
+        # Close the publish → launch loop: detect the shippable artifact in
+        # the ZIP and point the creator at the matching launch guide.
+        launch_hint = ''
+        launch_url = p.get_absolute_url()
+        try:
+            from .artifact_detect import artifact_route, detect_artifact
+            artifact = detect_artifact(p)
+            route = artifact_route(artifact) if artifact else None
+            if route:
+                launch_hint = f"Next: launch it as a {route['name']} — guides inside."
+                launch_url = f'/launch/?artifact={artifact}'
+        except Exception:
+            logger.exception('artifact detect failed %s', p.slug)
+        notify(p.owner, 'published', f'“{p.title}” is live', launch_hint, launch_url)
     # Update ScanJob for the JS poll (backend only — just a status string).
     _set_scan_job(p, 'clean' if p.status == 'published' else p.status)
     # Email notify — Why backend? JS toast dies when tab closed, email persists.

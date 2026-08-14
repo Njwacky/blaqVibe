@@ -36,4 +36,9 @@ class BlaqSocialAccountAdapter(DefaultSocialAccountAdapter):
                 updates.append('github')
         if updates:
             profile.save(update_fields=updates)
+        # A provider-verified email is a verified mailbox — pay the same
+        # one-time welcome grant the email link pays. Idempotent via ledger.
+        if profile.email_verified:
+            from .wallet import grant_welcome_stars
+            grant_welcome_stars(user)
         return user

@@ -15,15 +15,9 @@ services:
     image: redis:7-alpine
     ports: ["6379:6379"]
 
-  gitea:
-    image: gitea/gitea:1.21
-    environment:
-      - RUN_MODE=prod
-    ports:
-      - "3000:3000"
-      - "2222:22"
-    volumes:
-      - gitea:/data
+  # Gitea removed. 5 Whys: Why? It ran on :3000 and :2222 with zero Python
+  # integration — an unpatched, unused attack surface. Git hosting comes
+  # back as a service the app actually calls, or not at all.
 
   web:
     build: .
@@ -69,4 +63,3 @@ services:
 volumes:
   pgdata:
   media:
-  gitea:

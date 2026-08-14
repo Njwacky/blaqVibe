@@ -73,10 +73,14 @@ def payout_dashboard(request):
     from gallery.models import Sale, Trade
     from gallery.economy import stars_earned, stars_spent
     from gallery.payments import paystack_enabled
+    from .models import StarEvent
     sales = Sale.objects.filter(seller=request.user).select_related('project','buyer').order_by('-created_at')[:20]
     trades = Trade.objects.filter(seller=request.user).select_related('project','buyer').order_by('-created_at')[:20]
     bought = Trade.objects.filter(buyer=request.user).select_related('project','seller').order_by('-created_at')[:20]
     total_zar = sum(s.amount_zar for s in Sale.objects.filter(seller=request.user))
+    # The append-only ledger — every wallet move, newest first. This is the
+    # answer to "why is my balance N ★?" without a support ticket.
+    star_events = StarEvent.objects.filter(user=request.user)[:50]
     return render(request, 'users/payout_dashboard.html', {
         'sales': sales,
         'trades': trades,
@@ -84,6 +88,7 @@ def payout_dashboard(request):
         'stars_balance': request.user.profile.stars_balance,
         'stars_earned': stars_earned(request.user),
         'stars_spent': stars_spent(request.user),
+        'star_events': star_events,
         'total_zar': total_zar,
         'paystack_enabled': paystack_enabled(),
         'is_pro': request.user.profile.is_pro_active,
@@ -158,15 +163,32 @@ def toggle_setting(request):
 @login_required
 @require_POST
 def delete_account(request):
+    """Delete the account without destroying other people's purchases.
+
+    5 Whys:
+    1. Why not a plain user.delete()? Sale/Trade PROTECT their project —
+       cascading a sold vibe would raise ProtectedError (and rightly so).
+    2. Why hand sold vibes to a ghost user instead of deleting them?
+       Buyers paid for those ZIPs. The file must stay downloadable.
+    3. Why status='removed'? The vibe must vanish from the public feed the
+       moment its creator leaves — only existing buyers keep access.
+    4. Why do Sale/Trade rows survive with buyer/seller = NULL? They are
+       money records. Deleting your account must not delete a counterparty's
+       receipt.
+    5. Why release BEFORE user.delete()? The cascade runs inside delete();
+       by then it is too late to reassign anything.
+    """
     confirm = (request.POST.get('confirm') or '').strip()
     if confirm != request.user.username:
         messages.error(request, "Type your username to confirm account deletion.")
         return redirect('settings')
     from django.contrib.auth import logout
+    from gallery.lifecycle import release_account_projects
     user = request.user
+    release_account_projects(user)
     logout(request)
     user.delete()
-    messages.success(request, "Your account and vibes were deleted.")
+    messages.success(request, "Your account and vibes were deleted. Vibes people already bought stay downloadable for them.")
     return redirect('feed')
 
 
@@ -193,7 +215,14 @@ def verify_email(request, uidb64, token):
         profile, _ = Profile.objects.get_or_create(user=user)
         profile.email_verified = True
         profile.save(update_fields=['email_verified'])
-        messages.success(request, "Email confirmed.")
+        # The 5 ★ welcome grant is bound to a verified mailbox, not to signup.
+        # grant_welcome_stars is idempotent — replaying the link pays nothing.
+        from .wallet import grant_welcome_stars
+        from .models import WELCOME_STARS
+        if grant_welcome_stars(user):
+            messages.success(request, f"Email confirmed — your {WELCOME_STARS} ★ welcome grant is in your wallet.")
+        else:
+            messages.success(request, "Email confirmed.")
         return redirect('feed')
     messages.error(request, "That confirmation link is invalid or expired.")
     return redirect('login')

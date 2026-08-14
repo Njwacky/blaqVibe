@@ -34,6 +34,8 @@ def make_user(username, password='pass12345', **profile_kwargs):
         email=f'{username}@test.com',
     )
     profile = user.profile
+    # Tests model legitimate users: verified email (trading requires it).
+    profile_kwargs.setdefault('email_verified', True)
     for key, value in profile_kwargs.items():
         setattr(profile, key, value)
     if profile_kwargs:
@@ -357,14 +359,72 @@ class StarsEconomyTests(TestCase):
         self.buyer.profile.refresh_from_db()
         self.assertEqual(self.buyer.profile.stars_balance, 10)
 
-    def test_star_awards_owner_one_star(self):
+    def test_star_is_reputation_only_never_wallet(self):
+        """Starring moves project.stars (reputation), NEVER stars_balance.
+
+        The old behaviour (star pays owner +1 spendable ★) was a minting
+        loop: star → owner spends it → unstar (no deduction possible) →
+        star again. Free actions must not create currency.
+        """
         self.client.login(username='buyer', password='pass12345')
         self.client.post(f'/app/{self.project.slug}/star/')
         self.owner.profile.refresh_from_db()
-        self.assertEqual(self.owner.profile.stars_balance, 6)
+        self.project.refresh_from_db()
+        self.assertEqual(self.owner.profile.stars_balance, 5)  # wallet untouched
+        self.assertEqual(self.project.stars, 1)                # reputation moved
         self.client.post(f'/app/{self.project.slug}/star/')
         self.owner.profile.refresh_from_db()
+        self.project.refresh_from_db()
         self.assertEqual(self.owner.profile.stars_balance, 5)
+        self.assertEqual(self.project.stars, 0)
+
+    def test_star_unstar_loop_cannot_mint(self):
+        """The historical exploit: star, owner spends, unstar, star again."""
+        from users.models import StarEvent
+        self.client.login(username='buyer', password='pass12345')
+        for _ in range(3):
+            self.client.post(f'/app/{self.project.slug}/star/')   # star
+            self.client.post(f'/app/{self.project.slug}/star/')   # unstar
+        self.owner.profile.refresh_from_db()
+        self.assertEqual(self.owner.profile.stars_balance, 5)
+        # And no ledger rows were written for any of it.
+        self.assertFalse(
+            StarEvent.objects.filter(user=self.owner).exclude(reason='welcome').exists()
+        )
+
+    def test_trade_requires_verified_email(self):
+        """Currency only moves between verified accounts."""
+        self.buyer.profile.email_verified = False
+        self.buyer.profile.save(update_fields=['email_verified'])
+        self.client.login(username='buyer', password='pass12345')
+        response = self.client.post(f'/app/{self.project.slug}/trade/')
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(Trade.objects.filter(buyer=self.buyer, project=self.project).exists())
+        self.buyer.profile.refresh_from_db()
+        self.owner.profile.refresh_from_db()
+        self.assertEqual(self.buyer.profile.stars_balance, 10)
+        self.assertEqual(self.owner.profile.stars_balance, 5)
+
+    def test_trade_writes_ledger_rows_both_sides(self):
+        """sum(StarEvent.delta) == stars_balance must hold after a trade."""
+        from users.models import StarEvent
+        from users.wallet import ledger_balance
+        # Give the test wallets matching opening rows so the invariant holds.
+        StarEvent.objects.create(user=self.buyer, delta=10, reason='admin_adjust', ref='test-open')
+        StarEvent.objects.create(user=self.owner, delta=5, reason='admin_adjust', ref='test-open')
+        self.client.login(username='buyer', password='pass12345')
+        self.client.post(f'/app/{self.project.slug}/trade/')
+        trade = Trade.objects.get(buyer=self.buyer, project=self.project)
+        self.assertTrue(StarEvent.objects.filter(
+            user=self.buyer, delta=-3, reason='trade_spend', ref=f'trade:{trade.pk}:{self.project.slug}',
+        ).exists())
+        self.assertTrue(StarEvent.objects.filter(
+            user=self.owner, delta=3, reason='trade_earn', ref=f'trade:{trade.pk}:{self.project.slug}',
+        ).exists())
+        self.buyer.profile.refresh_from_db()
+        self.owner.profile.refresh_from_db()
+        self.assertEqual(ledger_balance(self.buyer), self.buyer.profile.stars_balance)
+        self.assertEqual(ledger_balance(self.owner), self.owner.profile.stars_balance)
 
 
 @override_settings(RATELIMIT_ENABLE=False, SEED_DEMO=False)
@@ -1258,3 +1318,329 @@ class AtomicStarToggleTests(TestCase):
         self.assertEqual(Star.objects.filter(user=self.fan, project=self.project).count(), 1)
         self.project.refresh_from_db()
         self.assertEqual(self.project.stars, 1)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False)
+class WelcomeGrantTests(TestCase):
+    """The 5 ★ grant is bound to email verification, not signup."""
+
+    def test_signup_gives_zero_stars(self):
+        response = self.client.post('/accounts/signup/', {
+            'username': 'fresh',
+            'email': 'fresh@test.com',
+            'password1': 'correcthorse1',
+            'password2': 'correcthorse1',
+        })
+        self.assertEqual(response.status_code, 302)
+        user = User.objects.get(username='fresh')
+        self.assertEqual(user.profile.stars_balance, 0)
+
+    def test_verify_email_pays_grant_once(self):
+        from django.contrib.auth.tokens import default_token_generator
+        from django.utils.encoding import force_bytes
+        from django.utils.http import urlsafe_base64_encode
+        from users.models import StarEvent, WELCOME_STARS
+        user = User.objects.create_user('verifyme', password='pass12345', email='v@test.com')
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        self.client.get(f'/accounts/verify/{uid}/{token}/')
+        user.profile.refresh_from_db()
+        self.assertEqual(user.profile.stars_balance, WELCOME_STARS)
+        self.assertEqual(StarEvent.objects.filter(user=user, reason='welcome').count(), 1)
+        # Replaying the link never pays twice.
+        token2 = default_token_generator.make_token(user)
+        self.client.get(f'/accounts/verify/{uid}/{token2}/')
+        user.profile.refresh_from_db()
+        self.assertEqual(user.profile.stars_balance, WELCOME_STARS)
+        self.assertEqual(StarEvent.objects.filter(user=user, reason='welcome').count(), 1)
+
+    def test_grant_helper_is_idempotent_under_direct_calls(self):
+        from users.models import StarEvent, WELCOME_STARS
+        from users.wallet import grant_welcome_stars
+        user = User.objects.create_user('grantee', password='pass12345', email='g@test.com')
+        self.assertTrue(grant_welcome_stars(user))
+        self.assertFalse(grant_welcome_stars(user))
+        self.assertFalse(grant_welcome_stars(user))
+        user.profile.refresh_from_db()
+        self.assertEqual(user.profile.stars_balance, WELCOME_STARS)
+        self.assertEqual(StarEvent.objects.filter(user=user, reason='welcome').count(), 1)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False)
+class DeleteLifecycleTests(TestCase):
+    """Deletes never destroy money records or paid downloads."""
+
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('owner', stars_balance=5)
+        self.buyer = make_user('buyer', stars_balance=10)
+        self.project = make_project(self.owner, self.cat, star_cost=3)
+        self.project.zip_file.save('paid.zip', make_zip_file({'app.py': 'print(1)\n'}), save=True)
+
+    def _buy(self):
+        self.client.login(username='buyer', password='pass12345')
+        self.client.post(f'/app/{self.project.slug}/trade/')
+        self.client.logout()
+
+    def test_unpaid_vibe_hard_deletes(self):
+        self.client.login(username='owner', password='pass12345')
+        response = self.client.post(f'/app/{self.project.slug}/delete/')
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(AppProject.objects.filter(pk=self.project.pk).exists())
+
+    def test_paid_vibe_soft_deletes_and_buyer_keeps_download(self):
+        self._buy()
+        self.client.login(username='owner', password='pass12345')
+        self.client.post(f'/app/{self.project.slug}/delete/')
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.status, 'removed')
+        # Receipt survives.
+        self.assertTrue(Trade.objects.filter(buyer=self.buyer, project=self.project).exists())
+        # Buyer still downloads.
+        self.client.logout()
+        self.client.login(username='buyer', password='pass12345')
+        download = self.client.get(f'/app/{self.project.slug}/download/')
+        self.assertEqual(download.status_code, 200)
+        self.assertEqual(download['Content-Type'], 'application/zip')
+        # But the public page is gone.
+        page = self.client.get(f'/app/{self.project.slug}/')
+        self.assertEqual(page.status_code, 404)
+
+    def test_removed_vibe_denies_non_buyers(self):
+        self._buy()
+        self.client.login(username='owner', password='pass12345')
+        self.client.post(f'/app/{self.project.slug}/delete/')
+        self.client.logout()
+        stranger = make_user('stranger', stars_balance=10)
+        self.client.login(username='stranger', password='pass12345')
+        download = self.client.get(f'/app/{self.project.slug}/download/')
+        self.assertEqual(download.status_code, 404)
+        page = self.client.get(f'/app/{self.project.slug}/')
+        self.assertEqual(page.status_code, 404)
+
+    def test_removed_vibe_leaves_feed(self):
+        self._buy()
+        self.client.login(username='owner', password='pass12345')
+        self.client.post(f'/app/{self.project.slug}/delete/')
+        self.client.logout()
+        feed = self.client.get('/')
+        self.assertNotContains(feed, self.project.title)
+
+    def test_db_protects_paid_project_from_hard_delete(self):
+        from django.db.models.deletion import ProtectedError
+        self._buy()
+        with self.assertRaises(ProtectedError):
+            self.project.delete()
+
+    def test_account_delete_releases_sold_vibes_to_ghost(self):
+        from gallery.lifecycle import GHOST_USERNAME
+        self._buy()
+        self.client.login(username='owner', password='pass12345')
+        response = self.client.post('/settings/delete-account/', {'confirm': 'owner'})
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(User.objects.filter(username='owner').exists())
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.owner.username, GHOST_USERNAME)
+        self.assertEqual(self.project.status, 'removed')
+        # Buyer keeps the download; the receipt names a NULL seller now.
+        trade = Trade.objects.get(buyer=self.buyer, project=self.project)
+        self.assertIsNone(trade.seller)
+        self.client.login(username='buyer', password='pass12345')
+        download = self.client.get(f'/app/{self.project.slug}/download/')
+        self.assertEqual(download.status_code, 200)
+
+    def test_buyer_account_delete_keeps_seller_receipt(self):
+        self._buy()
+        self.client.login(username='buyer', password='pass12345')
+        self.client.post('/settings/delete-account/', {'confirm': 'buyer'})
+        self.assertFalse(User.objects.filter(username='buyer').exists())
+        trade = Trade.objects.get(project=self.project)
+        self.assertIsNone(trade.buyer)
+        self.assertEqual(trade.seller, self.owner)
+        self.assertEqual(trade.cost, 3)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False)
+class ZiputilStorageTests(TestCase):
+    """ZIP access must work when FieldFile.path is unavailable (S3/R2)."""
+
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('owner')
+        self.project = make_project(self.owner, self.cat)
+        self.project.zip_file.save(
+            'tool.zip',
+            make_zip_file({'src/app.py': 'print(1)\n', 'README.md': '# hi\n'}),
+            save=True,
+        )
+
+    def _remote_field(self):
+        """A FieldFile stand-in whose .path raises like remote storage does."""
+        real = self.project.zip_file
+
+        class RemoteFieldFile:
+            @property
+            def path(self):
+                raise NotImplementedError('remote storage has no local path')
+
+            def open(self, mode='rb'):
+                real.open(mode)
+                return real
+
+            def read(self, *args, **kwargs):
+                return real.read(*args, **kwargs)
+
+            def close(self):
+                real.close()
+
+            def seek(self, *args, **kwargs):
+                return real.seek(*args, **kwargs)
+
+            def tell(self):
+                return real.tell()
+
+            def seekable(self):
+                return True
+
+        return RemoteFieldFile()
+
+    def test_open_zip_local(self):
+        from gallery.ziputil import open_zip
+        with open_zip(self.project.zip_file) as z:
+            self.assertIn('src/app.py', z.namelist())
+
+    def test_open_zip_remote(self):
+        from gallery.ziputil import open_zip
+        with open_zip(self._remote_field()) as z:
+            self.assertIn('src/app.py', z.namelist())
+
+    def test_materialized_path_remote_creates_and_cleans_temp(self):
+        import os
+        from gallery.ziputil import materialized_path
+        with materialized_path(self._remote_field()) as path:
+            self.assertTrue(os.path.exists(path))
+            import zipfile as zf
+            with zf.ZipFile(path) as z:
+                self.assertIn('README.md', z.namelist())
+        self.assertFalse(os.path.exists(path))
+
+    def test_materialized_path_local_is_original(self):
+        from gallery.ziputil import materialized_path
+        with materialized_path(self.project.zip_file) as path:
+            self.assertEqual(path, self.project.zip_file.path)
+
+    def test_build_tree_remote(self):
+        from gallery.ziputil import build_tree
+        tree, files = build_tree(self._remote_field())
+        self.assertEqual(len(files), 2)
+        self.assertIn('src', tree)
+        self.assertIn('app.py', tree['src'])
+
+    def test_language_detect_remote(self):
+        from gallery.language import detect_languages_from_field
+        stats = detect_languages_from_field(self._remote_field())
+        self.assertIn('Python', stats)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False)
+class ArtifactDetectionTests(TestCase):
+    """Publish → launch loop: detected artifact must map to a real guide."""
+
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('owner')
+
+    def _project_with_files(self, paths):
+        from gallery.models import AppFile
+        project = make_project(self.owner, self.cat)
+        project.zip_file.save('x.zip', make_zip_file({p: 'x' for p in paths}), save=True)
+        for p in paths:
+            AppFile.objects.create(project=project, path=p, size=1)
+        return project
+
+    def test_package_json_maps_to_frontend(self):
+        from gallery.artifact_detect import detect_artifact
+        project = self._project_with_files(['myapp/package.json', 'myapp/src/index.js'])
+        self.assertEqual(detect_artifact(project), 'frontend')
+
+    def test_dockerfile_beats_package_json(self):
+        from gallery.artifact_detect import detect_artifact
+        project = self._project_with_files(['app/Dockerfile', 'app/package.json'])
+        self.assertEqual(detect_artifact(project), 'container')
+
+    def test_aab_wins_over_everything(self):
+        from gallery.artifact_detect import detect_artifact
+        project = self._project_with_files(['release/app.aab', 'Dockerfile', 'package.json'])
+        self.assertEqual(detect_artifact(project), 'aab')
+
+    def test_index_html_is_static(self):
+        from gallery.artifact_detect import detect_artifact
+        project = self._project_with_files(['site/index.html', 'site/style.css'])
+        self.assertEqual(detect_artifact(project), 'static')
+
+    def test_manifest_without_index_is_extension(self):
+        from gallery.artifact_detect import detect_artifact
+        project = self._project_with_files(['ext/manifest.json', 'ext/background.js'])
+        self.assertEqual(detect_artifact(project), 'extension')
+
+    def test_manifest_with_index_is_not_extension(self):
+        from gallery.artifact_detect import detect_artifact
+        project = self._project_with_files(['pwa/manifest.json', 'pwa/index.html'])
+        self.assertEqual(detect_artifact(project), 'static')
+
+    def test_deep_node_modules_ignored(self):
+        from gallery.artifact_detect import detect_artifact
+        project = self._project_with_files(['app/node_modules/react/package.json'])
+        self.assertEqual(detect_artifact(project), '')
+
+    def test_every_detector_value_is_a_real_route(self):
+        from gallery.artifact_detect import _DETECTORS, _ROUTE_VALUES
+        for value, _ in _DETECTORS:
+            self.assertIn(value, _ROUTE_VALUES)
+
+    def test_owner_sees_launch_next_on_detail(self):
+        project = self._project_with_files(['myapp/package.json'])
+        self.client.login(username='owner', password='pass12345')
+        response = self.client.get(f'/app/{project.slug}/')
+        self.assertContains(response, '/launch/?artifact=frontend')
+
+    def test_stranger_does_not_see_launch_next(self):
+        project = self._project_with_files(['myapp/package.json'])
+        other = make_user('other')
+        self.client.login(username='other', password='pass12345')
+        response = self.client.get(f'/app/{project.slug}/')
+        self.assertNotContains(response, '/launch/?artifact=')
+
+    def test_launch_hub_accepts_detected_value(self):
+        response = self.client.get('/launch/?artifact=frontend')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Vercel')
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False)
+class ChallengeBountyLedgerTests(TestCase):
+    def test_bounty_writes_ledger_row(self):
+        from gallery.models import Challenge, Tag
+        from users.models import StarEvent
+        admin = make_user('admin', role='admin')
+        creator = make_user('creator', stars_balance=5)
+        tag = Tag.objects.create(name='challenge-week-9', slug='challenge-week-9')
+        challenge = Challenge.objects.create(
+            title='Week 9',
+            description='Ship something.',
+            bounty_stars=10,
+            tag='challenge-week-9',
+            start=timezone.now() - timedelta(days=1),
+            end=timezone.now() + timedelta(days=6),
+            is_active=True,
+        )
+        entry = make_project(creator, make_category(), title='Entry')
+        entry.tags.add(tag)
+        self.client.login(username='admin', password='pass12345')
+        self.client.post(f'/challenges/{challenge.tag}/pick-winner/', {'winner_id': entry.id})
+        creator.profile.refresh_from_db()
+        self.assertEqual(creator.profile.stars_balance, 15)
+        self.assertTrue(StarEvent.objects.filter(
+            user=creator, delta=10, reason='challenge_bounty',
+            ref=f'challenge:{challenge.tag}:{entry.slug}',
+        ).exists())

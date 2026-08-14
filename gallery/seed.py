@@ -193,9 +193,20 @@ def _ensure_user(username: str, password: str, stars: int = 5, **profile_kwargs)
     profile, _ = Profile.objects.get_or_create(user=user)
     updates = []
     # Only set the starter balance on first create — never reset a live wallet.
+    # Ledger the demo balance too: sum(StarEvent.delta) == stars_balance must
+    # hold for every wallet, seeded ones included.
     if created:
         profile.stars_balance = stars
         updates.append('stars_balance')
+        if stars:
+            from users.models import StarEvent
+            StarEvent.objects.create(
+                user=user, delta=stars, reason='admin_adjust', ref='seed-demo',
+            )
+        # Demo accounts count as verified — trading requires a verified email.
+        if not profile.email_verified:
+            profile.email_verified = True
+            updates.append('email_verified')
     for key, value in profile_kwargs.items():
         if getattr(profile, key) != value:
             setattr(profile, key, value)

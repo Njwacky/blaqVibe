@@ -58,6 +58,64 @@ a { color: inherit; text-decoration: none; }
   font-size: 16px;
 }
 .nav-burger { display: none; }
+/* Avatar menu — the account chrome lives here, not in the top bar. */
+.nav-user { position: relative; }
+.nav-user-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 4px 10px 4px 4px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.nav-user-btn:hover { border-color: var(--violet); }
+.nav-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; display: inline-block; }
+.nav-avatar-fallback {
+  background: var(--violet);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 800;
+  font-size: 13px;
+}
+.nav-user-name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav-badge {
+  background: var(--violet);
+  color: #fff;
+  border-radius: 999px;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 700;
+}
+.nav-menu {
+  display: none;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  min-width: 220px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, .45);
+  z-index: 60;
+}
+.nav-menu.open { display: block; }
+.nav-menu a {
+  display: block;
+  padding: 8px 12px;
+  border-radius: 9px;
+  font-size: 13px;
+  color: var(--text);
+}
+.nav-menu a:hover { background: var(--line); }
+.nav-menu-sep { height: 1px; background: var(--line); margin: 6px 4px; }
 .btn-violet, .btnV { background: var(--violet); color: #fff; border: none; padding: 8px 14px; border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .btn-ghost, .btnG { background: transparent; border: 1px solid var(--line); color: var(--text); padding: 8px 14px; border-radius: 10px; font-weight: 600; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .btn-white, .btnW { background: #fff; color: #000; padding: 8px 14px; border-radius: 10px; font-weight: 700; font-size: 13px; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
@@ -128,6 +186,10 @@ a { color: inherit; text-decoration: none; }
   }
   .nav-links.open { display: flex; }
   .nav-links a, .nav-links .btn-violet, .nav-links .btn-ghost, .nav-links .btn-white { justify-content: flex-start; }
+  /* On mobile the burger already stacks everything; render the menu inline. */
+  .nav-user { width: 100%; }
+  .nav-user-btn { width: 100%; justify-content: flex-start; border-radius: 10px; }
+  .nav-menu { position: static; min-width: 0; box-shadow: none; margin-top: 4px; }
 }
 @media (max-width: 800px) {
   .hero-grid { grid-template-columns: 1fr; }
