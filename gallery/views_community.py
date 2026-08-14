@@ -21,7 +21,7 @@ from django_ratelimit.decorators import ratelimit
 
 from .models import (
     AppProject, Category, PullRequest, VibeBattle, BattleVote,
-    Deploy, Challenge, AppFile, AppVersion, ScanJob,
+    Challenge, AppFile, AppVersion, ScanJob,
 )
 from .notify import notify
 
@@ -322,24 +322,9 @@ def run_vibe(request, slug):
     messages.error(request, "Nothing to preview — no snippet or files.")
     return redirect(project.get_absolute_url())
 
-def deploy_view(request, token):
-    """Old shareable preview links — file list or sandboxed snippet. Not a live host."""
-    try:
-        from .models import Deploy
-        from django.utils import timezone
-        deploy = get_object_or_404(Deploy, token=token)
-        if deploy.expires_at < timezone.now():
-            deploy.status = 'expired'
-            deploy.save(update_fields=['status'])
-            return render(request, 'gallery/deploy_expired.html', {'deploy': deploy})
-        project = deploy.project
-        if project.html_code:
-            return redirect('preview', slug=project.slug)
-        return redirect('preview_files', slug=project.slug)
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).exception(f"deploy view crush: {e}")
-        return render(request, 'gallery/deploy_expired.html', {'deploy': None})
+# deploy_view removed with the Deploy model. 5 Whys: Why kill the route?
+# It promised a live deployment and delivered a redirect — a lie in the URL
+# space. Old /deploy/<token>/ links now 404 honestly.
 
 @require_POST
 @ratelimit(key='ip', rate='20/h', method='POST')

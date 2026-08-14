@@ -1,12 +1,29 @@
 """Stars economy — the working money path.
 
 No external API. Buyer spends star_cost, seller receives the same amount,
-a Trade row is the receipt, and that Trade unlocks the ZIP.
+a Trade row is the receipt, a pair of StarEvent rows is the ledger, and
+that Trade unlocks the ZIP.
+
+5 Whys (why starring does NOT move the wallet):
+1. Why did it before? "Engagement should reward creators" — a star paid
+   the owner +1 spendable ★.
+2. Why is that a mint? Starring is free and reversible. Unstar only
+   deducted when the balance was still there, so star → owner spends →
+   unstar → star again printed currency with a single account.
+3. Why not fix the unstar edge instead? Any free action that creates
+   currency is farmable with throwaway accounts; patching one loop leaves
+   the class of bug alive.
+4. Why keep the star counter at all? project.stars is reputation —
+   ranking, discovery, bragging rights. Reputation may be cheap;
+   currency may not.
+5. Why is the fix safe for creators? Real income still flows through
+   trades (buyer pays star_cost) and challenge bounties — both scarce,
+   both ledgered.
 """
 from django.db import IntegrityError, transaction
 from django.db.models import F, Sum
 
-from users.models import Profile
+from users.models import Profile, StarEvent
 
 from .access import effective_star_cost
 from .models import Trade
@@ -24,6 +41,18 @@ def trade_for_download(buyer, project):
     Returns the Trade (existing or new). Returns None when the download is
     free for this buyer (owner, or star_cost == 0). Raises TradeError when
     the buyer cannot pay.
+
+    5 Whys (verified email gate):
+    1. Why require email_verified to trade? The seller is paid real,
+       spendable stars. An unverified account is free to script.
+    2. Why gate the trade, not the download? Free downloads harm nobody;
+       only the currency transfer needs a scarce counterparty.
+    3. Why not gate on account age? Age is free too — it only slows the
+       farm down. A mailbox is the cheapest real cost we can demand.
+    4. Why is the welcome grant on the same gate? One rule — currency
+       enters and moves only for verified accounts — is auditable.
+    5. Why check inside this function, not the view? Every future caller
+       (API, admin tool) must hit the same wall.
     """
     if not getattr(buyer, 'is_authenticated', False):
         raise TradeError('Sign in to trade stars for this vibe.')
@@ -35,6 +64,15 @@ def trade_for_download(buyer, project):
     cost = effective_star_cost(project)
     if cost == 0:
         return None
+
+    try:
+        if not buyer.profile.email_verified:
+            raise TradeError(
+                'Confirm your email before trading stars — check your inbox '
+                'for the verification link (Settings → resend).'
+            )
+    except Profile.DoesNotExist as exc:
+        raise TradeError('Account profile is missing. Refresh and try again.') from exc
 
     existing = Trade.objects.filter(buyer=buyer, project=project).first()
     if existing:
@@ -50,16 +88,27 @@ def trade_for_download(buyer, project):
             if buyer_p.stars_balance < cost:
                 raise TradeError(
                     f'Need {cost} ★ to trade for “{project.title}” — you have {buyer_p.stars_balance} ★. '
-                    'Earn stars by publishing vibes that get starred or traded.'
+                    'Earn stars by publishing vibes that get traded.'
                 )
             Profile.objects.filter(pk=buyer_p.pk).update(stars_balance=F('stars_balance') - cost)
             Profile.objects.filter(pk=seller_p.pk).update(stars_balance=F('stars_balance') + cost)
-            return Trade.objects.create(
+            trade = Trade.objects.create(
                 buyer=buyer,
                 seller=project.owner,
                 project=project,
                 cost=cost,
             )
+            # Ledger both sides INSIDE the same transaction as the balance
+            # moves — a crash cannot leave money the ledger can't explain.
+            StarEvent.objects.create(
+                user=buyer, delta=-cost, reason='trade_spend',
+                ref=f'trade:{trade.pk}:{project.slug}',
+            )
+            StarEvent.objects.create(
+                user=project.owner, delta=cost, reason='trade_earn',
+                ref=f'trade:{trade.pk}:{project.slug}',
+            )
+            return trade
     except IntegrityError:
         existing = Trade.objects.filter(buyer=buyer, project=project).first()
         if existing:
@@ -70,6 +119,8 @@ def trade_for_download(buyer, project):
 def toggle_project_star(user, project):
     """Atomically star or unstar. Returns True if the vibe is now starred.
 
+    Reputation only — the wallet is untouched.
+
     5 Whys:
     1. Why lock the project row? Two tabs both get_or_create, then the loser
        treats it as an unstar and deletes the winner's Star.
@@ -79,8 +130,9 @@ def toggle_project_star(user, project):
        if two creates sneak in before the row lock is held.
     4. Why not let stars go negative? Unstar uses stars__gt=0, same as the
        existing floor test.
-    5. Why move the owner's wallet here? The counter and the wallet must
-       stay in the same transaction as the Star row.
+    5. Why does the owner's wallet NOT move here? Starring is free and
+       reversible; paying spendable currency for it was a minting loop
+       (star → spend → unstar → star). See module docstring.
     """
     from .models import AppProject, Star
 
@@ -90,29 +142,13 @@ def toggle_project_star(user, project):
         if existing:
             existing.delete()
             AppProject.objects.filter(pk=locked.pk, stars__gt=0).update(stars=F('stars') - 1)
-            if user.id != locked.owner_id:
-                adjust_owner_stars(locked.owner, -1)
             return False
         try:
             Star.objects.create(user=user, project=locked)
         except IntegrityError:
             return True
         AppProject.objects.filter(pk=locked.pk).update(stars=F('stars') + 1)
-        if user.id != locked.owner_id:
-            adjust_owner_stars(locked.owner, 1)
         return True
-
-
-def adjust_owner_stars(owner, delta: int):
-    """Move stars on the owner when someone stars / unstars their vibe."""
-    if not owner or delta == 0:
-        return
-    if delta > 0:
-        Profile.objects.filter(user=owner).update(stars_balance=F('stars_balance') + delta)
-        return
-    Profile.objects.filter(user=owner, stars_balance__gte=abs(delta)).update(
-        stars_balance=F('stars_balance') + delta
-    )
 
 
 def stars_earned(user) -> int:

@@ -40,6 +40,18 @@ function copyText(t){
       document.getElementById('nav-links')?.classList.toggle('open');
       return;
     }
+    // Avatar dropdown — toggle on the button, close on any outside click.
+    const userBtn = e.target.closest('#nav-user-btn');
+    const menu = document.getElementById('nav-menu');
+    if(userBtn && menu){
+      const open = menu.classList.toggle('open');
+      userBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      return;
+    }
+    if(menu && menu.classList.contains('open') && !e.target.closest('#nav-user')){
+      menu.classList.remove('open');
+      document.getElementById('nav-user-btn')?.setAttribute('aria-expanded','false');
+    }
     const logout = e.target.closest('.js-logout');
     if(logout){ e.preventDefault(); const f=document.getElementById('logout-form'); if(f) f.submit(); return; }
     const dismiss = e.target.closest('.js-dismiss');

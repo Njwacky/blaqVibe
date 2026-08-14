@@ -17,7 +17,7 @@ from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
 
-from users.models import AdminLog, Profile
+from users.models import AdminLog, Profile, StarEvent
 
 from .models import AppProject, Challenge
 from .notify import notify
@@ -64,6 +64,15 @@ def award_challenge_winner(challenge, winner, actor=None):
             if not profile.pro_until or profile.pro_until < prize_until:
                 updates['pro_until'] = prize_until
         Profile.objects.filter(pk=profile.pk).update(**updates)
+        # Ledger the bounty in the same transaction as the balance move —
+        # sum(StarEvent.delta) must always equal stars_balance.
+        if bounty:
+            StarEvent.objects.create(
+                user=winner.owner,
+                delta=bounty,
+                reason='challenge_bounty',
+                ref=f'challenge:{locked.tag}:{winner.slug}',
+            )
 
     notify(
         winner.owner,

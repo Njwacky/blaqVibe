@@ -29,26 +29,45 @@
     <button type="button" id="theme-toggle" class="icon-btn" aria-label="Toggle theme">☀️</button>
     <button type="button" id="nav-toggle" class="icon-btn nav-burger" aria-label="Open menu">☰</button>
   </div>
+  {# Nav collapsed to what a NEW user needs: Vibes / Launch / Publish. #}
+  {# Everything else lives in the avatar menu. 5 Whys: Why three links? #}
+  {# 16 top-level links told nobody what the site is. Browse, ship, and #}
+  {# publish ARE the product; inbox/trades/settings are account chrome. #}
   <div class="nav-links" id="nav-links">
     <a href="{% url 'feed' %}">Vibes</a>
     <a href="{% url 'launch_hub' %}" style="color:#C4F04D;font-weight:700">↗ Launch</a>
-    <a href="{% url 'battle' %}" style="color:#F59E0B;font-weight:700">⚔️ Battle</a>
-    <a href="{% url 'challenge_list' %}" style="color:#F59E0B;font-weight:700">🏆 Challenges</a>
-    <a href="{% url 'nolo_chat' %}">💬 Chat</a>
     {% if user.is_authenticated %}
-      <a href="{% url 'notifications' %}">Inbox{% if unread_notifications %} <span style="background:#7C3AED;color:#fff;border-radius:999px;padding:1px 6px;font-size:10px">{{ unread_notifications }}</span>{% endif %}</a>
-      <a href="{% url 'saved_vibes' %}">Saved</a>
-      <a href="{% url 'my_vibes' %}">My Vibes</a>
-      <a href="{% url 'trading_history' %}">Trades</a>
-      <a href="{% url 'payout_dashboard' %}">Earnings</a>
-      <a href="{% url 'settings' %}">Settings</a>
-      {% if user.profile.is_moderator %}<a href="{% url 'moderation_queue' %}" style="font-size:12px;background:#F59E0B;color:#000;padding:6px 10px;border-radius:8px;font-weight:700">🛡️ Queue</a>{% endif %}
-      {% if user.profile.is_admin %}<a href="{% url 'admin_dashboard' %}" style="font-size:12px;background:#7C3AED;color:#fff;padding:6px 10px;border-radius:8px;font-weight:700">Admin</a>{% endif %}
-      <a href="{% url 'profile_view' user.username %}" style="font-size:12px">@{{ user.username }}</a>
       <a href="{% url 'publish' %}" class="btn-violet">+ Publish</a>
-      <a href="#" class="btn-ghost js-logout">Logout</a>
+      <div class="nav-user" id="nav-user">
+        <button type="button" id="nav-user-btn" class="nav-user-btn" aria-haspopup="true" aria-expanded="false">
+          {% if user.profile.avatar %}<img src="{{ user.profile.avatar.url }}" alt="" class="nav-avatar">{% else %}<span class="nav-avatar nav-avatar-fallback">{{ user.username|first|upper }}</span>{% endif %}
+          <span class="nav-user-name">@{{ user.username }}</span>
+          {% if unread_notifications %}<span class="nav-badge">{{ unread_notifications }}</span>{% endif %}
+          <span aria-hidden="true" style="font-size:10px">▾</span>
+        </button>
+        <div class="nav-menu" id="nav-menu" role="menu">
+          <a role="menuitem" href="{% url 'profile_view' user.username %}">👤 My profile</a>
+          <a role="menuitem" href="{% url 'notifications' %}">📥 Inbox{% if unread_notifications %} <span class="nav-badge">{{ unread_notifications }}</span>{% endif %}</a>
+          <a role="menuitem" href="{% url 'my_vibes' %}">📦 My Vibes</a>
+          <a role="menuitem" href="{% url 'saved_vibes' %}">🔖 Saved</a>
+          <div class="nav-menu-sep"></div>
+          <a role="menuitem" href="{% url 'battle' %}">⚔️ Battle</a>
+          <a role="menuitem" href="{% url 'challenge_list' %}">🏆 Challenges</a>
+          <a role="menuitem" href="{% url 'nolo_chat' %}">💬 Nolo chat</a>
+          <div class="nav-menu-sep"></div>
+          <a role="menuitem" href="{% url 'trading_history' %}">💱 Trades</a>
+          <a role="menuitem" href="{% url 'payout_dashboard' %}">⭐ Earnings</a>
+          <a role="menuitem" href="{% url 'settings' %}">⚙️ Settings</a>
+          {% if user.profile.is_moderator %}<div class="nav-menu-sep"></div><a role="menuitem" href="{% url 'moderation_queue' %}">🛡️ Moderation queue</a>{% endif %}
+          {% if user.profile.is_admin %}<a role="menuitem" href="{% url 'admin_dashboard' %}">🗝️ Admin</a>{% endif %}
+          <div class="nav-menu-sep"></div>
+          <a role="menuitem" href="#" class="js-logout">↪ Logout</a>
+        </div>
+      </div>
       <form id="logout-form" method="post" action="{% url 'logout' %}" style="display:none">{% csrf_token %}</form>
     {% else %}
+      <a href="{% url 'battle' %}">⚔️ Battle</a>
+      <a href="{% url 'challenge_list' %}">🏆 Challenges</a>
       <a href="{% url 'login' %}" class="btn-ghost">Sign in</a>
       <a href="{% url 'signup' %}" class="btn-white">Sign up</a>
     {% endif %}
@@ -57,7 +76,7 @@
 {% if user.is_authenticated and not user.profile.email_verified and user.email %}
 <div style="max-width:1100px;margin:12px auto 0;padding:0 20px">
   <div style="padding:12px 14px;border-radius:12px;font-size:13px;background:#1A1A00;border:1px solid #F59E0B;color:#FDE68A;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-    <span>Confirm {{ user.email }} so we can recover your account.</span>
+    <span>Confirm {{ user.email }} to unlock your 5 ★ welcome grant and so we can recover your account.</span>
     <form method="post" action="{% url 'resend_verify_email' %}">{% csrf_token %}<button class="btn-ghost" style="padding:6px 10px;font-size:12px">Resend link</button></form>
   </div>
 </div>

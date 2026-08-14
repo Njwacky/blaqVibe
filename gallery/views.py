@@ -14,7 +14,6 @@ import zipfile, os, json, logging
 
 from .models import AppProject, Category, Comment, Star, AppFile, ScanJob, AppReport, AppVersion, Review, Trade, PullRequest
 from .forms import AppUploadForm
-from .utils import build_tree_from_zip
 from .storages import get_presigned_url, is_s3_enabled
 from .search import search_projects
 from .access import user_can_download, user_can_see_project, user_is_moderator, access_denied_message
@@ -37,7 +36,6 @@ from .views_community import (
     battle_history,
     vote_battle,
     run_vibe,
-    deploy_view,
     copy_increment,
     challenge_list,
     generate_challenges,
@@ -47,7 +45,23 @@ from .views_community import (
 )
 logger = logging.getLogger(__name__)
 
+@ratelimit(key='ip', rate='10/h', method='POST')
 def signup(request):
+    """Account creation — rate limited per IP.
+
+    5 Whys:
+    1. Why rate limit signup? Accounts used to arrive with 5 spendable ★;
+       a loop could mint a wallet per second.
+    2. Why keep the limit now that the grant moved to email-verify?
+       Defense in depth — sockpuppets are still the raw material for vote
+       farming (battles) and fake reviews.
+    3. Why per-IP not per-user? There is no user yet.
+    4. Why 10/h not 3/h? Shared NATs (campus, office) are real; 10 blocks
+       scripts without locking out a classroom.
+    5. Why 429 not a silent pass? Failing open makes the limit decorative.
+    """
+    if getattr(request, 'limited', False):
+        return HttpResponse("Too many signups from this network. Try again later.", status=429)
     if request.method == 'POST':
         form = SignUpForm(request.POST)
         if form.is_valid():
@@ -186,6 +200,17 @@ def app_detail(request, slug):
     compare_options = AppProject.objects.filter(
         category=project.category, status='published'
     ).exclude(pk=project.pk).order_by('-stars')[:10]
+    # Publish → launch loop: show the owner the next step for THIS artifact.
+    launch_next = None
+    if request.user.is_authenticated and request.user == project.owner and project.status == 'published':
+        try:
+            from .artifact_detect import artifact_route, detect_artifact
+            detected = detect_artifact(project)
+            route = artifact_route(detected) if detected else None
+            if route:
+                launch_next = {'value': detected, 'name': route['name'], 'icon': route['icon'], 'note': route['note']}
+        except Exception:
+            logger.exception('artifact detect failed %s', project.slug)
     return render(request, 'gallery/app_detail.html', {
         'project': project,
         'comments': top_comments,
@@ -207,6 +232,7 @@ def app_detail(request, slug):
         'owner_rank': owner_rank,
         'user_rank': user_rank,
         'compare_options': compare_options,
+        'launch_next': launch_next,
         'forks_count': getattr(project, 'forks_count', 0),
         'prs_count': getattr(project, 'prs_count', 0),
     })
@@ -354,7 +380,8 @@ def publish(request):
                 project.tags.add(tag)
             if project.zip_file:
                 try:
-                    tree, file_list = build_tree_from_zip(project.zip_file.path)
+                    from .ziputil import build_tree
+                    tree, file_list = build_tree(project.zip_file)
                     project.file_tree = tree
                     project.file_count = len(file_list)
                     project.save(update_fields=['file_tree','file_count'])
@@ -391,10 +418,15 @@ def publish(request):
     return render(request, 'gallery/publish.html', {'form': form, 'challenge': challenge})
 
 def download_zip(request, slug):
-    project = get_object_or_404(AppProject, slug=slug, status='published')
+    # 'removed' is reachable on purpose: buyers of a soft-deleted vibe keep
+    # their paid ZIP (user_can_download enforces the Trade/Sale receipt).
+    project = get_object_or_404(AppProject, slug=slug, status__in=['published', 'removed'])
     if not project.zip_file:
         raise Http404
     if not user_can_download(request.user, project):
+        if project.status == 'removed':
+            # Don't leak a redirect to a dead page — the listing is gone.
+            raise Http404
         messages.error(request, access_denied_message(request.user, project))
         if not request.user.is_authenticated:
             return redirect(f"{settings.LOGIN_URL}?next={request.path}")
@@ -411,10 +443,15 @@ def file_preview(request, slug, path):
     if not user_can_download(request.user, project):
         return JsonResponse({'error': 'Unlock this vibe to preview files.'}, status=403)
     try:
-        with zipfile.ZipFile(project.zip_file.path) as z:
+        # open_zip streams via the storage API — same code path on local
+        # disk and S3/R2 (FieldFile.path breaks on remote storage).
+        from .ziputil import open_zip
+        with open_zip(project.zip_file) as z:
             if path not in z.namelist():
                 raise Http404
             data = z.read(path)
+    except Http404:
+        raise
     except Exception:
         raise Http404
     if len(data) > 200*1024:
@@ -513,9 +550,9 @@ def edit_vibe(request, slug):
             # Rebuild tree + re-queue scan (every edit is re-checked)
             if p.zip_file:
                 try:
-                    from .utils import build_tree_from_zip
+                    from .ziputil import build_tree
                     p.files.all().delete()
-                    tree, files = build_tree_from_zip(p.zip_file.path)
+                    tree, files = build_tree(p.zip_file)
                     p.file_tree, p.file_count = tree, len(files)
                     p.save(update_fields=['file_tree','file_count'])
                     for f in files[:2000]:
@@ -537,12 +574,25 @@ def edit_vibe(request, slug):
     return render(request, 'gallery/edit_vibe.html', {'form': form, 'project': project})
 
 @login_required
-@login_required
 @require_POST
 def delete_vibe(request, slug):
+    """Owner delete — hard when nothing was paid, soft when money moved.
+
+    remove_project() decides: no Trade/Sale rows → real delete;
+    otherwise status='removed' so buyers keep the ZIP they paid for
+    while the public page disappears.
+    """
+    from .lifecycle import remove_project
     project = get_object_or_404(AppProject, slug=slug, owner=request.user)
-    project.delete()
-    messages.success(request, f"Deleted “{project.title}”")
+    outcome = remove_project(project)
+    if outcome == 'removed':
+        messages.success(
+            request,
+            f"Removed “{project.title}” from BlaqVibes. People who already "
+            "traded or bought it keep their download — those are their receipts.",
+        )
+    else:
+        messages.success(request, f"Deleted “{project.title}”")
     return redirect('my_vibes')
 
 @require_POST

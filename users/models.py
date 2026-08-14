@@ -13,7 +13,9 @@ class Profile(models.Model):
     github = models.CharField(max_length=80, blank=True, help_text="github username without @")
     twitter = models.CharField(max_length=80, blank=True)
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
-    stars_balance = models.PositiveIntegerField(default=5, help_text="Stars to trade — earn by publishing, spend to download")
+    # 0 by default. The 5 ★ welcome grant is paid once, when the email is
+    # verified (users.wallet.grant_welcome_stars) — signup alone mints nothing.
+    stars_balance = models.PositiveIntegerField(default=0, help_text="Stars to trade — verify your email for the welcome grant, earn more when people trade your vibes")
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='user', help_text="Admin role — backend only, never in JS")
     is_pro = models.BooleanField(default=False, help_text="Pro plan — can see who viewed your vibes, AI README, money")
     email_verified = models.BooleanField(default=False)
@@ -91,6 +93,53 @@ class AdminLog(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
         ordering = ['-created_at']
+
+
+# The one-time welcome grant, paid when the email is verified — not at signup.
+# 5 Whys: Why on verify, not signup? Signup is free and scriptable; a mailbox
+# is the first scarce resource we can bind currency to.
+WELCOME_STARS = 5
+
+
+class StarEvent(models.Model):
+    """Append-only star ledger — every wallet move is a row.
+
+    5 Whys:
+    1. Why a ledger at all? stars_balance is a single integer. The first
+       "I lost 3 ★" support ticket is unanswerable without per-move rows.
+    2. Why append-only (no update/delete path)? A ledger you can edit is
+       not a ledger. Corrections are new rows with reason='admin_adjust'.
+    3. Why write it inside the same transaction as the balance move?
+       A crash between UPDATE and INSERT would leave a balance the ledger
+       cannot explain — the exact bug the ledger exists to catch.
+    4. Why a `ref` string, not a FK? Trades, challenges and welcome grants
+       live in different tables. One free-form ref ('trade:12',
+       'challenge:week-3') survives even if the referenced row goes away.
+    5. Why store delta, not balance_after? Balance is derivable
+       (sum of deltas); storing it duplicates state that can drift.
+    """
+    REASON_CHOICES = [
+        ('welcome', 'Welcome grant'),
+        ('trade_spend', 'Trade — stars spent'),
+        ('trade_earn', 'Trade — stars earned'),
+        ('challenge_bounty', 'Challenge bounty'),
+        ('admin_adjust', 'Admin adjustment'),
+        ('backfill', 'Ledger backfill'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='star_events')
+    delta = models.IntegerField()
+    reason = models.CharField(max_length=20, choices=REASON_CHOICES)
+    ref = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['user', '-created_at'])]
+
+    def __str__(self):
+        sign = '+' if self.delta >= 0 else ''
+        return f'{self.user} {sign}{self.delta} ★ ({self.reason})'
+
 
 @receiver(post_save, sender=User)
 def create_profile(sender, instance, created, **kwargs):

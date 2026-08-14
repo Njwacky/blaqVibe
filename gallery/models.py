@@ -17,7 +17,16 @@ class Tag(models.Model):
     def __str__(self): return self.name
 
 class AppProject(models.Model):
-    STATUS_CHOICES = [('pending','Pending Scan/Review'),('published','Published'),('quarantined','Quarantined — Virus/Secret')]
+    # 'removed' is the soft-delete state: gone from feed/search/detail for
+    # strangers, but buyers who paid (Trade/Sale) keep their download.
+    # 5 Whys: Why a status, not a boolean? The status field already gates
+    # every list and view — one more state rides every existing filter.
+    STATUS_CHOICES = [
+        ('pending','Pending Scan/Review'),
+        ('published','Published'),
+        ('quarantined','Quarantined — Virus/Secret'),
+        ('removed','Removed — buyers keep access'),
+    ]
     owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='projects')
     title = models.CharField(max_length=200)
     slug = models.SlugField(max_length=220, unique=True, blank=True)
@@ -97,12 +106,13 @@ class AppProject(models.Model):
                     import bleach
                     self.short_description = bleach.clean(self.short_description, tags=[], strip=True)[:260]
                 except Exception: pass
-            # Auto language detect (crush silently)
+            # Auto language detect (crush silently). Reads through the
+            # storage API so it works on local disk AND S3/R2 — FieldFile.path
+            # raises NotImplementedError on remote backends.
             if self.zip_file and not self.language_stats:
                 try:
-                    from .language import detect_languages
-                    if hasattr(self.zip_file, 'path') and self.zip_file.path:
-                        self.language_stats = detect_languages(self.zip_file.path)
+                    from .language import detect_languages_from_field
+                    self.language_stats = detect_languages_from_field(self.zip_file)
                 except Exception: pass
         except Exception:
             import logging
@@ -175,10 +185,26 @@ class AppVersion(models.Model):
     def __str__(self): return f"{self.project.slug} v{self.version}"
 
 class Trade(models.Model):
-    """Star trading — backend only, no JS secrets."""
-    buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='trades_bought')
-    seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='trades_sold')
-    project = models.ForeignKey(AppProject, on_delete=models.CASCADE, related_name='trades')
+    """Star trading — a money record.
+
+    5 Whys on the FK rules:
+    1. Why PROTECT the project? A hard project delete used to cascade
+       every buyer's receipt AND their paid download. Money records must
+       outlive content — content soft-deletes instead (status='removed').
+    2. Why SET_NULL on buyer/seller? Deleting *your* account must not
+       delete the *other* party's receipt.
+    3. Why nullable users but a protected project? The project row carries
+       the ZIP buyers paid for; a user row carries nothing the counterparty
+       needs.
+    4. Why keep unique (buyer, project)? One purchase per buyer per app —
+       NULLed buyers no longer collide because their Trade rows keep
+       history only.
+    5. Why not soft-delete users too? Django auth deletion is a legal
+       (POPIA) erasure path; receipts just stop naming them.
+    """
+    buyer = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='trades_bought')
+    seller = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='trades_sold')
+    project = models.ForeignKey(AppProject, on_delete=models.PROTECT, related_name='trades')
     cost = models.PositiveIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
@@ -198,10 +224,15 @@ class VibeView(models.Model):
     def __str__(self): return f"{self.viewer} → {self.project.slug} x{self.count}"
 
 class Sale(models.Model):
-    """Real money via Paystack — backend webhook verifies, no JS secrets."""
-    buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sales_bought')
-    seller = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sales_sold')
-    project = models.ForeignKey(AppProject, on_delete=models.CASCADE, related_name='sales')
+    """Real money via Paystack — backend webhook verifies, no JS secrets.
+
+    Same FK rules as Trade and for the same reason: ZAR receipts are money
+    records. PROTECT the project (buyers keep the ZIP), SET_NULL the people
+    (account deletion never erases the counterparty's receipt).
+    """
+    buyer = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='sales_bought')
+    seller = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='sales_sold')
+    project = models.ForeignKey(AppProject, on_delete=models.PROTECT, related_name='sales')
     amount_zar = models.PositiveIntegerField()
     paystack_ref = models.CharField(max_length=100, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -298,16 +329,10 @@ class BattleVote(models.Model):
         unique_together = ('user','battle')
     def __str__(self): return f"{self.user} voted {self.choice} on {self.battle_id}"
 
-class Deploy(models.Model):
-    STATUS_CHOICES = [('running','Running'),('expired','Expired'),('failed','Failed')]
-    project = models.ForeignKey(AppProject, on_delete=models.CASCADE, related_name='deploys')
-    owner = models.ForeignKey(User, on_delete=models.CASCADE, related_name='deploys')
-    token = models.CharField(max_length=40, unique=True)
-    live_url = models.CharField(max_length=300)
-    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='running')
-    expires_at = models.DateTimeField()
-    created_at = models.DateTimeField(auto_now_add=True)
-    def __str__(self): return f"{self.token} → {self.project.slug} ({self.status})"
+# Deploy model removed. 5 Whys: Why delete instead of keep? It promised
+# "Running" live deployments that never existed — the view only redirected
+# to the in-app preview. Dead capability code is a lie in the schema; when
+# real hosting ships it gets a real model designed for it.
 
 class Season(models.Model):
     number = models.PositiveIntegerField(unique=True)

@@ -27,6 +27,9 @@ def moderation_action(request, slug):
     elif action == 'delete':
         if not request.user.profile.is_admin():
             return render(request, '403.html', status=403)
-        project.delete()
+        # Same rule as owner deletes: paid vibes soft-delete so buyers keep
+        # their receipts and downloads; unpaid vibes hard-delete.
+        from .lifecycle import remove_project
+        remove_project(project)
         return redirect('moderation_queue')
     return redirect('moderation_queue')

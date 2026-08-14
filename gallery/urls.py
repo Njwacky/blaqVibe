@@ -46,7 +46,6 @@ urlpatterns = [
     path('challenges/<str:tag>/approve/', views.approve_challenge, name='approve_challenge'),
     path('challenges/<str:tag>/pick-winner/', views.pick_challenge_winner, name='pick_challenge_winner'),
     path('app/<slug:slug>/run/', views.run_vibe, name='run_vibe'),
-    path('deploy/<str:token>/', views.deploy_view, name='deploy_view'),
     path('battle/', views.battle, name='battle'),
     path('battle/history/', views.battle_history, name='battle_history'),
     path('battle/leaderboard/', views.battle_leaderboard, name='battle_leaderboard'),
