@@ -103,9 +103,10 @@ AUTHENTICATION_BACKENDS = [
 
 ACCOUNT_ADAPTER = 'users.adapters.BlaqAccountAdapter'
 SOCIALACCOUNT_ADAPTER = 'users.adapters.BlaqSocialAccountAdapter'
-ACCOUNT_EMAIL_REQUIRED = True
+# allauth >= 65 names: SIGNUP_FIELDS (email* = required) and LOGIN_METHODS.
+ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
+ACCOUNT_LOGIN_METHODS = {'username', 'email'}
 ACCOUNT_EMAIL_VERIFICATION = 'optional'
-ACCOUNT_AUTHENTICATION_METHOD = 'username_email'
 ACCOUNT_UNIQUE_EMAIL = True
 SOCIALACCOUNT_AUTO_SIGNUP = True
 SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
