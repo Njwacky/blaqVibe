@@ -935,6 +935,27 @@ class LaunchGuideTests(TestCase):
         self.assertContains(response, 'href="/launch/"', html=False)
         self.assertContains(response, 'Launch')
 
+    def test_unknown_artifact_is_surfaced(self):
+        response = self.client.get('/launch/?artifact=aws-s3')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['active_artifact'], '')
+        self.assertEqual(response.context['invalid_artifact'], 'aws-s3')
+        self.assertContains(response, 'aws-s3')
+        self.assertContains(response, "isn’t a known build type")
+
+    def test_artifact_query_marks_matching_routes(self):
+        response = self.client.get('/launch/?artifact=frontend')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['active_artifact'], 'frontend')
+        self.assertContains(response, 'is-match')
+        self.assertContains(response, 'is-dimmed')
+        self.assertContains(response, 'Vercel')
+
+    def test_high_risk_steps_are_flagged(self):
+        response = self.client.get('/launch/vercel-web/')
+        self.assertContains(response, 'High-stakes')
+        self.assertTrue(any(step.get('high_risk') for step in response.context['guide']['steps']))
+
 
 
 
