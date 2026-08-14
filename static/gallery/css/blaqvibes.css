@@ -1,3 +1,8 @@
+:root {
+  /* Width of the vertical sidebar. Single source of truth: the sidebar,
+     the body offset and every viewport-fixed popover read this one value. */
+  --nav-w: 230px;
+}
 :root, [data-theme="dark"] {
   --bg: #07070A;
   --card: #121214;
@@ -44,6 +49,29 @@ a { color: inherit; text-decoration: none; }
 .nav-links { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .nav-links a { font-size: 13px; color: var(--muted); }
 .nav-links a:hover { color: var(--text); }
+/* Current page — the rail is persistent, so it has to say where you are. */
+.nav-links > a[aria-current="page"] { color: var(--text); font-weight: 700; }
+/* Keyboard focus must stay visible against both themes. */
+.nav :is(a, button):focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+/* Skip link — with a persistent sidebar, keyboard users would otherwise
+   tab the whole rail on every page before reaching the content. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 100;
+  padding: 10px 14px;
+  background: var(--violet);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 0 0 10px 0;
+}
+.skip-link:focus { left: 0; }
 .icon-btn {
   background: transparent;
   border: 1px solid var(--line);
@@ -124,6 +152,9 @@ a { color: inherit; text-decoration: none; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; color: var(--text); }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px); background: #fff; color: #000; padding: 10px 16px; border-radius: 10px; font-weight: 700; transition: .25s; z-index: 999; }
 .toast.show { transform: translateX(-50%) translateY(0); }
+/* Centering for the PWA popovers lives here (not inline) so the desktop
+   sidebar rule below can re-centre them over the content column. */
+#pwa-install-banner, #pwa-ios-hint { left: 50%; transform: translateX(-50%); }
 .vibe-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .hero-grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 20px; align-items: center; }
 .detail-layout { display: grid; grid-template-columns: 1.6fr .95fr; gap: 16px; }
@@ -181,36 +212,57 @@ a { color: inherit; text-decoration: none; }
     top: 0;
     left: 0;
     bottom: 0;
-    width: var(--nav-w, 230px);
+    width: var(--nav-w);
     flex-direction: column;
     align-items: stretch;
     justify-content: flex-start;
     flex-wrap: nowrap;
-    gap: 16px;
+    gap: 14px;
     padding: 18px 14px;
     border-bottom: none;
     border-right: 1px solid var(--line);
-    overflow-y: auto;
+    /* The sidebar itself must never scroll as a whole — the brand stays
+       pinned at the top and only the link list scrolls (see .nav-links). */
+    overflow: hidden;
   }
-  body { padding-left: var(--nav-w, 230px); }
+  body { padding-left: var(--nav-w); }
+  /* Brand and the theme/burger row stay fixed at the top of the rail. */
+  .nav > .logo, .nav-actions { flex: none; }
   .nav-actions { margin-left: 0; }
+  /* The burger is a mobile-only affordance; the rail is always expanded. */
+  .nav-burger { display: none; }
   .nav-links {
+    /* Own scroll region: a signed-in user with a long avatar menu can no
+       longer push Logout past the bottom of the viewport unreachably. */
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
     flex-direction: column;
     align-items: stretch;
     gap: 6px;
     flex-wrap: nowrap;
+    /* Room for the scrollbar so it never sits on top of the labels. */
+    padding-right: 2px;
+    scrollbar-width: thin;
   }
   .nav-links > a { font-size: 14px; padding: 9px 10px; border-radius: 10px; }
   .nav-links > a:hover { background: var(--line); }
+  .nav-links > a[aria-current="page"] {
+    background: color-mix(in srgb, var(--violet) 16%, transparent);
+    box-shadow: inset 2px 0 0 var(--violet);
+  }
   .nav-links .btn-violet, .nav-links .btn-ghost, .nav-links .btn-white { justify-content: flex-start; }
   .nav-user { width: 100%; }
   .nav-user-btn { width: 100%; justify-content: flex-start; border-radius: 10px; padding: 6px 10px 6px 6px; }
+  /* The username can grow to the rail width now there is no row to share. */
+  .nav-user-name { max-width: none; flex: 1; text-align: left; }
   /* The avatar dropdown opens inline inside the sidebar instead of floating. */
   .nav-menu { position: static; min-width: 0; box-shadow: none; margin-top: 4px; }
   /* Sticky elements no longer sit below a 64px top bar. */
   .filter-bar { top: 12px; }
   /* Center viewport-fixed elements on the content area, not the viewport. */
-  .toast, #pwa-install-banner, #pwa-ios-hint { left: calc(50% + var(--nav-w, 230px) / 2); }
+  .toast, #pwa-install-banner, #pwa-ios-hint { left: calc(50% + var(--nav-w) / 2); }
 }
 @media (max-width: 900px) {
   .vibe-grid { grid-template-columns: 1fr 1fr; }
@@ -222,6 +274,11 @@ a { color: inherit; text-decoration: none; }
     flex-direction: column;
     align-items: stretch;
     padding: 8px 0 4px;
+    /* The open burger panel scrolls internally instead of running off the
+       bottom of a short phone viewport with Logout out of reach. */
+    max-height: calc(100vh - 72px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
   .nav-links.open { display: flex; }
   .nav-links a, .nav-links .btn-violet, .nav-links .btn-ghost, .nav-links .btn-white { justify-content: flex-start; }
