@@ -17,7 +17,7 @@ from .forms import AppUploadForm
 from .utils import build_tree_from_zip
 from .storages import get_presigned_url, is_s3_enabled
 from .search import search_projects
-from .access import user_can_download, access_denied_message
+from .access import user_can_download, user_can_see_project, user_is_moderator, access_denied_message
 from .zip_serve import serve_project_zip, owner_scan_reason
 from .notify import notify
 from django.core.mail import send_mail
@@ -131,7 +131,7 @@ def app_detail(request, slug):
     )
     project = get_object_or_404(qs, slug=slug)
     # Only published visible to visitors, owners can see their pending/quarantined
-    if project.status != 'published' and (not request.user.is_authenticated or project.owner != request.user and not request.user.is_staff):
+    if not user_can_see_project(request.user, project):
         raise Http404
     if project.status == 'published':
         AppProject.objects.filter(pk=project.pk).update(views=F('views')+1)
@@ -197,7 +197,7 @@ def app_detail(request, slug):
         'has_traded': has_traded,
         'has_bought': has_bought,
         'can_download': can_download,
-        'scan_reason': owner_scan_reason(project) if request.user.is_authenticated and (request.user == project.owner or request.user.is_staff) else '',
+        'scan_reason': owner_scan_reason(project) if request.user.is_authenticated and (request.user == project.owner or user_is_moderator(request.user)) else '',
         'comment_count': getattr(project, 'comment_count', 0),
         'published_forks': [f for f in project.forks.all() if f.status == 'published'][:5],
         'viewers': viewers,
@@ -212,15 +212,28 @@ def app_detail(request, slug):
     })
 
 def scan_status(request, slug):
-    """Backend-only status poll — JS gets only 'queued/scanning/clean/quarantined', never raw scan_report."""
+    """Owner/moderator poll for unpublished; public only after publish.
+
+    5 Whys:
+    1. Why not public on pending? A guessed slug leaks queued/quarantined.
+    2. Why 404 not 403? 403 confirms the vibe exists.
+    3. Why still public after publish? The detail-page poll reloads when
+       is_published flips. Strangers then only see 'clean'.
+    4. Why hide reason from strangers? owner_scan_reason names virus/secrets.
+    5. Why moderator not is_staff? Django staff is not a BlaqVibes role.
+    """
     project = get_object_or_404(AppProject, slug=slug)
+    if not user_can_see_project(request.user, project):
+        raise Http404
     job = getattr(project, 'scan_job', None)
     data = {
         'status': job.status if job else project.status,
         'is_published': project.status == 'published',
         'reason': '',
     }
-    if request.user.is_authenticated and (request.user == project.owner or request.user.is_staff):
+    if request.user.is_authenticated and (
+        request.user.pk == project.owner_id or user_is_moderator(request.user)
+    ):
         data['reason'] = owner_scan_reason(project)
     return JsonResponse(data)
 
@@ -390,7 +403,8 @@ def download_zip(request, slug):
 
 def file_preview(request, slug, path):
     project = get_object_or_404(AppProject, slug=slug, status='published')
-    if '..' in path or path.startswith('/') or '\\' in path:
+    from .validators import is_safe_zip_name
+    if not is_safe_zip_name(path):
         raise Http404
     if not project.zip_file:
         raise Http404
@@ -475,18 +489,8 @@ def post_review(request, slug):
 @login_required
 def toggle_star(request, slug):
     project = get_object_or_404(AppProject, slug=slug, status='published')
-    star, created = Star.objects.get_or_create(user=request.user, project=project)
-    from .economy import adjust_owner_stars
-    if not created:
-        star.delete()
-        AppProject.objects.filter(pk=project.pk, stars__gt=0).update(stars=F('stars')-1)
-        if request.user.id != project.owner_id:
-            adjust_owner_stars(project.owner, -1)
-        return JsonResponse({'starred': False})
-    AppProject.objects.filter(pk=project.pk).update(stars=F('stars')+1)
-    if request.user.id != project.owner_id:
-        adjust_owner_stars(project.owner, 1)
-    return JsonResponse({'starred': True})
+    from .economy import toggle_project_star
+    return JsonResponse({'starred': toggle_project_star(request.user, project)})
 
 @login_required
 def my_vibes(request):

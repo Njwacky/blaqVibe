@@ -342,17 +342,31 @@ def deploy_view(request, token):
         return render(request, 'gallery/deploy_expired.html', {'deploy': None})
 
 @require_POST
-@ratelimit(key='ip', rate='60/h', method='POST')
+@ratelimit(key='ip', rate='20/h', method='POST')
 def copy_increment(request, slug):
-    try:
-        project = get_object_or_404(AppProject, slug=slug)
-        AppProject.objects.filter(pk=project.pk).update(copies=F('copies')+1)
-        return JsonResponse({'ok': True})
-    except Exception:
-        # crush silently
-        import logging
-        logging.getLogger(__name__).exception("copy_increment crush")
-        return JsonResponse({'ok': False}, status=500)
+    """One copy count per session per published vibe. Not a leaderboard.
+
+    5 Whys:
+    1. Why not a naked F()+1? Anyone can POST /copy/ in a loop.
+    2. Why session not IP-only? IP rate limits rotate; a session is the
+       browser that actually copied.
+    3. Why ignore the owner? Self-copies would be the first farm.
+    4. Why published only? A pending slug must not be confirmable this way.
+    5. Why keep the endpoint? The snippet Copy button already calls it;
+       dropping the stat would lie in the UI. Cap it instead.
+    """
+    if getattr(request, 'limited', False):
+        return JsonResponse({'ok': True, 'ignored': 'limited'}, status=429)
+    project = get_object_or_404(AppProject, slug=slug, status='published')
+    if request.user.is_authenticated and request.user.pk == project.owner_id:
+        return JsonResponse({'ok': True, 'ignored': 'owner'})
+    key = f'copied:{project.pk}'
+    if request.session.get(key):
+        return JsonResponse({'ok': True, 'ignored': 'already'})
+    request.session[key] = True
+    request.session.modified = True
+    AppProject.objects.filter(pk=project.pk).update(copies=F('copies') + 1)
+    return JsonResponse({'ok': True})
 
 def challenge_list(request):
     from .models import Challenge

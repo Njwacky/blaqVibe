@@ -1136,3 +1136,125 @@ class VersionDownloadTests(TestCase):
         response = self.client.get(f'/app/{self.project.slug}/versions/{self.version.id}/download/')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'application/zip')
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False)
+class ScanStatusVisibilityTests(TestCase):
+    def setUp(self):
+        from gallery.models import ScanJob
+        self.cat = make_category()
+        self.owner = make_user('owner')
+        self.stranger = make_user('stranger')
+        self.staff = make_user('staffer')
+        self.staff.is_staff = True
+        self.staff.save()
+        self.mod = make_user('mod', role='moderator')
+        self.pending = make_project(self.owner, self.cat, title='Pending vibe', status='pending')
+        ScanJob.objects.create(project=self.pending, status='scanning')
+        self.live = make_project(self.owner, self.cat, title='Live vibe', status='published')
+
+    def test_stranger_cannot_see_unpublished_scan(self):
+        response = self.client.get(f'/app/{self.pending.slug}/scan-status/')
+        self.assertEqual(response.status_code, 404)
+
+    def test_staff_flag_is_not_enough_for_unpublished_scan(self):
+        self.client.login(username='staffer', password='pass12345')
+        response = self.client.get(f'/app/{self.pending.slug}/scan-status/')
+        self.assertEqual(response.status_code, 404)
+
+    def test_owner_sees_unpublished_scan(self):
+        self.client.login(username='owner', password='pass12345')
+        response = self.client.get(f'/app/{self.pending.slug}/scan-status/')
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body['status'], 'scanning')
+        self.assertFalse(body['is_published'])
+        self.assertTrue(body['reason'])
+
+    def test_moderator_sees_unpublished_scan(self):
+        self.client.login(username='mod', password='pass12345')
+        response = self.client.get(f'/app/{self.pending.slug}/scan-status/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['status'], 'scanning')
+
+    def test_stranger_sees_published_status_without_reason(self):
+        response = self.client.get(f'/app/{self.live.slug}/scan-status/')
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertTrue(body['is_published'])
+        self.assertEqual(body['reason'], '')
+
+
+@override_settings(RATELIMIT_ENABLE=False, SEED_DEMO=False)
+class CopyIncrementTests(TestCase):
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('owner')
+        self.fan = make_user('fan')
+        self.live = make_project(self.owner, self.cat, title='Copy me', copies=0)
+        self.pending = make_project(self.owner, self.cat, title='Not live', status='pending', copies=0)
+
+    def test_unpublished_copy_is_404(self):
+        response = self.client.post(f'/app/{self.pending.slug}/copy/')
+        self.assertEqual(response.status_code, 404)
+
+    def test_owner_copy_does_not_count(self):
+        self.client.login(username='owner', password='pass12345')
+        response = self.client.post(f'/app/{self.live.slug}/copy/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()['ignored'], 'owner')
+        self.live.refresh_from_db()
+        self.assertEqual(self.live.copies, 0)
+
+    def test_one_copy_per_session(self):
+        self.client.login(username='fan', password='pass12345')
+        first = self.client.post(f'/app/{self.live.slug}/copy/')
+        second = self.client.post(f'/app/{self.live.slug}/copy/')
+        self.assertEqual(first.status_code, 200)
+        self.assertNotIn('ignored', first.json())
+        self.assertEqual(second.json()['ignored'], 'already')
+        self.live.refresh_from_db()
+        self.assertEqual(self.live.copies, 1)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class StaffIsNotAFreePassTests(TestCase):
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('owner')
+        self.staff = make_user('staffer')
+        self.staff.is_staff = True
+        self.staff.save()
+        self.project = make_project(self.owner, self.cat, star_cost=3)
+        self.project.zip_file.save('paid.zip', make_zip_file({'app.py': 'print(1)\n'}), save=True)
+
+    def test_django_staff_cannot_download_paid_zip(self):
+        self.assertFalse(user_can_download(self.staff, self.project))
+        self.client.login(username='staffer', password='pass12345')
+        response = self.client.get(f'/app/{self.project.slug}/download/')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(self.project.slug, response.url)
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.clones, 0)
+
+
+@override_settings(RATELIMIT_ENABLE=False)
+class AtomicStarToggleTests(TestCase):
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('owner', stars_balance=5)
+        self.fan = make_user('fan')
+        self.project = make_project(self.owner, self.cat, stars=0)
+
+    def test_double_star_does_not_create_two_rows(self):
+        from gallery.models import Star
+        self.client.login(username='fan', password='pass12345')
+        first = self.client.post(f'/app/{self.project.slug}/star/')
+        again = self.client.post(f'/app/{self.project.slug}/star/')
+        third = self.client.post(f'/app/{self.project.slug}/star/')
+        self.assertTrue(first.json()['starred'])
+        self.assertFalse(again.json()['starred'])
+        self.assertTrue(third.json()['starred'])
+        self.assertEqual(Star.objects.filter(user=self.fan, project=self.project).count(), 1)
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.stars, 1)
