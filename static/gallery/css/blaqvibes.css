@@ -173,6 +173,45 @@ a { color: inherit; text-decoration: none; }
   font-size: 13px;
 }
 .filter-bar input { flex: 1; min-width: 180px; }
+/* Vertical navbar — on desktop the nav is a fixed full-height sidebar on
+   the left; below 900px it falls back to the burger/stacked mobile layout. */
+@media (min-width: 901px) {
+  .nav {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: var(--nav-w, 230px);
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: flex-start;
+    flex-wrap: nowrap;
+    gap: 16px;
+    padding: 18px 14px;
+    border-bottom: none;
+    border-right: 1px solid var(--line);
+    overflow-y: auto;
+  }
+  body { padding-left: var(--nav-w, 230px); }
+  .nav-actions { margin-left: 0; }
+  .nav-links {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 6px;
+    flex-wrap: nowrap;
+  }
+  .nav-links > a { font-size: 14px; padding: 9px 10px; border-radius: 10px; }
+  .nav-links > a:hover { background: var(--line); }
+  .nav-links .btn-violet, .nav-links .btn-ghost, .nav-links .btn-white { justify-content: flex-start; }
+  .nav-user { width: 100%; }
+  .nav-user-btn { width: 100%; justify-content: flex-start; border-radius: 10px; padding: 6px 10px 6px 6px; }
+  /* The avatar dropdown opens inline inside the sidebar instead of floating. */
+  .nav-menu { position: static; min-width: 0; box-shadow: none; margin-top: 4px; }
+  /* Sticky elements no longer sit below a 64px top bar. */
+  .filter-bar { top: 12px; }
+  /* Center viewport-fixed elements on the content area, not the viewport. */
+  .toast, #pwa-install-banner, #pwa-ios-hint { left: calc(50% + var(--nav-w, 230px) / 2); }
+}
 @media (max-width: 900px) {
   .vibe-grid { grid-template-columns: 1fr 1fr; }
   .detail-layout { grid-template-columns: 1fr; }
