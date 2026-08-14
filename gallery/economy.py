@@ -67,6 +67,42 @@ def trade_for_download(buyer, project):
         raise TradeError('Could not complete the trade. Try again.')
 
 
+def toggle_project_star(user, project):
+    """Atomically star or unstar. Returns True if the vibe is now starred.
+
+    5 Whys:
+    1. Why lock the project row? Two tabs both get_or_create, then the loser
+       treats it as an unstar and deletes the winner's Star.
+    2. Why select_for_update on Star too? So the delete and the counter move
+       cannot interleave with another toggle.
+    3. Why IntegrityError on create? Unique (user, project) is the real lock
+       if two creates sneak in before the row lock is held.
+    4. Why not let stars go negative? Unstar uses stars__gt=0, same as the
+       existing floor test.
+    5. Why move the owner's wallet here? The counter and the wallet must
+       stay in the same transaction as the Star row.
+    """
+    from .models import AppProject, Star
+
+    with transaction.atomic():
+        locked = AppProject.objects.select_for_update().get(pk=project.pk)
+        existing = Star.objects.select_for_update().filter(user=user, project=locked).first()
+        if existing:
+            existing.delete()
+            AppProject.objects.filter(pk=locked.pk, stars__gt=0).update(stars=F('stars') - 1)
+            if user.id != locked.owner_id:
+                adjust_owner_stars(locked.owner, -1)
+            return False
+        try:
+            Star.objects.create(user=user, project=locked)
+        except IntegrityError:
+            return True
+        AppProject.objects.filter(pk=locked.pk).update(stars=F('stars') + 1)
+        if user.id != locked.owner_id:
+            adjust_owner_stars(locked.owner, 1)
+        return True
+
+
 def adjust_owner_stars(owner, delta: int):
     """Move stars on the owner when someone stars / unstars their vibe."""
     if not owner or delta == 0:

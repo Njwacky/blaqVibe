@@ -342,17 +342,31 @@ def deploy_view(request, token):
         return render(request, 'gallery/deploy_expired.html', {'deploy': None})
 
 @require_POST
-@ratelimit(key='ip', rate='60/h', method='POST')
+@ratelimit(key='ip', rate='20/h', method='POST')
 def copy_increment(request, slug):
-    try:
-        project = get_object_or_404(AppProject, slug=slug)
-        AppProject.objects.filter(pk=project.pk).update(copies=F('copies')+1)
-        return JsonResponse({'ok': True})
-    except Exception:
-        # crush silently
-        import logging
-        logging.getLogger(__name__).exception("copy_increment crush")
-        return JsonResponse({'ok': False}, status=500)
+    """One copy count per session per published vibe. Not a leaderboard.
+
+    5 Whys:
+    1. Why not a naked F()+1? Anyone can POST /copy/ in a loop.
+    2. Why session not IP-only? IP rate limits rotate; a session is the
+       browser that actually copied.
+    3. Why ignore the owner? Self-copies would be the first farm.
+    4. Why published only? A pending slug must not be confirmable this way.
+    5. Why keep the endpoint? The snippet Copy button already calls it;
+       dropping the stat would lie in the UI. Cap it instead.
+    """
+    if getattr(request, 'limited', False):
+        return JsonResponse({'ok': True, 'ignored': 'limited'}, status=429)
+    project = get_object_or_404(AppProject, slug=slug, status='published')
+    if request.user.is_authenticated and request.user.pk == project.owner_id:
+        return JsonResponse({'ok': True, 'ignored': 'owner'})
+    key = f'copied:{project.pk}'
+    if request.session.get(key):
+        return JsonResponse({'ok': True, 'ignored': 'already'})
+    request.session[key] = True
+    request.session.modified = True
+    AppProject.objects.filter(pk=project.pk).update(copies=F('copies') + 1)
+    return JsonResponse({'ok': True})
 
 def challenge_list(request):
     from .models import Challenge
@@ -410,30 +424,24 @@ def challenge_detail(request, tag):
 @login_required
 @require_POST
 def pick_challenge_winner(request, tag):
+    from .challenges import PRO_PRIZE_DAYS, ChallengeAwardError, award_challenge_winner
     from .models import Challenge
-    from users.decorators import admin_required
-    # Only admin/superadmin can pick winner
     if not request.user.profile.is_admin():
         return render(request, '403.html', status=403)
     challenge = get_object_or_404(Challenge, tag=tag)
     winner_id = request.POST.get('winner_id')
-    if winner_id:
-        from gallery.models import AppProject
-        winner = get_object_or_404(AppProject, id=winner_id)
-        challenge.winner = winner
-        challenge.save(update_fields=['winner'])
-        # Reward winner: +10 stars + Pro 7 days
-        try:
-            winner.owner.profile.stars_balance = F('stars_balance') + challenge.bounty_stars
-            winner.owner.profile.save(update_fields=['stars_balance'])
-            # Also give stars to project
-            AppProject.objects.filter(pk=winner.pk).update(stars=F('stars')+challenge.bounty_stars)
-            from django.utils import timezone
-            from datetime import timedelta
-            winner.owner.profile.is_pro = True
-            winner.owner.profile.pro_since = timezone.now()
-            winner.owner.profile.pro_until = timezone.now() + timedelta(days=30)
-            winner.owner.profile.save(update_fields=['is_pro','pro_since','pro_until'])
-        except Exception: pass
-        messages.success(request, f"Winner picked: {winner.title} by @{winner.owner.username} — +{challenge.bounty_stars} ★ + Pro!")
+    if not winner_id:
+        messages.error(request, 'Pick a submission first.')
+        return redirect('challenge_detail', tag=tag)
+    winner = get_object_or_404(AppProject, id=winner_id)
+    try:
+        award_challenge_winner(challenge, winner, actor=request.user)
+    except ChallengeAwardError as exc:
+        messages.error(request, exc.message)
+        return redirect('challenge_detail', tag=tag)
+    messages.success(
+        request,
+        f'Winner picked: {winner.title} by @{winner.owner.username} — '
+        f'+{challenge.bounty_stars} ★ + Pro {PRO_PRIZE_DAYS} days.',
+    )
     return redirect('challenge_detail', tag=tag)

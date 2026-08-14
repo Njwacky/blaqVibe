@@ -27,8 +27,8 @@ def vulnerability_scan(self, *args, project_id=None):
         zip_path = p.zip_file.path
         tmpdir = tempfile.mkdtemp()
         try:
-            with zipfile.ZipFile(zip_path) as z:
-                z.extractall(tmpdir)
+            from .validators import safe_extract_zip
+            safe_extract_zip(zip_path, tmpdir)
             for root, _, files in os.walk(tmpdir):
                 if 'package.json' in files:
                     try:
@@ -51,6 +51,9 @@ def vulnerability_scan(self, *args, project_id=None):
                     except Exception as e:
                         logger.info(f"pip audit skip {p.slug}: {e}")
                     break
+        except Exception as e:
+            logger.warning("safe extract / audit skip %s: %s", p.slug, e)
+            report['extract_error'] = 'unsafe or unreadable zip'
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
     # Nolo Auto-Review — heuristic or LLM, backend only, crush silently

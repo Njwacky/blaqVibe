@@ -207,7 +207,39 @@ class Sale(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
         unique_together = ('buyer','project')
+        constraints = [
+            models.UniqueConstraint(
+                fields=['paystack_ref'],
+                name='sale_unique_paystack_ref',
+                condition=~models.Q(paystack_ref=''),
+            ),
+        ]
     def __str__(self): return f"{self.buyer} → {self.project.slug} R{self.amount_zar}"
+
+
+class PaymentIntent(models.Model):
+    """Frozen checkout — webhook fulfills this row, not the live price_zar."""
+    STATUS_CHOICES = [('pending', 'Pending'), ('paid', 'Paid'), ('failed', 'Failed')]
+    reference = models.CharField(max_length=100, unique=True)
+    buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payment_intents')
+    project = models.ForeignKey(AppProject, on_delete=models.CASCADE, related_name='payment_intents')
+    amount_zar = models.PositiveIntegerField()
+    amount_kobo = models.PositiveIntegerField()
+    currency = models.CharField(max_length=8, default='ZAR')
+    authorization_url = models.TextField(blank=True)
+    expires_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['reference']),
+            models.Index(fields=['buyer', 'project', 'status']),
+        ]
+
+    def __str__(self):
+        return f'{self.reference} {self.status} R{self.amount_zar}'
 
 class Review(models.Model):
     """Human review 1-5 ★ + text, separate from Comment/Star. One per user per vibe."""
@@ -327,6 +359,7 @@ class Notification(models.Model):
         ('published', 'Published'),
         ('quarantined', 'Quarantined'),
         ('review', 'Review'),
+        ('challenge', 'Challenge'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
     kind = models.CharField(max_length=20, choices=KIND_CHOICES)

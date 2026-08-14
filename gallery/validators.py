@@ -141,3 +141,125 @@ def scan_for_secrets_text(text: str):
         return found
     except Exception:
         return []
+
+
+def normalize_zip_name(name: str) -> str:
+    return (name or '').replace('\\', '/')
+
+
+def zip_name_parts(name: str):
+    return [part for part in normalize_zip_name(name).split('/') if part and part != '.']
+
+
+def is_safe_zip_name(name: str) -> bool:
+    """Reject absolute paths, drive letters, `..`, and blocked names."""
+    if not name:
+        return False
+    if len(name) > MAX_FILENAME_LEN:
+        return False
+    norm = normalize_zip_name(name)
+    if norm.startswith('/') or norm.startswith('//') or ':/' in norm:
+        return False
+    parts = zip_name_parts(norm)
+    if not parts or any(part == '..' for part in parts):
+        return False
+    for part in parts:
+        if part in BLOCKED_NAMES:
+            return False
+        if part.startswith('.env') and part != '.env.example':
+            return False
+    return True
+
+
+def assert_safe_zip_info(info):
+    """Shared gate for validate_zip and safe_extract_zip."""
+    name = info.filename
+    if _is_symlink(info):
+        raise ValueError(f'symlink not allowed: {name}')
+    if not is_safe_zip_name(name):
+        raise ValueError(f'unsafe path: {name}')
+    if info.file_size > 50 * 1024 * 1024:
+        raise ValueError(f'single file too large: {name}')
+
+
+def _under_dest(dest, path):
+    dest_real = os.path.realpath(dest)
+    path_real = os.path.realpath(path)
+    try:
+        return os.path.commonpath([dest_real]) == os.path.commonpath([dest_real, path_real])
+    except ValueError:
+        return False
+
+
+def _write_extracted_file(src, target, remaining_budget):
+    flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
+    if hasattr(os, 'O_NOFOLLOW'):
+        flags |= os.O_NOFOLLOW
+    fd = os.open(target, flags, 0o600)
+    written = 0
+    try:
+        with os.fdopen(fd, 'wb') as out:
+            fd = None
+            while True:
+                chunk = src.read(1024 * 256)
+                if not chunk:
+                    break
+                written += len(chunk)
+                if written > remaining_budget:
+                    raise ValueError('uncompressed total exceeded during extract')
+                out.write(chunk)
+    finally:
+        if fd is not None:
+            os.close(fd)
+    return written
+
+
+def safe_extract_zip(zip_path, dest_dir):
+    """Extract members one-by-one under dest_dir.
+
+    5 Whys:
+    1. Why not extractall? It writes `../` and symlinks before we can stop it.
+    2. Why re-check names here? Admin upload, PR merge, and seed skip the form.
+    3. Why count bytes while writing? Declared file_size is attacker-controlled.
+    4. Why O_NOFOLLOW + realpath? mkdir then replace-parent-with-symlink is the
+       classic extract race.
+    5. Why refuse blocked names on extract too? A `.env` that got past upload
+       must not land on the worker disk next to the scanner.
+    """
+    dest = os.path.abspath(dest_dir)
+    os.makedirs(dest, exist_ok=True)
+    written_total = 0
+    with zipfile.ZipFile(zip_path) as zf:
+        infos = zf.infolist()
+        if len(infos) > MAX_FILES:
+            raise ValueError(f'too many files: {len(infos)}')
+        for info in infos:
+            if info.is_dir() or info.filename.endswith('/'):
+                continue
+            assert_safe_zip_info(info)
+            rel_parts = zip_name_parts(info.filename)
+            target = dest
+            for part in rel_parts[:-1]:
+                target = os.path.join(target, part)
+                if os.path.islink(target):
+                    raise ValueError(f'symlink in extract path: {info.filename}')
+                if not os.path.isdir(target):
+                    os.mkdir(target)
+                if not _under_dest(dest, target):
+                    raise ValueError(f'path traversal: {info.filename}')
+            target = os.path.join(target, rel_parts[-1])
+            if os.path.islink(target):
+                raise ValueError(f'symlink not allowed: {info.filename}')
+            if not _under_dest(dest, os.path.dirname(target)):
+                raise ValueError(f'path traversal: {info.filename}')
+            remaining = MAX_TOTAL_UNCOMPRESSED - written_total
+            with zf.open(info, 'r') as src:
+                written_total += _write_extracted_file(src, target, remaining)
+            if not _under_dest(dest, target):
+                try:
+                    os.remove(target)
+                except OSError:
+                    pass
+                raise ValueError(f'path traversal after write: {info.filename}')
+    return dest
+

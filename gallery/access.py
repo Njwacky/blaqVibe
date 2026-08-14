@@ -2,9 +2,32 @@
 
 A vibe is free when it has no star cost and no ZAR price (or the
 owner turned trading off). Otherwise the buyer needs a Trade, a Sale,
-or to be the owner / staff.
+or to be the owner.
+
+Staff/moderator is not a free download. Review happens in the
+moderation queue; Django is_staff is not a BlaqVibes role.
 """
 from .models import Sale, Trade
+
+
+def user_is_moderator(user) -> bool:
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    try:
+        return user.profile.is_moderator()
+    except Exception:
+        return False
+
+
+def user_can_see_project(user, project) -> bool:
+    """Published is public. Pending/quarantined is owner or moderator only."""
+    if getattr(project, 'status', None) == 'published':
+        return True
+    if not getattr(user, 'is_authenticated', False):
+        return False
+    if user.pk == project.owner_id:
+        return True
+    return user_is_moderator(user)
 
 
 def effective_star_cost(project) -> int:
@@ -35,9 +58,8 @@ def user_can_download(user, project) -> bool:
         return False
     if not getattr(project, "zip_file", None):
         return False
-    if getattr(user, "is_authenticated", False):
-        if user.pk == project.owner_id or getattr(user, "is_staff", False):
-            return True
+    if getattr(user, "is_authenticated", False) and user.pk == project.owner_id:
+        return True
     cost = effective_star_cost(project)
     price = effective_price_zar(project)
     if cost == 0 and price == 0:

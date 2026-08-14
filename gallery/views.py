@@ -17,7 +17,7 @@ from .forms import AppUploadForm
 from .utils import build_tree_from_zip
 from .storages import get_presigned_url, is_s3_enabled
 from .search import search_projects
-from .access import user_can_download, access_denied_message
+from .access import user_can_download, user_can_see_project, user_is_moderator, access_denied_message
 from .zip_serve import serve_project_zip, owner_scan_reason
 from .notify import notify
 from django.core.mail import send_mail
@@ -131,7 +131,7 @@ def app_detail(request, slug):
     )
     project = get_object_or_404(qs, slug=slug)
     # Only published visible to visitors, owners can see their pending/quarantined
-    if project.status != 'published' and (not request.user.is_authenticated or project.owner != request.user and not request.user.is_staff):
+    if not user_can_see_project(request.user, project):
         raise Http404
     if project.status == 'published':
         AppProject.objects.filter(pk=project.pk).update(views=F('views')+1)
@@ -197,7 +197,7 @@ def app_detail(request, slug):
         'has_traded': has_traded,
         'has_bought': has_bought,
         'can_download': can_download,
-        'scan_reason': owner_scan_reason(project) if request.user.is_authenticated and (request.user == project.owner or request.user.is_staff) else '',
+        'scan_reason': owner_scan_reason(project) if request.user.is_authenticated and (request.user == project.owner or user_is_moderator(request.user)) else '',
         'comment_count': getattr(project, 'comment_count', 0),
         'published_forks': [f for f in project.forks.all() if f.status == 'published'][:5],
         'viewers': viewers,
@@ -212,15 +212,28 @@ def app_detail(request, slug):
     })
 
 def scan_status(request, slug):
-    """Backend-only status poll — JS gets only 'queued/scanning/clean/quarantined', never raw scan_report."""
+    """Owner/moderator poll for unpublished; public only after publish.
+
+    5 Whys:
+    1. Why not public on pending? A guessed slug leaks queued/quarantined.
+    2. Why 404 not 403? 403 confirms the vibe exists.
+    3. Why still public after publish? The detail-page poll reloads when
+       is_published flips. Strangers then only see 'clean'.
+    4. Why hide reason from strangers? owner_scan_reason names virus/secrets.
+    5. Why moderator not is_staff? Django staff is not a BlaqVibes role.
+    """
     project = get_object_or_404(AppProject, slug=slug)
+    if not user_can_see_project(request.user, project):
+        raise Http404
     job = getattr(project, 'scan_job', None)
     data = {
         'status': job.status if job else project.status,
         'is_published': project.status == 'published',
         'reason': '',
     }
-    if request.user.is_authenticated and (request.user == project.owner or request.user.is_staff):
+    if request.user.is_authenticated and (
+        request.user.pk == project.owner_id or user_is_moderator(request.user)
+    ):
         data['reason'] = owner_scan_reason(project)
     return JsonResponse(data)
 
@@ -243,7 +256,11 @@ def preview(request, slug):
     project = get_object_or_404(AppProject, slug=slug, status='published')
     if not project.html_code and project.zip_file:
         return redirect('preview_files', slug=slug)
-    resp = render(request, 'gallery/preview.html', {'project': project})
+    from .preview_token import issue_snippet_token
+    resp = render(request, 'gallery/preview.html', {
+        'project': project,
+        'snippet_token': issue_snippet_token(project.slug),
+    })
     # This shell has no scripts of its own — lock it down (only our own inline <style>).
     csp = (
         "default-src 'none'; frame-src 'self'; img-src 'self' data: https:; "
@@ -256,30 +273,58 @@ def preview(request, slug):
     return resp
 
 
+def _referer_is_our_preview(request, slug):
+    from urllib.parse import urlparse
+    referer = request.META.get('HTTP_REFERER', '')
+    if not referer:
+        return False
+    parsed = urlparse(referer)
+    if parsed.path.rstrip('/') != f'/app/{slug}/preview':
+        return False
+    referer_host = (parsed.hostname or '').lower()
+    request_host = (request.get_host() or '').split(':')[0].lower()
+    return bool(referer_host) and referer_host == request_host
+
+
+def snippet_request_is_framed(request, slug):
+    """True only for the sandboxed preview iframe with a valid signed token."""
+    from .preview_token import snippet_token_is_valid
+    dest = (request.META.get('HTTP_SEC_FETCH_DEST') or '').lower()
+    if dest == 'document':
+        return False
+    if not snippet_token_is_valid(slug, request.GET.get('t', '')):
+        return False
+    if dest == 'iframe':
+        return True
+    # Old browsers omit Sec-Fetch-Dest. Require a same-host preview Referer
+    # so a stolen token cannot be opened as a top-level first-party page.
+    return _referer_is_our_preview(request, slug)
+
+
 def snippet_doc(request, slug):
     """The raw snippet document (user HTML + CSS + JS).
 
-    Served ONLY into an <iframe sandbox="allow-scripts"> (opaque origin):
-    the framed content gets no cookies, no parent DOM, and `connect-src 'none'`
-    stops it from phoning home or driving state-changing requests. Direct
-    top-level navigation is rejected so the code never runs unsandboxed.
+    Served ONLY into an <iframe sandbox="allow-scripts"> (opaque origin)
+    with a short-lived signed token. CSP sandbox on the response also
+    applies if this URL is ever opened outside that iframe.
     """
     project = get_object_or_404(AppProject, slug=slug, status='published')
-    # Block direct (top-level) navigation. Browsers send Sec-Fetch-Dest on every
-    # request; the only legitimate entry point is our sandboxed preview iframe.
-    if request.META.get('HTTP_SEC_FETCH_DEST') == 'document':
+    if not snippet_request_is_framed(request, slug):
         return render(request, 'gallery/snippet_blocked.html', {'project': project}, status=403)
     resp = render(request, 'gallery/snippet_doc.html', {'project': project})
     resp['Content-Security-Policy'] = (
+        "sandbox allow-scripts; "
         "default-src 'none'; script-src 'unsafe-inline' https://cdn.tailwindcss.com; "
         "style-src 'unsafe-inline' https://fonts.googleapis.com; "
         "img-src data: https: http:; media-src data: https:; "
         "font-src data: https://fonts.gstatic.com; "
-        "connect-src https://cdn.tailwindcss.com; object-src 'none'; base-uri 'none'; form-action 'self'"
+        "connect-src https://cdn.tailwindcss.com; object-src 'none'; base-uri 'none'; "
+        "form-action 'none'; frame-ancestors 'self'"
     )
     resp['X-Frame-Options'] = 'SAMEORIGIN'
     resp['Referrer-Policy'] = 'no-referrer'
     resp['X-Content-Type-Options'] = 'nosniff'
+    resp['Cross-Origin-Resource-Policy'] = 'same-origin'
     return resp
 
 @login_required
@@ -358,7 +403,8 @@ def download_zip(request, slug):
 
 def file_preview(request, slug, path):
     project = get_object_or_404(AppProject, slug=slug, status='published')
-    if '..' in path or path.startswith('/') or '\\' in path:
+    from .validators import is_safe_zip_name
+    if not is_safe_zip_name(path):
         raise Http404
     if not project.zip_file:
         raise Http404
@@ -369,8 +415,8 @@ def file_preview(request, slug, path):
             if path not in z.namelist():
                 raise Http404
             data = z.read(path)
-    except Exception as e:
-        raise Http404(str(e))
+    except Exception:
+        raise Http404
     if len(data) > 200*1024:
         return JsonResponse({'error': 'File too large (200KB max). Download ZIP.'}, status=413)
     try:
@@ -443,18 +489,8 @@ def post_review(request, slug):
 @login_required
 def toggle_star(request, slug):
     project = get_object_or_404(AppProject, slug=slug, status='published')
-    star, created = Star.objects.get_or_create(user=request.user, project=project)
-    from .economy import adjust_owner_stars
-    if not created:
-        star.delete()
-        AppProject.objects.filter(pk=project.pk, stars__gt=0).update(stars=F('stars')-1)
-        if request.user.id != project.owner_id:
-            adjust_owner_stars(project.owner, -1)
-        return JsonResponse({'starred': False})
-    AppProject.objects.filter(pk=project.pk).update(stars=F('stars')+1)
-    if request.user.id != project.owner_id:
-        adjust_owner_stars(project.owner, 1)
-    return JsonResponse({'starred': True})
+    from .economy import toggle_project_star
+    return JsonResponse({'starred': toggle_project_star(request.user, project)})
 
 @login_required
 def my_vibes(request):
@@ -679,93 +715,51 @@ def apply_ai_readme(request, slug):
         return redirect('app_detail', slug=slug)
 
 @login_required
-@require_POST
-def buy_vibe(request, slug):
-    try:
-        project = get_object_or_404(AppProject, slug=slug, status='published')
-        if project.owner == request.user:
-            return redirect('download_zip', slug=slug)
-        if not project.price_zar or project.price_zar == 0:
-            return redirect('download_zip', slug=slug)
-        from .models import Sale
-        if Sale.objects.filter(buyer=request.user, project=project).exists():
-            return redirect('download_zip', slug=slug)
-        from .payments import paystack_enabled, paystack_secret
-        if not paystack_enabled():
-            messages.error(request, "Card payments aren't configured. Set PAYSTACK_SECRET_KEY, or trade stars to download.")
-            return redirect(project.get_absolute_url())
-        paystack_secret = paystack_secret()
-        import requests
-        import secrets
-        # Unique per attempt — Paystack rejects reused references on retry.
-        reference = f"blaq-{project.id}-{request.user.id}-{secrets.token_hex(6)}"
-        headers = {'Authorization': f'Bearer {paystack_secret}', 'Content-Type': 'application/json'}
-        data = {"email": request.user.email or f"{request.user.username}@blaqvibes.co.za", "amount": project.price_zar*100, "reference": reference, "callback_url": f"{settings.SITE_URL}{project.get_absolute_url()}", "metadata": {"project_id": project.id, "buyer_id": request.user.id}}
-        try:
-            r = requests.post('https://api.paystack.co/transaction/initialize', json=data, headers=headers, timeout=10)
-            j = r.json()
-            if j.get('status') and j.get('data', {}).get('authorization_url'):
-                return redirect(j['data']['authorization_url'])
-        except Exception as e:
-            logger.warning(f"Paystack init fail: {e}")
-        messages.error(request, "Could not start checkout. No charge was made.")
+def download_version(request, slug, version_id):
+    """Owner (or unlocked buyer) can fetch a historical ZIP. Never via .url."""
+    project = get_object_or_404(AppProject, slug=slug)
+    version = get_object_or_404(AppVersion, pk=version_id, project=project)
+    if request.user != project.owner and not user_can_download(request.user, project):
+        messages.error(request, access_denied_message(request.user, project))
         return redirect(project.get_absolute_url())
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).exception(f"buy crush: {e}")
+    from .zip_serve import serve_named_zip
+    return serve_named_zip(version.zip_file, f'{project.slug}-v{version.version}.zip')
+
+
+@login_required
+@require_POST
+@ratelimit(key='user', rate='10/h', method='POST')
+def buy_vibe(request, slug):
+    if getattr(request, 'limited', False):
+        messages.error(request, 'Rate limit: 10 checkouts/hour.')
         return redirect('app_detail', slug=slug)
+    project = get_object_or_404(AppProject, slug=slug, status='published')
+    if project.owner == request.user:
+        return redirect('download_zip', slug=slug)
+    if not project.price_zar:
+        return redirect('download_zip', slug=slug)
+    from .models import Sale
+    if Sale.objects.filter(buyer=request.user, project=project).exists():
+        return redirect('download_zip', slug=slug)
+    from .payments import PaymentError, create_checkout
+    try:
+        return redirect(create_checkout(request.user, project))
+    except PaymentError as exc:
+        if exc.message == 'already_unlocked':
+            return redirect('download_zip', slug=slug)
+        messages.error(request, exc.message)
+        return redirect(project.get_absolute_url())
 
 from django.views.decorators.csrf import csrf_exempt
 @csrf_exempt
 @require_POST
 def paystack_webhook(request):
-    """Verify Paystack signature and record a Sale.
-
-    Returns 4xx on anything we can't verify/process so Paystack retries;
-    returns 200 only once the event is handled (or safely ignored).
-    """
-    import json
-    from .payments import paystack_enabled, verify_paystack_signature
-    if not paystack_enabled():
-        return HttpResponse("webhook not configured", status=503)
-    body = request.body
-    sig = request.headers.get('x-paystack-signature', '')
-    if not verify_paystack_signature(body, sig):
-        return HttpResponse("invalid signature", status=400)
-    try:
-        data = json.loads(body)
-    except (ValueError, TypeError):
-        return HttpResponse("invalid json", status=400)
-    if data.get('event') != 'charge.success':
-        return HttpResponse("ignored", status=200)
-    ref = (data.get('data') or {}).get('reference') or ''
-    parts = ref.split('-')
-    if len(parts) < 3 or parts[0] != 'blaq':
-        return HttpResponse("bad reference", status=400)
-    try:
-        pid, uid = int(parts[1]), int(parts[2])
-    except ValueError:
-        return HttpResponse("bad reference", status=400)
-    from .models import Sale, AppProject
-    from django.contrib.auth.models import User
-    try:
-        project = AppProject.objects.get(pk=pid)
-        buyer = User.objects.get(pk=uid)
-    except (AppProject.DoesNotExist, User.DoesNotExist):
-        return HttpResponse("unknown project/buyer", status=400)
-    paid = int((data.get('data') or {}).get('amount') or 0)
-    expected_amount = int(project.price_zar or 0) * 100
-    if expected_amount and paid != expected_amount:
-        logger.warning("Paystack amount mismatch ref=%s paid=%s expected=%s", ref, paid, expected_amount)
-        return HttpResponse("amount mismatch", status=400)
-    sale, created = Sale.objects.get_or_create(
-        buyer=buyer, project=project,
-        defaults={'seller': project.owner, 'amount_zar': project.price_zar, 'paystack_ref': ref},
+    """Verify Paystack signature and fulfill the frozen PaymentIntent."""
+    from .payments import fulfill_signed_webhook
+    status, msg = fulfill_signed_webhook(
+        request.body, request.headers.get('x-paystack-signature', ''),
     )
-    if created:
-        notify(project.owner, 'sale', f'{buyer.username} bought {project.title}', f'R{project.price_zar}', project.get_absolute_url())
-        notify(buyer, 'sale', f'You unlocked {project.title}', url=project.get_absolute_url())
-    return HttpResponse("ok")
+    return HttpResponse(msg, status=status)
 
 def oops_demo(request):
     # Demo safe page — always shows friendly fork, no HttpResponse scare
