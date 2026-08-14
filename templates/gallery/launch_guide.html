@@ -15,7 +15,7 @@
 
   <header class="launch-guide-hero">
     <div class="launch-guide-hero__main">
-      <span class="launch-kicker">{{ guide.icon }} {{ guide.eyebrow }}</span>
+      <span class="launch-kicker"><span class="launch-brand launch-brand--micro launch-brand--{{ guide.slug }}" aria-hidden="true"><img src="{% static guide.icon %}" alt=""></span>{{ guide.eyebrow }}</span>
       <h1>{{ guide.title }}</h1>
       <p>{{ guide.summary }}</p>
       <div class="launch-good-for">
@@ -157,7 +157,7 @@
     </div>
     <div class="launch-related__grid">
       {% for item in related_guides %}
-      <a href="{% url 'launch_guide' item.slug %}" class="card"><span>{{ item.icon }}</span><div><small>{{ item.eyebrow }}</small><b>{{ item.title }}</b></div><i aria-hidden="true">↗</i></a>
+      <a href="{% url 'launch_guide' item.slug %}" class="card"><span class="launch-brand launch-brand--{{ item.slug }}" aria-hidden="true"><img src="{% static item.icon %}" alt=""></span><div><small>{{ item.eyebrow }}</small><b>{{ item.title }}</b></div><i aria-hidden="true">↗</i></a>
       {% empty %}
       <a href="{% url 'launch_hub' %}#destinations" class="card"><span>⌁</span><div><small>Destination map</small><b>Compare all publishing paths</b></div><i aria-hidden="true">↗</i></a>
       {% endfor %}

@@ -28,8 +28,7 @@ LAUNCH_GUIDES = (
     {
         "slug": "cloudflare-pages",
         "category": "web",
-        "icon": "◇",
-        "emoji": "🌍",
+        "icon": "gallery/icons/launch/brands/cloudflare.svg",
         "name": "Cloudflare Pages",
         "pace": "Fastest",
         "eyebrow": "Static web",
@@ -84,8 +83,7 @@ LAUNCH_GUIDES = (
     {
         "slug": "vercel-web",
         "category": "web",
-        "icon": "▲",
-        "emoji": "⚡",
+        "icon": "gallery/icons/launch/brands/vercel.svg",
         "name": "Vercel",
         "pace": "Fast",
         "eyebrow": "Frontend & web frameworks",
@@ -143,8 +141,7 @@ LAUNCH_GUIDES = (
     {
         "slug": "render-web-service",
         "category": "web",
-        "icon": "⬡",
-        "emoji": "🖥️",
+        "icon": "gallery/icons/launch/brands/render.svg",
         "name": "Render",
         "pace": "More setup",
         "eyebrow": "Backend & full stack",
@@ -198,8 +195,7 @@ LAUNCH_GUIDES = (
     {
         "slug": "installable-pwa",
         "category": "web",
-        "icon": "✦",
-        "emoji": "📲",
+        "icon": "gallery/icons/launch/brands/pwa.svg",
         "name": "Installable PWA",
         "pace": "Web + manifest",
         "eyebrow": "Installable web app",
@@ -246,8 +242,7 @@ LAUNCH_GUIDES = (
     {
         "slug": "docker-hub",
         "category": "distribution",
-        "icon": "▣",
-        "emoji": "🐳",
+        "icon": "gallery/icons/launch/brands/docker.svg",
         "name": "Docker Hub",
         "pace": "Registry + host",
         "eyebrow": "Container registry",
@@ -300,8 +295,7 @@ LAUNCH_GUIDES = (
     {
         "slug": "google-play",
         "category": "mobile",
-        "icon": "▶",
-        "emoji": "🤖",
+        "icon": "gallery/icons/launch/brands/google-play.svg",
         "name": "Google Play",
         "pace": "Needs review",
         "eyebrow": "Android",
@@ -355,8 +349,7 @@ LAUNCH_GUIDES = (
     {
         "slug": "apple-app-store",
         "category": "mobile",
-        "icon": "●",
-        "emoji": "🍎",
+        "icon": "gallery/icons/launch/brands/app-store.svg",
         "name": "App Store",
         "pace": "Needs review",
         "eyebrow": "iPhone, iPad & Apple platforms",
@@ -410,8 +403,7 @@ LAUNCH_GUIDES = (
     {
         "slug": "itchio",
         "category": "games",
-        "icon": "♟",
-        "emoji": "🕹️",
+        "icon": "gallery/icons/launch/brands/itchio.svg",
         "name": "itch.io",
         "pace": "Fast",
         "eyebrow": "Games · simple storefront",
@@ -463,8 +455,7 @@ LAUNCH_GUIDES = (
     {
         "slug": "steam",
         "category": "games",
-        "icon": "◉",
-        "emoji": "🎮",
+        "icon": "gallery/icons/launch/brands/steam.svg",
         "name": "Steam",
         "pace": "Weeks",
         "eyebrow": "Games · PC storefront",
@@ -520,8 +511,7 @@ LAUNCH_GUIDES = (
     {
         "slug": "microsoft-store",
         "category": "desktop",
-        "icon": "⊞",
-        "emoji": "🪟",
+        "icon": "gallery/icons/launch/brands/microsoft-store.svg",
         "name": "Microsoft Store",
         "pace": "Needs review",
         "eyebrow": "Windows",
@@ -575,8 +565,7 @@ LAUNCH_GUIDES = (
     {
         "slug": "macos-direct",
         "category": "desktop",
-        "icon": "⌘",
-        "emoji": "🍏",
+        "icon": "gallery/icons/launch/brands/apple.svg",
         "name": "macOS direct",
         "pace": "More setup",
         "eyebrow": "macOS outside the store",
@@ -629,8 +618,7 @@ LAUNCH_GUIDES = (
     {
         "slug": "flathub",
         "category": "desktop",
-        "icon": "▱",
-        "emoji": "🐧",
+        "icon": "gallery/icons/launch/brands/flathub.svg",
         "name": "Flathub",
         "pace": "More setup",
         "eyebrow": "Linux",
@@ -695,8 +683,7 @@ LAUNCH_GUIDES = (
     {
         "slug": "chrome-web-store",
         "category": "distribution",
-        "icon": "◌",
-        "emoji": "🧩",
+        "icon": "gallery/icons/launch/brands/chrome-web-store.svg",
         "name": "Chrome Web Store",
         "pace": "Needs review",
         "eyebrow": "Browser extension",
@@ -756,18 +743,18 @@ ARTIFACT_GROUPS = (
 )
 
 ARTIFACT_ROUTES = (
-    {"value": "static", "name": "Static site", "icon": "📁", "group": "web", "label": "A folder with index.html", "guides": ("cloudflare-pages",), "note": "Static site or browser export"},
-    {"value": "frontend", "name": "Frontend app", "icon": "🧱", "group": "web", "label": "A frontend/framework repository", "guides": ("vercel-web", "cloudflare-pages"), "note": "Build on a web platform"},
-    {"value": "server", "name": "API / server", "icon": "🖥️", "group": "web", "label": "An API/server app or app with a database", "guides": ("render-web-service", "docker-hub"), "note": "Needs a running service", "hint": "Docker Hub is a registry, not a host. Pair the image with a runtime such as Render."},
-    {"value": "pwa", "name": "Installable PWA", "icon": "📲", "group": "web", "label": "A hosted site plus web manifest", "guides": ("installable-pwa",), "note": "Add installability after hosting"},
-    {"value": "container", "name": "Container", "icon": "🐳", "group": "web", "label": "A Dockerfile or container image", "guides": ("docker-hub", "render-web-service"), "note": "Registry plus a runtime host", "hint": "A registry stores images. Choose a separate runtime host to keep the app running."},
-    {"value": "aab", "name": "Android app", "icon": "🤖", "group": "mobile", "label": "A signed Android .aab", "guides": ("google-play",), "note": "Google Play"},
-    {"value": "apple", "name": "Apple app", "icon": "🍎", "group": "mobile", "label": "An Xcode archive / Apple build", "guides": ("apple-app-store", "macos-direct"), "note": "Choose store or direct Mac distribution"},
-    {"value": "webgame", "name": "Browser game", "icon": "🕹️", "group": "games", "label": "A browser game export", "guides": ("itchio", "cloudflare-pages"), "note": "Playable page or game storefront"},
-    {"value": "pcgame", "name": "PC game", "icon": "🎮", "group": "games", "label": "A native PC game build", "guides": ("itchio", "steam"), "note": "Direct storefront or Steam"},
-    {"value": "windows", "name": "Windows app", "icon": "🪟", "group": "desktop", "label": "A Windows .msix, MSI, or EXE", "guides": ("microsoft-store",), "note": "Microsoft Store"},
-    {"value": "flatpak", "name": "Linux Flatpak", "icon": "🐧", "group": "desktop", "label": "A Flatpak manifest", "guides": ("flathub",), "note": "Flathub"},
-    {"value": "extension", "name": "Extension", "icon": "🧩", "group": "desktop", "label": "A browser extension ZIP", "guides": ("chrome-web-store",), "note": "Chrome Web Store"},
+    {"value": "static", "name": "Static site", "icon": "gallery/icons/launch/artifacts/static-site.svg", "group": "web", "label": "A folder with index.html", "guides": ("cloudflare-pages",), "note": "Static site or browser export"},
+    {"value": "frontend", "name": "Frontend app", "icon": "gallery/icons/launch/artifacts/frontend.svg", "group": "web", "label": "A frontend/framework repository", "guides": ("vercel-web", "cloudflare-pages"), "note": "Build on a web platform"},
+    {"value": "server", "name": "API / server", "icon": "gallery/icons/launch/artifacts/server.svg", "group": "web", "label": "An API/server app or app with a database", "guides": ("render-web-service", "docker-hub"), "note": "Needs a running service", "hint": "Docker Hub is a registry, not a host. Pair the image with a runtime such as Render."},
+    {"value": "pwa", "name": "Installable PWA", "icon": "gallery/icons/launch/brands/pwa.svg", "group": "web", "label": "A hosted site plus web manifest", "guides": ("installable-pwa",), "note": "Add installability after hosting"},
+    {"value": "container", "name": "Container", "icon": "gallery/icons/launch/brands/docker.svg", "group": "web", "label": "A Dockerfile or container image", "guides": ("docker-hub", "render-web-service"), "note": "Registry plus a runtime host", "hint": "A registry stores images. Choose a separate runtime host to keep the app running."},
+    {"value": "aab", "name": "Android app", "icon": "gallery/icons/launch/brands/android.svg", "group": "mobile", "label": "A signed Android .aab", "guides": ("google-play",), "note": "Google Play"},
+    {"value": "apple", "name": "Apple app", "icon": "gallery/icons/launch/brands/apple.svg", "group": "mobile", "label": "An Xcode archive / Apple build", "guides": ("apple-app-store", "macos-direct"), "note": "Choose store or direct Mac distribution"},
+    {"value": "webgame", "name": "Browser game", "icon": "gallery/icons/launch/artifacts/browser-game.svg", "group": "games", "label": "A browser game export", "guides": ("itchio", "cloudflare-pages"), "note": "Playable page or game storefront"},
+    {"value": "pcgame", "name": "PC game", "icon": "gallery/icons/launch/artifacts/pc-game.svg", "group": "games", "label": "A native PC game build", "guides": ("itchio", "steam"), "note": "Direct storefront or Steam"},
+    {"value": "windows", "name": "Windows app", "icon": "gallery/icons/launch/brands/windows.svg", "group": "desktop", "label": "A Windows .msix, MSI, or EXE", "guides": ("microsoft-store",), "note": "Microsoft Store"},
+    {"value": "flatpak", "name": "Linux Flatpak", "icon": "gallery/icons/launch/brands/flathub.svg", "group": "desktop", "label": "A Flatpak manifest", "guides": ("flathub",), "note": "Flathub"},
+    {"value": "extension", "name": "Extension", "icon": "gallery/icons/launch/brands/chrome-web-store.svg", "group": "desktop", "label": "A browser extension ZIP", "guides": ("chrome-web-store",), "note": "Chrome Web Store"},
 )
 
 

@@ -820,6 +820,7 @@ class LaunchGuideTests(TestCase):
                 self.assertEqual(response.status_code, 200)
                 self.assertContains(response, guide['title'])
                 self.assertContains(response, 'Verify against the live platform docs')
+                self.assertContains(response, f'src="/static/{guide["icon"]}"', html=False)
                 for source in guide['sources']:
                     self.assertContains(response, source['url'])
                     self.assertContains(response, source['label'])
@@ -868,6 +869,23 @@ class LaunchGuideTests(TestCase):
                 self.assertTrue(route['note'].strip())
                 self.assertTrue(route['guides'])
                 self.assertTrue(set(route['guides']).issubset(known_slugs))
+
+    def test_launch_icons_are_local_svg_assets(self):
+        from django.contrib.staticfiles import finders
+        from gallery.launch_guides import ARTIFACT_ROUTES, LAUNCH_GUIDES
+
+        icons = {item['icon'] for item in (*LAUNCH_GUIDES, *ARTIFACT_ROUTES)}
+        self.assertGreaterEqual(len(icons), 15)
+        for icon in icons:
+            with self.subTest(icon=icon):
+                self.assertTrue(icon.startswith('gallery/icons/launch/'))
+                self.assertTrue(icon.endswith('.svg'))
+                self.assertIsNotNone(finders.find(icon))
+
+        response = self.client.get('/launch/')
+        self.assertContains(response, 'gallery/icons/launch/brands/google-play.svg')
+        self.assertContains(response, 'gallery/icons/launch/brands/app-store.svg')
+        self.assertContains(response, 'launch-brand--apple-app-store')
 
     def test_every_source_is_https_and_on_the_expected_official_domain(self):
         from urllib.parse import urlparse
