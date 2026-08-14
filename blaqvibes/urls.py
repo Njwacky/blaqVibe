@@ -18,12 +18,22 @@ def serve_sw(request):
         from django.http import Http404
         raise Http404
 
+
+def serve_robots(request):
+    # Serve robots.txt — plain text, no secrets. Collected from static/.
+    try:
+        return FileResponse(open(settings.BASE_DIR / 'static' / 'robots.txt', 'rb'), content_type='text/plain')
+    except Exception:
+        from django.http import Http404
+        raise Http404
+
 handler404 = 'gallery.views.safe_404'
 handler403 = 'gallery.views.safe_403'
 handler500 = 'gallery.views.safe_500'
 
 urlpatterns = [
     path('sw.js', serve_sw, name='sw'),
+    path('robots.txt', serve_robots, name='robots'),
     path('blaq-admin-secure/', admin.site.urls),
     path('admin/', include('gallery.honeypot_urls')),
     path('', include('gallery.urls')),

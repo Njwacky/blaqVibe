@@ -18,6 +18,10 @@ COPY . .
 # Create media/static dirs and give the runtime user ownership.
 RUN mkdir -p /app/media/apps/zips /app/staticfiles && chown -R appuser:appuser /app
 
+# Collect static files into /app/staticfiles. WhiteNoise serves only from
+# STATIC_ROOT in production — without this the site ships with no CSS/JS.
+RUN python manage.py collectstatic --noinput && chown -R appuser:appuser /app/staticfiles
+
 # ClamAV freshclam (mock if no internet, crush silently)
 RUN freshclam || echo "freshclam failed — mock mode"
 

@@ -1,0 +1,11 @@
+User-agent: *
+Allow: /
+Disallow: /blaq-admin-secure/
+Disallow: /admin/
+Disallow: /inbox/
+Disallow: /saved/
+Disallow: /my-vibes/
+Disallow: /settings/
+Disallow: /trades/
+Disallow: /api/
+Disallow: /nolo/
