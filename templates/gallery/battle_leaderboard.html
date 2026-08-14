@@ -1,11 +1,20 @@
 {% extends 'gallery/base.html' %}
 {% block title %}Leaderboard — BlaqVibes{% endblock %}
+{% block head %}
+<style>
+/* Two-column ranking grids stack on phones — otherwise the columns blow
+   past the viewport and the page pans sideways under the nav. */
+@media (max-width: 720px) {
+  .lb-grid { grid-template-columns: 1fr !important; }
+}
+</style>
+{% endblock %}
 {% block content %}
 <div style="max-width:1100px;margin:0 auto;padding:20px">
   <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">🏆 Leaderboard — Battle Wins + Ranks</h1>
   <p style="color:var(--muted);font-size:13px">Top vibes by battle wins (winner gets +5 ★) + top creators by rank (Bronze → Platinum). Backend `BattleVote` + `AppProject.stars`, no JS secrets.</p>
 
-  <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
+  <div class="lb-grid" style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px">
     <div>
       <h2 style="font-size:14px;font-weight:700">Top Vibes — Most Battle Wins</h2>
       {% for v in top_vibes %}

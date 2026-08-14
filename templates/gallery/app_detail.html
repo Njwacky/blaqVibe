@@ -126,7 +126,7 @@
         {% endif %}
         <form method="post" action="{% url 'report_vibe' project.slug %}" style="margin-top:8px;display:flex;gap:6px">{% csrf_token %}
           <select name="reason" style="flex:1;background:var(--input);border:1px solid var(--line);border-radius:8px;padding:6px;color:var(--text);font-size:12px"><option value="spam">Spam</option><option value="malware">Malware</option><option value="copyright">Copyright</option><option value="other">Other</option></select>
-          <input name="details" placeholder="Details (optional)" style="flex:2;background:var(--input);border:1px solid var(--line);border-radius:8px;padding:6px;color:var(--text);font-size:12px">
+          <input name="details" placeholder="Details (optional)" style="flex:2;min-width:0;background:var(--input);border:1px solid var(--line);border-radius:8px;padding:6px;color:var(--text);font-size:12px">
           <button class="btn-ghost" style="padding:6px 10px;font-size:12px">Report</button>
         </form>
       </div>
