@@ -26,12 +26,12 @@
         <span class="launch-orbit__ring launch-orbit__ring--a"></span>
         <span class="launch-orbit__ring launch-orbit__ring--b"></span>
         <span class="launch-orbit__ring launch-orbit__ring--c"></span>
-        <span class="launch-orbit__node" style="--i:0">🌍</span>
-        <span class="launch-orbit__node" style="--i:1">⚡</span>
-        <span class="launch-orbit__node" style="--i:2">🎮</span>
-        <span class="launch-orbit__node" style="--i:3">🍎</span>
-        <span class="launch-orbit__node" style="--i:4">🐳</span>
-        <span class="launch-orbit__node" style="--i:5">🧩</span>
+        <span class="launch-orbit__node launch-brand launch-brand--cloudflare-pages" style="--i:0"><img src="{% static 'gallery/icons/launch/brands/cloudflare.svg' %}" alt=""></span>
+        <span class="launch-orbit__node launch-brand launch-brand--google-play" style="--i:1"><img src="{% static 'gallery/icons/launch/brands/google-play.svg' %}" alt=""></span>
+        <span class="launch-orbit__node launch-brand launch-brand--steam" style="--i:2"><img src="{% static 'gallery/icons/launch/brands/steam.svg' %}" alt=""></span>
+        <span class="launch-orbit__node launch-brand launch-brand--apple-app-store" style="--i:3"><img src="{% static 'gallery/icons/launch/brands/app-store.svg' %}" alt=""></span>
+        <span class="launch-orbit__node launch-brand launch-brand--docker-hub" style="--i:4"><img src="{% static 'gallery/icons/launch/brands/docker.svg' %}" alt=""></span>
+        <span class="launch-orbit__node launch-brand launch-brand--chrome-web-store" style="--i:5"><img src="{% static 'gallery/icons/launch/brands/chrome-web-store.svg' %}" alt=""></span>
         <span class="launch-orbit__core">↗</span>
       </div>
       <ol class="launch-hero__flow" aria-label="Preview is not hosting">
@@ -71,7 +71,7 @@
              data-guides="{{ route.guides|join:',' }}"
              {% if route.hint %}data-hint="{{ route.hint }}"{% endif %}
              {% if route.value == active_artifact %}aria-pressed="true"{% else %}aria-pressed="false"{% endif %}>
-            <span class="launch-artifact__icon" aria-hidden="true">{{ route.icon }}</span>
+            <span class="launch-artifact__icon launch-artifact__icon--{{ route.value }}" aria-hidden="true"><img src="{% static route.icon %}" alt=""></span>
             <span class="launch-artifact__copy"><b>{{ route.name }}</b><small>{{ route.note }}</small></span>
             <span class="launch-artifact__count">{{ route.guides|length }} route{{ route.guides|length|pluralize }}</span>
             <span class="launch-artifact__check" aria-hidden="true">✓</span>
@@ -124,7 +124,7 @@
       {% for item in guides %}
       <article class="launch-route launch-route--{{ item.category }}{% if active_artifact and item.slug in matching_slugs %} is-match{% elif active_artifact %} is-dimmed{% endif %}" data-guide-slug="{{ item.slug }}" data-pace="{{ item.pace }}">
         <a href="{% url 'launch_guide' item.slug %}" title="{{ item.title }}">
-          <span class="launch-route__icon" aria-hidden="true">{{ item.emoji }}</span>
+          <span class="launch-route__icon launch-brand launch-brand--{{ item.slug }}" aria-hidden="true"><img src="{% static item.icon %}" alt=""></span>
           <span class="launch-route__badge" aria-hidden="true">✓</span>
           <span class="launch-route__copy">
             <em>{{ item.eyebrow }}</em>

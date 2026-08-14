@@ -325,10 +325,25 @@
   flex: 0 0 42px;
   border: 1px solid color-mix(in srgb, var(--launch-accent) 30%, var(--line));
   border-radius: 12px;
-  background: color-mix(in srgb, var(--launch-accent) 11%, transparent);
+  background: #fff;
   font-size: 20px;
   line-height: 1;
+  overflow: hidden;
 }
+.launch-artifact__icon img {
+  display: block;
+  width: 72%;
+  height: 72%;
+  object-fit: contain;
+}
+.launch-artifact__icon--static img,
+.launch-artifact__icon--frontend img,
+.launch-artifact__icon--server img,
+.launch-artifact__icon--webgame img,
+.launch-artifact__icon--pcgame img { width: 82%; height: 82%; }
+.launch-artifact__icon--apple img { width: 58%; height: 65%; }
+.launch-artifact__icon--container img,
+.launch-artifact__icon--windows img { width: 76%; height: 76%; }
 .launch-artifact__copy { flex: 1; min-width: 0; }
 .launch-artifact__copy b { display: block; font-size: 13px; letter-spacing: -.01em; }
 .launch-artifact__copy small { display: block; margin-top: 3px; color: var(--muted); font-size: 11px; line-height: 1.4; }
@@ -365,7 +380,8 @@
 }
 .launch-artifact.is-active .launch-artifact__icon {
   border-color: color-mix(in srgb, var(--launch-accent) 65%, var(--line));
-  background: color-mix(in srgb, var(--launch-accent) 22%, transparent);
+  background: #fff;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--launch-accent) 22%, transparent);
 }
 .launch-artifact.is-active .launch-artifact__count {
   border-color: color-mix(in srgb, var(--launch-hot) 50%, var(--line));
@@ -1040,6 +1056,55 @@
 .launch-related__grid small { color: var(--muted); font-size: 9px; letter-spacing: .08em; text-transform: uppercase; }
 .launch-related__grid b { margin-top: 3px; font-size: 12px; line-height: 1.4; }
 .launch-related__grid i { color: var(--launch-accent); font-style: normal; }
+
+/* Local destination artwork. Brand marks sit on stable, high-contrast tiles so
+   black/white official assets remain legible in both BlaqVibes themes. */
+.launch-brand {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  background: #fff;
+}
+.launch-brand img {
+  display: block;
+  width: 68%;
+  height: 68%;
+  object-fit: contain;
+}
+.launch-brand--cloudflare-pages { background: #17233c; }
+.launch-brand--cloudflare-pages img { width: 78%; height: 78%; }
+.launch-brand--vercel-web,
+.launch-brand--render-web-service,
+.launch-brand--installable-pwa,
+.launch-brand--google-play,
+.launch-brand--macos-direct,
+.launch-brand--flathub,
+.launch-brand--chrome-web-store { background: #fff; }
+.launch-brand--vercel-web img { width: 58%; height: 58%; }
+.launch-brand--render-web-service img { width: 66%; height: 66%; }
+.launch-brand--installable-pwa img { width: 76%; height: 76%; }
+.launch-brand--docker-hub { background: #f2faff; }
+.launch-brand--docker-hub img { width: 74%; height: 74%; }
+.launch-brand--google-play img { width: 54%; height: 62%; }
+.launch-brand--apple-app-store { background: #147ce5; }
+.launch-brand--apple-app-store img { width: 100%; height: 100%; }
+.launch-brand--itchio { background: #fa5c5c; }
+.launch-brand--itchio img { width: 68%; height: 68%; }
+.launch-brand--steam { background: #0b1a32; }
+.launch-brand--steam img { width: 88%; height: 88%; }
+.launch-brand--microsoft-store { background: #eef7ff; }
+.launch-brand--microsoft-store img { width: 66%; height: 66%; }
+.launch-brand--macos-direct img { width: 48%; height: 62%; }
+.launch-brand--flathub img { width: 65%; height: 65%; }
+.launch-brand--chrome-web-store img { width: 72%; height: 72%; }
+.launch-brand--micro {
+  width: 21px;
+  height: 21px;
+  flex: 0 0 21px;
+  border: 1px solid color-mix(in srgb, var(--launch-hot) 30%, var(--line));
+  border-radius: 6px;
+}
+.launch-brand--micro img { max-width: none; }
 
 @media (max-width: 960px) {
   .launch-guide-layout { grid-template-columns: minmax(0, 1fr) 220px; gap: 30px; }
