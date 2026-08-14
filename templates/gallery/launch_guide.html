@@ -2,8 +2,11 @@
 {% load static %}
 {% block title %}{{ guide.title }} — BlaqVibes Launch Guide{% endblock %}
 {% block meta_desc %}{{ guide.summary }} Follow prerequisites, ordered publishing steps, production checks, warnings, and official source links.{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'gallery/css/launch.css' %}">
+{% endblock %}
 {% block content %}
-<main class="launch-shell launch-guide-shell" data-checklist-key="blaq-launch-{{ guide.slug }}">
+<main class="launch-shell launch-guide-shell launch-guide-shell--{{ guide.category }}" data-checklist-key="blaq-launch-{{ guide.slug }}">
   <nav class="launch-breadcrumb" aria-label="Breadcrumb">
     <a href="{% url 'launch_hub' %}">Launch guide</a>
     <span aria-hidden="true">/</span>
@@ -32,6 +35,14 @@
     <div><b>This path is not for everything.</b><p>{{ guide.not_for }}</p></div>
   </div>
 
+  <nav class="launch-toc-mobile" aria-label="On this page">
+    <a href="#preflight">Preflight</a>
+    <a href="#steps">Steps</a>
+    <a href="#ship-check">Release gate</a>
+    <a href="#safety">Safety</a>
+    <a href="#sources">Sources</a>
+  </nav>
+
   <div class="launch-guide-layout">
     <div class="launch-guide-main">
       <section class="launch-preflight card" id="preflight">
@@ -51,16 +62,23 @@
         </div>
         <ol>
           {% for step in guide.steps %}
-          <li class="launch-step" id="step-{{ forloop.counter }}">
-            <div class="launch-step__rail"><span>0{{ forloop.counter }}</span></div>
+          <li class="launch-step{% if step.high_risk %} is-risk{% endif %}" id="step-{{ forloop.counter }}">
+            <div class="launch-step__rail"><span>{% if forloop.counter < 10 %}0{% endif %}{{ forloop.counter }}</span></div>
             <div class="launch-step__body">
-              <h3>{{ step.title }}</h3>
+              <div class="launch-step__title">
+                <h3>{{ step.title }}</h3>
+                {% if step.high_risk %}<em class="launch-risk-flag">High-stakes</em>{% endif %}
+              </div>
               <p>{{ step.body }}</p>
               {% if step.commands %}
               <div class="launch-commands" aria-label="Commands for {{ step.title }}">
                 {% for command in step.commands %}
                 <div class="launch-command">
-                  <div class="launch-command__label"><span>{{ command.label }}</span>{% if command.replace %}<em>{{ command.replace }}</em>{% endif %}</div>
+                  <div class="launch-command__label">
+                    <span class="launch-command__dots" aria-hidden="true"><i></i><i></i><i></i></span>
+                    <span>{{ command.label }}</span>
+                    {% if command.replace %}<em>{{ command.replace }}</em>{% endif %}
+                  </div>
                   <div class="launch-command__code"><code>{{ command.text }}</code><button type="button" class="js-launch-copy" data-copy-command="{{ command.text }}" aria-label="Copy {{ command.label }}" aria-live="polite">Copy</button></div>
                 </div>
                 {% endfor %}

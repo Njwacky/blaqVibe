@@ -87,9 +87,10 @@
     if (!artifacts.length || !tiles.length) return;
 
     const emptyCopy = (count && count.dataset.emptyCopy) || "All routes shown";
-    const emptyHint = "Tap a card above — the matching destinations light up instantly.";
-    const matchHint = "Lit-up cards match what you are holding. Open one for the source-backed steps.";
-    const zeroHint = "No matching route in this filter — tap “All destinations” above to see them.";
+    const emptyHint = (hint && hint.dataset.emptyHint) || "Tap a card above — the matching destinations light up instantly.";
+    const matchHint = (hint && hint.dataset.matchHint) || "Lit-up cards match what you are holding. Open one for the source-backed steps.";
+    const zeroHint = (hint && hint.dataset.zeroHint) || "No matching route in this filter — tap “All destinations” above to see them.";
+    const routeHint = document.querySelector("[data-route-hint]");
 
     function currentArtifact() {
       return artifacts.find((el) => el.classList.contains("is-active"));
@@ -130,6 +131,11 @@
         hint.replaceChildren(icon, document.createTextNode(` ${copy}`));
       }
       if (clear) clear.hidden = !active;
+      if (routeHint) {
+        const nextHint = active && active.dataset.hint ? active.dataset.hint : "";
+        routeHint.hidden = !nextHint;
+        if (nextHint) routeHint.textContent = nextHint;
+      }
     }
 
     function updateUrl(artifactValue) {
@@ -224,9 +230,44 @@
     paint();
   }
 
+  function initGuideToc() {
+    const links = Array.from(
+      document.querySelectorAll(".launch-toc a[href^='#'], .launch-toc-mobile a[href^='#']"),
+    );
+    if (!links.length) return;
+
+    const sections = [];
+    const seen = new Set();
+    links.forEach((link) => {
+      const id = link.getAttribute("href");
+      if (!id || seen.has(id)) return;
+      const target = document.querySelector(id);
+      if (target) {
+        seen.add(id);
+        sections.push(target);
+      }
+    });
+    if (!sections.length || !("IntersectionObserver" in window)) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          const href = `#${entry.target.id}`;
+          links.forEach((link) => {
+            link.classList.toggle("is-current", link.getAttribute("href") === href);
+          });
+        });
+      },
+      { rootMargin: "-18% 0px -70% 0px", threshold: 0.1 },
+    );
+    sections.forEach((section) => observer.observe(section));
+  }
+
   document.addEventListener("DOMContentLoaded", () => {
     initCopyButtons();
     initArtifactDeck();
     initChecklist();
+    initGuideToc();
   });
 })();

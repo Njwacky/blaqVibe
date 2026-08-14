@@ -748,19 +748,26 @@ LAUNCH_GUIDES = (
 
 GUIDES_BY_SLUG = {guide["slug"]: guide for guide in LAUNCH_GUIDES}
 
+ARTIFACT_GROUPS = (
+    {"slug": "web", "label": "Web & cloud"},
+    {"slug": "mobile", "label": "Mobile"},
+    {"slug": "games", "label": "Games"},
+    {"slug": "desktop", "label": "Desktop & other"},
+)
+
 ARTIFACT_ROUTES = (
-    {"value": "static", "name": "Static site", "icon": "📁", "label": "A folder with index.html", "guides": ("cloudflare-pages",), "note": "Static site or browser export"},
-    {"value": "frontend", "name": "Frontend app", "icon": "🧱", "label": "A frontend/framework repository", "guides": ("vercel-web", "cloudflare-pages"), "note": "Build on a web platform"},
-    {"value": "server", "name": "API / server", "icon": "🖥️", "label": "An API/server app or app with a database", "guides": ("render-web-service", "docker-hub"), "note": "Needs a running service"},
-    {"value": "pwa", "name": "Installable PWA", "icon": "📲", "label": "A hosted site plus web manifest", "guides": ("installable-pwa",), "note": "Add installability after hosting"},
-    {"value": "aab", "name": "Android app", "icon": "🤖", "label": "A signed Android .aab", "guides": ("google-play",), "note": "Google Play"},
-    {"value": "apple", "name": "Apple app", "icon": "🍎", "label": "An Xcode archive / Apple build", "guides": ("apple-app-store", "macos-direct"), "note": "Choose store or direct Mac distribution"},
-    {"value": "webgame", "name": "Browser game", "icon": "🕹️", "label": "A browser game export", "guides": ("itchio", "cloudflare-pages"), "note": "Playable page or game storefront"},
-    {"value": "pcgame", "name": "PC game", "icon": "🎮", "label": "A native PC game build", "guides": ("itchio", "steam"), "note": "Direct storefront or Steam"},
-    {"value": "windows", "name": "Windows app", "icon": "🪟", "label": "A Windows .msix, MSI, or EXE", "guides": ("microsoft-store",), "note": "Microsoft Store"},
-    {"value": "flatpak", "name": "Linux Flatpak", "icon": "🐧", "label": "A Flatpak manifest", "guides": ("flathub",), "note": "Flathub"},
-    {"value": "extension", "name": "Extension", "icon": "🧩", "label": "A browser extension ZIP", "guides": ("chrome-web-store",), "note": "Chrome Web Store"},
-    {"value": "container", "name": "Container", "icon": "🐳", "label": "A Dockerfile or container image", "guides": ("docker-hub", "render-web-service"), "note": "Registry plus a runtime host"},
+    {"value": "static", "name": "Static site", "icon": "📁", "group": "web", "label": "A folder with index.html", "guides": ("cloudflare-pages",), "note": "Static site or browser export"},
+    {"value": "frontend", "name": "Frontend app", "icon": "🧱", "group": "web", "label": "A frontend/framework repository", "guides": ("vercel-web", "cloudflare-pages"), "note": "Build on a web platform"},
+    {"value": "server", "name": "API / server", "icon": "🖥️", "group": "web", "label": "An API/server app or app with a database", "guides": ("render-web-service", "docker-hub"), "note": "Needs a running service", "hint": "Docker Hub is a registry, not a host. Pair the image with a runtime such as Render."},
+    {"value": "pwa", "name": "Installable PWA", "icon": "📲", "group": "web", "label": "A hosted site plus web manifest", "guides": ("installable-pwa",), "note": "Add installability after hosting"},
+    {"value": "container", "name": "Container", "icon": "🐳", "group": "web", "label": "A Dockerfile or container image", "guides": ("docker-hub", "render-web-service"), "note": "Registry plus a runtime host", "hint": "A registry stores images. Choose a separate runtime host to keep the app running."},
+    {"value": "aab", "name": "Android app", "icon": "🤖", "group": "mobile", "label": "A signed Android .aab", "guides": ("google-play",), "note": "Google Play"},
+    {"value": "apple", "name": "Apple app", "icon": "🍎", "group": "mobile", "label": "An Xcode archive / Apple build", "guides": ("apple-app-store", "macos-direct"), "note": "Choose store or direct Mac distribution"},
+    {"value": "webgame", "name": "Browser game", "icon": "🕹️", "group": "games", "label": "A browser game export", "guides": ("itchio", "cloudflare-pages"), "note": "Playable page or game storefront"},
+    {"value": "pcgame", "name": "PC game", "icon": "🎮", "group": "games", "label": "A native PC game build", "guides": ("itchio", "steam"), "note": "Direct storefront or Steam"},
+    {"value": "windows", "name": "Windows app", "icon": "🪟", "group": "desktop", "label": "A Windows .msix, MSI, or EXE", "guides": ("microsoft-store",), "note": "Microsoft Store"},
+    {"value": "flatpak", "name": "Linux Flatpak", "icon": "🐧", "group": "desktop", "label": "A Flatpak manifest", "guides": ("flathub",), "note": "Flathub"},
+    {"value": "extension", "name": "Extension", "icon": "🧩", "group": "desktop", "label": "A browser extension ZIP", "guides": ("chrome-web-store",), "note": "Chrome Web Store"},
 )
 
 
