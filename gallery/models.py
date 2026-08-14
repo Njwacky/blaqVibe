@@ -209,6 +209,28 @@ class Sale(models.Model):
         unique_together = ('buyer','project')
     def __str__(self): return f"{self.buyer} → {self.project.slug} R{self.amount_zar}"
 
+
+class PaymentIntent(models.Model):
+    """Frozen checkout — webhook fulfills this row, not the live price_zar."""
+    STATUS_CHOICES = [('pending', 'Pending'), ('paid', 'Paid'), ('failed', 'Failed')]
+    reference = models.CharField(max_length=100, unique=True)
+    buyer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='payment_intents')
+    project = models.ForeignKey(AppProject, on_delete=models.CASCADE, related_name='payment_intents')
+    amount_zar = models.PositiveIntegerField()
+    amount_kobo = models.PositiveIntegerField()
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    paid_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['reference']),
+            models.Index(fields=['buyer', 'project']),
+        ]
+
+    def __str__(self):
+        return f'{self.reference} {self.status} R{self.amount_zar}'
+
 class Review(models.Model):
     """Human review 1-5 ★ + text, separate from Comment/Star. One per user per vibe."""
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='reviews')

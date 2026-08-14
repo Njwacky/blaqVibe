@@ -141,3 +141,43 @@ def scan_for_secrets_text(text: str):
         return found
     except Exception:
         return []
+
+
+def is_safe_zip_name(name: str) -> bool:
+    """Reject absolute paths, drive letters, and `..` segments."""
+    if not name:
+        return False
+    if len(name) > MAX_FILENAME_LEN:
+        return False
+    norm = name.replace('\\', '/')
+    if norm.startswith('/') or norm.startswith('//') or ':/' in norm:
+        return False
+    parts = [part for part in norm.split('/') if part and part != '.']
+    return not any(part == '..' for part in parts)
+
+
+def safe_extract_zip(zip_path, dest_dir):
+    """Extract members one-by-one under dest_dir. Never follows zip-slip or symlinks."""
+    dest = os.path.abspath(dest_dir)
+    os.makedirs(dest, exist_ok=True)
+    with zipfile.ZipFile(zip_path) as zf:
+        for info in zf.infolist():
+            if _is_symlink(info):
+                raise ValueError(f'symlink not allowed: {info.filename}')
+            if not is_safe_zip_name(info.filename):
+                raise ValueError(f'unsafe path: {info.filename}')
+            if info.is_dir() or info.filename.endswith('/'):
+                continue
+            rel = info.filename.replace('\\', '/').lstrip('/')
+            target = os.path.abspath(os.path.join(dest, rel))
+            if os.path.commonpath([dest]) != os.path.commonpath([dest, target]):
+                raise ValueError(f'path traversal: {info.filename}')
+            parent = os.path.dirname(target)
+            os.makedirs(parent, exist_ok=True)
+            with zf.open(info, 'r') as src, open(target, 'wb') as out:
+                while True:
+                    chunk = src.read(1024 * 256)
+                    if not chunk:
+                        break
+                    out.write(chunk)
+    return dest

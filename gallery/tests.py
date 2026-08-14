@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from gallery.access import user_can_download
 from gallery.forms import AppUploadForm
-from gallery.models import AppProject, Category, Sale, Star, Trade, VibeBattle
+from gallery.models import AppProject, Category, PaymentIntent, Sale, Star, Trade, VibeBattle
 from gallery.validators import validate_zip
 from users.models import Profile
 
@@ -546,19 +546,40 @@ class PaystackWebhookTests(TestCase):
         self.project = make_project(self.owner, self.cat, title='Card vibe', star_cost=0, price_zar=50)
         self.project.zip_file.save('card.zip', make_zip_file({'app.py': 'print(1)\\n'}), save=True)
 
+    def _intent(self, reference='blaq-okref', amount_zar=50):
+        return PaymentIntent.objects.create(
+            reference=reference,
+            buyer=self.buyer,
+            project=self.project,
+            amount_zar=amount_zar,
+            amount_kobo=amount_zar * 100,
+            status='pending',
+        )
+
+    def _intent(self, reference='blaq-okref', amount_zar=50):
+        return PaymentIntent.objects.create(
+            reference=reference,
+            buyer=self.buyer,
+            project=self.project,
+            amount_zar=amount_zar,
+            amount_kobo=amount_zar * 100,
+            status='pending',
+        )
+
     def _signed(self, payload: bytes):
         import hashlib, hmac
         return hmac.new(b'sk_test_webhook', payload, hashlib.sha512).hexdigest()
 
-    def test_bad_signature_does_not_create_sale(self):
+    def _body(self, reference, amount):
         import json
-        body = json.dumps({
+        return json.dumps({
             'event': 'charge.success',
-            'data': {
-                'reference': f'blaq-{self.project.id}-{self.buyer.id}-abc',
-                'amount': 5000,
-            },
+            'data': {'reference': reference, 'amount': amount},
         }).encode()
+
+    def test_bad_signature_does_not_create_sale(self):
+        self._intent('blaq-abc')
+        body = self._body('blaq-abc', 5000)
         response = self.client.post(
             '/paystack/webhook/',
             data=body,
@@ -569,15 +590,9 @@ class PaystackWebhookTests(TestCase):
         self.assertFalse(Sale.objects.filter(buyer=self.buyer, project=self.project).exists())
 
     def test_valid_signature_creates_sale_and_unlocks(self):
-        import json
         from gallery.access import user_can_download
-        body = json.dumps({
-            'event': 'charge.success',
-            'data': {
-                'reference': f'blaq-{self.project.id}-{self.buyer.id}-okref',
-                'amount': 5000,
-            },
-        }).encode()
+        self._intent('blaq-okref')
+        body = self._body('blaq-okref', 5000)
         response = self.client.post(
             '/paystack/webhook/',
             data=body,
@@ -587,16 +602,11 @@ class PaystackWebhookTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(Sale.objects.filter(buyer=self.buyer, project=self.project, amount_zar=50).exists())
         self.assertTrue(user_can_download(self.buyer, self.project))
+        self.assertEqual(PaymentIntent.objects.get(reference='blaq-okref').status, 'paid')
 
     def test_amount_mismatch_rejected(self):
-        import json
-        body = json.dumps({
-            'event': 'charge.success',
-            'data': {
-                'reference': f'blaq-{self.project.id}-{self.buyer.id}-low',
-                'amount': 100,
-            },
-        }).encode()
+        self._intent('blaq-low')
+        body = self._body('blaq-low', 100)
         response = self.client.post(
             '/paystack/webhook/',
             data=body,
@@ -605,6 +615,78 @@ class PaystackWebhookTests(TestCase):
         )
         self.assertEqual(response.status_code, 400)
         self.assertFalse(Sale.objects.filter(buyer=self.buyer, project=self.project).exists())
+
+    def test_unknown_reference_rejected(self):
+        body = self._body('blaq-no-such-intent', 5000)
+        response = self.client.post(
+            '/paystack/webhook/',
+            data=body,
+            content_type='application/json',
+            headers={'x-paystack-signature': self._signed(body)},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Sale.objects.filter(buyer=self.buyer, project=self.project).exists())
+
+    def test_price_change_after_initialize_still_honors_frozen_amount(self):
+        from gallery.access import user_can_download
+        self._intent('blaq-frozen', amount_zar=50)
+        self.project.price_zar = 80
+        self.project.save(update_fields=['price_zar'])
+        body = self._body('blaq-frozen', 5000)
+        response = self.client.post(
+            '/paystack/webhook/',
+            data=body,
+            content_type='application/json',
+            headers={'x-paystack-signature': self._signed(body)},
+        )
+        self.assertEqual(response.status_code, 200)
+        sale = Sale.objects.get(buyer=self.buyer, project=self.project)
+        self.assertEqual(sale.amount_zar, 50)
+        self.assertTrue(user_can_download(self.buyer, self.project))
+
+    def test_price_drop_to_zero_still_honors_intent(self):
+        self._intent('blaq-zeroed', amount_zar=50)
+        self.project.price_zar = 0
+        self.project.save(update_fields=['price_zar'])
+        body = self._body('blaq-zeroed', 5000)
+        response = self.client.post(
+            '/paystack/webhook/',
+            data=body,
+            content_type='application/json',
+            headers={'x-paystack-signature': self._signed(body)},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(Sale.objects.filter(buyer=self.buyer, project=self.project, amount_zar=50).exists())
+
+    def test_replay_webhook_is_idempotent(self):
+        self._intent('blaq-replay')
+        body = self._body('blaq-replay', 5000)
+        headers = {'x-paystack-signature': self._signed(body)}
+        first = self.client.post('/paystack/webhook/', data=body, content_type='application/json', headers=headers)
+        second = self.client.post('/paystack/webhook/', data=body, content_type='application/json', headers=headers)
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(second.status_code, 200)
+        self.assertEqual(Sale.objects.filter(buyer=self.buyer, project=self.project).count(), 1)
+
+    def test_buy_creates_intent_at_current_price(self):
+        from unittest.mock import Mock, patch
+        fake = Mock()
+        fake.json.return_value = {
+            'status': True,
+            'data': {'authorization_url': 'https://paystack.test/checkout'},
+        }
+        self.client.login(username='buyer', password='pass12345')
+        with patch('gallery.payments.requests.post', return_value=fake) as posted:
+            response = self.client.post(f'/app/{self.project.slug}/buy/')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, 'https://paystack.test/checkout')
+        intent = PaymentIntent.objects.get(buyer=self.buyer, project=self.project)
+        self.assertEqual(intent.amount_zar, 50)
+        self.assertEqual(intent.amount_kobo, 5000)
+        self.assertEqual(intent.status, 'pending')
+        sent = posted.call_args.kwargs['json']
+        self.assertEqual(sent['amount'], 5000)
+        self.assertEqual(sent['reference'], intent.reference)
 
 
 @override_settings(RATELIMIT_ENABLE=False, SEED_DEMO=False)
@@ -755,3 +837,180 @@ class LaunchGuideTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'href="/launch/"', html=False)
         self.assertContains(response, 'Launch')
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False)
+class ChallengeAwardTests(TestCase):
+    def setUp(self):
+        from gallery.models import Challenge, Tag
+        self.cat = make_category()
+        self.admin = make_user('admin', role='admin')
+        self.creator = make_user('creator', stars_balance=5)
+        self.other = make_user('other', stars_balance=5)
+        self.tag = Tag.objects.create(name='challenge-week-1', slug='challenge-week-1')
+        self.challenge = Challenge.objects.create(
+            title='Week 1',
+            description='Build something cool for the week.',
+            bounty_stars=10,
+            tag='challenge-week-1',
+            start=timezone.now() - timedelta(days=1),
+            end=timezone.now() + timedelta(days=6),
+            is_active=True,
+        )
+        self.entry = make_project(self.creator, self.cat, title='Tagged entry', stars=2)
+        self.entry.tags.add(self.tag)
+        self.outsider = make_project(self.other, self.cat, title='Not entered', stars=1)
+
+    def test_winner_must_be_a_tagged_submission(self):
+        self.client.login(username='admin', password='pass12345')
+        response = self.client.post(
+            f'/challenges/{self.challenge.tag}/pick-winner/',
+            {'winner_id': self.outsider.id},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.challenge.refresh_from_db()
+        self.assertIsNone(self.challenge.winner_id)
+        self.other.profile.refresh_from_db()
+        self.assertEqual(self.other.profile.stars_balance, 5)
+
+    def test_award_is_idempotent(self):
+        self.client.login(username='admin', password='pass12345')
+        url = f'/challenges/{self.challenge.tag}/pick-winner/'
+        first = self.client.post(url, {'winner_id': self.entry.id})
+        second = self.client.post(url, {'winner_id': self.entry.id})
+        self.assertEqual(first.status_code, 302)
+        self.assertEqual(second.status_code, 302)
+        self.challenge.refresh_from_db()
+        self.creator.profile.refresh_from_db()
+        self.entry.refresh_from_db()
+        self.assertEqual(self.challenge.winner_id, self.entry.id)
+        self.assertEqual(self.creator.profile.stars_balance, 15)
+        self.assertEqual(self.entry.stars, 12)
+        self.assertTrue(self.creator.profile.is_pro_active)
+
+    def test_second_pick_cannot_switch_winner(self):
+        other_entry = make_project(self.other, self.cat, title='Also tagged')
+        other_entry.tags.add(self.tag)
+        self.client.login(username='admin', password='pass12345')
+        url = f'/challenges/{self.challenge.tag}/pick-winner/'
+        self.client.post(url, {'winner_id': self.entry.id})
+        self.client.post(url, {'winner_id': other_entry.id})
+        self.challenge.refresh_from_db()
+        self.other.profile.refresh_from_db()
+        self.assertEqual(self.challenge.winner_id, self.entry.id)
+        self.assertEqual(self.other.profile.stars_balance, 5)
+
+
+@override_settings(RATELIMIT_ENABLE=False, SEED_DEMO=False)
+class SnippetIsolationTests(TestCase):
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('owner')
+        self.snippet = make_project(
+            self.owner, self.cat, title='Live snippet',
+            html_code='<h1>Hello</h1><form action="/oops/"><button>x</button></form>',
+            js_code='console.log(1)',
+        )
+
+    def test_top_level_document_is_blocked(self):
+        response = self.client.get(
+            f'/app/{self.snippet.slug}/snippet/',
+            headers={'Sec-Fetch-Dest': 'document'},
+        )
+        self.assertEqual(response.status_code, 403)
+        self.assertContains(response, 'sandbox', status_code=403)
+
+    def test_bare_request_without_referer_is_blocked(self):
+        response = self.client.get(f'/app/{self.snippet.slug}/snippet/')
+        self.assertEqual(response.status_code, 403)
+
+    def test_iframe_dest_is_allowed(self):
+        response = self.client.get(
+            f'/app/{self.snippet.slug}/snippet/',
+            headers={'Sec-Fetch-Dest': 'iframe'},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<h1>Hello</h1>')
+        csp = response['Content-Security-Policy']
+        self.assertIn("form-action 'none'", csp)
+        self.assertIn("frame-ancestors 'self'", csp)
+        self.assertEqual(response['Referrer-Policy'], 'no-referrer')
+
+    def test_legacy_preview_referer_is_allowed(self):
+        response = self.client.get(
+            f'/app/{self.snippet.slug}/snippet/',
+            headers={'Referer': f'http://testserver/app/{self.snippet.slug}/preview/'},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<h1>Hello</h1>')
+
+    def test_preview_shell_uses_same_origin_referrer_for_iframe(self):
+        response = self.client.get(f'/app/{self.snippet.slug}/preview/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'referrerpolicy="same-origin"', html=False)
+        self.assertContains(response, 'sandbox="allow-scripts"', html=False)
+
+
+@override_settings(RATELIMIT_ENABLE=False)
+class SafeZipExtractTests(TestCase):
+    def test_safe_extract_writes_normal_files(self):
+        import tempfile
+        from pathlib import Path
+        from gallery.validators import safe_extract_zip
+        upload = make_zip_file({'app.py': 'print(1)\n', 'pkg/__init__.py': ''})
+        dest = tempfile.mkdtemp()
+        try:
+            safe_extract_zip(upload, dest)
+            self.assertTrue((Path(dest) / 'app.py').is_file())
+            self.assertEqual((Path(dest) / 'app.py').read_text(), 'print(1)\n')
+            self.assertTrue((Path(dest) / 'pkg' / '__init__.py').is_file())
+        finally:
+            import shutil
+            shutil.rmtree(dest, ignore_errors=True)
+
+    def test_safe_extract_rejects_traversal(self):
+        import os
+        import tempfile
+        from gallery.validators import safe_extract_zip
+        dest = tempfile.mkdtemp()
+        outside = os.path.abspath(os.path.join(dest, '..', 'pwned.py'))
+        if os.path.exists(outside):
+            os.remove(outside)
+        upload = make_zip_file({'../pwned.py': 'bad\n'})
+        try:
+            with self.assertRaises(ValueError):
+                safe_extract_zip(upload, dest)
+            self.assertFalse(os.path.exists(outside))
+            self.assertFalse(os.path.exists(os.path.join(dest, 'pwned.py')))
+        finally:
+            import shutil
+            shutil.rmtree(dest, ignore_errors=True)
+            if os.path.exists(outside):
+                os.remove(outside)
+
+    def test_safe_extract_rejects_absolute_path(self):
+        import tempfile
+        from gallery.validators import safe_extract_zip
+        dest = tempfile.mkdtemp()
+        upload = make_zip_file({'/tmp/evil.py': 'bad\n'})
+        try:
+            with self.assertRaises(ValueError):
+                safe_extract_zip(upload, dest)
+        finally:
+            import shutil
+            shutil.rmtree(dest, ignore_errors=True)
+
+
+class PrivateS3StorageTests(TestCase):
+    def test_private_options_never_go_public(self):
+        from django.conf import settings
+        from gallery.storages import PRIVATE_S3_OPTIONS, PrivateMediaStorage
+        self.assertEqual(PRIVATE_S3_OPTIONS['default_acl'], 'private')
+        self.assertTrue(PRIVATE_S3_OPTIONS['querystring_auth'])
+        self.assertIsNone(PRIVATE_S3_OPTIONS['custom_domain'])
+        self.assertEqual(settings.AWS_DEFAULT_ACL, 'private')
+        self.assertTrue(settings.AWS_QUERYSTRING_AUTH)
+        self.assertFalse(settings.AWS_S3_CUSTOM_DOMAIN)
+        self.assertEqual(PrivateMediaStorage.default_acl, 'private')
+        self.assertTrue(PrivateMediaStorage.querystring_auth)
+        self.assertIsNone(PrivateMediaStorage.custom_domain)

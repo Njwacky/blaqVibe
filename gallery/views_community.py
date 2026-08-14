@@ -410,30 +410,24 @@ def challenge_detail(request, tag):
 @login_required
 @require_POST
 def pick_challenge_winner(request, tag):
+    from .challenges import PRO_PRIZE_DAYS, ChallengeAwardError, award_challenge_winner
     from .models import Challenge
-    from users.decorators import admin_required
-    # Only admin/superadmin can pick winner
     if not request.user.profile.is_admin():
         return render(request, '403.html', status=403)
     challenge = get_object_or_404(Challenge, tag=tag)
     winner_id = request.POST.get('winner_id')
-    if winner_id:
-        from gallery.models import AppProject
-        winner = get_object_or_404(AppProject, id=winner_id)
-        challenge.winner = winner
-        challenge.save(update_fields=['winner'])
-        # Reward winner: +10 stars + Pro 7 days
-        try:
-            winner.owner.profile.stars_balance = F('stars_balance') + challenge.bounty_stars
-            winner.owner.profile.save(update_fields=['stars_balance'])
-            # Also give stars to project
-            AppProject.objects.filter(pk=winner.pk).update(stars=F('stars')+challenge.bounty_stars)
-            from django.utils import timezone
-            from datetime import timedelta
-            winner.owner.profile.is_pro = True
-            winner.owner.profile.pro_since = timezone.now()
-            winner.owner.profile.pro_until = timezone.now() + timedelta(days=30)
-            winner.owner.profile.save(update_fields=['is_pro','pro_since','pro_until'])
-        except Exception: pass
-        messages.success(request, f"Winner picked: {winner.title} by @{winner.owner.username} — +{challenge.bounty_stars} ★ + Pro!")
+    if not winner_id:
+        messages.error(request, 'Pick a submission first.')
+        return redirect('challenge_detail', tag=tag)
+    winner = get_object_or_404(AppProject, id=winner_id)
+    try:
+        award_challenge_winner(challenge, winner)
+    except ChallengeAwardError as exc:
+        messages.error(request, exc.message)
+        return redirect('challenge_detail', tag=tag)
+    messages.success(
+        request,
+        f'Winner picked: {winner.title} by @{winner.owner.username} — '
+        f'+{challenge.bounty_stars} ★ + Pro {PRO_PRIZE_DAYS} days.',
+    )
     return redirect('challenge_detail', tag=tag)

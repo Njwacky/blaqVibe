@@ -256,18 +256,36 @@ def preview(request, slug):
     return resp
 
 
+def snippet_request_is_framed(request, slug):
+    """True only when this looks like the sandboxed preview iframe.
+
+    Modern browsers send Sec-Fetch-Dest=iframe. Top-level clicks send
+    document and are blocked. Requests with no dest (old browsers, curl)
+    must come from the same-origin preview page.
+    """
+    dest = (request.META.get('HTTP_SEC_FETCH_DEST') or '').lower()
+    if dest == 'iframe':
+        return True
+    if dest == 'document':
+        return False
+    referer = request.META.get('HTTP_REFERER', '')
+    if not referer:
+        return False
+    from urllib.parse import urlparse
+    path = urlparse(referer).path.rstrip('/')
+    return path == f'/app/{slug}/preview'
+
+
 def snippet_doc(request, slug):
     """The raw snippet document (user HTML + CSS + JS).
 
     Served ONLY into an <iframe sandbox="allow-scripts"> (opaque origin):
-    the framed content gets no cookies, no parent DOM, and `connect-src 'none'`
-    stops it from phoning home or driving state-changing requests. Direct
-    top-level navigation is rejected so the code never runs unsandboxed.
+    the framed content gets no cookies, no parent DOM, and cannot POST back
+    to BlaqVibes. Direct top-level navigation is rejected so the code never
+    runs as a first-party page.
     """
     project = get_object_or_404(AppProject, slug=slug, status='published')
-    # Block direct (top-level) navigation. Browsers send Sec-Fetch-Dest on every
-    # request; the only legitimate entry point is our sandboxed preview iframe.
-    if request.META.get('HTTP_SEC_FETCH_DEST') == 'document':
+    if not snippet_request_is_framed(request, slug):
         return render(request, 'gallery/snippet_blocked.html', {'project': project}, status=403)
     resp = render(request, 'gallery/snippet_doc.html', {'project': project})
     resp['Content-Security-Policy'] = (
@@ -275,11 +293,13 @@ def snippet_doc(request, slug):
         "style-src 'unsafe-inline' https://fonts.googleapis.com; "
         "img-src data: https: http:; media-src data: https:; "
         "font-src data: https://fonts.gstatic.com; "
-        "connect-src https://cdn.tailwindcss.com; object-src 'none'; base-uri 'none'; form-action 'self'"
+        "connect-src https://cdn.tailwindcss.com; object-src 'none'; base-uri 'none'; "
+        "form-action 'none'; frame-ancestors 'self'"
     )
     resp['X-Frame-Options'] = 'SAMEORIGIN'
     resp['Referrer-Policy'] = 'no-referrer'
     resp['X-Content-Type-Options'] = 'nosniff'
+    resp['Cross-Origin-Resource-Policy'] = 'same-origin'
     return resp
 
 @login_required
@@ -681,91 +701,33 @@ def apply_ai_readme(request, slug):
 @login_required
 @require_POST
 def buy_vibe(request, slug):
+    project = get_object_or_404(AppProject, slug=slug, status='published')
+    if project.owner == request.user:
+        return redirect('download_zip', slug=slug)
+    if not project.price_zar:
+        return redirect('download_zip', slug=slug)
+    from .models import Sale
+    if Sale.objects.filter(buyer=request.user, project=project).exists():
+        return redirect('download_zip', slug=slug)
+    from .payments import PaymentError, create_checkout
     try:
-        project = get_object_or_404(AppProject, slug=slug, status='published')
-        if project.owner == request.user:
+        return redirect(create_checkout(request.user, project))
+    except PaymentError as exc:
+        if exc.message == 'already_unlocked':
             return redirect('download_zip', slug=slug)
-        if not project.price_zar or project.price_zar == 0:
-            return redirect('download_zip', slug=slug)
-        from .models import Sale
-        if Sale.objects.filter(buyer=request.user, project=project).exists():
-            return redirect('download_zip', slug=slug)
-        from .payments import paystack_enabled, paystack_secret
-        if not paystack_enabled():
-            messages.error(request, "Card payments aren't configured. Set PAYSTACK_SECRET_KEY, or trade stars to download.")
-            return redirect(project.get_absolute_url())
-        paystack_secret = paystack_secret()
-        import requests
-        import secrets
-        # Unique per attempt — Paystack rejects reused references on retry.
-        reference = f"blaq-{project.id}-{request.user.id}-{secrets.token_hex(6)}"
-        headers = {'Authorization': f'Bearer {paystack_secret}', 'Content-Type': 'application/json'}
-        data = {"email": request.user.email or f"{request.user.username}@blaqvibes.co.za", "amount": project.price_zar*100, "reference": reference, "callback_url": f"{settings.SITE_URL}{project.get_absolute_url()}", "metadata": {"project_id": project.id, "buyer_id": request.user.id}}
-        try:
-            r = requests.post('https://api.paystack.co/transaction/initialize', json=data, headers=headers, timeout=10)
-            j = r.json()
-            if j.get('status') and j.get('data', {}).get('authorization_url'):
-                return redirect(j['data']['authorization_url'])
-        except Exception as e:
-            logger.warning(f"Paystack init fail: {e}")
-        messages.error(request, "Could not start checkout. No charge was made.")
+        messages.error(request, exc.message)
         return redirect(project.get_absolute_url())
-    except Exception as e:
-        import logging
-        logging.getLogger(__name__).exception(f"buy crush: {e}")
-        return redirect('app_detail', slug=slug)
 
 from django.views.decorators.csrf import csrf_exempt
 @csrf_exempt
 @require_POST
 def paystack_webhook(request):
-    """Verify Paystack signature and record a Sale.
-
-    Returns 4xx on anything we can't verify/process so Paystack retries;
-    returns 200 only once the event is handled (or safely ignored).
-    """
-    import json
-    from .payments import paystack_enabled, verify_paystack_signature
-    if not paystack_enabled():
-        return HttpResponse("webhook not configured", status=503)
-    body = request.body
-    sig = request.headers.get('x-paystack-signature', '')
-    if not verify_paystack_signature(body, sig):
-        return HttpResponse("invalid signature", status=400)
-    try:
-        data = json.loads(body)
-    except (ValueError, TypeError):
-        return HttpResponse("invalid json", status=400)
-    if data.get('event') != 'charge.success':
-        return HttpResponse("ignored", status=200)
-    ref = (data.get('data') or {}).get('reference') or ''
-    parts = ref.split('-')
-    if len(parts) < 3 or parts[0] != 'blaq':
-        return HttpResponse("bad reference", status=400)
-    try:
-        pid, uid = int(parts[1]), int(parts[2])
-    except ValueError:
-        return HttpResponse("bad reference", status=400)
-    from .models import Sale, AppProject
-    from django.contrib.auth.models import User
-    try:
-        project = AppProject.objects.get(pk=pid)
-        buyer = User.objects.get(pk=uid)
-    except (AppProject.DoesNotExist, User.DoesNotExist):
-        return HttpResponse("unknown project/buyer", status=400)
-    paid = int((data.get('data') or {}).get('amount') or 0)
-    expected_amount = int(project.price_zar or 0) * 100
-    if expected_amount and paid != expected_amount:
-        logger.warning("Paystack amount mismatch ref=%s paid=%s expected=%s", ref, paid, expected_amount)
-        return HttpResponse("amount mismatch", status=400)
-    sale, created = Sale.objects.get_or_create(
-        buyer=buyer, project=project,
-        defaults={'seller': project.owner, 'amount_zar': project.price_zar, 'paystack_ref': ref},
+    """Verify Paystack signature and fulfill the frozen PaymentIntent."""
+    from .payments import fulfill_signed_webhook
+    status, msg = fulfill_signed_webhook(
+        request.body, request.headers.get('x-paystack-signature', ''),
     )
-    if created:
-        notify(project.owner, 'sale', f'{buyer.username} bought {project.title}', f'R{project.price_zar}', project.get_absolute_url())
-        notify(buyer, 'sale', f'You unlocked {project.title}', url=project.get_absolute_url())
-    return HttpResponse("ok")
+    return HttpResponse(msg, status=status)
 
 def oops_demo(request):
     # Demo safe page — always shows friendly fork, no HttpResponse scare

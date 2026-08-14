@@ -170,9 +170,25 @@ AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL', '')
 AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'auto')
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_QUARANTINE_BUCKET = os.getenv('AWS_QUARANTINE_BUCKET', 'blaqvibes-quarantine')
+# Fail closed: objects are private and only reachable via short signed URLs.
+# A public bucket policy can still leak files — keep the R2/S3 bucket private.
+AWS_DEFAULT_ACL = 'private'
+AWS_QUERYSTRING_AUTH = True
+AWS_QUERYSTRING_EXPIRE = 300
+AWS_S3_FILE_OVERWRITE = False
+AWS_S3_CUSTOM_DOMAIN = ''
 if AWS_ACCESS_KEY_ID:
     STORAGES = {
-        "default": {"BACKEND": "storages.backends.s3.S3Storage"},
+        "default": {
+            "BACKEND": "gallery.storages.PrivateMediaStorage",
+            "OPTIONS": {
+                "default_acl": "private",
+                "querystring_auth": True,
+                "querystring_expire": 300,
+                "file_overwrite": False,
+                "custom_domain": None,
+            },
+        },
         "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},
     }
 
