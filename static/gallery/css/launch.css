@@ -15,6 +15,12 @@
   padding: clamp(28px, 4vw, 64px) 0 88px;
   position: relative;
   isolation: isolate;
+  /* The decorative glow blobs below sit at right:-220px / left:-280px and
+     used to stretch the page past the viewport, which broke the sticky
+     navbar (page panned sideways and the nav no longer spanned the page).
+     `clip` (not `hidden`) trims them at the shell without creating a scroll
+     container, so the sticky guide aside keeps working. */
+  overflow-x: clip;
 }
 .launch-shell::before,
 .launch-shell::after {
