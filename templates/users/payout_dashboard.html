@@ -1,13 +1,25 @@
 {% extends 'gallery/base.html' %}
 {% block title %}Earnings — BlaqVibes{% endblock %}
+{% block head %}
+<style>
+/* The Pro Trial banner is a one-row flex; on small phones the CTA button
+   alone is wider than the screen, which pans the page sideways under the
+   nav. Let the row wrap and the button fill the width instead. */
+@media (max-width: 600px) {
+  .pro-banner { flex-wrap: wrap; }
+  .pro-banner form { flex: 1 1 100%; }
+  .pro-banner .btnV { width: 100%; flex-wrap: wrap; }
+}
+</style>
+{% endblock %}
 {% block content %}
 <div style="max-width:900px;margin:0 auto;padding:20px">
   <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">★ Earnings — stars</h1>
   <p style="color:var(--muted);font-size:13px">Stars are the working money path. You earn them when someone trades your vibe, and you spend them to unlock others. No bank transfer is sent from this page.</p>
 
   {% if not is_pro %}
-  <div style="margin-top:12px;background:linear-gradient(135deg,#1A1A00 0%,#1A1400 100%);border:1px solid #F59E0B;border-radius:12px;padding:14px;display:flex;gap:12px;align-items:center">
-    <div style="flex:1">
+  <div class="pro-banner" style="margin-top:12px;background:linear-gradient(135deg,#1A1A00 0%,#1A1400 100%);border:1px solid #F59E0B;border-radius:12px;padding:14px;display:flex;gap:12px;align-items:center">
+    <div style="flex:1;min-width:0">
       <div style="font-weight:800">Pro Trial — 7 days free</div>
       <div style="font-size:12px;color:var(--muted);margin-top:4px">Pro can see <b>who viewed your vibe</b> and use <b>AI README</b>. You are currently <b>Free</b> ({{ user.profile.rank.name }}).</div>
     </div>

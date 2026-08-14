@@ -1,8 +1,18 @@
 {% extends 'gallery/base.html' %}
 {% block title %}Nolo Chat — BlaqVibes{% endblock %}
+{% block head %}
+<style>
+/* The chat/help split (main + aside) stacks on tablets/phones — otherwise
+   the two columns overflow the viewport and the page pans sideways, breaking
+   the sticky nav's full-width look. */
+@media (max-width: 900px) {
+  .nolo-split { grid-template-columns: minmax(0, 1fr) !important; }
+}
+</style>
+{% endblock %}
 {% block content %}
 <div style="max-width:1100px;margin:16px auto;padding:0 20px">
-  <div style="display:grid;grid-template-columns:1.5fr 1fr;gap:18px">
+  <div class="nolo-split" style="display:grid;grid-template-columns:1.5fr 1fr;gap:18px">
     <div>
       <div style="background:var(--card);border:1px solid var(--line);border-radius:24px;padding:24px">
         <div style="display:flex;align-items:center;gap:12px;font-size:16px;font-weight:800">💬 Nolo Chat</div>
