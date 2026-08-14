@@ -53,6 +53,7 @@ def vulnerability_scan(self, *args, project_id=None):
                     break
         except Exception as e:
             logger.warning("safe extract / audit skip %s: %s", p.slug, e)
+            report['extract_error'] = 'unsafe or unreadable zip'
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
     # Nolo Auto-Review — heuristic or LLM, backend only, crush silently

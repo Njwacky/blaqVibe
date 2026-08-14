@@ -243,7 +243,11 @@ def preview(request, slug):
     project = get_object_or_404(AppProject, slug=slug, status='published')
     if not project.html_code and project.zip_file:
         return redirect('preview_files', slug=slug)
-    resp = render(request, 'gallery/preview.html', {'project': project})
+    from .preview_token import issue_snippet_token
+    resp = render(request, 'gallery/preview.html', {
+        'project': project,
+        'snippet_token': issue_snippet_token(project.slug),
+    })
     # This shell has no scripts of its own — lock it down (only our own inline <style>).
     csp = (
         "default-src 'none'; frame-src 'self'; img-src 'self' data: https:; "
@@ -256,39 +260,47 @@ def preview(request, slug):
     return resp
 
 
-def snippet_request_is_framed(request, slug):
-    """True only when this looks like the sandboxed preview iframe.
-
-    Modern browsers send Sec-Fetch-Dest=iframe. Top-level clicks send
-    document and are blocked. Requests with no dest (old browsers, curl)
-    must come from the same-origin preview page.
-    """
-    dest = (request.META.get('HTTP_SEC_FETCH_DEST') or '').lower()
-    if dest == 'iframe':
-        return True
-    if dest == 'document':
-        return False
+def _referer_is_our_preview(request, slug):
+    from urllib.parse import urlparse
     referer = request.META.get('HTTP_REFERER', '')
     if not referer:
         return False
-    from urllib.parse import urlparse
-    path = urlparse(referer).path.rstrip('/')
-    return path == f'/app/{slug}/preview'
+    parsed = urlparse(referer)
+    if parsed.path.rstrip('/') != f'/app/{slug}/preview':
+        return False
+    referer_host = (parsed.hostname or '').lower()
+    request_host = (request.get_host() or '').split(':')[0].lower()
+    return bool(referer_host) and referer_host == request_host
+
+
+def snippet_request_is_framed(request, slug):
+    """True only for the sandboxed preview iframe with a valid signed token."""
+    from .preview_token import snippet_token_is_valid
+    dest = (request.META.get('HTTP_SEC_FETCH_DEST') or '').lower()
+    if dest == 'document':
+        return False
+    if not snippet_token_is_valid(slug, request.GET.get('t', '')):
+        return False
+    if dest == 'iframe':
+        return True
+    # Old browsers omit Sec-Fetch-Dest. Require a same-host preview Referer
+    # so a stolen token cannot be opened as a top-level first-party page.
+    return _referer_is_our_preview(request, slug)
 
 
 def snippet_doc(request, slug):
     """The raw snippet document (user HTML + CSS + JS).
 
-    Served ONLY into an <iframe sandbox="allow-scripts"> (opaque origin):
-    the framed content gets no cookies, no parent DOM, and cannot POST back
-    to BlaqVibes. Direct top-level navigation is rejected so the code never
-    runs as a first-party page.
+    Served ONLY into an <iframe sandbox="allow-scripts"> (opaque origin)
+    with a short-lived signed token. CSP sandbox on the response also
+    applies if this URL is ever opened outside that iframe.
     """
     project = get_object_or_404(AppProject, slug=slug, status='published')
     if not snippet_request_is_framed(request, slug):
         return render(request, 'gallery/snippet_blocked.html', {'project': project}, status=403)
     resp = render(request, 'gallery/snippet_doc.html', {'project': project})
     resp['Content-Security-Policy'] = (
+        "sandbox allow-scripts; "
         "default-src 'none'; script-src 'unsafe-inline' https://cdn.tailwindcss.com; "
         "style-src 'unsafe-inline' https://fonts.googleapis.com; "
         "img-src data: https: http:; media-src data: https:; "
@@ -389,8 +401,8 @@ def file_preview(request, slug, path):
             if path not in z.namelist():
                 raise Http404
             data = z.read(path)
-    except Exception as e:
-        raise Http404(str(e))
+    except Exception:
+        raise Http404
     if len(data) > 200*1024:
         return JsonResponse({'error': 'File too large (200KB max). Download ZIP.'}, status=413)
     try:
@@ -699,8 +711,24 @@ def apply_ai_readme(request, slug):
         return redirect('app_detail', slug=slug)
 
 @login_required
+def download_version(request, slug, version_id):
+    """Owner (or unlocked buyer) can fetch a historical ZIP. Never via .url."""
+    project = get_object_or_404(AppProject, slug=slug)
+    version = get_object_or_404(AppVersion, pk=version_id, project=project)
+    if request.user != project.owner and not user_can_download(request.user, project):
+        messages.error(request, access_denied_message(request.user, project))
+        return redirect(project.get_absolute_url())
+    from .zip_serve import serve_named_zip
+    return serve_named_zip(version.zip_file, f'{project.slug}-v{version.version}.zip')
+
+
+@login_required
 @require_POST
+@ratelimit(key='user', rate='10/h', method='POST')
 def buy_vibe(request, slug):
+    if getattr(request, 'limited', False):
+        messages.error(request, 'Rate limit: 10 checkouts/hour.')
+        return redirect('app_detail', slug=slug)
     project = get_object_or_404(AppProject, slug=slug, status='published')
     if project.owner == request.user:
         return redirect('download_zip', slug=slug)

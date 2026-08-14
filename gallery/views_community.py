@@ -421,7 +421,7 @@ def pick_challenge_winner(request, tag):
         return redirect('challenge_detail', tag=tag)
     winner = get_object_or_404(AppProject, id=winner_id)
     try:
-        award_challenge_winner(challenge, winner)
+        award_challenge_winner(challenge, winner, actor=request.user)
     except ChallengeAwardError as exc:
         messages.error(request, exc.message)
         return redirect('challenge_detail', tag=tag)

@@ -17,7 +17,7 @@
   {% if project.versions.all %}
   <div style="margin-top:16px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px">
     <div style="font-size:12px;font-weight:700">Versions</div>
-    {% for v in project.versions.all %}<div style="font-size:12px;display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)"><span>v{{ v.version }} — {{ v.changelog|default:"Update" }} • {{ v.created_at|date:"Y-m-d" }}</span><a href="{{ v.zip_file.url }}" style="color:#7C3AED">Download</a></div>{% endfor %}
+    {% for v in project.versions.all %}<div style="font-size:12px;display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)"><span>v{{ v.version }} — {{ v.changelog|default:"Update" }} • {{ v.created_at|date:"Y-m-d" }}</span><a href="{% url 'download_version' project.slug v.id %}" style="color:#7C3AED">Download</a></div>{% endfor %}
   </div>
   {% endif %}
 </div>

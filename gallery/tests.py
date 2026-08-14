@@ -537,44 +537,56 @@ class FiveWhysHolesTests(TestCase):
         self.assertEqual(posted.call_args.kwargs['headers']['x-api-key'], 'sk-ant-test')
 
 
+
 @override_settings(RATELIMIT_ENABLE=False, PAYSTACK_SECRET_KEY='sk_test_webhook', PAYSTACK_ENABLED=True)
 class PaystackWebhookTests(TestCase):
     def setUp(self):
+        from unittest.mock import patch
         self.cat = make_category()
         self.owner = make_user('owner')
         self.buyer = make_user('buyer')
         self.project = make_project(self.owner, self.cat, title='Card vibe', star_cost=0, price_zar=50)
-        self.project.zip_file.save('card.zip', make_zip_file({'app.py': 'print(1)\\n'}), save=True)
-
-    def _intent(self, reference='blaq-okref', amount_zar=50):
-        return PaymentIntent.objects.create(
-            reference=reference,
-            buyer=self.buyer,
-            project=self.project,
-            amount_zar=amount_zar,
-            amount_kobo=amount_zar * 100,
-            status='pending',
+        self.project.zip_file.save('card.zip', make_zip_file({'app.py': 'print(1)\n'}), save=True)
+        self.verify_patch = patch(
+            'gallery.payments.verify_paystack_transaction',
+            side_effect=self._verified,
         )
+        self.verify_patch.start()
+        self.addCleanup(self.verify_patch.stop)
 
-    def _intent(self, reference='blaq-okref', amount_zar=50):
-        return PaymentIntent.objects.create(
-            reference=reference,
-            buyer=self.buyer,
-            project=self.project,
-            amount_zar=amount_zar,
-            amount_kobo=amount_zar * 100,
-            status='pending',
-        )
+    def _verified(self, reference):
+        intent = PaymentIntent.objects.get(reference=reference)
+        return {
+            'status': 'success',
+            'amount': intent.amount_kobo,
+            'currency': 'ZAR',
+            'reference': reference,
+        }
+
+    def _intent(self, reference='blaq-okref', amount_zar=50, **kwargs):
+        now = timezone.now()
+        defaults = {
+            'reference': reference,
+            'buyer': self.buyer,
+            'project': self.project,
+            'amount_zar': amount_zar,
+            'amount_kobo': amount_zar * 100,
+            'currency': 'ZAR',
+            'status': 'pending',
+            'expires_at': now + timedelta(minutes=25),
+        }
+        defaults.update(kwargs)
+        return PaymentIntent.objects.create(**defaults)
 
     def _signed(self, payload: bytes):
         import hashlib, hmac
         return hmac.new(b'sk_test_webhook', payload, hashlib.sha512).hexdigest()
 
-    def _body(self, reference, amount):
+    def _body(self, reference, amount, currency='ZAR'):
         import json
         return json.dumps({
             'event': 'charge.success',
-            'data': {'reference': reference, 'amount': amount},
+            'data': {'reference': reference, 'amount': amount, 'currency': currency},
         }).encode()
 
     def test_bad_signature_does_not_create_sale(self):
@@ -590,7 +602,6 @@ class PaystackWebhookTests(TestCase):
         self.assertFalse(Sale.objects.filter(buyer=self.buyer, project=self.project).exists())
 
     def test_valid_signature_creates_sale_and_unlocks(self):
-        from gallery.access import user_can_download
         self._intent('blaq-okref')
         body = self._body('blaq-okref', 5000)
         response = self.client.post(
@@ -628,7 +639,6 @@ class PaystackWebhookTests(TestCase):
         self.assertFalse(Sale.objects.filter(buyer=self.buyer, project=self.project).exists())
 
     def test_price_change_after_initialize_still_honors_frozen_amount(self):
-        from gallery.access import user_can_download
         self._intent('blaq-frozen', amount_zar=50)
         self.project.price_zar = 80
         self.project.save(update_fields=['price_zar'])
@@ -668,6 +678,18 @@ class PaystackWebhookTests(TestCase):
         self.assertEqual(second.status_code, 200)
         self.assertEqual(Sale.objects.filter(buyer=self.buyer, project=self.project).count(), 1)
 
+    def test_currency_mismatch_rejected(self):
+        self._intent('blaq-usd')
+        body = self._body('blaq-usd', 5000, currency='USD')
+        response = self.client.post(
+            '/paystack/webhook/',
+            data=body,
+            content_type='application/json',
+            headers={'x-paystack-signature': self._signed(body)},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(Sale.objects.exists())
+
     def test_buy_creates_intent_at_current_price(self):
         from unittest.mock import Mock, patch
         fake = Mock()
@@ -683,10 +705,25 @@ class PaystackWebhookTests(TestCase):
         intent = PaymentIntent.objects.get(buyer=self.buyer, project=self.project)
         self.assertEqual(intent.amount_zar, 50)
         self.assertEqual(intent.amount_kobo, 5000)
+        self.assertEqual(intent.currency, 'ZAR')
         self.assertEqual(intent.status, 'pending')
+        self.assertEqual(intent.authorization_url, 'https://paystack.test/checkout')
         sent = posted.call_args.kwargs['json']
         self.assertEqual(sent['amount'], 5000)
+        self.assertEqual(sent['currency'], 'ZAR')
+        self.assertEqual(sent['email'], 'buyer@test.com')
         self.assertEqual(sent['reference'], intent.reference)
+
+    def test_second_buy_reuses_fresh_pending(self):
+        self._intent(
+            'blaq-reuse',
+            authorization_url='https://paystack.test/existing',
+        )
+        self.client.login(username='buyer', password='pass12345')
+        response = self.client.post(f'/app/{self.project.slug}/buy/')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, 'https://paystack.test/existing')
+        self.assertEqual(PaymentIntent.objects.filter(buyer=self.buyer, project=self.project).count(), 1)
 
 
 @override_settings(RATELIMIT_ENABLE=False, SEED_DEMO=False)
@@ -839,6 +876,8 @@ class LaunchGuideTests(TestCase):
         self.assertContains(response, 'Launch')
 
 
+
+
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False)
 class ChallengeAwardTests(TestCase):
     def setUp(self):
@@ -873,7 +912,21 @@ class ChallengeAwardTests(TestCase):
         self.other.profile.refresh_from_db()
         self.assertEqual(self.other.profile.stars_balance, 5)
 
-    def test_award_is_idempotent(self):
+    def test_unpublished_submission_cannot_win(self):
+        self.entry.status = 'pending'
+        self.entry.save(update_fields=['status'])
+        self.client.login(username='admin', password='pass12345')
+        self.client.post(
+            f'/challenges/{self.challenge.tag}/pick-winner/',
+            {'winner_id': self.entry.id},
+        )
+        self.challenge.refresh_from_db()
+        self.creator.profile.refresh_from_db()
+        self.assertIsNone(self.challenge.winner_id)
+        self.assertEqual(self.creator.profile.stars_balance, 5)
+
+    def test_award_is_idempotent_and_does_not_inflate_project_stars(self):
+        from users.models import AdminLog
         self.client.login(username='admin', password='pass12345')
         url = f'/challenges/{self.challenge.tag}/pick-winner/'
         first = self.client.post(url, {'winner_id': self.entry.id})
@@ -885,8 +938,9 @@ class ChallengeAwardTests(TestCase):
         self.entry.refresh_from_db()
         self.assertEqual(self.challenge.winner_id, self.entry.id)
         self.assertEqual(self.creator.profile.stars_balance, 15)
-        self.assertEqual(self.entry.stars, 12)
+        self.assertEqual(self.entry.stars, 2)
         self.assertTrue(self.creator.profile.is_pro_active)
+        self.assertTrue(AdminLog.objects.filter(action='challenge_award', actor=self.admin).exists())
 
     def test_second_pick_cannot_switch_winner(self):
         other_entry = make_project(self.other, self.cat, title='Also tagged')
@@ -912,21 +966,30 @@ class SnippetIsolationTests(TestCase):
             js_code='console.log(1)',
         )
 
-    def test_top_level_document_is_blocked(self):
+    def _token(self):
+        from gallery.preview_token import issue_snippet_token
+        return issue_snippet_token(self.snippet.slug)
+
+    def test_top_level_document_is_blocked_even_with_token(self):
         response = self.client.get(
             f'/app/{self.snippet.slug}/snippet/',
+            {'t': self._token()},
             headers={'Sec-Fetch-Dest': 'document'},
         )
         self.assertEqual(response.status_code, 403)
         self.assertContains(response, 'sandbox', status_code=403)
 
-    def test_bare_request_without_referer_is_blocked(self):
-        response = self.client.get(f'/app/{self.snippet.slug}/snippet/')
-        self.assertEqual(response.status_code, 403)
-
-    def test_iframe_dest_is_allowed(self):
+    def test_bare_request_without_token_is_blocked(self):
         response = self.client.get(
             f'/app/{self.snippet.slug}/snippet/',
+            headers={'Sec-Fetch-Dest': 'iframe'},
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_iframe_dest_with_token_is_allowed(self):
+        response = self.client.get(
+            f'/app/{self.snippet.slug}/snippet/',
+            {'t': self._token()},
             headers={'Sec-Fetch-Dest': 'iframe'},
         )
         self.assertEqual(response.status_code, 200)
@@ -934,21 +997,32 @@ class SnippetIsolationTests(TestCase):
         csp = response['Content-Security-Policy']
         self.assertIn("form-action 'none'", csp)
         self.assertIn("frame-ancestors 'self'", csp)
+        self.assertIn('sandbox allow-scripts', csp)
         self.assertEqual(response['Referrer-Policy'], 'no-referrer')
 
-    def test_legacy_preview_referer_is_allowed(self):
+    def test_evil_host_referer_is_blocked(self):
         response = self.client.get(
             f'/app/{self.snippet.slug}/snippet/',
+            {'t': self._token()},
+            headers={'Referer': f'https://evil.example/app/{self.snippet.slug}/preview/'},
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_legacy_same_host_referer_with_token_is_allowed(self):
+        response = self.client.get(
+            f'/app/{self.snippet.slug}/snippet/',
+            {'t': self._token()},
             headers={'Referer': f'http://testserver/app/{self.snippet.slug}/preview/'},
         )
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '<h1>Hello</h1>')
 
-    def test_preview_shell_uses_same_origin_referrer_for_iframe(self):
+    def test_preview_shell_embeds_signed_token(self):
         response = self.client.get(f'/app/{self.snippet.slug}/preview/')
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'referrerpolicy="same-origin"', html=False)
         self.assertContains(response, 'sandbox="allow-scripts"', html=False)
+        self.assertContains(response, '?t=', html=False)
+        self.assertIn('snippet_token', response.context)
 
 
 @override_settings(RATELIMIT_ENABLE=False)
@@ -1000,17 +1074,65 @@ class SafeZipExtractTests(TestCase):
             import shutil
             shutil.rmtree(dest, ignore_errors=True)
 
+    def test_safe_extract_rejects_env_file(self):
+        import tempfile
+        from gallery.validators import safe_extract_zip
+        dest = tempfile.mkdtemp()
+        upload = make_zip_file({'.env': 'SECRET=1\n'})
+        try:
+            with self.assertRaises(ValueError):
+                safe_extract_zip(upload, dest)
+        finally:
+            import shutil
+            shutil.rmtree(dest, ignore_errors=True)
+
 
 class PrivateS3StorageTests(TestCase):
     def test_private_options_never_go_public(self):
         from django.conf import settings
         from gallery.storages import PRIVATE_S3_OPTIONS, PrivateMediaStorage
-        self.assertEqual(PRIVATE_S3_OPTIONS['default_acl'], 'private')
+        self.assertIsNone(PRIVATE_S3_OPTIONS['default_acl'])
         self.assertTrue(PRIVATE_S3_OPTIONS['querystring_auth'])
         self.assertIsNone(PRIVATE_S3_OPTIONS['custom_domain'])
-        self.assertEqual(settings.AWS_DEFAULT_ACL, 'private')
+        self.assertIsNone(settings.AWS_DEFAULT_ACL)
         self.assertTrue(settings.AWS_QUERYSTRING_AUTH)
         self.assertFalse(settings.AWS_S3_CUSTOM_DOMAIN)
-        self.assertEqual(PrivateMediaStorage.default_acl, 'private')
+        self.assertNotEqual(settings.AWS_STORAGE_BUCKET_NAME, 'blaqvibes-public')
+        self.assertIsNone(PrivateMediaStorage.default_acl)
         self.assertTrue(PrivateMediaStorage.querystring_auth)
         self.assertIsNone(PrivateMediaStorage.custom_domain)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class VersionDownloadTests(TestCase):
+    def setUp(self):
+        from gallery.models import AppVersion
+        self.cat = make_category()
+        self.owner = make_user('owner')
+        self.buyer = make_user('buyer')
+        self.project = make_project(self.owner, self.cat, star_cost=3)
+        self.project.zip_file.save('paid.zip', make_zip_file({'app.py': 'print(1)\n'}), save=True)
+        self.version = AppVersion.objects.create(
+            project=self.project,
+            zip_file=make_zip_file({'old.py': 'x=1\n'}, name='old.zip'),
+            version='1.0.0',
+        )
+
+    def test_edit_page_does_not_emit_raw_storage_url(self):
+        self.client.login(username='owner', password='pass12345')
+        response = self.client.get(f'/app/{self.project.slug}/edit/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, f'/app/{self.project.slug}/versions/{self.version.id}/download/')
+        self.assertNotContains(response, '/media/apps/versions/')
+
+    def test_stranger_cannot_download_version(self):
+        self.client.login(username='buyer', password='pass12345')
+        response = self.client.get(f'/app/{self.project.slug}/versions/{self.version.id}/download/')
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(self.project.slug, response.url)
+
+    def test_owner_can_download_version(self):
+        self.client.login(username='owner', password='pass12345')
+        response = self.client.get(f'/app/{self.project.slug}/versions/{self.version.id}/download/')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'application/zip')

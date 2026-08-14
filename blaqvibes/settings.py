@@ -165,14 +165,14 @@ CELERY_BEAT_SCHEDULE = {
 # --- S3 / R2 ---
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', '')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '')
-AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME', 'blaqvibes-public')
+AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME', 'blaqvibes-media')
 AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL', '')
 AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'auto')
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_QUARANTINE_BUCKET = os.getenv('AWS_QUARANTINE_BUCKET', 'blaqvibes-quarantine')
-# Fail closed: objects are private and only reachable via short signed URLs.
-# A public bucket policy can still leak files — keep the R2/S3 bucket private.
-AWS_DEFAULT_ACL = 'private'
+# Fail closed: no canned ACL (R2 rejects them), no public CDN hostname.
+# Privacy is a private bucket policy + signed URLs. Never set AWS_S3_CUSTOM_DOMAIN.
+AWS_DEFAULT_ACL = None
 AWS_QUERYSTRING_AUTH = True
 AWS_QUERYSTRING_EXPIRE = 300
 AWS_S3_FILE_OVERWRITE = False
@@ -182,11 +182,12 @@ if AWS_ACCESS_KEY_ID:
         "default": {
             "BACKEND": "gallery.storages.PrivateMediaStorage",
             "OPTIONS": {
-                "default_acl": "private",
+                "default_acl": None,
                 "querystring_auth": True,
                 "querystring_expire": 300,
                 "file_overwrite": False,
                 "custom_domain": None,
+                "signature_version": "s3v4",
             },
         },
         "staticfiles": {"BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage"},

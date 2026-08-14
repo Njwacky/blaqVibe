@@ -7,6 +7,6 @@
 </head>
 <body>
 {# User content only ever executes inside this sandboxed, opaque-origin frame. #}
-<iframe sandbox="allow-scripts" referrerpolicy="same-origin" src="{% url 'snippet_doc' project.slug %}" title="{{ project.title }} preview"></iframe>
+<iframe sandbox="allow-scripts" referrerpolicy="same-origin" src="{% url 'snippet_doc' project.slug %}?t={{ snippet_token|urlencode }}" title="{{ project.title }} preview"></iframe>
 </body>
 </html>
