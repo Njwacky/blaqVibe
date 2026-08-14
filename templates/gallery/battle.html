@@ -1,14 +1,18 @@
 {% extends 'gallery/base.html' %}
 {% block title %}Vibe Battles — BlaqVibes{% endblock %}
+{% block head %}
+<style>
+/* Full-height battle shell. Desktop has the left sidebar (no top bar), so the
+   shell takes the whole viewport; on mobile the sticky top nav (~64px) still
+   sits above it, so subtract that. dvh tracks mobile browser chrome. */
+.battle-shell { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
+@media (max-width: 900px) {
+  .battle-shell { height: calc(100vh - 64px); height: calc(100dvh - 64px); }
+}
+</style>
+{% endblock %}
 {% block content %}
-<div
-  style="
-    height: calc(100vh - 56px);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  "
->
+<div class="battle-shell">
   <div
     style="
       padding: 12px 16px;
