@@ -1,7 +1,17 @@
 {% extends 'gallery/base.html' %}
 {% block title %}Publish — BlaqVibes{% endblock %}
+{% block head %}
+<style>
+/* Desktop has the left sidebar (no top bar), so the workspace fills the full
+   viewport height; on mobile the sticky top nav (~64px) sits above it. */
+.publish-shell { display: grid; grid-template-columns: 240px 1fr 320px; min-height: 100vh; min-height: 100dvh; }
+@media (max-width: 900px) {
+  .publish-shell { min-height: calc(100vh - 64px); min-height: calc(100dvh - 64px); }
+}
+</style>
+{% endblock %}
 {% block content %}
-<div style="display:grid;grid-template-columns:240px 1fr 320px;min-height:calc(100vh - 56px)">
+<div class="publish-shell">
   <!-- Left Panel -->
   <aside style="background:var(--card);border-right:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:12px">
     <div style="font-size:11px;letter-spacing:.08em;color:var(--muted);font-weight:700">PUBLISH</div>
