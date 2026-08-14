@@ -20,4 +20,8 @@ psycopg[binary]==3.2.3
 pip-audit==2.7.3
 django-allauth==65.19.1
 PyJWT==2.13.0
-cryptography==49.0.0
+cryptography==50.0.0
+# Base tooling: fresh venvs/Docker bases ship vulnerable pip/setuptools;
+# pin them so `pip-audit` is clean in any environment built from this file.
+pip==26.1.2
+setuptools==83.0.0
