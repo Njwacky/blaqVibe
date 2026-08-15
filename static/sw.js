@@ -1,16 +1,19 @@
-// BlaqVibes SW — 5 Whys: Why PWA? Offline feed + installable. Why cache-first for static? Fast, offline. Why network-first for HTML? Fresh vibes. Why fallback to /oops/? Safe fork page, not scary.
+// BlaqVibes SW — static and HTML requests are network-first so installed PWAs
+// receive layout fixes immediately while retaining an offline fallback.
 // No secrets in JS — no S3 keys, no scan_report.
-const CACHE = 'blaqvibes-v1';
+// Bump this whenever the app shell changes; activation removes older caches.
+const CACHE = 'blaqvibes-v3-sidebar-resize';
 // Account-specific pages — never cache (they contain per-user data).
 const PRIVATE_PREFIXES = [
   '/my-vibes/', '/inbox/', '/saved/', '/settings/', '/payout/',
   '/trades/', '/moderation/', '/blaq-admin', '/admin/',
 ];
 const STATIC_ASSETS = [
-  '/static/gallery/css/blaqvibes.css',
+  '/static/gallery/css/blaqvibes.css?v=sidebar-resize-20260815',
+  '/static/gallery/css/footer.css?v=sidebar-resize-20260815',
   '/static/gallery/css/error.css',
   '/static/gallery/css/forms.css',
-  '/static/gallery/js/blaqvibes.js',
+  '/static/gallery/js/blaqvibes.js?v=sidebar-resize-20260815',
   '/static/gallery/js/detail.js',
   '/static/gallery/js/profile.js',
   '/static/branding/icon-192.png',
@@ -29,12 +32,24 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   // Only handle same-origin GET
   if(req.method !== 'GET' || url.origin !== location.origin) return;
-  // Static -> cache first
+  // Static -> network first. Django/WhiteNoise fingerprints production
+  // assets, but local and previously installed PWAs can request stable URLs.
+  // Cache-first kept an obsolete top navbar forever after the sidebar shipped.
   if(url.pathname.startsWith('/static/')){
-    e.respondWith(caches.match(req).then(r=>r || fetch(req).then(res=>{
-      caches.open(CACHE).then(c=>c.put(req, res.clone()));
-      return res;
-    }).catch(()=>caches.match('/static/branding/error-fork.png'))));
+    e.respondWith((async () => {
+      try {
+        const res = await fetch(req);
+        if(res.ok){
+          const cache = await caches.open(CACHE);
+          await cache.put(req, res.clone());
+        }
+        return res;
+      } catch(err) {
+        return (await caches.match(req)) ||
+          (await caches.match('/static/branding/error-fork.png')) ||
+          Response.error();
+      }
+    })());
     return;
   }
   // HTML -> network first, fallback to cache, then safe page

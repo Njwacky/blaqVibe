@@ -20,7 +20,11 @@ RUN mkdir -p /app/media/apps/zips /app/staticfiles && chown -R appuser:appuser /
 
 # Collect static files into /app/staticfiles. WhiteNoise serves only from
 # STATIC_ROOT in production — without this the site ships with no CSS/JS.
-RUN python manage.py collectstatic --noinput && chown -R appuser:appuser /app/staticfiles
+# This build step does not have runtime secrets (.env is intentionally excluded
+# from the image), so explicitly use local settings for this one management
+# command. Runtime still fails closed when SECRET_KEY is missing.
+RUN DJANGO_LOCAL_DEV=1 python manage.py collectstatic --noinput \
+    && chown -R appuser:appuser /app/staticfiles
 
 # ClamAV freshclam (mock if no internet, crush silently)
 RUN freshclam || echo "freshclam failed — mock mode"

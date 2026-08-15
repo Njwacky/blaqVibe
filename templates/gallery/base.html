@@ -14,12 +14,23 @@
 <meta property="og:description" content="{% block og_desc %}Publish the Vibes. Clone the Culture.{% endblock %}">
 <meta property="og:image" content="{% block og_image %}{% if request.is_secure %}https{% else %}http{% endif %}://{{ request.get_host }}/static/branding/blaqvibes-icon.png{% endblock %}">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&amp;family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/gallery/css/blaqvibes.css">
-<link rel="stylesheet" href="{% static 'gallery/css/footer.css' %}">
-<script>try{var t=localStorage.getItem('blaq-theme');if(t)document.documentElement.setAttribute('data-theme',t);}catch(e){}</script>
+{# Version the layout styles explicitly as well as using Django's static tag. #}
+{# This prevents an older service worker cache from briefly restoring the old top navbar on reload. #}
+<link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=sidebar-resize-20260815">
+<link rel="stylesheet" href="{% static 'gallery/css/footer.css' %}?v=sidebar-resize-20260815">
+<script>
+/* Apply saved appearance and sidebar geometry before first paint. */
+try{
+  var t=localStorage.getItem('blaq-theme');
+  if(t) document.documentElement.setAttribute('data-theme',t);
+  var nw=parseInt(localStorage.getItem('blaq-nav-width'),10);
+  if(Number.isFinite(nw) && nw>=180 && nw<=380) document.documentElement.style.setProperty('--nav-w',nw+'px');
+  if(localStorage.getItem('blaq-nav-collapsed')==='1') document.documentElement.setAttribute('data-nav-collapsed','true');
+}catch(e){}
+</script>
 <script src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-<script src="/static/gallery/js/blaqvibes.js" defer></script>
+<script src="{% static 'gallery/js/blaqvibes.js' %}?v=sidebar-resize-20260815" defer></script>
 {% block head %}{% endblock %}
 </head>
 <body>
@@ -74,6 +85,10 @@
     {% endif %}
   </div>
 </nav>
+{# Desktop sidebar edge: drag the vertical line to resize; use << to collapse. #}
+<div id="nav-resizer" class="nav-resizer" role="separator" aria-label="Resize sidebar" aria-orientation="vertical" aria-valuemin="180" aria-valuemax="380" aria-valuenow="230" tabindex="0">
+  <button type="button" id="nav-collapse" class="nav-collapse-btn" aria-label="Collapse sidebar" aria-expanded="true">&lt;&lt;</button>
+</div>
 {% if user.is_authenticated and not user.profile.email_verified and user.email %}
 <div style="max-width:1100px;margin:12px auto 0;padding:0 20px">
   <div style="padding:12px 14px;border-radius:12px;font-size:13px;background:#1A1A00;border:1px solid #F59E0B;color:#FDE68A;display:flex;gap:10px;align-items:center;flex-wrap:wrap">

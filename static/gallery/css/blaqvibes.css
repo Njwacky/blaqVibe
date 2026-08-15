@@ -1,8 +1,10 @@
 :root {
-  /* Width of the vertical sidebar. Single source of truth: the sidebar,
-     the body offset and every viewport-fixed popover read this one value. */
+  /* The desktop rail can be resized from 180–380px. --nav-offset becomes
+     zero while collapsed, without forgetting the user's chosen width. */
   --nav-w: 230px;
+  --nav-offset: var(--nav-w);
 }
+:root[data-nav-collapsed="true"] { --nav-offset: 0px; }
 :root, [data-theme="dark"] {
   --bg: #07070A;
   --card: #121214;
@@ -86,6 +88,9 @@ a { color: inherit; text-decoration: none; }
   font-size: 16px;
 }
 .nav-burger { display: none; }
+/* The resizable edge is desktop-only. It is enabled in the desktop media
+   query after the sidebar itself becomes fixed. */
+.nav-resizer { display: none; }
 /* Avatar menu — the account chrome lives here, not in the top bar. */
 .nav-user { position: relative; }
 .nav-user-btn {
@@ -228,7 +233,69 @@ a { color: inherit; text-decoration: none; }
        pinned at the top and only the link list scrolls (see .nav-links). */
     overflow: hidden;
   }
-  body { padding-left: var(--nav-w); }
+  body {
+    padding-left: var(--nav-offset);
+    transition: padding-left .2s ease;
+  }
+  .nav {
+    transition: width .2s ease, transform .2s ease;
+  }
+  :root[data-nav-collapsed="true"] .nav { transform: translateX(-100%); }
+  /* Keep the full 36px expand button visible when the sidebar is hidden. */
+  :root[data-nav-collapsed="true"] .nav-resizer { left: 12px; }
+  .nav-resizer {
+    display: block;
+    position: fixed;
+    z-index: 70;
+    top: 0;
+    bottom: 0;
+    left: calc(var(--nav-offset) - 6px);
+    width: 12px;
+    cursor: ew-resize;
+    touch-action: none;
+    transition: left .2s ease;
+  }
+  .nav-resizer::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 50%;
+    width: 1px;
+    background: var(--line);
+    transform: translateX(-50%);
+    transition: width .15s ease, background .15s ease;
+  }
+  .nav-resizer:hover::before,
+  .nav-resizer:focus-visible::before,
+  :root[data-nav-resizing="true"] .nav-resizer::before {
+    width: 3px;
+    background: var(--violet);
+  }
+  .nav-resizer:focus-visible { outline: none; }
+  .nav-collapse-btn {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 36px;
+    height: 30px;
+    transform: translate(-50%, -50%);
+    display: grid;
+    place-items: center;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+    background: var(--card);
+    color: var(--text);
+    box-shadow: var(--shadow);
+    font: 800 12px/1 JetBrains Mono, monospace;
+    cursor: pointer;
+  }
+  .nav-collapse-btn:hover,
+  .nav-collapse-btn:focus-visible { border-color: var(--violet); outline: 2px solid transparent; }
+  :root[data-nav-resizing="true"] body,
+  :root[data-nav-resizing="true"] .nav,
+  :root[data-nav-resizing="true"] .nav-resizer { transition: none; }
+  :root[data-nav-resizing="true"] body { cursor: ew-resize; user-select: none; }
   /* Brand and the theme/burger row stay fixed at the top of the rail. */
   .nav > .logo, .nav-actions { flex: none; }
   .nav-actions { margin-left: 0; }
@@ -265,7 +332,7 @@ a { color: inherit; text-decoration: none; }
   /* Sticky elements no longer sit below a 64px top bar. */
   .filter-bar { top: 12px; }
   /* Center viewport-fixed elements on the content area, not the viewport. */
-  .toast, #pwa-install-banner, #pwa-ios-hint { left: calc(50% + var(--nav-w) / 2); }
+  .toast, #pwa-install-banner, #pwa-ios-hint { left: calc(50% + var(--nav-offset) / 2); }
 }
 @media (max-width: 900px) {
   .vibe-grid { grid-template-columns: 1fr 1fr; }
