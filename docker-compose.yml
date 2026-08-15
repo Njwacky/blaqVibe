@@ -46,9 +46,14 @@ services:
       - media:/app/media
     env_file: .env
     environment:
+      - DATABASE_URL=postgres://blaq:${POSTGRES_PASSWORD:-blaq123}@db:5432/blaqvibes
       - REDIS_URL=redis://redis:6379/0
       - CELERY_EAGER=0
-    depends_on: [redis, db]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
   celery-beat:
     build: .
@@ -57,8 +62,14 @@ services:
       - .:/app
     env_file: .env
     environment:
+      - DATABASE_URL=postgres://blaq:${POSTGRES_PASSWORD:-blaq123}@db:5432/blaqvibes
       - REDIS_URL=redis://redis:6379/0
-    depends_on: [redis, db]
+      - CELERY_EAGER=0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
 
 volumes:
   pgdata:
