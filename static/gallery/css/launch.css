@@ -1,15 +1,17 @@
 /* Launch pad — cinematic destination router. Scoped to .launch-shell. */
 
 .launch-shell {
-  --launch-accent: #a78bfa;
-  --launch-hot: #c4f04d;
-  --launch-blue: #67e8f9;
+  --launch-accent: #A78BFA;
+  --launch-hot: #C4F04D;
+  --launch-hot-fill: #C4F04D;
+  --launch-hot-on-dark: #C4F04D;
+  --launch-blue: #67E8F9;
   --launch-ink: color-mix(in srgb, var(--launch-accent) 55%, var(--text));
-  --launch-web: #a78bfa;
-  --launch-mobile: #67e8f9;
-  --launch-games: #fbbf24;
-  --launch-desktop: #c4f04d;
-  --launch-distribution: #f472b6;
+  --launch-web: #A78BFA;
+  --launch-mobile: #67E8F9;
+  --launch-games: #FBBF24;
+  --launch-desktop: #C4F04D;
+  --launch-distribution: #F472B6;
   width: min(1180px, calc(100% - 48px));
   margin: 0 auto;
   padding: clamp(28px, 4vw, 64px) 0 88px;
@@ -21,6 +23,22 @@
      `clip` (not `hidden`) trims them at the shell without creating a scroll
      container, so the sticky guide aside keeps working. */
   overflow-x: clip;
+}
+/* The launch palette doubles as text in several places. Light mode needs
+   darker text variants instead of the neon values designed for a dark canvas. */
+[data-theme="light"] .launch-shell {
+  --launch-accent: #6D28D9;
+  --launch-hot: #3F6212;
+  --launch-hot-fill: #A3E635;
+  --launch-blue: #0E7490;
+  --launch-web: #6D28D9;
+  --launch-mobile: #0E7490;
+  --launch-games: #B45309;
+  --launch-desktop: #3F6212;
+  --launch-distribution: #BE185D;
+}
+[data-theme="light"] .launch-hero h1 span {
+  background-image: linear-gradient(105deg, #5B21B6, #7C3AED 42%, #3F6212);
 }
 .launch-shell::before,
 .launch-shell::after {
@@ -285,7 +303,7 @@
   height: 22px;
   flex: 0 0 22px;
   border-radius: 50%;
-  background: var(--gold);
+  background: var(--warning-fill);
   color: #111;
   font-size: 12px;
   font-weight: 900;
@@ -367,7 +385,7 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: var(--launch-hot);
+  background: var(--launch-hot-fill);
   color: #111;
   font-size: 10px;
   font-weight: 900;
@@ -386,7 +404,7 @@
 .launch-artifact.is-active .launch-artifact__count {
   border-color: color-mix(in srgb, var(--launch-hot) 50%, var(--line));
   color: #111;
-  background: var(--launch-hot);
+  background: var(--launch-hot-fill);
 }
 .launch-artifact.is-active .launch-artifact__check { display: grid; }
 .launch-picker__clear {
@@ -524,7 +542,7 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: var(--launch-hot);
+  background: var(--launch-hot-fill);
   color: #111;
   font-size: 11px;
   font-weight: 900;
@@ -579,7 +597,7 @@
 .launch-route[data-pace="Fast"] .launch-route__meta em:first-child {
   color: #111;
   border-color: color-mix(in srgb, var(--launch-hot) 50%, var(--line));
-  background: var(--launch-hot);
+  background: var(--launch-hot-fill);
 }
 .launch-route[data-pace="Needs review"] .launch-route__meta em:first-child,
 .launch-route[data-pace="Weeks"] .launch-route__meta em:first-child {
@@ -746,7 +764,7 @@
   height: 25px;
   flex: 0 0 25px;
   border-radius: 50%;
-  background: var(--gold);
+  background: var(--warning-fill);
   color: #111;
   font-size: 12px;
   font-weight: 900;
@@ -892,7 +910,7 @@
   font: 700 10px Inter, sans-serif;
 }
 .launch-command__code button:hover { border-color: var(--launch-accent); }
-.launch-command__code button[data-copy-status="success"] { border-color: var(--launch-hot); color: var(--launch-hot); }
+.launch-command__code button[data-copy-status="success"] { border-color: var(--launch-hot-on-dark); color: var(--launch-hot-on-dark); }
 .launch-command__code button[data-copy-status="error"] { border-color: #f87171; color: #fca5a5; }
 .launch-step__checks { margin-top: 15px; padding: 9px 0 9px 13px; border-left: 2px solid var(--launch-hot); }
 .launch-step__checks b { color: var(--launch-hot); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
@@ -910,7 +928,7 @@
   width: 0;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, var(--launch-accent), var(--launch-hot));
+  background: linear-gradient(90deg, var(--launch-accent), var(--launch-hot-fill));
   transition: width .25s ease;
 }
 .launch-progress-label { margin-top: 7px; color: var(--muted); font-size: 11px; text-align: right; }
@@ -940,7 +958,7 @@
   display: grid;
   place-items: center;
   border-color: var(--launch-hot);
-  background: var(--launch-hot);
+  background: var(--launch-hot-fill);
   color: #111;
 }
 .launch-final-check__items input:checked + span::after { content: "✓"; font-size: 12px; font-weight: 900; }

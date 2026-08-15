@@ -6,8 +6,8 @@
   <p style="color:var(--muted);font-size:13px">Backend only, no JS secrets. Role: {{ user.profile.role }} — {{ stats.published }} published, {{ stats.pending }} pending, {{ stats.quarantined }} quarantined.</p>
   <div style="margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
     <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">TOTAL VIBES</div><div style="font-weight:800;font-size:20px">{{ stats.total_vibes }}</div></div>
-    <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">PENDING</div><div style="font-weight:800;font-size:20px;color:#F59E0B">{{ stats.pending }}</div></div>
-    <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">QUARANTINED</div><div style="font-weight:800;font-size:20px;color:#EF4444">{{ stats.quarantined }}</div></div>
+    <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">PENDING</div><div style="font-weight:800;font-size:20px;color:var(--warning-text)">{{ stats.pending }}</div></div>
+    <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">QUARANTINED</div><div style="font-weight:800;font-size:20px;color:var(--danger-text)">{{ stats.quarantined }}</div></div>
     <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">TRADES</div><div style="font-weight:800;font-size:20px">{{ stats.total_trades }}</div></div>
   </div>
   <div style="margin-top:16px;display:flex;gap:8px">

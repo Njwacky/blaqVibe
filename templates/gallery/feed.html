@@ -8,11 +8,11 @@
 .terminal-window .term-body { padding: 10px 12px; font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 10px; line-height: 1.5; overflow: hidden; flex-grow: 1; display: flex; flex-direction: column; justify-content: flex-end; }
 .terminal-window .line { margin-bottom: 2px; word-wrap: break-word; white-space: pre-wrap; opacity: 1; transition: opacity .4s ease, transform .4s ease; }
 .terminal-window .line.fading { opacity: 0; transform: translateY(-10px); }
-.terminal-window .c-path { color: #F59E0B; }
+.terminal-window .c-path { color: var(--warning-text); }
 .terminal-window .c-prompt { color: var(--muted); }
-.terminal-window .c-cmd { color: #FFFFFF; }
+.terminal-window .c-cmd { color: var(--text); }
 .terminal-window .c-log { color: var(--muted); }
-.terminal-window .c-success { color: #10B981; }
+.terminal-window .c-success { color: var(--success-text); }
 .terminal-window .cursor { display: inline-block; width: 6px; height: 12px; background-color: #10B981; margin-left: 2px; vertical-align: middle; animation: blink 1s step-end infinite; }
 @keyframes blink { 50% { opacity: 0; } }
 </style>
@@ -20,22 +20,22 @@
 {% block content %}
 <div style="max-width:1280px;margin:0 auto;padding:16px 20px">
   <!-- Hero — Your vibe, polished -->
-  <div class="hero-grid" style="background:linear-gradient(135deg,#0F0F12 0%,#1A0F1A 50%,#0F141A 100%);border:1px solid #7C3AED;border-radius:20px;padding:28px 24px">
+  <div class="hero-grid" style="background:linear-gradient(135deg,var(--card) 0%,var(--accent-soft-bg) 50%,var(--info-bg) 100%);border:1px solid var(--accent-border);border-radius:20px;padding:28px 24px">
     <div>
-      <div style="display:inline-flex;align-items:center;gap:6px;background:var(--line);border:1px solid #7C3AED;padding:6px 10px;border-radius:100px;font-size:11px;color:#F59E0B;letter-spacing:.04em">✦ MYVIBE VOL.1 → VOL.2</div>
-      <h1 style="font-family:Space Grotesk,sans-serif;font-size:32px;line-height:1.05;margin:12px 0;font-weight:700">Hey there,<br><span style="background:linear-gradient(90deg,#7C3AED,#EC4899,#F59E0B);-webkit-background-clip:text;-webkit-text-fill-color:transparent">I know we all don’t like coding with our bare hands</span></h1>
-      <p style="color:var(--text);font-size:14px;line-height:1.6;max-width:560px">Too much thinking. So we just <b style="color:#fff">vibe-coded</b> and left all our <b style="color:#F59E0B">MyVibe Vol.1</b> sitting on our laptops.<br><br>Now it’s time to do something <b style="color:#fff">useful</b> about your app — publish the vibes, let others clone, trade stars, earn, and appear <b style="color:#7C3AED">top 1st</b> when they explore.</p>
+      <div style="display:inline-flex;align-items:center;gap:6px;background:var(--input);border:1px solid var(--accent-border);padding:6px 10px;border-radius:100px;font-size:11px;color:var(--warning-text);letter-spacing:.04em">✦ MYVIBE VOL.1 → VOL.2</div>
+      <h1 style="font-family:Space Grotesk,sans-serif;font-size:32px;line-height:1.05;margin:12px 0;font-weight:700">Hey there,<br><span style="color:var(--accent-text)">I know we all don’t like coding with our bare hands</span></h1>
+      <p style="color:var(--text);font-size:14px;line-height:1.6;max-width:560px">Too much thinking. So we just <b>vibe-coded</b> and left all our <b style="color:var(--warning-text)">MyVibe Vol.1</b> sitting on our laptops.<br><br>Now it’s time to do something <b>useful</b> about your app — publish the vibes, let others clone, trade stars, earn, and appear <b style="color:var(--link)">top 1st</b> when they explore.</p>
       <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
-        <a href="{% url 'publish' %}" style="background:#fff;color:#000;padding:10px 16px;border-radius:10px;font-weight:700;font-size:13px;text-decoration:none">Publish Your Vibe →</a>
-        <a href="#grid" style="border:1px solid var(--line);color:#fff;padding:10px 16px;border-radius:10px;font-weight:600;font-size:13px;text-decoration:none">Explore Vibes →</a>
+        <a href="{% url 'publish' %}" class="btn-white" style="padding:10px 16px">Publish Your Vibe →</a>
+        <a href="#grid" class="btn-ghost" style="padding:10px 16px">Explore Vibes →</a>
       </div>
-      <div style="margin-top:12px;display:flex;gap:14px;font-size:11px;color:var(--muted)"><span><b style="color:#fff">1-click</b> Publish</span><span>•</span><span>No bare-hands coding</span><span>•</span><span>Trade ★ / Rands</span></div>
+      <div style="margin-top:12px;display:flex;gap:14px;font-size:11px;color:var(--muted)"><span><b style="color:var(--text)">1-click</b> Publish</span><span>•</span><span>No bare-hands coding</span><span>•</span><span>Trade ★ / Rands</span></div>
     </div>
     <div style="background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:14px">
-      <div style="display:flex;gap:6px;margin-bottom:10px"><span style="width:10px;height:10px;background:#EF4444;border-radius:50%"></span><span style="width:10px;height:10px;background:#F59E0B;border-radius:50%"></span><span style="width:10px;height:10px;background:#10B981;border-radius:50%"></span><span style="margin-left:auto;font-size:10px;color:var(--muted)">MyVibe Vol.1 → Vol.2</span></div>
+      <div style="display:flex;gap:6px;margin-bottom:10px"><span style="width:10px;height:10px;background:var(--danger-action);border-radius:50%"></span><span style="width:10px;height:10px;background:#F59E0B;border-radius:50%"></span><span style="width:10px;height:10px;background:#10B981;border-radius:50%"></span><span style="margin-left:auto;font-size:10px;color:var(--muted)">MyVibe Vol.1 → Vol.2</span></div>
       <div class="terminal-window">
         <div class="term-bar">
-          <span class="term-dot" style="background:#EF4444"></span>
+          <span class="term-dot" style="background:var(--danger-action)"></span>
           <span class="term-dot" style="background:#F59E0B"></span>
           <span class="term-dot" style="background:#10B981"></span>
           <span class="term-label">Terminal</span>
@@ -71,17 +71,17 @@
       <div class="card-thumb-fallback">
         <div style="width:100%;height:100%;background:#fff;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px;color:#111">
           {% if p.html_code %}
-            <div style="height:10px;background:#0A0A0F;border-radius:6px;width:60%"></div><div style="height:28px;background:linear-gradient(90deg,#7C3AED,#EC4899);border-radius:8px"></div>
+            <div style="height:10px;background:var(--surface-subtle);border-radius:6px;width:60%"></div><div style="height:28px;background:linear-gradient(90deg,#7C3AED,#EC4899);border-radius:8px"></div>
           {% else %}
-            <div style="display:flex;justify-content:space-between"><b style="font-size:10px">{{ p.title|truncatechars:18 }}</b><span style="background:#EDE9FE;color:#6D28D9;padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700">FILES</span></div><div style="flex:1;background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:8px;display:grid;place-items:center;color:#64748B;font-size:10px">{{ p.tech_stack|default:"Full App" }}</div>
+            <div style="display:flex;justify-content:space-between"><b style="font-size:10px">{{ p.title|truncatechars:18 }}</b><span style="background:var(--accent-soft-bg);color:var(--accent-text);padding:2px 6px;border-radius:6px;font-size:9px;font-weight:700">FILES</span></div><div style="flex:1;background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:8px;display:grid;place-items:center;color:#64748B;font-size:10px">{{ p.tech_stack|default:"Full App" }}</div>
           {% endif %}
         </div>
       </div>
       {% endif %}
       <div style="padding:12px">
         <div style="display:flex;gap:6px;margin-bottom:6px">
-          {% if p.zip_file %}<span class="badge" style="background:#FEF3C7;color:#92400E">Full App</span>{% else %}<span class="badge" style="background:#EDE9FE;color:#6D28D9">Snippet</span>{% endif %}
-          {% if p.ai_generated %}<span class="badge" style="border:1px solid #F59E0B;color:#F59E0B">🤖 {{ p.ai_tool|default:"AI" }}</span>{% endif %}
+          {% if p.zip_file %}<span class="badge" style="background:var(--warning-bg);color:var(--warning-text)">Full App</span>{% else %}<span class="badge" style="background:var(--accent-soft-bg);color:var(--accent-text)">Snippet</span>{% endif %}
+          {% if p.ai_generated %}<span class="badge" style="border:1px solid var(--warning-border);color:var(--warning-text)">🤖 {{ p.ai_tool|default:"AI" }}</span>{% endif %}
           {% if p.forked_from %}<span class="badge" style="background:var(--input);border:1px solid var(--line);color:var(--muted)">⑂ Forked</span>{% endif %}
         </div>
         <div style="font-weight:700;font-size:14px">{{ p.title }}</div>

@@ -18,7 +18,7 @@
   <div class="nolo-split" style="display:grid;grid-template-columns:1.5fr 1fr;gap:18px">
     <main style="background:var(--bg);border:1px solid var(--line);border-radius:24px;padding:24px">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-        <span style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:16px;background:#7C3AED;color:#fff;font-size:18px">💬</span>
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:16px;background:var(--violet);color:var(--on-accent);font-size:18px">💬</span>
         <div>
           <div style="font-size:20px;font-weight:800">Nolo Chat</div>
           <div style="font-size:13px;color:var(--muted);margin-top:4px">Ask questions about apps, templates, new releases, or compare vibes in one place.
@@ -33,7 +33,7 @@
       <div style="display:flex;gap:14px;flex-wrap:wrap;">
         <div style="flex:1;min-width:240px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px">
           <div style="font-size:12px;color:var(--muted);font-weight:700;margin-bottom:8px">Ask Nolo about</div>
-          <div style="font-size:13px;line-height:1.7;color:#C4C4D4">
+          <div style="font-size:13px;line-height:1.7;color:var(--muted)">
             • New app launches and trends<br>
             • Best templates for React, Vue, HTML/CSS/JS<br>
             • Which vibes are easiest to fork or remix<br>
@@ -42,7 +42,7 @@
         </div>
         <div style="flex:1;min-width:240px;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px">
           <div style="font-size:12px;color:var(--muted);font-weight:700;margin-bottom:8px">Example prompts</div>
-          <div style="font-size:13px;line-height:1.7;color:#C4C4D4">
+          <div style="font-size:13px;line-height:1.7;color:var(--muted)">
             • "Show me the newest published template apps."<br>
             • "Which app is best for a JavaScript portfolio?"<br>
             • "Compare these two vibes for setup complexity."<br>
@@ -52,7 +52,7 @@
       </div>
 
       <div style="margin-top:22px;background:var(--card);border:1px solid var(--line);border-radius:24px;padding:20px">
-        <div style="font-weight:700;font-size:14px;color:#EDE9FE">Chat with Nolo</div>
+        <div style="font-weight:700;font-size:14px;color:var(--accent-text)">Chat with Nolo</div>
         <div style="margin-top:12px;display:grid;gap:12px">
           <div id="nolo-chat-messages" style="display:grid;gap:12px">
             <div style="padding:16px;background:var(--card);border:1px solid var(--line);border-radius:18px;color:var(--text);line-height:1.7">
@@ -61,11 +61,11 @@
             </div>
           </div>
           <div class="nolo-chat-input-row" style="display:flex;align-items:center;gap:10px;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:18px">
-            <span style="width:32px;height:32px;border-radius:10px;background:#7C3AED;display:grid;place-items:center;font-size:16px;color:#fff">💬</span>
+            <span style="width:32px;height:32px;border-radius:10px;background:var(--violet);display:grid;place-items:center;font-size:16px;color:var(--on-accent)">💬</span>
             <input id="nolo-chat-input" type="text" placeholder="Ask a question for Nolo..." style="flex:1;min-width:0;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;color:var(--text);font-size:13px"> 
             <button id="nolo-chat-send" class="btn-violet" style="padding:10px 16px;font-size:13px">Send</button>
           </div>
-          <div id="nolo-chat-error" style="display:none;color:#FECACA;background:#4B1D1D;padding:10px;border-radius:12px;font-size:12px"></div>
+          <div id="nolo-chat-error" style="display:none;color:var(--danger-text);background:var(--danger-bg);border:1px solid var(--danger-border);padding:10px;border-radius:12px;font-size:12px"></div>
         </div>
       </div>
     </main>
@@ -73,7 +73,7 @@
     <aside style="display:flex;flex-direction:column;gap:18px">
       <div style="background:var(--card);border:1px solid var(--line);border-radius:24px;padding:20px">
         <div style="font-weight:800;font-size:16px">Need quick help?</div>
-        <div style="margin-top:12px;font-size:13px;color:#C4C4D4;line-height:1.8">
+        <div style="margin-top:12px;font-size:13px;color:var(--muted);line-height:1.8">
           • New app releases
           <br>• Template recommendations
           <br>• App setup and file preview
@@ -98,7 +98,7 @@
 
       <div style="background:var(--card);border:1px solid var(--line);border-radius:24px;padding:20px">
         <div style="font-weight:800;font-size:16px">Explore by category</div>
-        <div style="margin-top:12px;display:grid;gap:8px;font-size:12px;color:#C4C4D4">
+        <div style="margin-top:12px;display:grid;gap:8px;font-size:12px;color:var(--muted)">
           {% for category in categories %}
           <a href="{% url 'feed' %}?category={{ category.slug }}" style="color:var(--muted);text-decoration:none">• {{ category.name }}</a>
           {% endfor %}
@@ -126,8 +126,8 @@
     bubble.style.border = '1px solid var(--line)';
     bubble.style.borderRadius = '18px';
     bubble.style.lineHeight = '1.7';
-    bubble.style.color = '#fff';
-    bubble.style.background = role === 'user' ? '#1F1F28' : 'var(--card)';
+    bubble.style.color = 'var(--text)';
+    bubble.style.background = role === 'user' ? 'var(--accent-soft-bg)' : 'var(--card)';
     bubble.innerHTML = `<div style="font-size:12px;color:var(--muted);margin-bottom:10px">${role === 'user' ? 'You said' : 'Nolo says'}</div><div>${text.replace(/\n/g,'<br>')}</div>`;
     messages.appendChild(bubble);
     bubble.scrollIntoView({behavior:'smooth', block:'end'});

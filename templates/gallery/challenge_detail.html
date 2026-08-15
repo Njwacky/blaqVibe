@@ -3,12 +3,12 @@
 {% block content %}
 <div style="max-width:900px;margin:0 auto;padding:20px">
   <a href="{% url 'challenge_list' %}" style="font-size:12px;color:var(--muted)">← All Challenges</a>
-  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px;margin-top:8px">{{ challenge.title }} <span style="font-size:11px;background:#F59E0B;color:#000;padding:4px 8px;border-radius:8px">{{ challenge.bounty_stars }} ★ bounty</span> <span style="font-size:11px;background:var(--input);border:1px solid var(--line);padding:4px 8px;border-radius:8px">#{{ challenge.tag }}</span></h1>
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px;margin-top:8px">{{ challenge.title }} <span style="font-size:11px;background:var(--warning-fill);color:var(--on-warning);padding:4px 8px;border-radius:8px">{{ challenge.bounty_stars }} ★ bounty</span> <span style="font-size:11px;background:var(--input);border:1px solid var(--line);padding:4px 8px;border-radius:8px">#{{ challenge.tag }}</span></h1>
   <p style="color:var(--muted);font-size:13px;margin-top:4px">{{ challenge.description }}</p>
-  <div style="font-size:11px;color:var(--muted);margin-top:4px">Ends {{ challenge.end|date:"Y-m-d H:i" }} • {% if challenge.is_active %}<span style="color:#10B981">● Active</span>{% else %}Closed{% endif %} • Publish with tag <code style="background:var(--line);padding:2px 6px;border-radius:6px">#{{ challenge.tag }}</code> to join</div>
+  <div style="font-size:11px;color:var(--muted);margin-top:4px">Ends {{ challenge.end|date:"Y-m-d H:i" }} • {% if challenge.is_active %}<span style="color:var(--success-text)">● Active</span>{% else %}Closed{% endif %} • Publish with tag <code style="background:var(--line);padding:2px 6px;border-radius:6px">#{{ challenge.tag }}</code> to join</div>
   {% if challenge.winner %}
-  <div style="margin-top:12px;background:linear-gradient(135deg,#1A1A00 0%,#1A1400 100%);border:1px solid #F59E0B;border-radius:12px;padding:12px;display:flex;gap:12px;align-items:center">
-    <span style="font-size:20px">🏆</span><div style="flex:1"><div style="font-weight:800">Winner — {{ challenge.winner.title }} by @{{ challenge.winner.owner.username }}</div><div style="font-size:11px;color:var(--muted)">Got {{ challenge.bounty_stars }} ★ + Pro + top 1st</div></div><a href="{{ challenge.winner.get_absolute_url }}" style="background:#F59E0B;color:#000;padding:8px 12px;border-radius:10px;font-weight:700;font-size:12px;text-decoration:none">View Winner →</a>
+  <div style="margin-top:12px;background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:12px;padding:12px;display:flex;gap:12px;align-items:center">
+    <span style="font-size:20px">🏆</span><div style="flex:1"><div style="font-weight:800">Winner — {{ challenge.winner.title }} by @{{ challenge.winner.owner.username }}</div><div style="font-size:11px;color:var(--muted)">Got {{ challenge.bounty_stars }} ★ + Pro + top 1st</div></div><a href="{{ challenge.winner.get_absolute_url }}" style="background:var(--warning-fill);color:var(--on-warning);padding:8px 12px;border-radius:10px;font-weight:700;font-size:12px;text-decoration:none">View Winner →</a>
   </div>
   {% endif %}
 

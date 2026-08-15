@@ -24,7 +24,7 @@
   font-weight: 700;
   letter-spacing: -.05em;
 }
-.site-footer__logo span { color: #c4f04d; font-size: 18px; }
+.site-footer__logo span { color: var(--launch-text); font-size: 18px; }
 .site-footer__brand p { margin-top: 11px; color: var(--muted); font-size: 12px; line-height: 1.65; }
 .site-footer__links { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 28px; }
 .site-footer__links > div { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
@@ -39,7 +39,7 @@
   border: 1px solid color-mix(in srgb, var(--violet) 45%, var(--line));
   border-radius: 999px;
   background: color-mix(in srgb, var(--violet) 10%, transparent);
-  color: #c4b5fd;
+  color: var(--accent-text);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: .08em;

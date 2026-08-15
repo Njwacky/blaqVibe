@@ -6,31 +6,86 @@
 }
 :root[data-nav-collapsed="true"] { --nav-offset: 0px; }
 :root, [data-theme="dark"] {
+  color-scheme: dark;
   --bg: #07070A;
   --card: #121214;
   --line: #1F1F23;
   --text: #FFFFFF;
   --muted: #9A9AAF;
   --input: #15151A;
+  --surface-subtle: #0D0D12;
   --violet: #7C3AED;
   --gold: #F59E0B;
+  --link: #A78BFA;
+  --accent-text: #C4B5FD;
+  --accent-soft-bg: #21163A;
+  --accent-border: #8B5CF6;
+  --warning-bg: #211804;
+  --warning-border: #B45309;
+  --warning-fill: #F59E0B;
+  --warning-text: #FBBF24;
+  --warning-soft-text: #FDE68A;
+  --success-bg: #062418;
+  --success-border: #047857;
+  --success-text: #A7F3D0;
+  --success-action: #047857;
+  --danger-bg: #2A0E10;
+  --danger-border: #B91C1C;
+  --danger-text: #FECACA;
+  --danger-action: #B91C1C;
+  --info-bg: #0D1B35;
+  --info-border: #2563EB;
+  --info-text: #DBEAFE;
+  --launch-text: #C4F04D;
+  --on-accent: #FFFFFF;
+  --on-warning: #111118;
   --shadow: 0 12px 40px rgba(0,0,0,.45);
 }
 [data-theme="light"] {
+  color-scheme: light;
   --bg: #F4F4F7;
   --card: #FFFFFF;
-  --line: #E4E4EA;
+  --line: #DCDCE4;
   --text: #111118;
-  --muted: #6B6B76;
-  --input: #F3F3F6;
-  --violet: #7C3AED;
-  --gold: #D97706;
+  --muted: #62626E;
+  --input: #F0F0F4;
+  --surface-subtle: #F8F8FA;
+  --violet: #6D28D9;
+  --gold: #B45309;
+  --link: #6D28D9;
+  --accent-text: #5B21B6;
+  --accent-soft-bg: #F5F3FF;
+  --accent-border: #7C3AED;
+  --warning-bg: #FFFBEB;
+  --warning-border: #D97706;
+  --warning-fill: #F59E0B;
+  --warning-text: #92400E;
+  --warning-soft-text: #78350F;
+  --success-bg: #ECFDF5;
+  --success-border: #059669;
+  --success-text: #065F46;
+  --success-action: #047857;
+  --danger-bg: #FEF2F2;
+  --danger-border: #DC2626;
+  --danger-text: #991B1B;
+  --danger-action: #B91C1C;
+  --info-bg: #EFF6FF;
+  --info-border: #2563EB;
+  --info-text: #1E40AF;
+  --launch-text: #3F6212;
+  --on-accent: #FFFFFF;
+  --on-warning: #111118;
   --shadow: 0 12px 32px rgba(17,17,24,.08);
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { background: var(--bg); color: var(--text); }
 body { font-family: Inter, sans-serif; min-height: 100vh; }
 a { color: inherit; text-decoration: none; }
+input::placeholder, textarea::placeholder { color: var(--muted); opacity: 1; }
+input, select, textarea, button { font-family: inherit; }
+input, select, textarea { accent-color: var(--violet); }
+:disabled { opacity: .65; }
+::selection { background: color-mix(in srgb, var(--violet) 38%, transparent); color: var(--text); }
 .nav {
   min-height: 64px;
   display: flex;
@@ -68,7 +123,7 @@ a { color: inherit; text-decoration: none; }
   z-index: 100;
   padding: 10px 14px;
   background: var(--violet);
-  color: #fff;
+  color: var(--on-accent);
   font-size: 13px;
   font-weight: 700;
   border-radius: 0 0 10px 0;
@@ -110,7 +165,7 @@ a { color: inherit; text-decoration: none; }
 .nav-avatar { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; display: inline-block; }
 .nav-avatar-fallback {
   background: var(--violet);
-  color: #fff;
+  color: var(--on-accent);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -120,7 +175,7 @@ a { color: inherit; text-decoration: none; }
 .nav-user-name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-badge {
   background: var(--violet);
-  color: #fff;
+  color: var(--on-accent);
   border-radius: 999px;
   padding: 1px 6px;
   font-size: 10px;
@@ -149,13 +204,12 @@ a { color: inherit; text-decoration: none; }
 }
 .nav-menu a:hover { background: var(--line); }
 .nav-menu-sep { height: 1px; background: var(--line); margin: 6px 4px; }
-.btn-violet, .btnV { background: var(--violet); color: #fff; border: none; padding: 8px 14px; border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.btn-violet, .btnV { background: var(--violet); color: var(--on-accent); border: none; padding: 8px 14px; border-radius: 10px; font-weight: 700; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .btn-ghost, .btnG { background: transparent; border: 1px solid var(--line); color: var(--text); padding: 8px 14px; border-radius: 10px; font-weight: 600; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
-.btn-white, .btnW { background: #fff; color: #000; padding: 8px 14px; border-radius: 10px; font-weight: 700; font-size: 13px; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
-[data-theme="light"] .btn-white, [data-theme="light"] .btnW { background: #111118; color: #fff; }
+.btn-white, .btnW { background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 10px; font-weight: 700; font-size: 13px; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
 .badge { font-size: 10px; letter-spacing: .06em; padding: 4px 7px; border-radius: 8px; font-weight: 700; text-transform: uppercase; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; color: var(--text); }
-.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px); background: #fff; color: #000; padding: 10px 16px; border-radius: 10px; font-weight: 700; transition: .25s; z-index: 999; }
+.toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 700; transition: .25s; z-index: 999; }
 .toast.show { transform: translateX(-50%) translateY(0); }
 /* Centering for the PWA popovers lives here (not inline) so the desktop
    sidebar rule below can re-centre them over the content column. */
@@ -180,7 +234,7 @@ a { color: inherit; text-decoration: none; }
   font-size: 13px;
 }
 .help { font-size: 13px; color: var(--muted); }
-.errorlist { color: #F87171; font-size: 12px; margin: 6px 0 0; padding-left: 16px; }
+.errorlist { color: var(--danger-text); font-size: 12px; margin: 6px 0 0; padding-left: 16px; }
 .card-thumb { width: 100%; height: 140px; object-fit: cover; display: block; background: #111; }
 .card-thumb-fallback {
   height: 140px;

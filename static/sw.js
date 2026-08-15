@@ -2,20 +2,20 @@
 // receive layout fixes immediately while retaining an offline fallback.
 // No secrets in JS — no S3 keys, no scan_report.
 // Bump this whenever the app shell changes; activation removes older caches.
-const CACHE = 'blaqvibes-v3-sidebar-resize';
+const CACHE = 'blaqvibes-v4-theme-colors';
 // Account-specific pages — never cache (they contain per-user data).
 const PRIVATE_PREFIXES = [
   '/my-vibes/', '/inbox/', '/saved/', '/settings/', '/payout/',
   '/trades/', '/moderation/', '/blaq-admin', '/admin/',
 ];
 const STATIC_ASSETS = [
-  '/static/gallery/css/blaqvibes.css?v=sidebar-resize-20260815',
-  '/static/gallery/css/footer.css?v=sidebar-resize-20260815',
-  '/static/gallery/css/error.css',
-  '/static/gallery/css/forms.css',
-  '/static/gallery/js/blaqvibes.js?v=sidebar-resize-20260815',
-  '/static/gallery/js/detail.js',
-  '/static/gallery/js/profile.js',
+  '/static/gallery/css/blaqvibes.css?v=theme-colors-20260815',
+  '/static/gallery/css/footer.css?v=theme-colors-20260815',
+  '/static/gallery/css/error.css?v=theme-20260815',
+  '/static/gallery/css/forms.css?v=theme-colors-20260815',
+  '/static/gallery/js/blaqvibes.js?v=theme-colors-20260815',
+  '/static/gallery/js/detail.js?v=theme-colors-20260815',
+  '/static/gallery/js/profile.js?v=theme-colors-20260815',
   '/static/branding/icon-192.png',
   '/static/branding/icon-512.png',
   '/static/branding/error-fork.png',

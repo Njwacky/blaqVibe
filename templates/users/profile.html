@@ -4,18 +4,18 @@
 <div style="max-width:1100px;margin:0 auto;padding:20px">
   <!-- Header -->
   <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
-    <div style="width:72px;height:72px;border-radius:16px;overflow:hidden;background:linear-gradient(135deg,#7C3AED,#F59E0B);display:grid;place-items:center;font-weight:800;font-size:22px;flex-shrink:0">
+    <div style="width:72px;height:72px;border-radius:16px;overflow:hidden;background:var(--violet);color:var(--on-accent);display:grid;place-items:center;font-weight:800;font-size:22px;flex-shrink:0">
       {% if profile.avatar %}<img src="{{ profile.avatar.url }}" style="width:100%;height:100%;object-fit:cover">{% else %}{{ profile_user.username|first|upper }}{% endif %}
     </div>
     <div style="flex:1;min-width:240px">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span style="font-weight:800;font-size:18px">@{{ profile_user.username }}</span>
-        {% if profile_user.is_staff %}<span style="font-size:11px;background:#F59E0B;color:#000;padding:4px 8px;border-radius:8px;font-weight:700">STAFF</span>{% endif %}
+        {% if profile_user.is_staff %}<span style="font-size:11px;background:var(--warning-fill);color:var(--on-warning);padding:4px 8px;border-radius:8px;font-weight:700">STAFF</span>{% endif %}
         {% if profile.location %}<span style="font-size:11px;background:var(--bg);border:1px solid var(--line);padding:4px 8px;border-radius:8px">{{ profile.location }}</span>{% endif %}
       </div>
       <div style="font-size:13px;color:var(--text);margin:6px 0">{{ profile.bio|default:"No bio yet — what do you build?" }}</div>
       <div style="display:flex;gap:12px;font-size:12px;color:var(--muted);flex-wrap:wrap">
-        {% if profile.website %}<a href="{{ profile.website }}" target="_blank" style="color:#7C3AED">↗ {{ profile.website|slice:":28" }}</a>{% endif %}
+        {% if profile.website %}<a href="{{ profile.website }}" target="_blank" style="color:var(--link)">↗ {{ profile.website|slice:":28" }}</a>{% endif %}
         {% if profile.github %}<a href="https://github.com/{{ profile.github }}" target="_blank" style="color:var(--muted)">GitHub @{{ profile.github }}</a>{% endif %}
         {% if profile.twitter %}<a href="https://x.com/{{ profile.twitter }}" target="_blank" style="color:var(--muted)">𝕏 @{{ profile.twitter }}</a>{% endif %}
       </div>
@@ -38,8 +38,8 @@
 
   <!-- Tabs -->
   <div style="margin-top:16px;display:flex;gap:8px;border-bottom:1px solid var(--line);padding-bottom:8px">
-    <a href="?tab=vibes" style="padding:8px 14px;border-radius:100px;font-size:13px;font-weight:700;{% if tab == 'vibes' %}background:#fff;color:#000{% else %}background:var(--card);border:1px solid var(--line);color:var(--muted){% endif %}">Vibes ({{ vibes_all.count }})</a>
-    <a href="?tab=stars" style="padding:8px 14px;border-radius:100px;font-size:13px;font-weight:700;{% if tab == 'stars' %}background:#fff;color:#000{% else %}background:var(--card);border:1px solid var(--line);color:var(--muted){% endif %}">Stars</a>
+    <a href="?tab=vibes" style="padding:8px 14px;border-radius:100px;font-size:13px;font-weight:700;{% if tab == 'vibes' %}background:var(--text);color:var(--bg){% else %}background:var(--card);border:1px solid var(--line);color:var(--muted){% endif %}">Vibes ({{ vibes_all.count }})</a>
+    <a href="?tab=stars" style="padding:8px 14px;border-radius:100px;font-size:13px;font-weight:700;{% if tab == 'stars' %}background:var(--text);color:var(--bg){% else %}background:var(--card);border:1px solid var(--line);color:var(--muted){% endif %}">Stars</a>
   </div>
 
   {% if tab == 'stars' %}
@@ -50,22 +50,22 @@
   {% else %}
     <div class="vibe-grid" style="margin-top:12px">
       {% for p in vibes_all %}
-      <a href="{{ p.get_absolute_url }}" class="card" style="padding:12px;display:block;{% if p.status != 'published' %}opacity:.85;border-color:#F59E0B{% endif %}">
+      <a href="{{ p.get_absolute_url }}" class="card" style="padding:12px;display:block;{% if p.status != 'published' %}opacity:.85;border-color:var(--warning-border){% endif %}">
         <div style="display:flex;gap:6px;margin-bottom:6px">
-          {% if p.status == 'published' %}<span style="background:#DCFCE7;color:#15803D;padding:3px 7px;border-radius:8px;font-size:11px;font-weight:700">● Live</span>
-          {% elif p.status == 'pending' %}<span style="background:#FEF3C7;color:#92400E;padding:3px 7px;border-radius:8px;font-size:11px;font-weight:700">⏳ Queued</span>
-          {% else %}<span style="background:#FEE2E2;color:#991B1B;padding:3px 7px;border-radius:8px;font-size:11px;font-weight:700">🚨 Quarantined</span>{% endif %}
-          {% if p.ai_generated %}<span style="border:1px solid #F59E0B;color:#F59E0B;padding:3px 7px;border-radius:8px;font-size:11px">🤖</span>{% endif %}
+          {% if p.status == 'published' %}<span style="background:var(--success-bg);color:var(--success-text);padding:3px 7px;border-radius:8px;font-size:11px;font-weight:700">● Live</span>
+          {% elif p.status == 'pending' %}<span style="background:var(--warning-bg);color:var(--warning-text);padding:3px 7px;border-radius:8px;font-size:11px;font-weight:700">⏳ Queued</span>
+          {% else %}<span style="background:var(--danger-bg);color:var(--danger-text);padding:3px 7px;border-radius:8px;font-size:11px;font-weight:700">🚨 Quarantined</span>{% endif %}
+          {% if p.ai_generated %}<span style="border:1px solid var(--warning-border);color:var(--warning-text);padding:3px 7px;border-radius:8px;font-size:11px">🤖</span>{% endif %}
         </div>
         <div style="font-weight:700;font-size:14px">{{ p.title }}</div>
         <div style="font-size:12px;color:var(--muted)">{{ p.short_description|truncatechars:70 }}</div>
         <div style="font-size:11px;color:var(--muted);margin-top:6px">{{ p.tech_stack|default:"—" }} • ★ {{ p.stars }} • ⬇ {{ p.clones }}</div>
       </a>
-      {% empty %}<div style="grid-column:1/-1;color:var(--muted);padding:20px;text-align:center">No vibes yet. {% if user.username == profile_user.username %}<a href="{% url 'publish' %}" style="color:#7C3AED">Publish your first vibe</a>{% endif %}</div>{% endfor %}
+      {% empty %}<div style="grid-column:1/-1;color:var(--muted);padding:20px;text-align:center">No vibes yet. {% if user.username == profile_user.username %}<a href="{% url 'publish' %}" style="color:var(--link)">Publish your first vibe</a>{% endif %}</div>{% endfor %}
     </div>
   {% endif %}
 </div>
 
 
 {% endblock %}
-{% block scripts %}<script src="/static/gallery/js/profile.js"></script>{% endblock %}
+{% block scripts %}<script src="/static/gallery/js/profile.js?v=theme-colors-20260815"></script>{% endblock %}

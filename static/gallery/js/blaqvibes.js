@@ -21,7 +21,15 @@ function copyText(t){
   function apply(theme){
     document.documentElement.setAttribute('data-theme', theme);
     const btn = document.getElementById('theme-toggle');
-    if(btn) btn.textContent = theme === 'light' ? '🌙' : '☀️';
+    if(btn){
+      btn.textContent = theme === 'light' ? '🌙' : '☀️';
+      btn.setAttribute('aria-label', theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme');
+    }
+    const themeMeta = document.getElementById('theme-color-meta');
+    if(themeMeta){
+      const bg = getComputedStyle(document.documentElement).getPropertyValue('--bg').trim();
+      if(bg) themeMeta.setAttribute('content', bg);
+    }
     try { localStorage.setItem(KEY, theme); } catch(e){}
   }
   const saved = (()=>{ try { return localStorage.getItem(KEY); } catch(e){ return null; }})();

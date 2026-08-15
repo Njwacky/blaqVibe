@@ -8,14 +8,14 @@
     {% for p in vibes %}
     <a href="{{ p.get_absolute_url }}" class="card" style="padding:12px;display:block">
       <div style="display:flex;gap:6px;margin-bottom:6px">
-        {% if p.status == 'published' %}<span style="background:#DCFCE7;color:#15803D;padding:4px 8px;border-radius:8px;font-size:11px;font-weight:700">● Live</span>
-        {% elif p.status == 'pending' %}<span style="background:#FEF3C7;color:#92400E;padding:4px 8px;border-radius:8px;font-size:11px;font-weight:700">⏳ Queued — we’ll notify you</span>
+        {% if p.status == 'published' %}<span style="background:var(--success-bg);color:var(--success-text);padding:4px 8px;border-radius:8px;font-size:11px;font-weight:700">● Live</span>
+        {% elif p.status == 'pending' %}<span style="background:var(--warning-bg);color:var(--warning-text);padding:4px 8px;border-radius:8px;font-size:11px;font-weight:700">⏳ Queued — we’ll notify you</span>
         {% elif p.status == 'removed' %}<span style="background:var(--line);color:var(--muted);padding:4px 8px;border-radius:8px;font-size:11px;font-weight:700">🗂 Removed</span>
-        {% else %}<span style="background:#FEE2E2;color:#991B1B;padding:4px 8px;border-radius:8px;font-size:11px;font-weight:700">🚨 Quarantined</span>{% endif %}
+        {% else %}<span style="background:var(--danger-bg);color:var(--danger-text);padding:4px 8px;border-radius:8px;font-size:11px;font-weight:700">🚨 Quarantined</span>{% endif %}
       </div>
       <div style="font-weight:700;font-size:14px">{{ p.title }}</div>
       {% if p.status != 'published' %}
-      <div style="font-size:12px;color:#F59E0B;margin:4px 0">
+      <div style="font-size:12px;color:var(--warning-text);margin:4px 0">
         {% if p.status == 'quarantined' %}Virus or blocked secret found. Edit and re-upload a clean ZIP.
         {% elif p.status == 'removed' %}Delisted — people who already traded or bought it keep their download.
         {% elif p.scan_report.clamav == 'unavailable' %}Scanner offline — waiting for human review, not auto-published.
@@ -25,7 +25,7 @@
       <div style="font-size:12px;color:var(--muted)">{{ p.short_description|truncatechars:80 }}</div>
       <div style="font-size:11px;color:var(--muted);margin-top:6px">{{ p.file_count }} files • ★ {{ p.stars }} • ⬇ {{ p.clones }}</div>
     </a>
-    {% empty %}<div style="grid-column:1/-1;color:var(--muted)">No vibes yet. <a href="{% url 'publish' %}" style="color:#7C3AED">Publish your first vibe</a></div>{% endfor %}
+    {% empty %}<div style="grid-column:1/-1;color:var(--muted)">No vibes yet. <a href="{% url 'publish' %}" style="color:var(--link)">Publish your first vibe</a></div>{% endfor %}
   </div>
 </div>
 {% endblock %}

@@ -8,7 +8,7 @@
   <div style="margin-top:16px;display:flex;gap:16px;overflow:auto;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:14px">
     <!-- Root -->
     <div style="min-width:220px">
-      <a href="{{ root.get_absolute_url }}" class="card" style="padding:12px;display:block;border-color:#7C3AED;box-shadow:0 0 0 1px #7C3AED">
+      <a href="{{ root.get_absolute_url }}" class="card" style="padding:12px;display:block;border-color:var(--accent-border);box-shadow:0 0 0 1px #7C3AED">
         <div style="font-weight:800">{{ root.title }}</div>
         <div style="font-size:11px;color:var(--muted)">@{{ root.owner.username }} • {{ root.forks.count }} forks • ★ {{ root.stars }}</div>
         <div style="font-size:10px;color:var(--muted);margin-top:4px">Root • {{ root.tech_stack|default:"—" }}</div>

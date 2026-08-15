@@ -8,7 +8,7 @@
 <link rel="icon" type="image/png" href="/static/branding/icon-32.png">
 <link rel="apple-touch-icon" href="/static/branding/icon-180.png">
 <link rel="manifest" href="/static/branding/manifest.json">
-<meta name="theme-color" content="var(--bg)">
+<meta name="theme-color" id="theme-color-meta" content="#07070A">
 <meta name="description" content="{% block meta_desc %}Publish the Vibes. Clone the Culture.{% endblock %}">
 <meta property="og:title" content="{% block og_title %}BlaqVibes{% endblock %}">
 <meta property="og:description" content="{% block og_desc %}Publish the Vibes. Clone the Culture.{% endblock %}">
@@ -16,13 +16,14 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&amp;family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
 {# Version the layout styles explicitly as well as using Django's static tag. #}
 {# This prevents an older service worker cache from briefly restoring the old top navbar on reload. #}
-<link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=sidebar-resize-20260815">
-<link rel="stylesheet" href="{% static 'gallery/css/footer.css' %}?v=sidebar-resize-20260815">
+<link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=theme-colors-20260815">
+<link rel="stylesheet" href="{% static 'gallery/css/footer.css' %}?v=theme-colors-20260815">
 <script>
 /* Apply saved appearance and sidebar geometry before first paint. */
 try{
   var t=localStorage.getItem('blaq-theme');
-  if(t) document.documentElement.setAttribute('data-theme',t);
+  if(t !== 'light' && t !== 'dark') t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';
+  document.documentElement.setAttribute('data-theme',t);
   var nw=parseInt(localStorage.getItem('blaq-nav-width'),10);
   if(Number.isFinite(nw) && nw>=180 && nw<=380) document.documentElement.style.setProperty('--nav-w',nw+'px');
   if(localStorage.getItem('blaq-nav-collapsed')==='1') document.documentElement.setAttribute('data-nav-collapsed','true');
@@ -30,7 +31,7 @@ try{
 </script>
 <script src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-<script src="{% static 'gallery/js/blaqvibes.js' %}?v=sidebar-resize-20260815" defer></script>
+<script src="{% static 'gallery/js/blaqvibes.js' %}?v=theme-colors-20260815" defer></script>
 {% block head %}{% endblock %}
 </head>
 <body>
@@ -47,7 +48,7 @@ try{
   {# publish ARE the product; inbox/trades/settings are account chrome. #}
   <div class="nav-links" id="nav-links">
     <a href="{% url 'feed' %}"{% if request.path == '/' %} aria-current="page"{% endif %}>Vibes</a>
-    <a href="{% url 'launch_hub' %}" style="color:#C4F04D;font-weight:700"{% if '/launch/' in request.path %} aria-current="page"{% endif %}>↗ Launch</a>
+    <a href="{% url 'launch_hub' %}" style="color:var(--launch-text);font-weight:700"{% if '/launch/' in request.path %} aria-current="page"{% endif %}>↗ Launch</a>
     {% if user.is_authenticated %}
       <a href="{% url 'publish' %}" class="btn-violet">+ Publish</a>
       <div class="nav-user" id="nav-user">
@@ -91,7 +92,7 @@ try{
 </div>
 {% if user.is_authenticated and not user.profile.email_verified and user.email %}
 <div style="max-width:1100px;margin:12px auto 0;padding:0 20px">
-  <div style="padding:12px 14px;border-radius:12px;font-size:13px;background:#1A1A00;border:1px solid #F59E0B;color:#FDE68A;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+  <div style="padding:12px 14px;border-radius:12px;font-size:13px;background:var(--warning-bg);border:1px solid var(--warning-border);color:var(--warning-soft-text);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
     <span>Confirm {{ user.email }} to unlock your 5 ★ welcome grant and so we can recover your account.</span>
     <form method="post" action="{% url 'resend_verify_email' %}">{% csrf_token %}<button class="btn-ghost" style="padding:6px 10px;font-size:12px">Resend link</button></form>
   </div>
@@ -100,7 +101,7 @@ try{
 {% if messages %}
 <div style="max-width:1100px;margin:12px auto 0;padding:0 20px;display:flex;flex-direction:column;gap:8px">
   {% for message in messages %}
-  <div style="padding:12px 14px;border-radius:12px;font-size:13px;display:flex;align-items:center;gap:10px;{% if message.tags == 'success' %}background:#0A1A0A;border:1px solid #15803D;color:#DCFCE7{% elif message.tags == 'info' %}background:#0F1420;border:1px solid #3B82F6;color:#DBEAFE{% else %}background:#1A1A0A;border:1px solid var(--line);color:#fff{% endif %}">
+  <div style="padding:12px 14px;border-radius:12px;font-size:13px;display:flex;align-items:center;gap:10px;{% if message.tags == 'success' %}background:var(--success-bg);border:1px solid var(--success-border);color:var(--success-text){% elif message.tags == 'info' %}background:var(--info-bg);border:1px solid var(--info-border);color:var(--info-text){% else %}background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger-text){% endif %}">
     <span style="font-size:16px">{% if message.tags == 'success' %}✓{% elif message.tags == 'info' %}⏳{% else %}●{% endif %}</span>
     <span>{{ message }}</span>
     <button class="js-dismiss" style="margin-left:auto;background:transparent;border:none;color:inherit;cursor:pointer">✕</button>
@@ -171,7 +172,7 @@ try{
   </div>
 </footer>
 <div id="toast" class="toast">✓ Copied!</div>
-<div id="pwa-install-banner" style="display:none;position:fixed;bottom:20px;background:var(--card);border:1px solid #7C3AED;border-radius:16px;padding:14px 16px;max-width:380px;width:calc(100% - 32px);box-shadow:0 12px 40px rgba(0,0,0,.5);z-index:999;align-items:center;gap:12px">
+<div id="pwa-install-banner" style="display:none;position:fixed;bottom:20px;background:var(--card);border:1px solid var(--accent-border);border-radius:16px;padding:14px 16px;max-width:380px;width:calc(100% - 32px);box-shadow:0 12px 40px rgba(0,0,0,.5);z-index:999;align-items:center;gap:12px">
   <img src="/static/branding/icon-48.png" style="width:48px;height:48px;border-radius:10px;flex-shrink:0">
   <div style="flex:1">
     <div style="font-weight:800;font-size:13px">Install BlaqVibes</div>
