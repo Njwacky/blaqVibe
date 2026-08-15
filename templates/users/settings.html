@@ -13,7 +13,7 @@
         <div style="flex:1"><div style="font-weight:700;font-size:13px">Auto language detect</div></div>
         <label class="switch"><input type="checkbox" data-key="auto_language" {% if profile.auto_language %}checked{% endif %}><span class="slider"></span></label>
       </div>
-      <div style="background:#0A0A0F;border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
+      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
         <div style="font-size:11px;color:var(--muted)">Detect Python/JS % from ZIP — size-weighted. If off, we use your manual tech stack only.</div>
       </div>
     </div>
@@ -23,7 +23,7 @@
         <div style="flex:1"><div style="font-weight:700;font-size:13px">Nolo auto-review</div></div>
         <label class="switch"><input type="checkbox" data-key="nolo_enabled" {% if profile.nolo_enabled %}checked{% endif %}><span class="slider"></span></label>
       </div>
-      <div style="background:#0A0A0F;border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
+      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
         <div style="font-size:11px;color:var(--muted)">Score 0-10 + fixes on every upload. If off, no review, no fixes. Recommended On.</div>
       </div>
     </div>
@@ -33,7 +33,7 @@
         <div style="flex:1"><div style="font-weight:700;font-size:13px">Auto thumbnail</div></div>
         <label class="switch"><input type="checkbox" data-key="auto_thumbnail" {% if profile.auto_thumbnail %}checked{% endif %}><span class="slider"></span></label>
       </div>
-      <div style="background:#0A0A0F;border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
+      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
         <div style="font-size:11px;color:var(--muted)">Screenshot preview for feed. If off, generic thumbnail.</div>
       </div>
     </div>
@@ -43,8 +43,8 @@
         <div style="flex:1"><div style="font-weight:700;font-size:13px">Allow trading (charge stars)</div></div>
         <label class="switch"><input type="checkbox" data-key="allow_trading" {% if profile.allow_trading %}checked{% endif %}><span class="slider"></span></label>
       </div>
-      <div style="background:#0A0A0F;border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
-        <div style="font-size:11px;color:#F59E0B">If off, your vibes are free (0 ★) — you lose stars income. Trading is economy: earn when others download.</div>
+      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
+        <div style="font-size:11px;color:var(--warning-text)">If off, your vibes are free (0 ★) — you lose stars income. Trading is economy: earn when others download.</div>
       </div>
     </div>
 
@@ -53,7 +53,7 @@
         <div style="flex:1"><div style="font-weight:700;font-size:13px">Email on trade</div></div>
         <label class="switch"><input type="checkbox" data-key="email_on_trade" {% if profile.email_on_trade %}checked{% endif %}><span class="slider"></span></label>
       </div>
-      <div style="background:#0A0A0F;border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
+      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
         <div style="font-size:11px;color:var(--muted)">We’ll tell you when someone trades your vibe. If off, only Trades page shows.</div>
       </div>
     </div>
@@ -63,7 +63,7 @@
         <div style="flex:1"><div style="font-weight:700;font-size:13px">Show language % to others</div></div>
         <label class="switch"><input type="checkbox" data-key="show_language" {% if profile.show_language %}checked{% endif %}><span class="slider"></span></label>
       </div>
-      <div style="background:#0A0A0F;border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
+      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
         <div style="font-size:11px;color:var(--muted)">If off, language donut hidden to others. Keep On — buyers judge stack before trade.</div>
       </div>
     </div>
@@ -73,7 +73,7 @@
         <div style="flex:1"><div style="font-weight:700;font-size:13px">Allow forks</div></div>
         <label class="switch"><input type="checkbox" data-key="allow_forks" {% if profile.allow_forks %}checked{% endif %}><span class="slider"></span></label>
       </div>
-      <div style="background:#0A0A0F;border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
+      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
         <div style="font-size:11px;color:var(--muted)">Others can fork your vibes. If off, Fork button hidden, POST 403 fork page.</div>
       </div>
     </div>
@@ -83,7 +83,7 @@
         <div style="flex:1"><div style="font-weight:700;font-size:13px">Allow PRs</div></div>
         <label class="switch"><input type="checkbox" data-key="allow_prs" {% if profile.allow_prs %}checked{% endif %}><span class="slider"></span></label>
       </div>
-      <div style="background:#0A0A0F;border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
+      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
         <div style="font-size:11px;color:var(--muted)">Others can PR to your vibes. If off, PR create blocked.</div>
       </div>
     </div>
@@ -93,7 +93,7 @@
         <div style="flex:1"><div style="font-weight:700;font-size:13px">Comments</div></div>
         <label class="switch"><input type="checkbox" data-key="allow_comments" {% if profile.allow_comments %}checked{% endif %}><span class="slider"></span></label>
       </div>
-      <div style="background:#0A0A0F;border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
+      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
         <div style="font-size:11px;color:var(--muted)">Allow comments on your vibes. If off, comments hidden.</div>
       </div>
     </div>
@@ -103,7 +103,7 @@
         <div style="flex:1"><div style="font-weight:700;font-size:13px">Reviews (1-5 ★)</div></div>
         <label class="switch"><input type="checkbox" data-key="allow_reviews" {% if profile.allow_reviews %}checked{% endif %}><span class="slider"></span></label>
       </div>
-      <div style="background:#0A0A0F;border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
+      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
         <div style="font-size:11px;color:var(--muted)">Allow human reviews. If off, 4.5 ★ avg hidden, review form blocked.</div>
       </div>
     </div>
@@ -115,11 +115,11 @@
   <div style="margin-top:8px;display:flex;flex-direction:column;gap:12px">
 
     <div style="display:flex;flex-direction:column;gap:4px">
-      <div style="background:#1A0A1A;border:1px solid #7C3AED;border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
+      <div style="background:var(--accent-soft-bg);border:1px solid var(--accent-border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
         <div style="flex:1"><div style="font-weight:700;font-size:13px">Maintenance mode</div></div>
         <label class="switch"><input type="checkbox" data-key="maintenance" {% if site.maintenance %}checked{% endif %}><span class="slider"></span></label>
       </div>
-      <div style="background:#0A0A0F;border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
+      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
         <div style="font-size:11px;color:var(--muted)">Site shows safe fork page for all. Critical toggle — superadmin only.</div>
       </div>
     </div>
@@ -127,9 +127,9 @@
     <div style="display:flex;flex-direction:column;gap:4px">
       <div style="background:var(--input);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px;opacity:.7">
         <div style="flex:1"><div style="font-weight:700;font-size:13px">🔒 ClamAV — Always On (Critical)</div></div>
-        <span style="font-size:11px;background:#10B981;color:#fff;padding:4px 8px;border-radius:8px;font-weight:700">Locked On</span>
+        <span style="font-size:11px;background:var(--success-action);color:var(--on-accent);padding:4px 8px;border-radius:8px;font-weight:700">Locked On</span>
       </div>
-      <div style="background:#0A0A0F;border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
+      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
         <div style="font-size:11px;color:var(--muted)">Virus scan every upload — cannot be toggled. Very critical, always on. Attempt → 400 error.</div>
       </div>
     </div>
@@ -137,39 +137,39 @@
     <div style="display:flex;flex-direction:column;gap:4px">
       <div style="background:var(--input);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px;opacity:.7">
         <div style="flex:1"><div style="font-weight:700;font-size:13px">🔒 R2 Storage — Always On (Critical)</div></div>
-        <span style="font-size:11px;background:#10B981;color:#fff;padding:4px 8px;border-radius:8px;font-weight:700">Locked On</span>
+        <span style="font-size:11px;background:var(--success-action);color:var(--on-accent);padding:4px 8px;border-radius:8px;font-weight:700">Locked On</span>
       </div>
-      <div style="background:#0A0A0F;border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
+      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
         <div style="font-size:11px;color:var(--muted)">Signed URLs for ZIPs — cannot be toggled. Very critical, always on.</div>
       </div>
     </div>
 
     <div style="display:flex;flex-direction:column;gap:4px">
-      <div style="background:#1A0A1A;border:1px solid #7C3AED;border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
+      <div style="background:var(--accent-soft-bg);border:1px solid var(--accent-border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
         <div style="flex:1"><div style="font-weight:700;font-size:13px">Search</div></div>
         <label class="switch"><input type="checkbox" data-key="search_enabled" {% if site.search_enabled %}checked{% endif %}><span class="slider"></span></label>
       </div>
-      <div style="background:#0A0A0F;border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
+      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
         <div style="font-size:11px;color:var(--muted)">Full-text + typo. If off, feed shows all without ranking. Superadmin only.</div>
       </div>
     </div>
 
     <div style="display:flex;flex-direction:column;gap:4px">
-      <div style="background:#1A0A1A;border:1px solid #7C3AED;border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
+      <div style="background:var(--accent-soft-bg);border:1px solid var(--accent-border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
         <div style="flex:1"><div style="font-weight:700;font-size:13px">PWA</div></div>
         <label class="switch"><input type="checkbox" data-key="pwa_enabled" {% if site.pwa_enabled %}checked{% endif %}><span class="slider"></span></label>
       </div>
-      <div style="background:#0A0A0F;border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
+      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
         <div style="font-size:11px;color:var(--muted)">Install prompt + offline. If off, no PWA banner, no SW.</div>
       </div>
     </div>
 
     <div style="display:flex;flex-direction:column;gap:4px">
-      <div style="background:#1A0A1A;border:1px solid #7C3AED;border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
+      <div style="background:var(--accent-soft-bg);border:1px solid var(--accent-border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
         <div style="flex:1"><div style="font-weight:700;font-size:13px">Open file preview after publish</div></div>
         <label class="switch"><input type="checkbox" data-key="auto_run_enabled" {% if site.auto_run_enabled %}checked{% endif %}><span class="slider"></span></label>
       </div>
-      <div style="background:#0A0A0F;border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
+      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
         <div style="font-size:11px;color:var(--muted)">If On, we remind you that file preview is on the vibe page. This does not start Docker or a live URL.</div>
       </div>
     </div>
@@ -188,13 +188,13 @@
     {% endif %}
   </div>
 
-  <div style="margin-top:28px;padding:16px;border:1px solid #7C2D2D;background:#1A0A0A;border-radius:12px">
-    <h2 style="font-size:14px;font-weight:700;color:#FECACA">Danger zone — POPIA</h2>
+  <div style="margin-top:28px;padding:16px;border:1px solid var(--danger-border);background:var(--danger-bg);border-radius:12px">
+    <h2 style="font-size:14px;font-weight:700;color:var(--danger-text)">Danger zone — POPIA</h2>
     <p style="font-size:12px;color:var(--muted);margin:6px 0 12px">Delete your account, vibes, comments, and stars. This cannot be undone.</p>
     <form method="post" action="{% url 'delete_account' %}" class="js-confirm-delete" style="display:flex;gap:8px;flex-wrap:wrap">
       {% csrf_token %}
       <input name="confirm" placeholder="Type {{ user.username }} to confirm" class="field-input" style="flex:1;min-width:180px">
-      <button class="btn-ghost" style="color:#EF4444;border-color:#7C2D2D">Delete my account</button>
+      <button class="btn-ghost" style="color:var(--danger-text);border-color:var(--danger-border)">Delete my account</button>
     </form>
   </div>
 </div>

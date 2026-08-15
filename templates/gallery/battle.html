@@ -33,7 +33,7 @@
     </h1>
     <p style="color: var(--muted); font-size: 12px">
       Two vibes side-by-side — vote → winner gets
-      <b style="color: #f59e0b">+1 ★</b>. One vote per battle. Swipe on mobile
+      <b style="color: var(--warning-text)">+1 ★</b>. One vote per battle. Swipe on mobile
       for the next matchup.
     </p>
   </div>
@@ -50,7 +50,7 @@
     "
   >
     Not enough vibes for battle — publish at least 2 vibes!
-    <a href="{% url 'publish' %}" style="color: #7c3aed">Publish →</a>
+    <a href="{% url 'publish' %}" style="color: var(--link)">Publish →</a>
   </div>
   {% else %}
   <div
@@ -134,8 +134,8 @@
           {% if battle.votes_a > battle.votes_b %}<span
             style="
               font-size: 11px;
-              background: #dcfce7;
-              color: #15803d;
+              background: var(--success-bg);
+              color: var(--success-text);
               padding: 4px 8px;
               border-radius: 8px;
             "
@@ -159,7 +159,7 @@
             margin-top: 6px;
             text-align: center;
             font-size: 11px;
-            color: #7c3aed;
+            color: var(--link);
           "
           >View vibe → reveals @{{ battle.vibe_a.owner.username }}</a
         >
@@ -236,8 +236,8 @@
           {% if battle.votes_b > battle.votes_a %}<span
             style="
               font-size: 11px;
-              background: #dcfce7;
-              color: #15803d;
+              background: var(--success-bg);
+              color: var(--success-text);
               padding: 4px 8px;
               border-radius: 8px;
             "
@@ -251,7 +251,8 @@
             class="btnV"
             style="
               width: 100%;
-              background: #f59e0b;
+              background: var(--warning-fill);
+              color: var(--on-warning);
               padding: 12px;
               font-size: 13px;
             "
@@ -266,7 +267,7 @@
             margin-top: 6px;
             text-align: center;
             font-size: 11px;
-            color: #7c3aed;
+            color: var(--link);
           "
           >View vibe → reveals @{{ battle.vibe_b.owner.username }}</a
         >
@@ -295,9 +296,7 @@
       style="
         font-size: 12px;
         font-weight: 800;
-        background: linear-gradient(135deg, #7c3aed, #f59e0b);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
+        color: var(--accent-text);
       "
       >VS</span
     >

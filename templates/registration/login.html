@@ -20,9 +20,9 @@
   </form>
   {% include 'gallery/_social_auth.html' %}
   <div class="help" style="margin-top:14px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
-    <a href="{% url 'signup' %}" style="color:#7C3AED">Create an account</a>
-    <a href="{% url 'password_reset' %}" style="color:#7C3AED">Forgot password?</a>
+    <a href="{% url 'signup' %}" style="color:var(--link)">Create an account</a>
+    <a href="{% url 'password_reset' %}" style="color:var(--link)">Forgot password?</a>
   </div>
 </div>
-<link rel="stylesheet" href="/static/gallery/css/forms.css">
+<link rel="stylesheet" href="/static/gallery/css/forms.css?v=theme-colors-20260815">
 {% endblock %}

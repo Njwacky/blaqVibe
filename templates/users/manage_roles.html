@@ -7,7 +7,7 @@
   <table style="width:100%;margin-top:12px;border-collapse:collapse;font-size:13px">
     <tr style="color:var(--muted);text-align:left;border-bottom:1px solid var(--line)"><th style="padding:8px">User</th><th>Current Role</th><th>Stars</th><th>Change To</th></tr>
     {% for u in users %}
-    <tr style="border-bottom:1px solid var(--line)"><td style="padding:8px">@{{ u.username }} {% if u.is_staff %}<span style="font-size:10px;background:#F59E0B;color:#000;padding:2px 6px;border-radius:6px">STAFF</span>{% endif %}</td>
+    <tr style="border-bottom:1px solid var(--line)"><td style="padding:8px">@{{ u.username }} {% if u.is_staff %}<span style="font-size:10px;background:var(--warning-fill);color:var(--on-warning);padding:2px 6px;border-radius:6px">STAFF</span>{% endif %}</td>
       <td style="padding:8px"><span style="background:var(--input);border:1px solid var(--line);padding:4px 8px;border-radius:8px;font-size:11px">{{ u.profile.role }}</span></td>
       <td style="padding:8px">{{ u.profile.stars_balance }} ★</td>
       <td style="padding:8px">

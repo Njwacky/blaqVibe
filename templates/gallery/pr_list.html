@@ -13,7 +13,7 @@
   {% if user.is_authenticated %}
     {% for fork in user.projects.all %}
       {% if fork.forked_from_id == target.id and fork.status == 'published' %}
-        <div style="margin-top:12px;background:var(--card);border:1px solid #7C3AED;border-radius:12px;padding:12px">
+        <div style="margin-top:12px;background:var(--card);border:1px solid var(--accent-border);border-radius:12px;padding:12px">
           <div style="font-weight:700">Create PR from your fork: {{ fork.title }}</div>
           <form method="post" action="{% url 'create_pr' fork.slug %}" style="margin-top:8px;display:grid;gap:8px">{% csrf_token %}
             <input name="title" placeholder="PR title — e.g., Fix chart bug" required style="background:var(--input);border:1px solid var(--line);border-radius:8px;padding:8px;color:var(--text);font-size:12px">
@@ -28,12 +28,12 @@
   <h2 style="margin-top:16px;font-size:14px;font-weight:700">PRs for {{ target.slug }} — {{ prs.count }}</h2>
   {% for pr in prs %}
   <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:8px;display:flex;gap:12px;align-items:center">
-    <div style="width:36px;height:36px;border-radius:8px;background:{% if pr.status == 'open' %}#FEF3C7{% elif pr.status == 'merged' %}#DCFCE7{% else %}var(--line){% endif %};display:grid;place-items:center;font-size:12px;font-weight:800;color:{% if pr.status == 'open' %}#92400E{% elif pr.status == 'merged' %}#15803D{% else %}var(--muted){% endif %}">#{{ pr.id }}</div>
+    <div style="width:36px;height:36px;border-radius:8px;background:{% if pr.status == 'open' %}var(--warning-bg){% elif pr.status == 'merged' %}var(--success-bg){% else %}var(--line){% endif %};display:grid;place-items:center;font-size:12px;font-weight:800;color:{% if pr.status == 'open' %}var(--warning-text){% elif pr.status == 'merged' %}var(--success-text){% else %}var(--muted){% endif %}">#{{ pr.id }}</div>
     <div style="flex:1">
-      <div style="font-weight:700"><a href="{% url 'pr_detail' pr.target.slug pr.id %}" style="color:var(--text);text-decoration:none">{{ pr.title }}</a> <span style="font-size:11px;padding:3px 7px;border-radius:8px;background:{% if pr.status == 'open' %}#FEF3C7;color:#92400E{% elif pr.status == 'merged' %}#DCFCE7;color:#15803D{% else %}var(--line);color:var(--muted){% endif %}">{{ pr.status }}</span></div>
+      <div style="font-weight:700"><a href="{% url 'pr_detail' pr.target.slug pr.id %}" style="color:var(--text);text-decoration:none">{{ pr.title }}</a> <span style="font-size:11px;padding:3px 7px;border-radius:8px;background:{% if pr.status == 'open' %}var(--warning-bg);color:var(--warning-text){% elif pr.status == 'merged' %}var(--success-bg);color:var(--success-text){% else %}var(--line);color:var(--muted){% endif %}">{{ pr.status }}</span></div>
       <div style="font-size:12px;color:var(--muted)">{{ pr.source.title }} (@{{ pr.author.username }}) → {{ pr.target.title }} • {{ pr.created_at|timesince }} ago</div>
       {% if pr.description %}<div style="font-size:12px;margin-top:4px;color:var(--text)">{{ pr.description }}</div>{% endif %}
-      <div style="margin-top:6px"><a href="{% url 'pr_detail' pr.target.slug pr.id %}" style="font-size:11px;color:#7C3AED">View diff →</a></div>
+      <div style="margin-top:6px"><a href="{% url 'pr_detail' pr.target.slug pr.id %}" style="font-size:11px;color:var(--link)">View diff →</a></div>
     </div>
     {% if user == target.owner and pr.status == 'open' %}
     <form method="post" action="{% url 'pr_action' target.slug pr.id %}" style="display:flex;gap:6px">{% csrf_token %}

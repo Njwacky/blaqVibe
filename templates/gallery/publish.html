@@ -3,8 +3,8 @@
 {% block content %}
 <div style="max-width:640px;margin:0 auto;padding:20px">
   <div style="display:flex;gap:10px;align-items:flex-start;background:color-mix(in srgb,#7C3AED 9%,var(--card));border:1px solid color-mix(in srgb,#7C3AED 45%,var(--line));border-radius:12px;padding:12px 14px;margin-bottom:16px">
-    <span style="color:#C4F04D;font-weight:900">↗</span>
-    <div style="font-size:12px;line-height:1.55"><b>This publishes a BlaqVibes listing and safe preview—not a production host or app-store release.</b><div style="color:var(--muted);margin-top:3px">Need a real public URL or store listing? <a href="{% url 'launch_hub' %}" style="color:#C4B5FD;font-weight:700">Find the correct launch path →</a></div></div>
+    <span style="color:var(--launch-text);font-weight:900">↗</span>
+    <div style="font-size:12px;line-height:1.55"><b>This publishes a BlaqVibes listing and safe preview—not a production host or app-store release.</b><div style="color:var(--muted);margin-top:3px">Need a real public URL or store listing? <a href="{% url 'launch_hub' %}" style="color:var(--accent-text);font-weight:700">Find the correct launch path →</a></div></div>
   </div>
   <!-- Progress -->
   <div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:16px">
@@ -17,7 +17,7 @@
 
   <form method="post" enctype="multipart/form-data" id="wizard-form">
     {% csrf_token %}
-    {% if form.errors %}<div style="background:#3F1A1A;border:1px solid #7C2D2D;color:#FECACA;padding:10px;border-radius:10px;font-size:13px;margin-bottom:12px">{{ form.errors }}</div>{% endif %}
+    {% if form.errors %}<div style="background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger-text);padding:10px;border-radius:10px;font-size:13px;margin-bottom:12px">{{ form.errors }}</div>{% endif %}
 
     <!-- Step 1 — Details -->
     <div class="wizard-step" data-step="1">
@@ -38,9 +38,9 @@
           </div>
           <label style="display:flex;gap:8px;align-items:center;font-size:13px">{{ form.ai_generated }} 🤖 AI-generated</label>
           {% if challenge %}
-          <div style="background:linear-gradient(135deg,#1A1A00 0%,#1A1400 100%);border:1px solid #F59E0B;border-radius:10px;padding:10px;display:flex;gap:8px;align-items:center">
+          <div style="background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:10px;padding:10px;display:flex;gap:8px;align-items:center">
             <input type="checkbox" name="challenge_join" id="challenge_join" style="width:auto">
-            <label for="challenge_join" style="flex:1;font-size:12px">Join Challenge of the Week — <b style="color:#F59E0B">{{ challenge.title }}</b> ({{ challenge.bounty_stars }} ★ bounty, tag #{{ challenge.tag }})<br><span style="color:var(--muted)">{{ challenge.description|truncatechars:80 }}</span></label>
+            <label for="challenge_join" style="flex:1;font-size:12px">Join Challenge of the Week — <b style="color:var(--warning-text)">{{ challenge.title }}</b> ({{ challenge.bounty_stars }} ★ bounty, tag #{{ challenge.tag }})<br><span style="color:var(--muted)">{{ challenge.description|truncatechars:80 }}</span></label>
           </div>
           {% endif %}
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -101,7 +101,7 @@
 
 <style>
 .step{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:12px;background:var(--line);color:var(--muted);border:1px solid var(--line);transition:.2s}
-.step.on{background:#7C3AED;color:#fff;border-color:#7C3AED}
+.step.on{background:var(--violet);color:var(--on-accent);border-color:var(--accent-border)}
 input,select,textarea{width:100%;background:var(--input);border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--text);font-size:13px}
 input[type=checkbox]{width:auto}
 </style>

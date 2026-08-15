@@ -18,7 +18,7 @@
   <p style="color:var(--muted);font-size:13px">Stars are the working money path. You earn them when someone trades your vibe, and you spend them to unlock others. No bank transfer is sent from this page.</p>
 
   {% if not is_pro %}
-  <div class="pro-banner" style="margin-top:12px;background:linear-gradient(135deg,#1A1A00 0%,#1A1400 100%);border:1px solid #F59E0B;border-radius:12px;padding:14px;display:flex;gap:12px;align-items:center">
+  <div class="pro-banner" style="margin-top:12px;background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:12px;padding:14px;display:flex;gap:12px;align-items:center">
     <div style="flex:1;min-width:0">
       <div style="font-weight:800">Pro Trial — 7 days free</div>
       <div style="font-size:12px;color:var(--muted);margin-top:4px">Pro can see <b>who viewed your vibe</b> and use <b>AI README</b>. You are currently <b>Free</b> ({{ user.profile.rank.name }}).</div>
@@ -26,14 +26,14 @@
     <form method="post" action="{% url 'activate_pro_trial' %}" style="flex-shrink:0">{% csrf_token %}<button class="btnV" style="padding:10px 16px">Activate Pro Trial — 7 days free</button></form>
   </div>
   {% else %}
-  <div style="margin-top:12px;background:#0A1A0A;border:1px solid #10B981;border-radius:12px;padding:12px;display:flex;gap:12px;align-items:center">
-    <div style="flex:1"><div style="font-weight:700;color:#10B981">✓ Pro Active {% if pro_until %}until {{ pro_until|date:"Y-m-d" }}{% elif pro_since %}since {{ pro_since|date:"Y-m-d" }}{% endif %}</div><div style="font-size:11px;color:var(--muted)">Who Viewed + AI README</div></div>
-    <span style="font-size:11px;background:#10B981;color:#fff;padding:6px 10px;border-radius:8px;font-weight:700">Pro</span>
+  <div style="margin-top:12px;background:var(--success-bg);border:1px solid var(--success-border);border-radius:12px;padding:12px;display:flex;gap:12px;align-items:center">
+    <div style="flex:1"><div style="font-weight:700;color:var(--success-text)">✓ Pro Active {% if pro_until %}until {{ pro_until|date:"Y-m-d" }}{% elif pro_since %}since {{ pro_since|date:"Y-m-d" }}{% endif %}</div><div style="font-size:11px;color:var(--muted)">Who Viewed + AI README</div></div>
+    <span style="font-size:11px;background:var(--success-action);color:var(--on-accent);padding:6px 10px;border-radius:8px;font-weight:700">Pro</span>
   </div>
   {% endif %}
 
   <div style="margin-top:16px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
-    <div class="card" style="padding:14px;text-align:center;border-color:#F59E0B"><div style="font-size:11px;color:var(--muted)">BALANCE</div><div style="font-weight:800;font-size:20px;color:#F59E0B">{{ stars_balance }} ★</div><div style="font-size:11px;color:var(--muted)">Ready to trade</div></div>
+    <div class="card" style="padding:14px;text-align:center;border-color:var(--warning-border)"><div style="font-size:11px;color:var(--muted)">BALANCE</div><div style="font-weight:800;font-size:20px;color:var(--warning-text)">{{ stars_balance }} ★</div><div style="font-size:11px;color:var(--muted)">Ready to trade</div></div>
     <div class="card" style="padding:14px;text-align:center"><div style="font-size:11px;color:var(--muted)">EARNED FROM TRADES</div><div style="font-weight:800;font-size:20px">{{ stars_earned }} ★</div><div style="font-size:11px;color:var(--muted)">Sum of sold trades</div></div>
     <div class="card" style="padding:14px;text-align:center"><div style="font-size:11px;color:var(--muted)">SPENT</div><div style="font-weight:800;font-size:20px">{{ stars_spent }} ★</div><div style="font-size:11px;color:var(--muted)">Sum of bought trades</div></div>
   </div>
@@ -58,7 +58,7 @@
     <div style="font-size:12px;color:var(--muted);margin-top:4px">Verified checkout only. Recorded sales: R{{ total_zar }}. Bank payouts to your account are not wired yet — that needs Paystack Transfers plus your bank details.</div>
     {% for s in sales %}
     <div style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:8px">
-      <div style="font-weight:700;font-size:13px">{{ s.project.title }} <span style="font-size:11px;background:#DCFCE7;color:#15803D;padding:3px 7px;border-radius:6px">R{{ s.amount_zar }}</span></div>
+      <div style="font-weight:700;font-size:13px">{{ s.project.title }} <span style="font-size:11px;background:var(--success-bg);color:var(--success-text);padding:3px 7px;border-radius:6px">R{{ s.amount_zar }}</span></div>
       <div style="font-size:11px;color:var(--muted)">Buyer: @{{ s.buyer.username }} • {{ s.created_at|date:"Y-m-d H:i" }} • Ref: {{ s.paystack_ref|truncatechars:16 }}</div>
     </div>
     {% empty %}<div style="color:var(--muted);font-size:13px;padding:12px;border:1px dashed var(--line);border-radius:10px;margin-top:8px">No card sales yet.</div>{% endfor %}
@@ -74,8 +74,8 @@
       <h2 style="font-size:14px;font-weight:700">Sold — people traded your vibes</h2>
       {% for t in trades %}
       <div style="background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:8px">
-        <div style="font-weight:700;font-size:13px">{{ t.project.title }} <span style="font-size:11px;background:#DCFCE7;color:#15803D;padding:3px 7px;border-radius:6px">+{{ t.cost }} ★</span></div>
-        <div style="font-size:11px;color:var(--muted)">Buyer: <a href="{% url 'profile_view' t.buyer.username %}" style="color:#7C3AED">@{{ t.buyer.username }}</a> • {{ t.created_at|date:"Y-m-d H:i" }}</div>
+        <div style="font-weight:700;font-size:13px">{{ t.project.title }} <span style="font-size:11px;background:var(--success-bg);color:var(--success-text);padding:3px 7px;border-radius:6px">+{{ t.cost }} ★</span></div>
+        <div style="font-size:11px;color:var(--muted)">Buyer: <a href="{% url 'profile_view' t.buyer.username %}" style="color:var(--link)">@{{ t.buyer.username }}</a> • {{ t.created_at|date:"Y-m-d H:i" }}</div>
       </div>
       {% empty %}<div style="color:var(--muted);font-size:13px;padding:12px;border:1px dashed var(--line);border-radius:10px;margin-top:8px">No trades yet. Publish a ZIP with a star cost.</div>{% endfor %}
     </div>
@@ -83,8 +83,8 @@
       <h2 style="font-size:14px;font-weight:700">Bought — you spent stars</h2>
       {% for t in bought %}
       <div style="background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:8px">
-        <div style="font-weight:700;font-size:13px">{{ t.project.title }} <span style="font-size:11px;background:#FEF3C7;color:#92400E;padding:3px 7px;border-radius:6px">−{{ t.cost }} ★</span></div>
-        <div style="font-size:11px;color:var(--muted)">Seller: <a href="{% url 'profile_view' t.seller.username %}" style="color:#7C3AED">@{{ t.seller.username }}</a> • {{ t.created_at|date:"Y-m-d H:i" }}</div>
+        <div style="font-weight:700;font-size:13px">{{ t.project.title }} <span style="font-size:11px;background:var(--warning-bg);color:var(--warning-text);padding:3px 7px;border-radius:6px">−{{ t.cost }} ★</span></div>
+        <div style="font-size:11px;color:var(--muted)">Seller: <a href="{% url 'profile_view' t.seller.username %}" style="color:var(--link)">@{{ t.seller.username }}</a> • {{ t.created_at|date:"Y-m-d H:i" }}</div>
       </div>
       {% empty %}<div style="color:var(--muted);font-size:13px;padding:12px;border:1px dashed var(--line);border-radius:10px;margin-top:8px">You have not traded stars for a ZIP yet.</div>{% endfor %}
     </div>

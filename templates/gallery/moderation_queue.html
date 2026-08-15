@@ -11,25 +11,25 @@
     <div style="flex:1">
       <div style="font-weight:700">{{ p.title }} <span style="font-size:11px;color:var(--muted)">@{{ p.owner.username }} • {{ p.tech_stack|default:"—" }} • {{ p.file_count }} files</span></div>
       <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.short_description }}</div>
-      <div style="font-size:11px;color:#F59E0B">Status: {{ p.status }} • <a href="{{ p.get_absolute_url }}" style="color:#7C3AED" target="_blank">View</a> • <a href="{% url 'scan_status' p.slug %}" style="color:var(--muted)">scan-status json</a></div>
+      <div style="font-size:11px;color:var(--warning-text)">Status: {{ p.status }} • <a href="{{ p.get_absolute_url }}" style="color:var(--link)" target="_blank">View</a> • <a href="{% url 'scan_status' p.slug %}" style="color:var(--muted)">scan-status json</a></div>
     </div>
     <form method="post" action="{% url 'moderation_action' p.slug %}" style="display:flex;gap:6px">{% csrf_token %}
       <button name="action" value="approve" class="btn-violet" style="padding:8px 12px;font-size:12px">✓ Approve → Published</button>
-      <button name="action" value="reject" class="btn-ghost" style="padding:8px 12px;font-size:12px;color:#F59E0B">Reject → Quarantined</button>
+      <button name="action" value="reject" class="btn-ghost" style="padding:8px 12px;font-size:12px;color:var(--warning-text)">Reject → Quarantined</button>
     </form>
   </div>
   {% empty %}<div style="color:var(--muted);font-size:13px;padding:12px;background:var(--bg);border:1px dashed var(--line);border-radius:10px">No pending vibes — queue is clean.</div>{% endfor %}
 
-  <h2 style="margin:16px 0 8px;font-size:14px;color:#EF4444">🚨 Quarantined — Virus/Secrets ({{ quarantined.count }})</h2>
+  <h2 style="margin:16px 0 8px;font-size:14px;color:var(--danger-text)">🚨 Quarantined — Virus/Secrets ({{ quarantined.count }})</h2>
   {% for p in quarantined %}
-  <div style="background:#1A0A0A;border:1px solid #4A1A1A;border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px;margin-bottom:8px">
+  <div style="background:var(--danger-bg);border:1px solid var(--danger-border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px;margin-bottom:8px">
     <div style="flex:1">
-      <div style="font-weight:700">{{ p.title }} <span style="font-size:11px;color:#FCA5A5">@{{ p.owner.username }}</span></div>
-      <div style="font-size:11px;color:#FCA5A5">Quarantined by ClamAV/secrets. Check worker logs. <code style="background:#2A0A0A;padding:2px 6px;border-radius:6px">{{ p.scan_report|default:"no report" }}</code></div>
+      <div style="font-weight:700">{{ p.title }} <span style="font-size:11px;color:var(--danger-text)">@{{ p.owner.username }}</span></div>
+      <div style="font-size:11px;color:var(--danger-text)">Quarantined by ClamAV/secrets. Check worker logs. <code style="background:var(--danger-bg);padding:2px 6px;border-radius:6px">{{ p.scan_report|default:"no report" }}</code></div>
     </div>
     <form method="post" action="{% url 'moderation_action' p.slug %}" class="js-confirm-delete" style="display:flex;gap:6px">{% csrf_token %}
       <button name="action" value="approve" class="btn-ghost">Override Approve</button>
-      <button name="action" value="delete" class="btn-violet" style="background:#EF4444">Delete</button>
+      <button name="action" value="delete" class="btn-violet" style="background:var(--danger-action)">Delete</button>
     </form>
   </div>
   {% empty %}<div style="color:var(--muted);font-size:13px;padding:12px;background:var(--bg);border:1px dashed var(--line);border-radius:10px">No quarantined vibes.</div>{% endfor %}

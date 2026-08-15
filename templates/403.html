@@ -5,7 +5,14 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Hold up — BlaqVibes</title>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&family=Inter:wght@500;700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="/static/gallery/css/error.css">
+<script>
+try {
+  var theme = localStorage.getItem('blaq-theme');
+  if (theme !== 'light' && theme !== 'dark') theme = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', theme);
+} catch (e) {}
+</script>
+<link rel="stylesheet" href="/static/gallery/css/error.css?v=theme-20260815">
 </head>
 <body>
 <div class="card">
@@ -16,7 +23,7 @@
     I sent you here to keep you safe. Pick the right path — home.
   </div>
   <div style="margin-top:14px;display:flex;gap:8px;justify-content:center">
-    <a href="/" style="background:#7C3AED;color:#fff;padding:10px 18px;border-radius:10px;font-weight:700;text-decoration:none">🏠 Home — Safe Way</a>
+    <a href="/" style="background:var(--violet);color:var(--on-accent);padding:10px 18px;border-radius:10px;font-weight:700;text-decoration:none">🏠 Home — Safe Way</a>
     <a href="/my-vibes/" style="border:1px solid var(--line);color:var(--text);padding:10px 18px;border-radius:10px;font-weight:600;text-decoration:none">My Vibes</a>
   </div>
 </div>
