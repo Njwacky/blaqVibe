@@ -34,6 +34,8 @@ to `.github/workflows/ci.yml` (needs the `workflows` permission).
 
 ## What is real
 
+- **Every kind of program is publishable** — games, APIs, mobile apps, notebooks, CLI tools. Each vibe is auto-labelled with a program kind (creator can override), and anything our sandbox cannot run says "no live preview" plainly instead of faking one. See `docs/specs/BlaqVibes_Discovery_Spec.md`.
+- **The feed learns.** Open, star, fork, or trade a kind of program and it moves to the front of *your* grid ("For you"). Explicit filters and non-default sorts are never silently personalised. Anonymous visitors get the global interest ranking.
 - **Preview files** is an in-app page (sandboxed snippet or file list + README). It is not Docker and not a live host.
 - **Stars** are the complete money path: new users get 5 ★, a trade moves `star_cost` from buyer to seller atomically, and that Trade unlocks the ZIP.
 - Paid ZIPs stay locked until a Trade or a verified Paystack Sale. Fork, git URL, file contents, and `/media/apps/zips/` cannot skip that.

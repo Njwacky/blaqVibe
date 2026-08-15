@@ -29,11 +29,20 @@
         <div style="display:flex;gap:6px;align-items:center"><span style="width:10px;height:10px;background:var(--danger-action);border-radius:50%"></span><span style="width:10px;height:10px;background:#F59E0B;border-radius:50%"></span><span style="width:10px;height:10px;background:#10B981;border-radius:50%"></span><span style="font-size:12px;color:var(--muted);margin-left:6px">{{ project.slug }} — Preview</span></div>
         <span style="font-size:11px;background:var(--success-bg);color:var(--success-text);padding:4px 8px;border-radius:8px;font-weight:700">● Secure</span>
       </div>
-      {% if project.html_code %}
+      {% if project.can_run_preview %}
         <iframe src="{% url 'preview' project.slug %}" sandbox="allow-scripts allow-forms" referrerpolicy="no-referrer" style="width:100%;height:380px;border:none;background:#fff" title="{{ project.title }} preview"></iframe>
       {% else %}
+        <!-- Honest empty state. The rule for this site is that EVERY kind of
+             program may be published; the ones our sandbox cannot run say so
+             plainly instead of showing a fake preview chrome. -->
         <div style="height:320px;background:#fff;display:grid;place-items:center;color:#111;padding:20px">
-          <div style="text-align:center"><div style="font-weight:700">{{ project.title }}</div><div style="font-size:12px;color:#475569;margin:6px 0">{{ project.tech_stack }} • {{ project.file_count }} files</div><div style="font-size:11px;color:#475569">Full app — preview files and README here. Download the ZIP to run it on your machine. Not a live server.</div></div>
+          <div style="text-align:center;max-width:420px">
+            <div style="font-size:30px;line-height:1">{{ project.kind_icon }}</div>
+            <div style="font-weight:700;margin-top:6px">{{ project.title }}</div>
+            <div style="font-size:12px;color:#475569;margin:6px 0">{{ project.kind_label }}{% if project.tech_stack %} • {{ project.tech_stack }}{% endif %} • {{ project.file_count }} files</div>
+            <div style="display:inline-block;font-size:11px;color:#475569;background:#F1F5F9;border:1px solid #CBD5E1;border-radius:8px;padding:6px 10px;margin-top:4px">No live preview for a {{ project.kind_label|lower }}</div>
+            <div style="font-size:11px;color:#475569;margin-top:8px">{{ project.preview_note }} {{ project.kind_meta.blurb }}</div>
+          </div>
         </div>
       {% endif %}
       <div style="margin:12px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px">
@@ -70,10 +79,10 @@
           {% if user.is_authenticated %}
           <form method="post" action="{% url 'toggle_bookmark' project.slug %}" class="js-save-form" style="display:inline">{% csrf_token %}<button class="btn-ghost">{% if is_bookmarked %}♥ Saved{% else %}♡ Save{% endif %}</button></form>
           {% endif %}
-          {% if project.html_code %}
-          <a href="{% url 'preview' project.slug %}" class="btn-ghost" style="flex:1;justify-content:center;text-align:center;background:var(--success-action);color:var(--on-accent)">Preview files</a>
+          {% if project.can_run_preview %}
+          <a href="{% url 'preview' project.slug %}" class="btn-ghost" style="flex:1;justify-content:center;text-align:center;background:var(--success-action);color:var(--on-accent)">▶ Run preview</a>
           {% elif project.zip_file %}
-          <a href="{% url 'preview_files' project.slug %}" class="btn-ghost" style="flex:1;justify-content:center;text-align:center;background:var(--success-action);color:var(--on-accent)">Preview files</a>
+          <a href="{% url 'preview_files' project.slug %}" class="btn-ghost" style="flex:1;justify-content:center;text-align:center;background:var(--success-action);color:var(--on-accent)">📁 Browse files</a>
           {% endif %}
         </div>
 
@@ -304,7 +313,10 @@
   <div>
     <div class="card" style="padding:14px">
       <div style="display:flex;gap:6px;margin-bottom:8px">
+        <a href="{% url 'feed' %}?program={{ project.kind }}" class="badge" style="background:var(--accent-soft-bg);color:var(--accent-text);text-decoration:none" title="{{ project.kind_meta.blurb }}">{{ project.kind_icon }} {{ project.kind_label }}</a>
         {% if project.zip_file %}<span class="badge" style="background:var(--warning-bg);color:var(--warning-text)">Full App</span>{% else %}<span class="badge" style="background:var(--accent-soft-bg);color:var(--accent-text)">Snippet</span>{% endif %}
+        {% if project.can_run_preview %}<span class="badge" style="background:var(--success-bg);color:var(--success-text)">▶ Playable here</span>{% else %}<span class="badge" style="background:var(--input);border:1px solid var(--line);color:var(--muted)" title="{{ project.preview_note }}">📁 Files only</span>{% endif %}
+        {% if user.is_authenticated and user == project.owner and project.kind_evidence %}<span class="badge" style="background:var(--input);border:1px solid var(--line);color:var(--muted)" title="Why we labelled it a {{ project.kind_label }}: {{ project.kind_evidence|join:', ' }}. Change it in Edit.">why?</span>{% endif %}
         {% if project.ai_generated %}<span class="badge" style="border:1px solid var(--warning-border);color:var(--warning-text)">🤖 {{ project.ai_tool }}</span>{% endif %}
       </div>
       <h3 style="font-weight:700">{{ project.title }}</h3>

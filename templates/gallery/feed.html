@@ -1,6 +1,9 @@
 {% extends 'gallery/base.html' %}
 {% block head %}
 <style>
+.kind-chip { display:inline-flex; align-items:center; gap:4px; padding:6px 11px; border-radius:100px; border:1px solid var(--line); background:var(--card); color:var(--text); font-size:12px; text-decoration:none; white-space:nowrap; }
+.kind-chip:hover { border-color:var(--accent-border); }
+.kind-chip.is-active { background:var(--accent-soft-bg); border-color:var(--accent-border); color:var(--accent-text); font-weight:700; }
 .terminal-window { background: var(--bg); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; display: flex; flex-direction: column; min-height: 200px; }
 .terminal-window .term-bar { display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-bottom: 1px solid var(--line); background: var(--bg); }
 .terminal-window .term-dot { width: 8px; height: 8px; border-radius: 50%; }
@@ -45,8 +48,28 @@
     </div>
   </div>
 
+  <!-- Program kinds: one chip per taxonomy value. A filter is an
+       instruction and always beats the personalised guess below. -->
+  <div class="kind-chips" style="margin-top:18px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+    <a href="?{% if q %}q={{ q }}&{% endif %}" class="kind-chip {% if not program_kind %}is-active{% endif %}">All programs</a>
+    {% for k in program_kinds %}
+      <a href="?program={{ k.value }}{% if q %}&q={{ q }}{% endif %}" class="kind-chip {% if program_kind == k.value %}is-active{% endif %}" title="{{ k.blurb }}">{{ k.icon }} {{ k.label }}</a>
+    {% endfor %}
+    <a href="?runnable=1{% if q %}&q={{ q }}{% endif %}" class="kind-chip {% if runnable == '1' %}is-active{% endif %}" title="Only vibes that really run in the sandboxed preview">▶ Playable now</a>
+  </div>
+
+  {% if personalized %}
+  <div class="foryou-note" style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)">
+    <span>✦ Sorted for you — you keep opening</span>
+    {% for k in my_kinds %}<b style="color:var(--accent-text)">{{ k.icon }} {{ k.label }}</b>{% if not forloop.last %}<span>,</span>{% endif %}{% endfor %}
+    <a href="?sort=newest" style="color:var(--link)">show newest instead →</a>
+  </div>
+  {% endif %}
+
   <form id="grid" method="get" class="filter-bar">
     <input type="text" name="q" value="{{ q }}" placeholder="Search stock_app_vibes, Django, Lovable...">
+    {% if program_kind %}<input type="hidden" name="program" value="{{ program_kind }}">{% endif %}
+    {% if runnable == '1' %}<input type="hidden" name="runnable" value="1">{% endif %}
     <select name="category">
       <option value="">All Categories</option>
       {% for c in categories %}<option value="{{ c.slug }}" {% if cat == c.slug %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
@@ -55,7 +78,7 @@
       <option value="">Snippets + Full Apps</option><option value="snippet" {% if kind == 'snippet' %}selected{% endif %}>Snippets only</option><option value="full_app" {% if kind == 'full_app' %}selected{% endif %}>Full Apps only</option>
     </select>
     <select name="sort">
-      <option value="newest" {% if sort == 'newest' %}selected{% endif %}>Newest</option><option value="trending" {% if sort == 'trending' %}selected{% endif %}>Trending</option><option value="stars" {% if sort == 'stars' %}selected{% endif %}>Most Stars</option><option value="clones" {% if sort == 'clones' %}selected{% endif %}>Most Clones</option>
+      <option value="foryou" {% if sort == 'foryou' %}selected{% endif %}>✦ For you</option><option value="newest" {% if sort == 'newest' %}selected{% endif %}>Newest</option><option value="trending" {% if sort == 'trending' %}selected{% endif %}>Trending</option><option value="stars" {% if sort == 'stars' %}selected{% endif %}>Most Stars</option><option value="clones" {% if sort == 'clones' %}selected{% endif %}>Most Clones</option>
     </select>
     <label style="font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px"><input type="checkbox" name="ai" value="1" {% if request.GET.ai == '1' %}checked{% endif %}> 🤖 AI</label>
     <button class="btnW" style="padding:8px 14px">Search</button>
@@ -80,7 +103,8 @@
       {% endif %}
       <div style="padding:12px">
         <div style="display:flex;gap:6px;margin-bottom:6px">
-          {% if p.zip_file %}<span class="badge" style="background:var(--warning-bg);color:var(--warning-text)">Full App</span>{% else %}<span class="badge" style="background:var(--accent-soft-bg);color:var(--accent-text)">Snippet</span>{% endif %}
+          <span class="badge" style="background:var(--accent-soft-bg);color:var(--accent-text)" title="{{ p.kind_meta.blurb }}">{{ p.kind_icon }} {{ p.kind_label }}</span>
+          {% if p.can_run_preview %}<span class="badge" style="background:var(--success-bg,#DCFCE7);color:var(--success-text,#166534)" title="Runs in a sandboxed preview">▶ Playable</span>{% else %}<span class="badge" style="background:var(--input);border:1px solid var(--line);color:var(--muted)" title="No live preview — file list, README, and ZIP download">📁 Files only</span>{% endif %}
           {% if p.ai_generated %}<span class="badge" style="border:1px solid var(--warning-border);color:var(--warning-text)">🤖 {{ p.ai_tool|default:"AI" }}</span>{% endif %}
           {% if p.forked_from %}<span class="badge" style="background:var(--input);border:1px solid var(--line);color:var(--muted)">⑂ Forked</span>{% endif %}
         </div>

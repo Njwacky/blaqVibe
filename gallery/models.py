@@ -3,6 +3,16 @@ from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils.text import slugify
 
+from .taxonomy import (
+    DEFAULT_KIND,
+    KIND_CHOICES,
+    PREVIEW_MODES,
+    UPLOAD_KIND_CHOICES,
+    kind_icon,
+    kind_label,
+    kind_meta,
+)
+
 class Category(models.Model):
     TYPE_CHOICES = [('snippet','Snippet'), ('full_app','Full App')]
     name = models.CharField(max_length=100)
@@ -60,6 +70,41 @@ class AppProject(models.Model):
     stars = models.PositiveIntegerField(default=0)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     is_featured = models.BooleanField(default=False)
+    # --- What kind of program is this? -----------------------------------
+    # 5 Whys: Why store the kind instead of deriving it per request?
+    # 1. Discovery has to FILTER and SORT on it; a Python-derived value
+    #    cannot be a WHERE clause or an ORDER BY.
+    # 2. Deriving it means re-reading the file list for every card on every
+    #    page view — 12 extra queries per feed page, forever.
+    # 3. The classifier may call an LLM. Deriving on read would put a paid
+    #    network call inside a page render.
+    # 4. A stored value is auditable: kind_source/kind_evidence say who
+    #    decided and why, so a wrong badge can be argued with.
+    # 5. It is also correctable — a creator edit or a moderator override
+    #    writes the field, and everything downstream follows immediately.
+    kind = models.CharField(
+        max_length=20, choices=KIND_CHOICES, default=DEFAULT_KIND, db_index=True,
+        help_text='What sort of program this is — auto-detected, creator can override.',
+    )
+    creator_kind = models.CharField(
+        max_length=20, choices=UPLOAD_KIND_CHOICES, blank=True, default='',
+        help_text="Creator's own pick. Blank = trust auto-detection.",
+    )
+    kind_source = models.CharField(
+        max_length=20, blank=True, default='',
+        help_text='heuristic | claude | gemini | groq | creator | moderator',
+    )
+    kind_confidence = models.FloatField(default=0)
+    kind_evidence = models.JSONField(default=list, blank=True)
+    # Honest capability, computed at classify time — never a guess in a template.
+    preview_mode = models.CharField(
+        max_length=10, choices=PREVIEW_MODES, default='files',
+        help_text='snippet = runs in the sandboxed iframe. files = file list + README only.',
+    )
+    # Global "how interesting is this" score, 0-100. Recomputed by a task,
+    # never inside a request. See gallery.interest.
+    appeal_score = models.FloatField(default=0, db_index=True)
+    appeal_updated_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     class Meta:
@@ -69,6 +114,11 @@ class AppProject(models.Model):
             models.Index(fields=['status']),
             models.Index(fields=['status', '-created_at']),
             models.Index(fields=['status', '-stars']),
+            # Feed ordering is always "published rows, best first" — a
+            # composite index keeps that a range scan instead of a sort of
+            # the whole table once there are tens of thousands of vibes.
+            models.Index(fields=['status', '-appeal_score'], name='gallery_app_status_appeal_idx'),
+            models.Index(fields=['status', 'kind', '-appeal_score'], name='gallery_app_kind_appeal_idx'),
         ]
     def save(self, *args, **kwargs):
         try:
@@ -121,6 +171,34 @@ class AppProject(models.Model):
     def get_absolute_url(self):
         return reverse('app_detail', args=[self.slug])
     def __str__(self): return self.title
+
+    # --- Kind helpers (templates + API read these, never a raw string) ---
+    @property
+    def kind_meta(self):
+        return kind_meta(self.kind)
+
+    @property
+    def kind_label(self):
+        return kind_label(self.kind)
+
+    @property
+    def kind_icon(self):
+        return kind_icon(self.kind)
+
+    @property
+    def can_run_preview(self):
+        """True only when there is really something to run in the iframe."""
+        return self.preview_mode == 'snippet' and bool((self.html_code or '').strip())
+
+    @property
+    def preview_note(self):
+        """One honest sentence about what a visitor can do here."""
+        if self.can_run_preview:
+            return 'Runs live in a sandboxed preview.'
+        if self.zip_file:
+            return 'No live preview — browse the file list and README, or download the ZIP.'
+        return 'No live preview available.'
+
     def rank_bonus(self):
         from .ranks import contributor_bonus
         return contributor_bonus(self.owner)['bonus']
@@ -413,3 +491,64 @@ class Bookmark(models.Model):
 
     def __str__(self):
         return f'{self.user} ♥ {self.project.slug}'
+
+
+class KindAffinity(models.Model):
+    """What one user has shown they like, per program kind.
+
+    One row per (user, kind) — at most 14 rows per user, forever.
+
+    5 Whys — why a rolled-up score table instead of ranking from raw events?
+
+    1. Why not just query VibeView/Star/Trade at feed time? Ranking a page
+       would need a per-user aggregate over the whole event history on every
+       request. At "tons of uploads a second" scale the read path is the hot
+       path; it must touch a bounded number of rows.
+    2. Why not cache that aggregate instead? A cache still has to be built
+       from the events on a miss, so the worst case (cold cache, big user)
+       is unchanged. A materialised row has no cold case.
+    3. Why per-kind rather than per-project embeddings? 14 buckets is the
+       smallest thing that can express "push games to the front", which is
+       the actual request. Per-project similarity is a different, far more
+       expensive product and is not needed to answer it.
+    4. Why keep `score` decayed rather than a raw count? Taste changes. A
+       user who played games in March and now ships APIs should see APIs;
+       an undecayed counter would keep them on games forever.
+    5. Why store `updated_at` per row instead of decaying on a schedule?
+       Lazy decay-on-read means no periodic job over every user, and a
+       dormant user's row is decayed correctly the moment they return.
+    """
+
+    # Weights per interaction. Ordered by how much intent each one proves:
+    # downloading (or paying for) something is a far stronger statement than
+    # scrolling past its card.
+    EVENT_WEIGHTS = {
+        'view': 1.0,
+        'preview': 2.0,
+        'star': 3.0,
+        'save': 3.0,
+        'comment': 3.0,
+        'fork': 5.0,
+        'download': 5.0,
+        'trade': 8.0,
+        'publish': 6.0,   # what you build is what you are into
+        'pick': 10.0,     # explicit "I like games" from onboarding
+    }
+    # Score halves after this many days without reinforcement.
+    HALF_LIFE_DAYS = 30.0
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='kind_affinities')
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES)
+    score = models.FloatField(default=0)
+    events = models.PositiveIntegerField(default=0)
+    last_event = models.CharField(max_length=20, blank=True, default='')
+    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'kind')
+        ordering = ['-score']
+        indexes = [models.Index(fields=['user', '-score'])]
+
+    def __str__(self):
+        return f'{self.user} likes {self.kind} ({self.score:.1f})'

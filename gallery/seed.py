@@ -318,5 +318,18 @@ def seed_demo():
     cats = _categories()
     created = _seed_snippets(owner, cats)
     created += _seed_zip_app(owner, cats)
+    # Label and score the demo catalog too. Why? A fresh install would
+    # otherwise show every demo vibe as kind='other' with appeal 0, which
+    # looks exactly like the discovery feature being broken. Heuristic only:
+    # seeding must work offline and cost nothing.
+    try:
+        from .classify import classify_project
+        from .interest import refresh_project
+        for project in AppProject.objects.filter(status='published'):
+            classify_project(project, allow_llm=False)
+            refresh_project(project)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('seed classify failed')
     published = AppProject.objects.filter(status='published').count()
     return {'created': created, 'published': published}

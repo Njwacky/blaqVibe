@@ -19,6 +19,8 @@ from .search import search_projects
 from .access import user_can_download, user_can_see_project, user_is_moderator, access_denied_message
 from .zip_serve import serve_project_zip, owner_scan_reason
 from .notify import notify
+from . import taste
+from .taxonomy import KIND_BY_VALUE, PROGRAM_KINDS, coerce_kind
 from django.core.mail import send_mail
 from users.forms import SignUpForm
 
@@ -80,6 +82,24 @@ def signup(request):
     return render(request, 'registration/signup.html', {'form': form})
 
 def feed(request):
+    """The discovery grid.
+
+    5 Whys — why is 'for you' the default sort for a signed-in user?
+
+    1. Why personalise at all? Everything gets published here, so the grid
+       fills with kinds a given person will never open. Sorting by taste is
+       what keeps a firehose usable.
+    2. Why default to it instead of hiding it behind a dropdown option? A
+       default nobody selects is a feature nobody gets; the user asked for
+       games to be pushed to the FRONT for people who like games.
+    3. Why does it silently fall back to global order? Anonymous visitors
+       and brand-new accounts have no signal — reordering on noise would be
+       worse than not reordering (see taste.has_enough_signal).
+    4. Why keep every other sort working exactly as before? 'Newest' is a
+       promise about ordering; personalising it would make it a lie.
+    5. Why still allow an explicit kind filter on top? Ranking is a guess;
+       a filter is an instruction, and an instruction must always win.
+    """
     try:
         q = request.GET.get('q','').strip()
         # Sanitize search prompt — many prompt fields, check vulnerabilities, crush silently
@@ -92,7 +112,11 @@ def feed(request):
         kind = request.GET.get('kind','')
         ai = request.GET.get('ai','')
         tech = request.GET.get('tech','')
-        sort = request.GET.get('sort','newest')
+        # 'foryou' is the default only for people we actually have signal on.
+        default_sort = 'foryou' if taste.has_enough_signal(request.user) else 'newest'
+        sort = request.GET.get('sort', '') or default_sort
+        program_kind = coerce_program_kind_filter(request.GET.get('program'))
+        runnable = request.GET.get('runnable', '')
         projects = AppProject.objects.filter(status='published').select_related('owner','owner__profile','category').prefetch_related('tags')
         if cat:
             projects = projects.filter(category__slug=cat)
@@ -100,6 +124,11 @@ def feed(request):
             projects = projects.exclude(html_code='')
         elif kind == 'full_app':
             projects = projects.exclude(zip_file='')
+        if program_kind:
+            projects = projects.filter(kind=program_kind)
+        if runnable == '1':
+            # Honest filter: only vibes that really can run in the sandbox.
+            projects = projects.filter(preview_mode='snippet').exclude(html_code='')
         if ai == '1':
             projects = projects.filter(ai_generated=True)
         if tech:
@@ -108,7 +137,7 @@ def feed(request):
                 tech = bleach.clean(tech, tags=[], strip=True)[:100]
             except Exception: pass
             projects = projects.filter(tech_stack__icontains=tech)
-        projects = search_projects(projects, q, sort=sort)
+        projects = search_projects(projects, q, sort=sort, user=request.user)
         if not projects.exists() and getattr(settings, 'SEED_DEMO', False):
             try:
                 from .seed import seed_demo
@@ -117,7 +146,7 @@ def feed(request):
                     AppProject.objects.filter(status='published').select_related(
                         'owner', 'owner__profile', 'category'
                     ).prefetch_related('tags'),
-                    q, sort=sort,
+                    q, sort=sort, user=request.user,
                 )
                 if cat:
                     projects = projects.filter(category__slug=cat)
@@ -130,10 +159,37 @@ def feed(request):
         categories = Category.objects.all().order_by('order')
         paginator = Paginator(projects, 12)
         page = paginator.get_page(request.GET.get('page'))
-        return render(request, 'gallery/feed.html', {'page': page, 'categories': categories, 'q': q, 'cat': cat, 'kind': kind, 'sort': sort})
+        my_kinds = taste.top_kinds(request.user, limit=3) if request.user.is_authenticated else []
+        return render(request, 'gallery/feed.html', {
+            'page': page,
+            'categories': categories,
+            'q': q,
+            'cat': cat,
+            'kind': kind,
+            'sort': sort,
+            'program_kinds': PROGRAM_KINDS,
+            'program_kind': program_kind,
+            'runnable': runnable,
+            'personalized': sort == 'foryou' and bool(my_kinds),
+            'my_kinds': [KIND_BY_VALUE[k] for k in my_kinds if k in KIND_BY_VALUE],
+        })
     except Exception:
         logger.exception("feed crush silent")
-        return render(request, 'gallery/feed.html', {'page': Paginator(AppProject.objects.none(), 12).get_page(1), 'categories': Category.objects.all(), 'q': '', 'cat': '', 'kind': '', 'sort': 'newest'})
+        return render(request, 'gallery/feed.html', {'page': Paginator(AppProject.objects.none(), 12).get_page(1), 'categories': Category.objects.all(), 'q': '', 'cat': '', 'kind': '', 'sort': 'newest', 'program_kinds': PROGRAM_KINDS, 'program_kind': '', 'runnable': '', 'personalized': False, 'my_kinds': []})
+
+
+def coerce_program_kind_filter(value):
+    """Only a real taxonomy value may reach the WHERE clause.
+
+    Why not pass request.GET straight to .filter(kind=...)? An arbitrary
+    string silently returns an empty grid, which looks like "the site lost
+    my vibes" rather than "that filter does not exist". Blank means no
+    filter, which is the honest default.
+    """
+    value = (value or '').strip().lower()
+    if not value:
+        return ''
+    return value if value in KIND_BY_VALUE else ''
 
 def app_detail(request, slug):
     qs = AppProject.objects.select_related(
@@ -157,6 +213,9 @@ def app_detail(request, slug):
                     VibeView.objects.filter(pk=vv.pk).update(count=F('count')+1, last_viewed=timezone.now())
         except Exception:
             logger.exception("vibe view log failed")
+        # Learn what this person opens. Deduped in cache, one row, never
+        # fatal — see gallery/taste.py.
+        taste.record(request.user, project, 'view', project=project)
     comments = project.comments.filter(is_hidden=False).select_related('user').prefetch_related('replies__user')
     top_comments = comments.filter(parent__isnull=True)
     is_starred = False
@@ -269,6 +328,7 @@ def preview_files(request, slug):
     if project.html_code and not project.zip_file:
         return redirect('preview', slug=slug)
     files = project.files.all()[:100]
+    taste.record(request.user, project, 'preview', project=project)
     return render(request, 'gallery/preview_files.html', {
         'project': project,
         'files': files,
@@ -283,6 +343,7 @@ def preview(request, slug):
     if not project.html_code and project.zip_file:
         return redirect('preview_files', slug=slug)
     from .preview_token import issue_snippet_token
+    taste.record(request.user, project, 'preview', project=project)
     resp = render(request, 'gallery/preview.html', {
         'project': project,
         'snippet_token': issue_snippet_token(project.slug),
@@ -412,6 +473,25 @@ def publish(request):
                     messages.success(request, f"Your snippet “{project.title}” is published.")
                 else:
                     messages.info(request, f"Your vibe “{project.title}” is queued for review — we’ll tell you when it’s uploaded!")
+                # Snippets never enter the scan queue, so this is the only
+                # place they can be labelled. Heuristic only: a publish is a
+                # user waiting on a response, and an LLM call belongs on a
+                # queue, not in that wait.
+                try:
+                    from .classify import classify_project
+                    from .interest import refresh_project
+                    classify_project(project, allow_llm=False)
+                    refresh_project(project)
+                except Exception:
+                    logger.exception('snippet classify failed %s', project.slug)
+            # What you build is evidence of what you like. Re-read first:
+            # for a ZIP upload the classifier runs in the scan pipeline and
+            # writes `kind` behind this in-memory copy's back.
+            try:
+                project.refresh_from_db(fields=['kind'])
+            except Exception:
+                pass
+            taste.record(request.user, project, 'publish', project=project)
             return redirect(project.get_absolute_url())
     else:
         form = AppUploadForm()
@@ -431,6 +511,7 @@ def download_zip(request, slug):
         if not request.user.is_authenticated:
             return redirect(f"{settings.LOGIN_URL}?next={request.path}")
         return redirect(project.get_absolute_url())
+    taste.record(request.user, project, 'download', project=project)
     return serve_project_zip(project)
 
 def file_preview(request, slug, path):
@@ -485,6 +566,7 @@ def post_comment(request, slug):
             except Exception:
                 parent = None
         Comment.objects.create(project=project, user=request.user, body=body, parent=parent)
+        taste.record(request.user, project, 'comment', project=project)
         if project.owner_id != request.user.id:
             notify(project.owner, 'comment', f'@{request.user.username} commented on {project.title}', body[:160], project.get_absolute_url() + '#comments')
         return redirect(project.get_absolute_url() + '#comments')
@@ -527,7 +609,13 @@ def post_review(request, slug):
 def toggle_star(request, slug):
     project = get_object_or_404(AppProject, slug=slug, status='published')
     from .economy import toggle_project_star
-    return JsonResponse({'starred': toggle_project_star(request.user, project)})
+    starred = toggle_project_star(request.user, project)
+    # Only a star ADDS signal. Why not subtract on unstar? Removing a star
+    # is ambiguous (misclick, tidying a profile) and a subtractable signal
+    # is a griefing tool against your own recommendations.
+    if starred:
+        taste.record(request.user, project, 'star', project=project)
+    return JsonResponse({'starred': starred})
 
 @login_required
 def my_vibes(request):
@@ -567,6 +655,13 @@ def edit_vibe(request, slug):
                     messages.info(request, f"⏳ Your vibe “{p.title}” re-uploaded — re-queued for scan. We’ll tell you when it’s live again!")
                 except Exception: pass
             else:
+                # No ZIP means no scan queue run, so nothing else would
+                # ever re-label this vibe after an edit — do it here.
+                try:
+                    from .tasks import classify_and_score
+                    classify_and_score(p)
+                except Exception:
+                    logger.exception('reclassify on edit failed %s', p.slug)
                 messages.success(request, "✓ Vibe updated!")
             return redirect(p.get_absolute_url())
     else:
@@ -640,6 +735,8 @@ def trade_download(request, slug):
         messages.error(request, exc.message)
         return redirect(project.get_absolute_url())
     if trade:
+        # Strongest taste signal on the site: they spent scarce currency.
+        taste.record(request.user, project, 'trade', project=project)
         notify(project.owner, 'trade', f'@{request.user.username} traded {trade.cost} ★ for {project.title}', url=project.get_absolute_url())
         request.user.profile.refresh_from_db()
         messages.success(
@@ -693,11 +790,19 @@ def fork_vibe(request, slug):
             file_tree=original.file_tree,
             file_count=original.file_count,
             language_stats=original.language_stats,
+            # Inherit the label so the fork is filterable the moment it
+            # exists; its own scan re-classifies it from its own files.
+            kind=original.kind,
+            kind_source=original.kind_source,
+            kind_confidence=original.kind_confidence,
+            preview_mode=original.preview_mode,
             star_cost=0,  # forked is free initially
             forked_from=original,
             status='pending',
         )
         fork.save()  # generates slug
+        # Forking is a loud statement of interest in this kind of program.
+        taste.record(request.user, original, 'fork', project=original)
         # Copy zip file if exists
         if original.zip_file:
             try:
@@ -880,6 +985,7 @@ def toggle_bookmark(request, slug):
     if not created:
         bm.delete()
         return JsonResponse({'saved': False})
+    taste.record(request.user, project, 'save', project=project)
     return JsonResponse({'saved': True})
 
 

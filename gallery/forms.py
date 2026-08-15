@@ -2,12 +2,30 @@ from django import forms
 from .models import AppProject
 from .validators import validate_zip
 from .prompt_sanitize import sanitize_prompt
+from .taxonomy import UPLOAD_KIND_CHOICES, coerce_kind
 
 class AppUploadForm(forms.ModelForm):
     zip_file = forms.FileField(required=False, validators=[validate_zip])
+    # 5 Whys — why offer the creator a kind picker at all when we auto-detect?
+    # 1. Detection reads filenames; the creator read their own intent.
+    # 2. Why default to blank (auto)? Most uploads are obvious, and a
+    #    required dropdown is one more thing between a person and publishing.
+    # 3. Why a fixed choice list, not free text? An off-taxonomy value is
+    #    unfilterable and unlearnable (see gallery/taxonomy.py).
+    # 4. Why not let them set preview_mode too? Whether our sandbox can run
+    #    it is a fact about us, not a preference — see taxonomy.preview_mode_for.
+    # 5. Why keep it on edit as well? A creator who sees a wrong badge needs
+    #    a way to fix it that is not "email support".
+    creator_kind = forms.ChoiceField(
+        choices=UPLOAD_KIND_CHOICES,
+        required=False,
+        label='What kind of program is this?',
+        help_text='Leave on auto-detect and we will work it out from your files.',
+    )
+
     class Meta:
         model = AppProject
-        fields = ['title','category','short_description','readme','tech_stack','ai_generated','ai_tool','ai_prompt','html_code','css_code','js_code','zip_file','thumbnail','star_cost','price_zar']
+        fields = ['title','category','creator_kind','short_description','readme','tech_stack','ai_generated','ai_tool','ai_prompt','html_code','css_code','js_code','zip_file','thumbnail','star_cost','price_zar']
         widgets = {
             'readme': forms.Textarea(attrs={'rows':10, 'placeholder':'# My App\n## What is this?\n## How to Run\n```bash\npip install -r requirements.txt\n```'}),
             'short_description': forms.TextInput(attrs={'placeholder':'One-line what it does'}),
@@ -39,6 +57,13 @@ class AppUploadForm(forms.ModelForm):
         txt = self.cleaned_data.get('tech_stack', '') or ''
         import bleach
         return bleach.clean(txt, tags=[], strip=True)[:200]
+
+    def clean_creator_kind(self):
+        """Blank stays blank (auto-detect); anything else must be in the taxonomy."""
+        value = (self.cleaned_data.get('creator_kind') or '').strip()
+        if not value:
+            return ''
+        return coerce_kind(value)
 
     def clean(self):
         cleaned = super().clean()

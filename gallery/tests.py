@@ -459,9 +459,17 @@ class PreviewHonestyTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn('/preview/', response.url)
 
-    def test_detail_uses_preview_files_label(self):
+    def test_detail_never_promises_a_live_run_for_a_zip(self):
+        """Intent of this test: a ZIP must not be advertised as runnable.
+
+        The wording moved from the ambiguous "Preview files" to an explicit
+        "Browse files" + "No live preview" once program kinds landed, so we
+        assert the promise, not the old string.
+        """
         response = self.client.get(f'/app/{self.zip_project.slug}/')
-        self.assertContains(response, 'Preview files')
+        self.assertContains(response, 'Browse files')
+        self.assertContains(response, 'No live preview')
+        self.assertNotContains(response, 'Run preview')
         self.assertNotContains(response, 'Preview 1h')
         self.assertNotContains(response, 'Buy R')
 
@@ -1683,3 +1691,813 @@ class ChallengeBountyLedgerTests(TestCase):
             user=creator, delta=10, reason='challenge_bounty',
             ref=f'challenge:{challenge.tag}:{entry.slug}',
         ).exists())
+
+
+# ===========================================================================
+# Program-kind classification, honest previews, appeal scoring, taste feed.
+# ===========================================================================
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class TaxonomyTests(TestCase):
+    """The taxonomy is the contract every other piece depends on."""
+
+    def test_coerce_rejects_unknown_values(self):
+        from gallery.taxonomy import coerce_kind
+        self.assertEqual(coerce_kind('roguelike-ish nonsense'), 'other')
+        self.assertEqual(coerce_kind(''), 'other')
+        self.assertEqual(coerce_kind(None), 'other')
+
+    def test_coerce_accepts_aliases_an_llm_actually_returns(self):
+        from gallery.taxonomy import coerce_kind
+        self.assertEqual(coerce_kind('Games'), 'game')
+        self.assertEqual(coerce_kind('web-app'), 'web_app')
+        self.assertEqual(coerce_kind('MACHINE_LEARNING'), 'ai_ml')
+        self.assertEqual(coerce_kind('chrome extension'.replace(' ', '_')), 'extension')
+
+    def test_every_kind_declares_a_preview_capability(self):
+        from gallery.taxonomy import PROGRAM_KINDS
+        for k in PROGRAM_KINDS:
+            self.assertIn(k['preview'], ('snippet', 'files'), k['value'])
+            self.assertTrue(k['label'] and k['icon'] and k['blurb'], k['value'])
+
+    def test_model_choices_match_taxonomy(self):
+        from gallery.taxonomy import KIND_VALUES
+        field = AppProject._meta.get_field('kind')
+        self.assertEqual(tuple(c[0] for c in field.choices), KIND_VALUES)
+
+    def test_zip_never_claims_a_runnable_preview(self):
+        from gallery.taxonomy import preview_mode_for
+        self.assertEqual(preview_mode_for('game', has_html=False, has_zip=True), 'files')
+        self.assertEqual(preview_mode_for('game', has_html=True, has_zip=True), 'snippet')
+        self.assertEqual(preview_mode_for('api_backend', has_html=False, has_zip=True), 'files')
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class KindDetectTests(TestCase):
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('detectowner')
+
+    def _with_files(self, paths, **kwargs):
+        from gallery.models import AppFile
+        project = make_project(self.owner, self.cat, **kwargs)
+        project.zip_file.save(
+            f'{project.slug}.zip', make_zip_file({p: 'x' for p in paths}), save=True
+        )
+        for p in paths:
+            AppFile.objects.create(project=project, path=p, size=10)
+        return project
+
+    def test_unity_project_is_a_game(self):
+        from gallery.kind_detect import detect_kind
+        project = self._with_files([
+            'MyGame/ProjectSettings/ProjectVersion.txt',
+            'MyGame/Assets/Scenes/Level1.unity',
+            'MyGame/Assets/Scripts/GameManager.cs',
+        ])
+        result = detect_kind(project)
+        self.assertEqual(result['kind'], 'game')
+        self.assertGreater(result['confidence'], 0.5)
+
+    def test_godot_project_is_a_game(self):
+        from gallery.kind_detect import detect_kind
+        project = self._with_files(['game/project.godot', 'game/player.gd'])
+        self.assertEqual(detect_kind(project)['kind'], 'game')
+
+    def test_django_backend_is_api_backend_not_game(self):
+        from gallery.kind_detect import detect_kind
+        project = self._with_files(
+            ['api/manage.py', 'api/app/wsgi.py', 'api/app/urls.py', 'api/requirements.txt'],
+            title='Payments API', tech_stack='Django REST',
+        )
+        self.assertEqual(detect_kind(project)['kind'], 'api_backend')
+
+    def test_flutter_app_is_mobile(self):
+        from gallery.kind_detect import detect_kind
+        project = self._with_files(
+            ['app/pubspec.yaml', 'app/lib/main.dart'], tech_stack='Flutter',
+        )
+        self.assertEqual(detect_kind(project)['kind'], 'mobile_app')
+
+    def test_notebook_is_ai_ml(self):
+        from gallery.kind_detect import detect_kind
+        project = self._with_files(
+            ['ml/train.py', 'ml/notebooks/explore.ipynb'],
+            title='Churn model', tech_stack='PyTorch',
+        )
+        self.assertEqual(detect_kind(project)['kind'], 'ai_ml')
+
+    def test_canvas_snippet_is_detected_as_a_game(self):
+        from gallery.kind_detect import detect_kind
+        project = make_project(
+            self.owner, self.cat,
+            title='Mzansi Runner',
+            html_code='<canvas id="c"></canvas><script>function loop(){requestAnimationFrame(loop)}</script>',
+            js_code='document.addEventListener("keydown", e => {}); let score = 0;',
+        )
+        self.assertEqual(detect_kind(project)['kind'], 'game')
+
+    def test_empty_project_falls_back_to_other_with_zero_confidence(self):
+        from gallery.kind_detect import detect_kind
+        project = AppProject(title='', short_description='', readme='', tech_stack='')
+        result = detect_kind(project)
+        self.assertEqual(result['kind'], 'other')
+        self.assertEqual(result['confidence'], 0.0)
+
+    def test_detector_never_emits_a_kind_outside_the_taxonomy(self):
+        """Same guard artifact_detect has: producers may not invent values."""
+        from gallery.kind_detect import _NAME_SIGNALS, _DIR_SIGNALS, _EXT_SIGNALS, _TEXT_SIGNALS, _LANGUAGE_SIGNALS
+        from gallery.taxonomy import KIND_VALUES
+        for table in (_NAME_SIGNALS, _DIR_SIGNALS, _EXT_SIGNALS, _TEXT_SIGNALS, _LANGUAGE_SIGNALS):
+            for key, hits in table.items():
+                for kind, weight in hits:
+                    self.assertIn(kind, KIND_VALUES, f'{key} -> {kind}')
+                    self.assertGreater(weight, 0, key)
+
+    def test_deep_dependency_paths_do_not_decide_the_kind(self):
+        from gallery.kind_detect import detect_kind
+        project = self._with_files(
+            ['site/index.html', 'site/style.css'],
+            title='Portfolio site', short_description='My personal portfolio landing page.',
+        )
+        self.assertIn(detect_kind(project)['kind'], ('static_site', 'web_app'))
+
+    def test_a_browser_snippet_is_never_labelled_a_backend(self):
+        """Regression: a SaaS landing page's copy says 'backend' and 'API'.
+
+        Marketing prose describes the product's subject, not the artifact.
+        The artifact here is HTML we can verify, so shape beats words.
+        """
+        from gallery.kind_detect import detect_kind
+        project = make_project(
+            self.owner, self.cat,
+            title='Waitlist Minimal',
+            short_description='Waitlist page for a backend API product.',
+            readme='# Waitlist\n\nA landing page for our backend API service. ' * 8,
+            html_code='<section><h1>Join the waitlist</h1><form><input></form></section>',
+        )
+        self.assertNotIn(detect_kind(project)['kind'],
+                         ('api_backend', 'mobile_app', 'desktop_app', 'cli_tool'))
+
+    def test_a_snippet_dashboard_may_still_be_a_dashboard(self):
+        """The damping must not punish kinds a browser genuinely can be."""
+        from gallery.kind_detect import detect_kind
+        project = make_project(
+            self.owner, self.cat,
+            title='Analytics Dashboard',
+            short_description='An analytics dashboard with charts.',
+            readme='# Dashboard\n\nCharts and analytics widgets. ' * 8,
+            html_code='<div class="chart"><canvas></canvas></div><button>Filter</button>',
+        )
+        self.assertEqual(detect_kind(project)['kind'], 'data_viz')
+
+    def test_web_native_flag_agrees_with_preview_capability(self):
+        """A kind that a browser can be must be previewable, and vice versa."""
+        from gallery.taxonomy import PROGRAM_KINDS
+        for k in PROGRAM_KINDS:
+            if k['web_native']:
+                self.assertEqual(k['preview'], 'snippet', k['value'])
+            else:
+                self.assertEqual(k['preview'], 'files', k['value'])
+
+    def test_evidence_is_returned_so_the_badge_is_arguable(self):
+        from gallery.kind_detect import detect_kind
+        project = self._with_files(['game/project.godot'])
+        self.assertTrue(detect_kind(project)['evidence'])
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class ClassifyTests(TestCase):
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('classowner')
+
+    def test_creator_pick_beats_the_detector(self):
+        from gallery.classify import classify_project
+        project = make_project(
+            self.owner, self.cat, title='Django API', tech_stack='Django',
+            html_code='<p>hi</p>', creator_kind='game',
+        )
+        verdict = classify_project(project, allow_llm=False)
+        self.assertEqual(verdict['kind'], 'game')
+        self.assertEqual(verdict['source'], 'creator')
+        project.refresh_from_db()
+        self.assertEqual(project.kind, 'game')
+
+    def test_classification_persists_all_audit_fields(self):
+        from gallery.classify import classify_project
+        project = make_project(self.owner, self.cat, title='Pygame arcade shooter',
+                               tech_stack='pygame', html_code='<p>x</p>')
+        classify_project(project, allow_llm=False)
+        project.refresh_from_db()
+        self.assertEqual(project.kind, 'game')
+        self.assertEqual(project.kind_source, 'heuristic')
+        self.assertGreater(project.kind_confidence, 0)
+        self.assertTrue(project.kind_evidence)
+
+    def test_no_api_key_means_no_llm_call_and_still_a_kind(self):
+        from gallery.classify import llm_classify, classify_project
+        with override_settings(ANTHROPIC_API_KEY='', GEMINI_API_KEY='', GROQ_API_KEY=''):
+            import os
+            saved = {k: os.environ.pop(k, None) for k in
+                     ('ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'GROQ_API_KEY')}
+            try:
+                self.assertIsNone(llm_classify(make_project(self.owner, self.cat)))
+                project = make_project(self.owner, self.cat, title='Some thing')
+                verdict = classify_project(project, allow_llm=True)
+                self.assertIn(verdict['kind'], dict(AppProject._meta.get_field('kind').choices))
+            finally:
+                for k, v in saved.items():
+                    if v is not None:
+                        os.environ[k] = v
+
+    def test_llm_only_consulted_when_the_heuristic_is_unsure(self):
+        from gallery.classify import needs_llm
+        self.assertTrue(needs_llm({'kind': 'other', 'confidence': 0.9}))
+        self.assertTrue(needs_llm({'kind': 'game', 'confidence': 0.2}))
+        self.assertFalse(needs_llm({'kind': 'game', 'confidence': 0.9}))
+
+    def test_llm_answer_outside_the_taxonomy_is_coerced(self):
+        from gallery.classify import _parse_llm_json
+        parsed = _parse_llm_json('{"kind": "totally made up", "confidence": 0.9, "appeal": 80}')
+        self.assertEqual(parsed['kind'], 'other')
+        parsed = _parse_llm_json('sure! {"kind": "Games", "confidence": 2, "appeal": 500}')
+        self.assertEqual(parsed['kind'], 'game')
+        self.assertEqual(parsed['confidence'], 1.0)   # clamped
+        self.assertEqual(parsed['appeal'], 100.0)     # clamped
+
+    def test_llm_budget_caps_calls_per_minute(self):
+        """The flood guard: a spam wave cannot fan out into unbounded calls."""
+        from django.core.cache import cache
+        from gallery.classify import _take_budget
+        cache.clear()
+        with override_settings(KIND_LLM_CALLS_PER_MINUTE=3):
+            allowed = [_take_budget() for _ in range(10)]
+        self.assertEqual(allowed.count(True), 3)
+        self.assertEqual(allowed.count(False), 7)
+
+    def test_budget_of_zero_disables_the_llm_entirely(self):
+        from django.core.cache import cache
+        from gallery.classify import _take_budget
+        cache.clear()
+        with override_settings(KIND_LLM_CALLS_PER_MINUTE=0):
+            self.assertFalse(_take_budget())
+
+    def test_preview_mode_is_computed_not_guessed(self):
+        from gallery.classify import classify_project
+        zipped = make_project(self.owner, self.cat, title='Unity build')
+        zipped.zip_file.save('g.zip', make_zip_file({'a.txt': 'x'}), save=True)
+        classify_project(zipped, allow_llm=False)
+        zipped.refresh_from_db()
+        self.assertEqual(zipped.preview_mode, 'files')
+        self.assertFalse(zipped.can_run_preview)
+
+        snippet = make_project(self.owner, self.cat, title='Snippet', html_code='<b>hi</b>')
+        classify_project(snippet, allow_llm=False)
+        snippet.refresh_from_db()
+        self.assertEqual(snippet.preview_mode, 'snippet')
+        self.assertTrue(snippet.can_run_preview)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class AppealScoreTests(TestCase):
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('appealowner')
+
+    def test_quality_lets_a_brand_new_vibe_score_above_zero(self):
+        """Cold start: no traffic must not mean no rank."""
+        from gallery.interest import compute_appeal
+        project = make_project(
+            self.owner, self.cat,
+            readme='# Great\n' + ('detailed docs. ' * 100),
+            tech_stack='Django', file_count=25,
+            html_code='<b>runs</b>',
+        )
+        project.preview_mode = 'snippet'
+        self.assertGreater(compute_appeal(project), 10)
+
+    def test_engagement_raises_the_score(self):
+        from gallery.interest import compute_appeal
+        quiet = make_project(self.owner, self.cat, title='Quiet')
+        busy = make_project(self.owner, self.cat, title='Busy',
+                            stars=120, clones=60, views=3000, review_count=15)
+        self.assertGreater(compute_appeal(busy), compute_appeal(quiet))
+
+    def test_freshness_decays_but_never_to_zero(self):
+        from gallery.interest import freshness_multiplier, FRESHNESS_FLOOR
+        fresh = make_project(self.owner, self.cat, title='Fresh')
+        old = make_project(self.owner, self.cat, title='Old')
+        AppProject.objects.filter(pk=old.pk).update(
+            created_at=timezone.now() - timedelta(days=365))
+        old.refresh_from_db()
+        self.assertGreater(freshness_multiplier(fresh), freshness_multiplier(old))
+        self.assertGreaterEqual(freshness_multiplier(old), FRESHNESS_FLOOR)
+
+    def test_new_good_vibe_can_outrank_an_old_popular_one(self):
+        """The whole point of decay: page one must be able to turn over."""
+        from gallery.interest import compute_appeal
+        old = make_project(self.owner, self.cat, title='Old hit',
+                           stars=200, clones=100, views=9000)
+        AppProject.objects.filter(pk=old.pk).update(
+            created_at=timezone.now() - timedelta(days=400))
+        old.refresh_from_db()
+        new = make_project(
+            self.owner, self.cat, title='New gem',
+            readme='# New\n' + ('thorough documentation here. ' * 80),
+            tech_stack='Phaser', file_count=30, stars=6, views=200,
+            html_code='<canvas></canvas>',
+        )
+        new.preview_mode = 'snippet'
+        self.assertGreater(compute_appeal(new), compute_appeal(old))
+
+    def test_runnable_vibes_beat_identical_unrunnable_ones(self):
+        from gallery.interest import runnable_component
+        runnable = make_project(self.owner, self.cat, title='Runs', html_code='<b>x</b>')
+        runnable.preview_mode = 'snippet'
+        zipped = make_project(self.owner, self.cat, title='Zip only')
+        zipped.zip_file.save('z.zip', make_zip_file({'a.py': 'x'}), save=True)
+        self.assertGreater(runnable_component(runnable), runnable_component(zipped))
+
+    def test_score_is_clamped_to_the_documented_range(self):
+        from gallery.interest import compute_appeal
+        absurd = make_project(self.owner, self.cat, title='Absurd', stars=10 ** 9,
+                              clones=10 ** 9, views=10 ** 9, review_count=10 ** 6,
+                              is_featured=True)
+        score = compute_appeal(absurd)
+        self.assertGreaterEqual(score, 0)
+        self.assertLessEqual(score, 100)
+
+    def test_refresh_batch_scores_never_scored_rows_first(self):
+        from gallery.interest import refresh_batch
+        for i in range(3):
+            make_project(self.owner, self.cat, title=f'Batch {i}', stars=i * 10)
+        AppProject.objects.update(appeal_score=0, appeal_updated_at=None)
+        touched = refresh_batch(limit=10)
+        self.assertEqual(touched, AppProject.objects.filter(status='published').count())
+        self.assertFalse(
+            AppProject.objects.filter(status='published', appeal_updated_at=None).exists())
+
+    def test_refresh_batch_respects_its_limit(self):
+        from gallery.interest import refresh_batch
+        for i in range(6):
+            make_project(self.owner, self.cat, title=f'Limited {i}')
+        AppProject.objects.update(appeal_updated_at=None)
+        self.assertEqual(refresh_batch(limit=2), 2)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class TasteLearningTests(TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.cat = make_category()
+        self.owner = make_user('tasteowner')
+        self.user = make_user('gamer')
+
+    def _project(self, kind, title, **kwargs):
+        p = make_project(self.owner, self.cat, title=title, **kwargs)
+        AppProject.objects.filter(pk=p.pk).update(kind=kind)
+        p.refresh_from_db()
+        return p
+
+    def test_recording_builds_an_affinity_row(self):
+        from gallery import taste
+        from gallery.models import KindAffinity
+        game = self._project('game', 'Runner')
+        self.assertTrue(taste.record(self.user, game, 'star', project=game))
+        row = KindAffinity.objects.get(user=self.user, kind='game')
+        self.assertEqual(row.score, KindAffinity.EVENT_WEIGHTS['star'])
+        self.assertEqual(row.events, 1)
+
+    def test_anonymous_users_are_never_recorded(self):
+        from django.contrib.auth.models import AnonymousUser
+        from gallery import taste
+        from gallery.models import KindAffinity
+        game = self._project('game', 'Runner anon')
+        self.assertFalse(taste.record(AnonymousUser(), game, 'star', project=game))
+        self.assertEqual(KindAffinity.objects.count(), 0)
+
+    def test_stronger_actions_weigh_more_than_weaker_ones(self):
+        from gallery.models import KindAffinity
+        self.assertGreater(KindAffinity.EVENT_WEIGHTS['trade'],
+                           KindAffinity.EVENT_WEIGHTS['view'])
+        self.assertGreater(KindAffinity.EVENT_WEIGHTS['download'],
+                           KindAffinity.EVENT_WEIGHTS['view'])
+
+    def test_repeat_views_of_one_project_are_deduped(self):
+        from gallery import taste
+        from gallery.models import KindAffinity
+        game = self._project('game', 'Dedupe me')
+        taste.record(self.user, game, 'view', project=game)
+        for _ in range(5):
+            taste.record(self.user, game, 'view', project=game)
+        self.assertEqual(KindAffinity.objects.get(user=self.user, kind='game').events, 1)
+
+    def test_viewing_your_own_vibe_is_not_taste(self):
+        from gallery import taste
+        from gallery.models import KindAffinity
+        mine = self._project('game', 'My own game')
+        taste.record(self.owner, mine, 'view', project=mine)
+        self.assertFalse(KindAffinity.objects.filter(user=self.owner).exists())
+
+    def test_scores_decay_over_time(self):
+        from gallery import taste
+        from gallery.models import KindAffinity
+        game = self._project('game', 'Old love')
+        taste.record(self.user, game, 'trade', project=game)
+        row = KindAffinity.objects.get(user=self.user, kind='game')
+        fresh = taste.affinities(self.user)['game']
+        aged = taste._decayed(row.score, row.updated_at,
+                              timezone.now() + timedelta(days=KindAffinity.HALF_LIFE_DAYS))
+        self.assertAlmostEqual(aged, fresh / 2, places=2)
+
+    def test_affinities_normalize_against_the_users_own_top_kind(self):
+        from gallery import taste
+        game = self._project('game', 'G1')
+        api = self._project('api_backend', 'A1')
+        taste.record(self.user, game, 'trade', project=game)
+        taste.record(self.user, api, 'view', project=api)
+        norm = taste.normalized_affinities(self.user)
+        self.assertEqual(norm['game'], 1.0)
+        self.assertLess(norm['api_backend'], 1.0)
+
+    def test_a_single_event_is_not_enough_signal_to_reorder(self):
+        from gallery import taste
+        game = self._project('game', 'One click')
+        taste.record(self.user, game, 'view', project=game)
+        self.assertFalse(taste.has_enough_signal(self.user))
+        taste.record(self.user, self._project('game', 'Two clicks'), 'star')
+        self.assertTrue(taste.has_enough_signal(self.user))
+
+    def test_personalized_order_puts_the_liked_kind_first(self):
+        """The headline behaviour: a game lover sees games first."""
+        from gallery import taste
+        api = self._project('api_backend', 'Boring API')
+        game = self._project('game', 'Fun game')
+        # Make the game objectively *less* appealing so only taste can lift it.
+        AppProject.objects.filter(pk=api.pk).update(appeal_score=80)
+        AppProject.objects.filter(pk=game.pk).update(appeal_score=50)
+
+        qs = AppProject.objects.filter(status='published')
+        default_first = list(qs.order_by('-appeal_score'))[0]
+        self.assertEqual(default_first.pk, api.pk)
+
+        taste.record(self.user, game, 'trade', project=game)
+        taste.record(self.user, game, 'fork', project=game)
+        ordered, norm = taste.personalized_order(qs, self.user)
+        self.assertEqual(norm.get('game'), 1.0)
+        self.assertEqual(list(ordered)[0].pk, game.pk)
+
+    def test_personalization_is_bounded_and_cannot_resurface_junk(self):
+        from gallery import taste
+        junk = self._project('game', 'Junk game')
+        great = self._project('api_backend', 'Superb API')
+        AppProject.objects.filter(pk=junk.pk).update(appeal_score=1)
+        AppProject.objects.filter(pk=great.pk).update(appeal_score=99)
+        taste.record(self.user, junk, 'trade', project=junk)
+        taste.record(self.user, junk, 'fork', project=junk)
+        ordered, _ = taste.personalized_order(
+            AppProject.objects.filter(status='published'), self.user)
+        self.assertEqual(list(ordered)[0].pk, great.pk)
+
+    def test_no_signal_falls_back_to_global_order(self):
+        from gallery import taste
+        a = self._project('game', 'A')
+        b = self._project('web_app', 'B')
+        AppProject.objects.filter(pk=a.pk).update(appeal_score=10)
+        AppProject.objects.filter(pk=b.pk).update(appeal_score=90)
+        ordered, norm = taste.personalized_order(
+            AppProject.objects.filter(status='published'), self.user)
+        self.assertEqual(norm, {})
+        self.assertEqual(list(ordered)[0].pk, b.pk)
+
+    def test_ordering_happens_in_sql_not_python(self):
+        """Must be a real queryset so the Paginator slices the ordered set."""
+        from django.db.models import QuerySet
+        from gallery import taste
+        game = self._project('game', 'SQL game')
+        taste.record(self.user, game, 'trade', project=game)
+        taste.record(self.user, game, 'star', project=game)
+        ordered, _ = taste.personalized_order(
+            AppProject.objects.filter(status='published'), self.user)
+        self.assertIsInstance(ordered, QuerySet)
+        self.assertIn('ORDER BY', str(ordered.query).upper())
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class DiscoveryFeedTests(TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.cat = make_category()
+        self.owner = make_user('feedowner')
+        self.user = make_user('feeduser')
+
+    def _project(self, kind, title, appeal=50, **kwargs):
+        p = make_project(self.owner, self.cat, title=title, **kwargs)
+        AppProject.objects.filter(pk=p.pk).update(kind=kind, appeal_score=appeal)
+        p.refresh_from_db()
+        return p
+
+    def test_program_filter_narrows_the_grid(self):
+        self._project('game', 'A game')
+        self._project('api_backend', 'An API')
+        response = self.client.get('/?program=game')
+        self.assertEqual(response.status_code, 200)
+        titles = [p.title for p in response.context['page']]
+        self.assertIn('A game', titles)
+        self.assertNotIn('An API', titles)
+
+    def test_unknown_program_filter_shows_everything_not_nothing(self):
+        self._project('game', 'Still visible')
+        response = self.client.get('/?program=not-a-real-kind')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn('Still visible', [p.title for p in response.context['page']])
+
+    def test_runnable_filter_only_returns_really_runnable_vibes(self):
+        runnable = self._project('game', 'Playable', html_code='<canvas></canvas>')
+        AppProject.objects.filter(pk=runnable.pk).update(preview_mode='snippet')
+        notrunnable = self._project('game', 'Zip game')
+        notrunnable.zip_file.save('g.zip', make_zip_file({'a.txt': 'x'}), save=True)
+        AppProject.objects.filter(pk=notrunnable.pk).update(preview_mode='files')
+        response = self.client.get('/?runnable=1')
+        titles = [p.title for p in response.context['page']]
+        self.assertIn('Playable', titles)
+        self.assertNotIn('Zip game', titles)
+
+    def test_anonymous_visitor_gets_the_global_order_not_a_crash(self):
+        self._project('game', 'Anon game', appeal=10)
+        self._project('web_app', 'Anon web', appeal=90)
+        response = self.client.get('/?sort=trending')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['page'][0].title, 'Anon web')
+        self.assertFalse(response.context['personalized'])
+
+    def test_signed_in_game_lover_sees_games_first(self):
+        """End-to-end version of the request: learn, then reorder the feed."""
+        from gallery import taste
+        game = self._project('game', 'Kasi Kart', appeal=40)
+        self._project('api_backend', 'Invoice API', appeal=85)
+        taste.record(self.user, game, 'trade', project=game)
+        taste.record(self.user, game, 'fork', project=game)
+        self.client.force_login(self.user)
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.context['personalized'])
+        self.assertEqual(response.context['page'][0].title, 'Kasi Kart')
+
+    def test_newest_sort_is_never_silently_personalized(self):
+        from gallery import taste
+        old_game = self._project('game', 'Old game', appeal=90)
+        AppProject.objects.filter(pk=old_game.pk).update(
+            created_at=timezone.now() - timedelta(days=10))
+        new_api = self._project('api_backend', 'New API', appeal=1)
+        taste.record(self.user, old_game, 'trade', project=old_game)
+        taste.record(self.user, old_game, 'fork', project=old_game)
+        self.client.force_login(self.user)
+        response = self.client.get('/?sort=newest')
+        self.assertEqual(response.context['page'][0].title, 'New API')
+
+    def test_explicit_filter_beats_the_personalized_guess(self):
+        from gallery import taste
+        game = self._project('game', 'Loved game', appeal=90)
+        self._project('api_backend', 'Requested API', appeal=5)
+        taste.record(self.user, game, 'trade', project=game)
+        taste.record(self.user, game, 'fork', project=game)
+        self.client.force_login(self.user)
+        response = self.client.get('/?program=api_backend')
+        titles = [p.title for p in response.context['page']]
+        self.assertEqual(titles, ['Requested API'])
+
+    def test_search_still_works_while_personalized(self):
+        from gallery import taste
+        game = self._project('game', 'Zebra platformer', appeal=50)
+        self._project('api_backend', 'Zebra invoicing', appeal=50)
+        taste.record(self.user, game, 'trade', project=game)
+        taste.record(self.user, game, 'fork', project=game)
+        self.client.force_login(self.user)
+        response = self.client.get('/?q=Zebra')
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context['page']), 2)
+
+    def test_feed_shows_the_kind_badge_and_honest_preview_label(self):
+        p = self._project('api_backend', 'Labelled API')
+        p.zip_file.save('a.zip', make_zip_file({'a.py': 'x'}), save=True)
+        AppProject.objects.filter(pk=p.pk).update(preview_mode='files')
+        response = self.client.get('/')
+        body = response.content.decode()
+        self.assertIn('API / backend', body)
+        self.assertIn('Files only', body)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class HonestPreviewTests(TestCase):
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('previewowner')
+
+    def test_detail_page_of_an_unrunnable_vibe_says_so(self):
+        project = make_project(self.owner, self.cat, title='Backend only')
+        project.zip_file.save('b.zip', make_zip_file({'main.go': 'x'}), save=True)
+        AppProject.objects.filter(pk=project.pk).update(
+            kind='api_backend', preview_mode='files')
+        response = self.client.get(f'/app/{project.slug}/')
+        body = response.content.decode()
+        self.assertIn('No live preview', body)
+        self.assertNotIn(f"/app/{project.slug}/preview/\" sandbox", body)
+
+    def test_runnable_snippet_still_gets_its_iframe(self):
+        project = make_project(self.owner, self.cat, title='Runs fine',
+                               html_code='<b>hello</b>')
+        AppProject.objects.filter(pk=project.pk).update(
+            kind='web_app', preview_mode='snippet')
+        response = self.client.get(f'/app/{project.slug}/')
+        self.assertIn('sandbox="allow-scripts allow-forms"', response.content.decode())
+
+    def test_can_run_preview_requires_real_html_not_just_the_mode(self):
+        project = make_project(self.owner, self.cat, title='Lying mode')
+        AppProject.objects.filter(pk=project.pk).update(preview_mode='snippet')
+        project.refresh_from_db()
+        self.assertFalse(project.can_run_preview)
+
+    def test_every_kind_is_publishable_including_unpreviewable_ones(self):
+        """The rule: everything may be uploaded; only honesty differs."""
+        from gallery.taxonomy import PROGRAM_KINDS
+        from gallery.classify import classify_project
+        for k in PROGRAM_KINDS:
+            project = make_project(self.owner, self.cat, title=f"A {k['value']}",
+                                   creator_kind=k['value'])
+            project.zip_file.save(f"{k['value']}.zip",
+                                  make_zip_file({'a.txt': 'x'}), save=True)
+            classify_project(project, allow_llm=False)
+            project.refresh_from_db()
+            self.assertEqual(project.status, 'published')
+            self.assertEqual(project.kind, k['value'])
+            self.assertTrue(project.preview_note)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class KindApiTests(TestCase):
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('apiowner')
+
+    def test_api_exposes_program_kind_without_breaking_the_old_key(self):
+        import json
+        project = make_project(self.owner, self.cat, title='API listed')
+        AppProject.objects.filter(pk=project.pk).update(kind='game', preview_mode='files')
+        data = json.loads(self.client.get('/api/v1/apps/').content)
+        row = data['results'][0]
+        self.assertEqual(row['kind'], 'snippet')          # legacy meaning intact
+        self.assertEqual(row['program_kind'], 'game')
+        self.assertEqual(row['preview'], 'files')
+        self.assertFalse(row['can_run_preview'])
+
+    def test_api_can_filter_by_program_kind(self):
+        import json
+        g = make_project(self.owner, self.cat, title='API game')
+        a = make_project(self.owner, self.cat, title='API backend')
+        AppProject.objects.filter(pk=g.pk).update(kind='game')
+        AppProject.objects.filter(pk=a.pk).update(kind='api_backend')
+        data = json.loads(self.client.get('/api/v1/apps/?program=game').content)
+        self.assertEqual([r['title'] for r in data['results']], ['API game'])
+
+    def test_taxonomy_endpoint_lists_every_kind(self):
+        import json
+        from gallery.taxonomy import KIND_VALUES
+        data = json.loads(self.client.get('/api/v1/program-kinds/').content)
+        self.assertEqual(tuple(r['value'] for r in data['results']), KIND_VALUES)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class PublishClassificationTests(TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.cat = make_category()
+        self.user = make_user('publisher')
+        self.client.force_login(self.user)
+
+    def _payload(self, **extra):
+        data = {
+            'title': 'My canvas game',
+            'category': self.cat.id,
+            'short_description': 'A tiny browser game built with a canvas loop.',
+            'readme': '# My canvas game\n\n' + ('It is a small arcade game. ' * 6),
+            'tech_stack': 'HTML, Canvas',
+            'html_code': '<canvas id="c"></canvas><script>requestAnimationFrame(function l(){})</script>',
+            'css_code': '',
+            'js_code': 'let score = 0;',
+            'star_cost': 0,
+            'price_zar': 0,
+            'creator_kind': '',
+        }
+        data.update(extra)
+        return data
+
+    def test_published_snippet_is_classified_and_scored(self):
+        for i in range(3):
+            make_project(self.user, self.cat, title=f'Prior {i}')
+        response = self.client.post('/publish/', self._payload(), follow=True)
+        self.assertEqual(response.status_code, 200)
+        project = AppProject.objects.get(title='My canvas game')
+        self.assertEqual(project.status, 'published')
+        self.assertEqual(project.kind, 'game')
+        self.assertEqual(project.preview_mode, 'snippet')
+        self.assertGreater(project.appeal_score, 0)
+
+    def test_creator_override_is_honoured_through_the_form(self):
+        for i in range(3):
+            make_project(self.user, self.cat, title=f'Prior2 {i}')
+        self.client.post('/publish/', self._payload(
+            title='Actually a template', creator_kind='template'), follow=True)
+        project = AppProject.objects.get(title='Actually a template')
+        self.assertEqual(project.kind, 'template')
+        self.assertEqual(project.kind_source, 'creator')
+
+    def test_form_rejects_a_kind_outside_the_taxonomy(self):
+        form = AppUploadForm(data=self._payload(creator_kind='definitely-not-real'))
+        self.assertFalse(form.is_valid())
+        self.assertIn('creator_kind', form.errors)
+
+    def test_publishing_teaches_the_platform_what_you_build(self):
+        from gallery.models import KindAffinity
+        for i in range(3):
+            make_project(self.user, self.cat, title=f'Prior3 {i}')
+        self.client.post('/publish/', self._payload(title='Taught game'), follow=True)
+        self.assertTrue(
+            KindAffinity.objects.filter(user=self.user, kind='game').exists())
+
+    def test_zip_upload_is_classified_by_the_pipeline(self):
+        from gallery.tasks import classify_and_score
+        project = make_project(self.user, self.cat, title='Pipeline unity',
+                               status='pending')
+        project.zip_file.save('u.zip', make_zip_file({
+            'ProjectSettings/ProjectVersion.txt': 'x',
+            'Assets/Scenes/Main.unity': 'x',
+        }), save=True)
+        from gallery.models import AppFile
+        for path in ('ProjectSettings/ProjectVersion.txt', 'Assets/Scenes/Main.unity'):
+            AppFile.objects.create(project=project, path=path, size=5)
+        classify_and_score(project)
+        project.refresh_from_db()
+        self.assertEqual(project.kind, 'game')
+        self.assertEqual(project.preview_mode, 'files')
+        self.assertGreater(project.appeal_score, 0)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class InteractionSignalTests(TestCase):
+    """Every learning hook, proven through a real request."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.cat = make_category()
+        self.owner = make_user('sigowner')
+        self.user = make_user('siguser', stars_balance=20)
+        self.game = make_project(self.owner, self.cat, title='Signal game', star_cost=2)
+        self.game.zip_file.save('s.zip', make_zip_file({'a.py': 'x'}), save=True)
+        AppProject.objects.filter(pk=self.game.pk).update(kind='game')
+        self.game.refresh_from_db()
+        self.client.force_login(self.user)
+
+    def _score(self):
+        from gallery.models import KindAffinity
+        row = KindAffinity.objects.filter(user=self.user, kind='game').first()
+        return row.score if row else 0
+
+    def test_viewing_a_detail_page_records_taste(self):
+        self.client.get(f'/app/{self.game.slug}/')
+        self.assertGreater(self._score(), 0)
+
+    def test_starring_records_taste(self):
+        self.client.post(f'/app/{self.game.slug}/star/')
+        self.assertGreaterEqual(self._score(), 3)
+
+    def test_saving_records_taste(self):
+        self.client.post(f'/app/{self.game.slug}/save/')
+        self.assertGreaterEqual(self._score(), 3)
+
+    def test_trading_records_the_strongest_signal(self):
+        self.client.post(f'/app/{self.game.slug}/trade/')
+        self.assertTrue(Trade.objects.filter(buyer=self.user, project=self.game).exists())
+        self.assertGreaterEqual(self._score(), 8)
+
+    def test_a_failed_interaction_does_not_teach_anything(self):
+        broke = make_user('brokeuser', stars_balance=0)
+        self.client.force_login(broke)
+        self.client.post(f'/app/{self.game.slug}/trade/')
+        from gallery.models import KindAffinity
+        self.assertFalse(KindAffinity.objects.filter(user=broke, kind='game').exists())
+
+    def test_recording_never_breaks_the_user_action(self):
+        """Taste is best-effort: a broken recorder must not break a download."""
+        from unittest.mock import patch
+        Trade.objects.create(buyer=self.user, seller=self.owner,
+                             project=self.game, cost=2)
+        with patch('gallery.taste.KindAffinity.objects.select_for_update',
+                   side_effect=RuntimeError('db on fire')):
+            response = self.client.get(f'/app/{self.game.slug}/download/')
+        self.assertEqual(response.status_code, 200)

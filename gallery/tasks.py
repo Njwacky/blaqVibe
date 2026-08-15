@@ -211,6 +211,13 @@ def finalize_publish(*args, project_id=None):
         p.status = 'published'
         p.save(update_fields=['status'])
     if p.status == 'published':
+        # Classify BEFORE the first appeal score: appeal reads preview_mode,
+        # and the feed reads both. Doing it here (not in the view) keeps the
+        # optional LLM call off the request path entirely.
+        try:
+            classify_and_score(p)
+        except Exception:
+            logger.exception('classify at publish failed %s', p.slug)
         from .notify import notify
         # Close the publish → launch loop: detect the shippable artifact in
         # the ZIP and point the creator at the matching launch guide.
@@ -231,6 +238,67 @@ def finalize_publish(*args, project_id=None):
     # Email notify — Why backend? JS toast dies when tab closed, email persists.
     _send_status_email(p)
     return "published" if p.status == 'published' else p.status
+
+def classify_and_score(project):
+    """Label the program and give it a starting appeal score.
+
+    5 Whys — why is this one helper called from three places (publish
+    pipeline, edit, management command) instead of inlined?
+
+    1. Why not inline in the pipeline only? An edit can change the ZIP
+       entirely; a vibe that was a snippet and is now a Unity project must
+       be relabelled or the badge lies.
+    2. Why classify and score together? appeal_score reads preview_mode,
+       which classification writes. Splitting them invites a window where
+       the score was computed against the previous label.
+    3. Why let the LLM run here? This runs inside the scan queue (or an
+       explicit backfill), never inside a user's HTTP request, so a slow
+       provider costs queue time, not page time.
+    4. Why store the LLM's appeal opinion in scan_report? scan_report is
+       already the backend-only blob for machine opinions, and
+       `interest.compute_appeal` reads it back on every later rescore
+       without needing another call.
+    5. Why swallow errors? An unlabelled vibe is a degraded vibe; a vibe
+       that failed to publish because a labeller broke is a lost upload.
+    """
+    from .classify import classify_project
+    from .interest import refresh_project
+    verdict = classify_project(project)
+    try:
+        if verdict.get('llm_appeal') is not None and verdict.get('source') not in ('heuristic', 'creator'):
+            report = project.scan_report or {}
+            report['kind_llm'] = {
+                'appeal': verdict.get('llm_appeal'),
+                'kind': verdict.get('kind'),
+                'source': verdict.get('source'),
+            }
+            project.scan_report = report
+            project.save(update_fields=['scan_report'])
+    except Exception:
+        logger.exception('storing kind_llm failed')
+    refresh_project(project)
+    return verdict
+
+
+@shared_task(queue='rank')
+def refresh_appeal_scores(limit=500):
+    """Periodic rescore. Queue 'rank' so it never blocks a scan.
+
+    5 Whys: 1. Why a separate queue? Scans are latency-critical for the
+    uploader; ranking is not, and a backed-up rescore must never delay a
+    publish. 2. Why a limit argument? Ops can tune batch size to the box
+    without a redeploy. 3. Why not per-project tasks? A million tiny tasks
+    costs more in broker traffic than the work itself. 4. Why return the
+    count? Beat logs then show whether the pass is keeping up. 5. Why
+    catch everything? A ranking failure must never retry-storm the broker.
+    """
+    try:
+        from .interest import refresh_batch
+        return refresh_batch(limit=limit)
+    except Exception:
+        logger.exception('refresh_appeal_scores failed')
+        return 0
+
 
 @shared_task(queue='scan')
 def process_upload_pipeline(project_id):

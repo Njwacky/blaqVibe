@@ -8,6 +8,9 @@
     {% csrf_token %}
     {% if form.errors %}<div style="background:var(--danger-bg);color:var(--danger-text);padding:10px;border-radius:10px;font-size:13px">{{ form.errors }}</div>{% endif %}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><label style="font-size:12px;color:var(--muted)">Title</label>{{ form.title }}</div><div><label style="font-size:12px;color:var(--muted)">Category</label>{{ form.category }}</div></div>
+    <div style="margin-top:12px"><label style="font-size:12px;color:var(--muted)">What kind of program is this?</label>{{ form.creator_kind }}
+      {% if project.kind_evidence %}<div style="font-size:11px;color:var(--muted);margin-top:4px">We labelled this a <b>{{ project.kind_label }}</b> because: {{ project.kind_evidence|join:", " }}. Pick a kind above to override us.</div>{% endif %}
+    </div>
     <div><label style="font-size:12px;color:var(--muted)">Short desc</label>{{ form.short_description }}</div>
     <div><label style="font-size:12px;color:var(--muted)">README</label>{{ form.readme }}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><label style="font-size:12px;color:var(--muted)">Tech stack</label>{{ form.tech_stack }}</div><div><label style="font-size:12px;color:var(--muted)">ZIP (re-upload to version)</label>{{ form.zip_file }}</div></div>
