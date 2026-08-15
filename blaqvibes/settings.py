@@ -151,6 +151,9 @@ CELERY_TASK_ROUTES = {
     'gallery.tasks.scan_zip_with_clamav': {'queue': 'scan'},
     'gallery.tasks.vulnerability_scan': {'queue': 'scan'},
     'gallery.tasks.process_upload_pipeline': {'queue': 'scan'},
+    # Ranking is bulk background work. Its own queue so a long rescore can
+    # never sit in front of a user waiting for their upload to be scanned.
+    'gallery.tasks.refresh_appeal_scores': {'queue': 'rank'},
 }
 CELERY_TASK_TIME_LIMIT = 120  # 2min hard kill per scan
 CELERY_TASK_SOFT_TIME_LIMIT = 90
@@ -161,7 +164,24 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'gallery.tasks.generate_weekly_challenges',
         'schedule': crontab(day_of_week='mon', hour=0, minute=0),
     },
+    # Appeal decays with the clock, so it must be recomputed on the clock.
+    # Every 10 minutes keeps a new upload's ranking fresh without making
+    # ranking a write on the interaction path.
+    'refresh-appeal-scores': {
+        'task': 'gallery.tasks.refresh_appeal_scores',
+        'schedule': crontab(minute='*/10'),
+        'kwargs': {'limit': int(os.getenv('APPEAL_BATCH_LIMIT', '500'))},
+    },
 }
+
+# --- Discovery / program-kind classification ---
+# 5 Whys: Why env-tunable? 1. Cost per LLM call is real money. 2. A traffic
+# spike must be throttleable without a redeploy. 3. Zero is a valid value —
+# it disables LLM classification entirely and leaves the heuristic. 4. The
+# floor lets ops trade accuracy against spend. 5. Defaults are safe for a
+# deployment with no key at all: nothing is called, nothing breaks.
+KIND_LLM_CALLS_PER_MINUTE = int(os.getenv('KIND_LLM_CALLS_PER_MINUTE', '30'))
+KIND_LLM_CONFIDENCE_FLOOR = float(os.getenv('KIND_LLM_CONFIDENCE_FLOOR', '0.55'))
 
 # --- S3 / R2 ---
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', '')

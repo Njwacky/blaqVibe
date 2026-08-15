@@ -6,6 +6,7 @@ urlpatterns = [
     path('', views.feed, name='feed'),
     path('sitemap.xml', views.sitemap_xml, name='sitemap'),
     path('api/v1/apps/', api_views.api_apps, name='api_apps'),
+    path('api/v1/program-kinds/', api_views.api_program_kinds, name='api_program_kinds'),
     path('api/v1/apps/<slug:slug>/', api_views.api_app_detail, name='api_app_detail'),
     path('inbox/', views.notifications_inbox, name='notifications'),
     path('saved/', views.saved_vibes, name='saved_vibes'),

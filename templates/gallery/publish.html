@@ -29,6 +29,10 @@
             <div><label style="font-size:12px;color:var(--muted)">Title*</label>{{ form.title }}</div>
             <div><label style="font-size:12px;color:var(--muted)">Category*</label>{{ form.category }}</div>
           </div>
+          <div>
+            <label style="font-size:12px;color:var(--muted)">What kind of program is this?</label>{{ form.creator_kind }}
+            <div style="font-size:11px;color:var(--muted);margin-top:4px">Everything is welcome here — games, APIs, mobile apps, scripts. Leave it on auto-detect and we work it out from your files. Anything we can’t run in the browser is published with an honest “files only” label.</div>
+          </div>
           <div><label style="font-size:12px;color:var(--muted)">Short description*</label>{{ form.short_description }}</div>
           <div><label style="font-size:12px;color:var(--muted)">README.md* — min 100 chars, must include heading</label>{{ form.readme }}</div>
           <div id="readme-preview" class="help" style="display:none;white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;max-height:160px;overflow:auto"></div>

@@ -4,17 +4,40 @@ from django.db import connection
 # 5 Whys Search v3 — Why very well? 1k vibes, typo "dashbord", ranking by title > stack > readme, trending + rank bonus.
 # Postgres: SearchVector + TrigramSimilarity + GIN. SQLite: scored icontains with title weight.
 
-def search_projects(qs, q, sort='newest'):
+def search_projects(qs, q, sort='newest', user=None):
+    """Filter + order the feed.
+
+    `user` is only consulted for sort='foryou'.
+
+    5 Whys — why does personalisation live inside search_projects instead
+    of being applied by the view afterwards?
+    1. Because ordering must be part of the queryset the Paginator slices;
+       reordering after pagination would only shuffle one page.
+    2. Because 'for you' has to compose with a text query — searching
+       "platformer" as a game-lover should still favour games.
+    3. Because every caller of the feed (feed view, and any future one)
+       then gets the same ordering rules for free.
+    4. Because the view already passes `sort` here; a second ordering hook
+       elsewhere would make "which one wins?" ambiguous.
+    5. Because the fall-through is explicit: an unknown or unsupported sort
+       lands on the same '-created_at' it always did.
+    """
     # Base sort if no query
     if not q:
+        if sort == 'foryou':
+            from .taste import personalized_order
+            ordered, _norm = personalized_order(qs, user)
+            return ordered
         if sort == 'stars':
             return qs.order_by('-stars', '-created_at')
         if sort == 'clones':
             return qs.order_by('-clones', '-created_at')
         if sort == 'trending':
-            # Include rank bonus for trending: clones*3 + stars + bonus (Bronze 0, Silver 5, Gold 15, Platinum 30)
-            # We annotate bonus via python later if needed; here simple
-            return qs.order_by('-stars', '-clones', '-created_at')
+            # Trending = the global interest score, which already blends
+            # engagement with a freshness decay (see gallery/interest.py).
+            # Why not raw stars? Stars never decay, so page one would be
+            # frozen forever and nothing new could ever be discovered.
+            return qs.order_by('-appeal_score', '-stars', '-created_at')
         return qs.order_by('-created_at')
 
     q = q.strip()
@@ -36,8 +59,14 @@ def search_projects(qs, q, sort='newest'):
             # Combined score: rank*2 + trigram
             qs = qs.annotate(combined=F('rank')*2 + F('sim_title') + F('sim_stack'))
             # Apply sort
-            if sort == 'trending':
-                qs = qs.order_by('-combined', '-stars')
+            if sort == 'foryou':
+                # Relevance first (they typed a query), taste as the
+                # tie-breaker — a search is an instruction, taste is a guess.
+                from .taste import personalized_order
+                qs, _norm = personalized_order(qs.order_by(), user, base_field='appeal_score')
+                qs = qs.order_by('-combined', '-personal_score', '-created_at')
+            elif sort == 'trending':
+                qs = qs.order_by('-combined', '-appeal_score', '-stars')
             elif sort == 'stars':
                 qs = qs.order_by('-combined', '-stars')
             else:
@@ -64,12 +93,16 @@ def search_projects(qs, q, sort='newest'):
     # Distinct because tags join
     scored = scored.distinct()
     # Rank: score desc, then sort
-    if sort == 'stars':
+    if sort == 'foryou':
+        from .taste import personalized_order
+        scored, _norm = personalized_order(scored.order_by(), user, base_field='appeal_score')
+        scored = scored.order_by('-score', '-personal_score', '-created_at')
+    elif sort == 'stars':
         scored = scored.order_by('-score', '-stars', '-created_at')
     elif sort == 'clones':
         scored = scored.order_by('-score', '-clones', '-created_at')
     elif sort == 'trending':
-        scored = scored.annotate(trending=F('clones')*3 + F('stars')).order_by('-score', '-trending', '-created_at')
+        scored = scored.order_by('-score', '-appeal_score', '-created_at')
     else:
         scored = scored.order_by('-score', '-created_at')
 
