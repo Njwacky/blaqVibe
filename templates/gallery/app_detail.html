@@ -312,38 +312,13 @@ endif %}{% endblock %} {% block head %}
             </button>
           </form>
           {% else %}
-          <button
-            class="btn-ghost"
-            type="button"
-            disabled
-            title="Unlock to fork"
-          >
-            ⑂ Unlock to fork
-          </button>
-          {% endif %} {% if user.is_authenticated %}
-          <form
-            method="post"
-            action="{% url 'toggle_bookmark' project.slug %}"
-            class="js-save-form"
-            style="display: inline"
-          >
-            {% csrf_token %}<button class="btn-ghost">
-              {% if is_bookmarked %}♥ Saved{% else %}♡ Save{% endif %}
-            </button>
-          </form>
-          {% endif %} {% if project.can_run_preview %}
-          <a
-            href="{% url 'preview' project.slug %}"
-            class="btn-ghost"
-            style="
-              flex: 1;
-              justify-content: center;
-              text-align: center;
-              background: var(--success-action);
-              color: var(--on-accent);
-            "
-            >▶ Run preview</a
-          >
+          <button class="btn-ghost" type="button" disabled title="Unlock to fork">⑂ Unlock to fork</button>
+          {% endif %}
+          {% if user.is_authenticated %}
+          <form method="post" action="{% url 'toggle_bookmark' project.slug %}" class="js-save-form" style="display:inline">{% csrf_token %}<button class="btn-ghost">{% if is_bookmarked %}♥ Saved{% else %}♡ Save{% endif %}</button></form>
+          {% endif %}
+          {% if project.can_run_preview %}
+          <a href="{% url 'preview' project.slug %}" class="btn-ghost" style="flex:1;justify-content:center;text-align:center;background:var(--success-action);color:var(--on-accent)">▶ Run preview</a>
           {% elif project.zip_file %}
           <a
             href="{% url 'preview_files' project.slug %}"
@@ -440,92 +415,27 @@ endif %}{% endblock %} {% block head %}
             {% endif %}
           </div>
         </div>
-        {% endif %} {% if user_rank %}
-        <div style="font-size: 11px; color: var(--muted); margin-top: 6px">
-          Your rank:
-          <b style="color: var(--warning-text)">{{ user_rank.name }}</b> ({{
-          user_rank.discount }}% Pro discount) • Earn stars when others
-          star/trade your vibes → appears 1st when exploring
-        </div>
-        {% endif %} {% if project.price_zar and project.price_zar > 0 %}
-        <div
-          style="
-            margin-top: 8px;
-            background: var(--warning-bg);
-            border: 1px solid var(--warning-border);
-            border-radius: 10px;
-            padding: 10px;
-          "
-        >
-          <div
-            style="
-              font-size: 11px;
-              color: var(--warning-text);
-              font-weight: 700;
-            "
-          >
-            ZAR price — R{{ project.price_zar }}
-          </div>
-          {% if paystack_enabled %} {% if user.is_authenticated and user !=
-          project.owner and not has_bought %}
-          <form
-            method="post"
-            action="{% url 'buy_vibe' project.slug %}"
-            style="margin-top: 6px"
-          >
-            {% csrf_token %}<button class="btnV" style="width: 100%">
-              💳 Pay R{{ project.price_zar }} with Paystack
-            </button>
-          </form>
-          <div style="font-size: 11px; color: var(--muted); margin-top: 4px">
-            Real Paystack checkout. The ZIP unlocks only after a verified
-            charge.
-          </div>
-          {% elif has_bought %}
-          <div
-            style="font-size: 11px; color: var(--success-text); margin-top: 4px"
-          >
-            ✓ You bought this —
-            <a
-              href="{% url 'download_zip' project.slug %}"
-              style="color: var(--success-text)"
-              >Download ZIP</a
-            >
-          </div>
-          {% elif user == project.owner %}
-          <div style="font-size: 11px; color: var(--muted); margin-top: 4px">
-            Listed at R{{ project.price_zar }}. Bank payouts to you are not
-            wired yet.
-          </div>
-          {% endif %} {% else %}
-          <div style="font-size: 11px; color: var(--muted); margin-top: 4px">
-            Card checkout is off (no PAYSTACK_SECRET_KEY). {% if
-            project.star_cost %}Trade {{ project.star_cost }} ★ to unlock.{%
-            else %}Ask the creator or use stars.{% endif %}
-          </div>
+        {% endif %}
+        {% if user_rank %}<div style="font-size:11px;color:var(--muted);margin-top:6px">Your rank: <b style="color:var(--warning-text)">{{ user_rank.name }}</b> ({{ user_rank.discount }}% Pro discount) • Earn stars when others star/trade your vibes → appears 1st when exploring</div>{% endif %}
+        {% if project.price_zar and project.price_zar > 0 %}
+        <div style="margin-top:8px;background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:10px;padding:10px">
+          <div style="font-size:11px;color:var(--warning-text);font-weight:700">ZAR price — R{{ project.price_zar }}</div>
+          {% if paystack_enabled %}
+            {% if user.is_authenticated and user != project.owner and not has_bought %}
+              <form method="post" action="{% url 'buy_vibe' project.slug %}" style="margin-top:6px">{% csrf_token %}<button class="btnV" style="width:100%">💳 Pay R{{ project.price_zar }} with Paystack</button></form>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px">Real Paystack checkout. The ZIP unlocks only after a verified charge.</div>
+            {% elif has_bought %}<div style="font-size:11px;color:var(--success-text);margin-top:4px">✓ You bought this — <a href="{% url 'download_zip' project.slug %}" style="color:var(--success-text)">Download ZIP</a></div>
+            {% elif user == project.owner %}<div style="font-size:11px;color:var(--muted);margin-top:4px">Listed at R{{ project.price_zar }}. Bank payouts to you are not wired yet.</div>
+            {% endif %}
+          {% else %}
+            <div style="font-size:11px;color:var(--muted);margin-top:4px">Card checkout is off (no PAYSTACK_SECRET_KEY). {% if project.star_cost %}Trade {{ project.star_cost }} ★ to unlock.{% else %}Ask the creator or use stars.{% endif %}</div>
           {% endif %}
         </div>
-        {% endif %} {% if user.is_authenticated and user == project.owner %}
-        <div style="display: flex; gap: 6px; margin-top: 8px">
-          <a
-            href="{% url 'edit_vibe' project.slug %}"
-            class="btn-ghost"
-            style="flex: 1; text-align: center"
-            >✎ Edit / Re-upload</a
-          >
-          <form
-            method="post"
-            action="{% url 'delete_vibe' project.slug %}"
-            class="js-delete-form"
-            style="flex: 1"
-          >
-            {% csrf_token %}<button
-              class="btn-ghost"
-              style="width: 100%; color: var(--danger-text)"
-            >
-              🗑 Delete
-            </button>
-          </form>
+        {% endif %}
+        {% if user.is_authenticated and user == project.owner %}
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <a href="{% url 'edit_vibe' project.slug %}" class="btn-ghost" style="flex:1;text-align:center">✎ Edit / Re-upload</a>
+          <form method="post" action="{% url 'delete_vibe' project.slug %}" class="js-delete-form" style="flex:1">{% csrf_token %}<button class="btn-ghost" style="width:100%;color:var(--danger-text)">🗑 Delete</button></form>
         </div>
         {% if launch_next %}
         <a
@@ -1463,102 +1373,15 @@ endif %}{% endblock %} {% block head %}
           >🤖 {{ project.ai_tool }}</span
         >{% endif %}
       </div>
-      <h3 style="font-weight: 700">{{ project.title }}</h3>
-      <p
-        style="
-          font-size: 12px;
-          color: var(--muted);
-          margin: 6px 0;
-          line-height: 1.5;
-        "
-      >
-        {{ project.short_description }}
-      </p>
-      <div style="font-size: 12px; display: flex; flex-direction: column">
-        <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--line);
-          "
-        >
-          <span style="color: var(--muted)">Publisher</span
-          ><b
-            >@{{ project.owner.username }} {% if project.owner.profile.rank
-            %}<span
-              style="
-                font-size: 10px;
-                background: var(--warning-bg);
-                color: var(--warning-text);
-                padding: 2px 6px;
-                border-radius: 6px;
-              "
-              >{{ project.owner.profile.rank.name }}</span
-            >{% endif %}</b
-          >
-        </div>
-        <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--line);
-          "
-        >
-          <span style="color: var(--muted)">Stack</span
-          ><b>{{ project.tech_stack|default:"HTML/CSS" }}</b>
-        </div>
-        <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--line);
-          "
-        >
-          <span style="color: var(--muted)">Files</span
-          ><b>{{ project.file_count }} • {{ project.clones }} clones</b>
-        </div>
-        <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--line);
-          "
-        >
-          <span style="color: var(--muted)">Trade Cost</span
-          ><b
-            >{% if project.star_cost %}{{ project.star_cost }} ★ {% if
-            project.star_cost == 1 %}Bronze{% elif project.star_cost == 2
-            %}Bronze{% elif project.star_cost <= 3 %}Silver{% else %}Gold{%
-            endif %}{% else %}0 ★ Free{% endif %}</b
-          >
-        </div>
-        <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px solid var(--line);
-          "
-        >
-          <span style="color: var(--muted)">Forks</span
-          ><b
-            >⑂ {{ forks_count }} • {% if project.forked_from %}Forked from
-            <a
-              href="{{ project.forked_from.get_absolute_url }}"
-              style="color: var(--link)"
-              >@{{ project.forked_from.owner.username }}</a
-            >{% else %}Original{% endif %}</b
-          >
-        </div>
-        <div
-          style="display: flex; justify-content: space-between; padding: 8px 0"
-        >
-          <span style="color: var(--muted)">License</span><b>MIT</b>
-        </div>
+      <h3 style="font-weight:700">{{ project.title }}</h3>
+      <p style="font-size:12px;color:var(--muted);margin:6px 0;line-height:1.5">{{ project.short_description }}</p>
+      <div style="font-size:12px;display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Publisher</span><b>@{{ project.owner.username }} {% if project.owner.profile.rank %}<span style="font-size:10px;background:var(--warning-bg);color:var(--warning-text);padding:2px 6px;border-radius:6px">{{ project.owner.profile.rank.name }}</span>{% endif %}</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Stack</span><b>{{ project.tech_stack|default:"HTML/CSS" }}</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Files</span><b>{{ project.file_count }} • {{ project.clones }} clones</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Trade Cost</span><b>{% if project.star_cost %}{{ project.star_cost }} ★ {% if project.star_cost == 1 %}Bronze{% elif project.star_cost == 2 %}Bronze{% elif project.star_cost <= 3 %}Silver{% else %}Gold{% endif %}{% else %}0 ★ Free{% endif %}</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Forks</span><b>⑂ {{ forks_count }} • {% if project.forked_from %}Forked from <a href="{{ project.forked_from.get_absolute_url }}" style="color:var(--link)">@{{ project.forked_from.owner.username }}</a>{% else %}Original{% endif %}</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0"><span style="color:var(--muted)">License</span><b>MIT</b></div>
       </div>
       {% if project.language_stats %}
       <div
@@ -1915,3 +1738,4 @@ endif %}{% endblock %} {% block head %}
 {% endblock %} {% block scripts %}
 <script src="/static/gallery/js/detail.js?v=theme-colors-20260815"></script>
 {% endblock %}
+{% block scripts %}<script src="/static/gallery/js/detail.js?v=theme-colors-20260815"></script>{% endblock %}

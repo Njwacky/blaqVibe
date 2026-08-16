@@ -39,6 +39,21 @@ class ProfileForm(forms.ModelForm):
         return f
 
 
+class TipForm(forms.Form):
+    """Gratitude stars — amount + optional note.
+
+    5 Whys: Why a form instead of parsing request.POST by hand? The same
+    bounds (1–1000) and sanitizer must apply no matter who calls the view —
+    a form is the one place they live, and the view stays a thin shell.
+    """
+    amount = forms.IntegerField(min_value=1, max_value=1000)
+    message = forms.CharField(required=False, max_length=200)
+
+    def clean_message(self):
+        # Same bleach policy as bio: no tags, stripped, hard cap.
+        return bleach.clean(self.cleaned_data.get('message', ''), tags=[], strip=True)[:200]
+
+
 class SignUpForm(UserCreationForm):
     email = forms.EmailField(
         required=True,

@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
+from django.db import transaction
 from django.db.models import F, Q, Count
 from django.http import Http404, HttpResponse, JsonResponse, HttpResponseRedirect
 from django.core.paginator import Paginator
@@ -12,8 +13,8 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django_ratelimit.decorators import ratelimit
 import zipfile, os, json, logging
 
-from .models import AppProject, Category, Comment, Star, AppFile, ScanJob, AppReport, AppVersion, Review, Trade, PullRequest
-from .forms import AppUploadForm
+from .models import AppProject, Category, Comment, Star, AppFile, ScanJob, AppReport, AppVersion, Review, Trade, PullRequest, ProjectCoOwner
+from .forms import AppUploadForm, CoOwnerForm
 from .storages import get_presigned_url, is_s3_enabled
 from .search import search_projects
 from .access import user_can_download, user_can_see_project, user_is_moderator, access_denied_message
@@ -194,7 +195,7 @@ def coerce_program_kind_filter(value):
 def app_detail(request, slug):
     qs = AppProject.objects.select_related(
         'owner', 'owner__profile', 'category', 'forked_from', 'forked_from__owner'
-    ).prefetch_related('forks__owner', 'files').annotate(
+    ).prefetch_related('forks__owner', 'files', 'co_owners__user').annotate(
         forks_count=Count('forks', distinct=True),
         prs_count=Count('prs_incoming', distinct=True),
         comment_count=Count('comments', distinct=True),
@@ -666,7 +667,69 @@ def edit_vibe(request, slug):
             return redirect(p.get_absolute_url())
     else:
         form = AppUploadForm(instance=project)
-    return render(request, 'gallery/edit_vibe.html', {'form': form, 'project': project})
+    return render(request, 'gallery/edit_vibe.html', {'form': form, 'project': project, 'co_owner_form': CoOwnerForm()})
+
+
+@login_required
+@require_POST
+@ratelimit(key='user', rate='10/h', method='POST')
+def add_co_owner(request, slug):
+    """Add a co-owner with a % share of star trade revenue.
+
+    5 Whys: Why lock the project row? The trade path locks it too —
+    locking here serializes "edit the split" vs "pay out", so a trade can
+    never pay an old split while the form reads a new one.
+    Why re-queue moderation? It doesn't — a split is metadata about money,
+    not content; re-scanning a ZIP that didn't change would be noise.
+    """
+    project = get_object_or_404(AppProject, slug=slug, owner=request.user)
+    form = CoOwnerForm(request.POST, project=project)
+    if form.is_valid():
+        from django.contrib.auth.models import User
+        user = User.objects.get(username=form.cleaned_data['username'])
+        share = form.cleaned_data['share_percent']
+        try:
+            with transaction.atomic():
+                locked = AppProject.objects.select_for_update().get(pk=project.pk, owner=request.user)
+                ProjectCoOwner.objects.create(project=locked, user=user, share_percent=share)
+        except Exception:
+            logger.exception('add co-owner failed %s %s', project.slug, user.username)
+            messages.error(request, 'Could not add co-owner. Try again.')
+            return redirect('edit_vibe', slug=slug)
+        notify(
+            user, 'co_owner',
+            f'You are now a co-owner of “{project.title}” — {share}% of star trades',
+            url=project.get_absolute_url(),
+        )
+        messages.success(
+            request,
+            f'@{user.username} now receives {share}% of star trades on “{project.title}”. You keep the remainder.',
+        )
+    else:
+        for err in form.errors.values():
+            messages.error(request, err[0])
+    return redirect('edit_vibe', slug=slug)
+
+
+@login_required
+@require_POST
+@ratelimit(key='user', rate='10/h', method='POST')
+def remove_co_owner(request, slug, user_id):
+    """Remove a co-owner — their share returns to the owner automatically."""
+    project = get_object_or_404(AppProject, slug=slug, owner=request.user)
+    try:
+        with transaction.atomic():
+            locked = AppProject.objects.select_for_update().get(pk=project.pk, owner=request.user)
+            removed = ProjectCoOwner.objects.filter(project=locked, user_id=user_id).delete()[0]
+    except Exception:
+        logger.exception('remove co-owner failed %s %s', project.slug, user_id)
+        messages.error(request, 'Could not remove co-owner. Try again.')
+        return redirect('edit_vibe', slug=slug)
+    if removed:
+        messages.success(request, 'Co-owner removed — their share returns to you.')
+    else:
+        messages.info(request, 'That co-owner was not on this vibe.')
+    return redirect('edit_vibe', slug=slug)
 
 @login_required
 @require_POST
@@ -737,11 +800,27 @@ def trade_download(request, slug):
     if trade:
         # Strongest taste signal on the site: they spent scarce currency.
         taste.record(request.user, project, 'trade', project=project)
-        notify(project.owner, 'trade', f'@{request.user.username} traded {trade.cost} ★ for {project.title}', url=project.get_absolute_url())
+        # With co-owners, one purchase produces one Trade row PER recipient.
+        # The buyer-paid total is the SUM of those rows — trade.cost alone
+        # would be just the owner's share and would understate the message.
+        # Reading the actual rows back also means the notifications can never
+        # drift from what the transaction actually paid out.
+        rows = list(Trade.objects.filter(buyer=request.user, project=project))
+        paid = sum(r.cost for r in rows)
+        is_split = len(rows) > 1
+        for r in rows:
+            who = r.seller
+            if who:
+                share_note = f' ({r.cost}★ of {paid}★ — your share)' if is_split else ''
+                notify(
+                    who, 'trade',
+                    f'@{request.user.username} traded {r.cost} ★ for {project.title}{share_note}',
+                    url=project.get_absolute_url(),
+                )
         request.user.profile.refresh_from_db()
         messages.success(
             request,
-            f"Traded {trade.cost} ★ for “{project.title}”. You have {request.user.profile.stars_balance} ★ left.",
+            f"Traded {paid} ★ for “{project.title}”. You have {request.user.profile.stars_balance} ★ left.",
         )
     return redirect('download_zip', slug=slug)
 

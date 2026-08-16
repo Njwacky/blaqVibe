@@ -5,48 +5,127 @@
   <!-- Header -->
   <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
     <div style="width:72px;height:72px;border-radius:16px;overflow:hidden;background:var(--violet);color:var(--on-accent);display:grid;place-items:center;font-weight:800;font-size:22px;flex-shrink:0">
-      {% if profile.avatar %}<img src="{{ profile.avatar.url }}" style="width:100%;height:100%;object-fit:cover">{% else %}{{ profile_user.username|first|upper }}{% endif %}
+      {% if profile.avatar %}<img src="{{ profile.avatar.url }}" style="width:100%;height:100%;object-fit:cover" alt="">{% else %}{{ profile_user.username|first|upper }}{% endif %}
     </div>
     <div style="flex:1;min-width:240px">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
         <span style="font-weight:800;font-size:18px">@{{ profile_user.username }}</span>
         {% if profile_user.is_staff %}<span style="font-size:11px;background:var(--warning-fill);color:var(--on-warning);padding:4px 8px;border-radius:8px;font-weight:700">STAFF</span>{% endif %}
+        {# Rank pill — social proof computed by gallery.ranks, rendered here. #}
+        <span aria-label="Rank: {{ rank.name }}" title="{{ rank.name }} creator — {{ rank.threshold }}+ stars" style="font-size:11px;padding:4px 8px;border-radius:8px;font-weight:700;{% if rank.name == 'Platinum' %}background:#e5e4e2;color:#222{% elif rank.name == 'Gold' %}background:#f5c518;color:#3a2e00{% elif rank.name == 'Silver' %}background:#c0c0c0;color:#1a1a1a{% else %}background:var(--warning-bg);color:var(--warning-text){% endif %}">
+          {% if rank.name == 'Platinum' %}💎{% elif rank.name == 'Gold' %}🥇{% elif rank.name == 'Silver' %}🥈{% else %}🥉{% endif %} {{ rank.name }}
+        </span>
         {% if profile.location %}<span style="font-size:11px;background:var(--bg);border:1px solid var(--line);padding:4px 8px;border-radius:8px">{{ profile.location }}</span>{% endif %}
       </div>
       <div style="font-size:13px;color:var(--text);margin:6px 0">{{ profile.bio|default:"No bio yet — what do you build?" }}</div>
       <div style="display:flex;gap:12px;font-size:12px;color:var(--muted);flex-wrap:wrap">
-        {% if profile.website %}<a href="{{ profile.website }}" target="_blank" style="color:var(--link)">↗ {{ profile.website|slice:":28" }}</a>{% endif %}
-        {% if profile.github %}<a href="https://github.com/{{ profile.github }}" target="_blank" style="color:var(--muted)">GitHub @{{ profile.github }}</a>{% endif %}
-        {% if profile.twitter %}<a href="https://x.com/{{ profile.twitter }}" target="_blank" style="color:var(--muted)">𝕏 @{{ profile.twitter }}</a>{% endif %}
+        {% if profile.website %}<a href="{{ profile.website }}" target="_blank" rel="noopener nofollow" style="color:var(--link)">↗ {{ profile.website|slice:":28" }}</a>{% endif %}
+        {% if profile.github %}<a href="https://github.com/{{ profile.github }}" target="_blank" rel="noopener nofollow" style="color:var(--muted)">GitHub @{{ profile.github }}</a>{% endif %}
+        {% if profile.twitter %}<a href="https://x.com/{{ profile.twitter }}" target="_blank" rel="noopener nofollow" style="color:var(--muted)">𝕏 @{{ profile.twitter }}</a>{% endif %}
+        <span>Joined {{ profile_user.date_joined|date:"M Y" }}</span>
       </div>
     </div>
     <div style="display:flex;gap:16px;text-align:center;align-items:center">
-      <div><div style="font-weight:800;font-size:18px">{{ vibes.count }}</div><div style="font-size:11px;color:var(--muted);letter-spacing:.06em">VIBES</div></div>
-      <div><div id="followers-count" style="font-weight:800;font-size:18px">{{ profile_user.followers.count }}</div><div style="font-size:11px;color:var(--muted);letter-spacing:.06em">FOLLOWERS</div></div>
-      <div><div style="font-weight:800;font-size:18px">{{ profile_user.following.count }}</div><div style="font-size:11px;color:var(--muted);letter-spacing:.06em">FOLLOWING</div></div>
+      <div><div style="font-weight:800;font-size:18px">{{ published_count }}</div><div style="font-size:11px;color:var(--muted);letter-spacing:.06em">VIBES</div></div>
+      <div><div style="font-weight:800;font-size:18px">{{ stars_received }} ★</div><div style="font-size:11px;color:var(--muted);letter-spacing:.06em">STARS EARNED</div></div>
+      <div><div id="followers-count" style="font-weight:800;font-size:18px">{{ followers_count }}</div><div style="font-size:11px;color:var(--muted);letter-spacing:.06em">FOLLOWERS</div></div>
+      <div><div style="font-weight:800;font-size:18px">{{ following_count }}</div><div style="font-size:11px;color:var(--muted);letter-spacing:.06em">FOLLOWING</div></div>
     </div>
-    <div>
-      {% if user.is_authenticated and user.username == profile_user.username %}
+    <div style="display:flex;flex-direction:column;gap:6px;align-items:stretch">
+      {% if is_own %}
         <a href="{% url 'edit_profile' %}" class="btn-ghost">Edit Profile</a>
+        <a href="{% url 'payout_dashboard' %}" class="btn-ghost">⭐ Earnings</a>
       {% elif user.is_authenticated %}
         <button id="follow-btn" class="btn-violet js-follow-btn" data-username="{{ profile_user.username }}" data-csrf="{{ csrf_token }}" style="{% if is_following %}background:var(--line);color:var(--text){% endif %}">{% if is_following %}✓ Following{% else %}Follow{% endif %}</button>
+        {% include 'gallery/_tip_button.html' with tip_recipient_username=profile_user.username %}
+        {% if next_rank %}<div style="font-size:11px;color:var(--muted);text-align:center">Next: {{ next_rank.name }} at {{ next_rank.threshold }} ★</div>{% endif %}
       {% else %}
         <a href="{% url 'login' %}?next=/u/{{ profile_user.username }}/" class="btn-ghost">Follow</a>
+        {% include 'gallery/_tip_button.html' with tip_recipient_username=profile_user.username %}
+        {% if next_rank %}<div style="font-size:11px;color:var(--muted);text-align:center">Next: {{ next_rank.name }} at {{ next_rank.threshold }} ★</div>{% endif %}
       {% endif %}
     </div>
   </div>
 
+  {# Inline tip panel — hidden until ⭐ Tip is clicked. Zero-sum, ledgered. #}
+  {% include 'gallery/_tip_panel.html' with tip_recipient_username=profile_user.username %}
+
+  {# Recent tips — social proof for the creator. Only renders when it exists. #}
+  {% if recent_tips %}
+  <div style="margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-weight:700;font-size:13px">⭐ Recent tips</span>
+      <span id="tips-total" style="font-size:11px;color:var(--muted)">{{ tips_total }}★ total</span>
+    </div>
+    <div id="recent-tips-list">
+      {% for t in recent_tips %}
+      <div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line);font-size:12px;margin-top:6px">
+        <a href="{% url 'profile_view' t.sender.username %}" style="color:var(--link);font-weight:700">@{{ t.sender.username }}</a>
+        <span style="font-weight:800;color:var(--warning-text)">+{{ t.amount }}★</span>
+        {% if t.message %}<span style="color:var(--muted);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">“{{ t.message }}”</span>{% endif %}
+        <span style="color:var(--muted);font-size:11px">{{ t.created_at|timesince }} ago</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
   <!-- Tabs -->
-  <div style="margin-top:16px;display:flex;gap:8px;border-bottom:1px solid var(--line);padding-bottom:8px">
-    <a href="?tab=vibes" style="padding:8px 14px;border-radius:100px;font-size:13px;font-weight:700;{% if tab == 'vibes' %}background:var(--text);color:var(--bg){% else %}background:var(--card);border:1px solid var(--line);color:var(--muted){% endif %}">Vibes ({{ vibes_all.count }})</a>
-    <a href="?tab=stars" style="padding:8px 14px;border-radius:100px;font-size:13px;font-weight:700;{% if tab == 'stars' %}background:var(--text);color:var(--bg){% else %}background:var(--card);border:1px solid var(--line);color:var(--muted){% endif %}">Stars</a>
+  <div style="margin-top:16px;display:flex;gap:8px;border-bottom:1px solid var(--line);padding-bottom:8px;flex-wrap:wrap">
+    <a href="?tab=vibes" {% if tab == 'vibes' %}aria-current="page"{% endif %} style="padding:8px 14px;border-radius:100px;font-size:13px;font-weight:700;{% if tab == 'vibes' %}background:var(--text);color:var(--bg){% else %}background:var(--card);border:1px solid var(--line);color:var(--muted){% endif %}">Vibes ({{ all_count }})</a>
+    <a href="?tab=stars" {% if tab == 'stars' %}aria-current="page"{% endif %} style="padding:8px 14px;border-radius:100px;font-size:13px;font-weight:700;{% if tab == 'stars' %}background:var(--text);color:var(--bg){% else %}background:var(--card);border:1px solid var(--line);color:var(--muted){% endif %}">Stars</a>
+    <a href="?tab=followers" {% if tab == 'followers' %}aria-current="page"{% endif %} style="padding:8px 14px;border-radius:100px;font-size:13px;font-weight:700;{% if tab == 'followers' %}background:var(--text);color:var(--bg){% else %}background:var(--card);border:1px solid var(--line);color:var(--muted){% endif %}">Followers ({{ followers_count }})</a>
+    <a href="?tab=following" {% if tab == 'following' %}aria-current="page"{% endif %} style="padding:8px 14px;border-radius:100px;font-size:13px;font-weight:700;{% if tab == 'following' %}background:var(--text);color:var(--bg){% else %}background:var(--card);border:1px solid var(--line);color:var(--muted){% endif %}">Following ({{ following_count }})</a>
   </div>
 
   {% if tab == 'stars' %}
     <div class="vibe-grid" style="margin-top:12px">
-      {% for p in stars %}<a href="{{ p.get_absolute_url }}" class="card" style="padding:12px;display:block"><div style="font-weight:700;font-size:14px">{{ p.title }}</div><div style="font-size:12px;color:var(--muted)">{{ p.short_description|truncatechars:60 }}</div><div style="font-size:11px;color:var(--muted);margin-top:6px">★ {{ p.stars }} • by @{{ p.owner.username }}</div></a>
-      {% empty %}<div style="grid-column:1/-1;color:var(--muted);padding:20px;text-align:center">No stars yet.</div>{% endfor %}
+      {% for s in starred %}
+      <a href="{{ s.project.get_absolute_url }}" class="card" style="padding:12px;display:block">
+        <div style="font-weight:700;font-size:14px">{{ s.project.title }}</div>
+        <div style="font-size:12px;color:var(--muted)">{{ s.project.short_description|truncatechars:60 }}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">★ {{ s.project.stars }} • by <a href="{% url 'profile_view' s.project.owner.username %}" style="color:var(--link)">@{{ s.project.owner.username }}</a> • starred {{ s.created_at|timesince }} ago</div>
+      </a>
+      {% empty %}<div style="grid-column:1/-1;color:var(--muted);padding:20px;text-align:center">No stars yet — vibes this creator has starred show up here.</div>{% endfor %}
     </div>
+  {% elif tab == 'followers' %}
+    <div class="vibe-grid" style="margin-top:12px">
+      {% for f in followers %}
+      <div class="card" style="padding:12px;display:flex;gap:10px;align-items:center">
+        <div style="width:40px;height:40px;border-radius:12px;overflow:hidden;background:var(--violet);color:var(--on-accent);display:grid;place-items:center;font-weight:800;flex-shrink:0">
+          {% if f.follower.profile.avatar %}<img src="{{ f.follower.profile.avatar.url }}" style="width:100%;height:100%;object-fit:cover" alt="">{% else %}{{ f.follower.username|first|upper }}{% endif %}
+        </div>
+        <div style="flex:1;min-width:0">
+          <a href="{% url 'profile_view' f.follower.username %}" style="font-weight:700;font-size:14px;color:var(--link)">@{{ f.follower.username }}</a>
+          <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ f.follower.profile.bio|default:"No bio yet"|truncatechars:60 }}</div>
+        </div>
+        {% if user.is_authenticated and f.follower.username != user.username %}
+          <button class="btn-ghost js-follow-btn" style="font-size:12px;padding:6px 12px" data-username="{{ f.follower.username }}" data-csrf="{{ csrf_token }}">{% if f.follower.username in following_set %}✓ Following{% else %}Follow{% endif %}</button>
+        {% elif not user.is_authenticated %}
+          <a href="{% url 'login' %}?next=/u/{{ profile_user.username }}/?tab=followers" class="btn-ghost" style="font-size:12px;padding:6px 12px">Follow</a>
+        {% endif %}
+      </div>
+      {% empty %}<div style="grid-column:1/-1;color:var(--muted);padding:20px;text-align:center">No followers yet.</div>{% endfor %}
+    </div>
+    {% if followers %}<p style="font-size:11px;color:var(--muted);margin-top:8px">Showing the first {{ followers|length }} — following connects you to the creator's network.</p>{% endif %}
+  {% elif tab == 'following' %}
+    <div class="vibe-grid" style="margin-top:12px">
+      {% for f in following %}
+      <div class="card" style="padding:12px;display:flex;gap:10px;align-items:center">
+        <div style="width:40px;height:40px;border-radius:12px;overflow:hidden;background:var(--violet);color:var(--on-accent);display:grid;place-items:center;font-weight:800;flex-shrink:0">
+          {% if f.following.profile.avatar %}<img src="{{ f.following.profile.avatar.url }}" style="width:100%;height:100%;object-fit:cover" alt="">{% else %}{{ f.following.username|first|upper }}{% endif %}
+        </div>
+        <div style="flex:1;min-width:0">
+          <a href="{% url 'profile_view' f.following.username %}" style="font-weight:700;font-size:14px;color:var(--link)">@{{ f.following.username }}</a>
+          <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ f.following.profile.bio|default:"No bio yet"|truncatechars:60 }}</div>
+        </div>
+        {% if user.is_authenticated and f.following.username != user.username %}
+          <button class="btn-ghost js-follow-btn" style="font-size:12px;padding:6px 12px" data-username="{{ f.following.username }}" data-csrf="{{ csrf_token }}">{% if f.following.username in following_set %}✓ Following{% else %}Follow{% endif %}</button>
+        {% endif %}
+      </div>
+      {% empty %}<div style="grid-column:1/-1;color:var(--muted);padding:20px;text-align:center">Not following anyone yet.</div>{% endfor %}
+    </div>
+    {% if following %}<p style="font-size:11px;color:var(--muted);margin-top:8px">Showing the first {{ following|length }} — who a creator follows reveals their taste.</p>{% endif %}
   {% else %}
     <div class="vibe-grid" style="margin-top:12px">
       {% for p in vibes_all %}
@@ -61,11 +140,11 @@
         <div style="font-size:12px;color:var(--muted)">{{ p.short_description|truncatechars:70 }}</div>
         <div style="font-size:11px;color:var(--muted);margin-top:6px">{{ p.tech_stack|default:"—" }} • ★ {{ p.stars }} • ⬇ {{ p.clones }}</div>
       </a>
-      {% empty %}<div style="grid-column:1/-1;color:var(--muted);padding:20px;text-align:center">No vibes yet. {% if user.username == profile_user.username %}<a href="{% url 'publish' %}" style="color:var(--link)">Publish your first vibe</a>{% endif %}</div>{% endfor %}
+      {% empty %}<div style="grid-column:1/-1;color:var(--muted);padding:20px;text-align:center">No vibes yet. {% if is_own %}<a href="{% url 'publish' %}" style="color:var(--link)">Publish your first vibe</a>{% endif %}</div>{% endfor %}
     </div>
   {% endif %}
 </div>
 
 
 {% endblock %}
-{% block scripts %}<script src="/static/gallery/js/profile.js?v=theme-colors-20260815"></script>{% endblock %}
+{% block scripts %}<script src="/static/gallery/js/profile.js?v=follow-tabs-20260816"></script><script src="/static/gallery/js/tip.js?v=shared-tip-20260816"></script>{% endblock %}
