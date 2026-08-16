@@ -50,7 +50,12 @@ class Profile(models.Model):
             return False
         return True
 
-    def followers_count(self): return self.followers.count()
+    # 5 Whys: Why do these delegate to the User, not a Profile field?
+    # Follow rows point at User on both ends (follower/following); the
+    # related managers ('followers'/'following') live on User. A version of
+    # followers_count that read self.followers crashed with AttributeError,
+    # so both counts go through user.* — the single source of truth.
+    def followers_count(self): return self.user.followers.count()
     def following_count(self): return self.user.following.count()
     def vibes_count(self): return self.user.projects.filter(status='published').count()
     def stars_received(self):
@@ -122,6 +127,8 @@ class StarEvent(models.Model):
         ('welcome', 'Welcome grant'),
         ('trade_spend', 'Trade — stars spent'),
         ('trade_earn', 'Trade — stars earned'),
+        ('tip_spend', 'Tip — stars sent'),
+        ('tip_earn', 'Tip — stars received'),
         ('challenge_bounty', 'Challenge bounty'),
         ('admin_adjust', 'Admin adjustment'),
         ('backfill', 'Ledger backfill'),
@@ -139,6 +146,41 @@ class StarEvent(models.Model):
     def __str__(self):
         sign = '+' if self.delta >= 0 else ''
         return f'{self.user} {sign}{self.delta} ★ ({self.reason})'
+
+
+class Tip(models.Model):
+    """A gratitude star transfer — sender's wallet → recipient's wallet.
+
+    Zero-sum on purpose: 5 Whys (why no minting?):
+    1. Why can't a tip create stars? The economy rule (gallery/economy.py):
+       "any free action that creates currency is farmable with throwaway
+       accounts." A tip must MOVE existing stars or it becomes a printer.
+    2. Why a row at all, when StarEvent already records both sides? The
+       ledger's `ref: tip:<id>` needs a stable anchor, and the profile's
+       "Recent tips" / payout "Tips received" lists are receipts, not
+       balance math — they render who tipped what and their message.
+    3. Why store the message here, not in StarEvent? The ledger stores
+       deltas; the message is social content with its own 200-char cap.
+    4. Why not let tips count toward rank? Rank = quality signal from
+       trade value. Tips are gratitude — visible in Recent tips instead.
+    5. Why indexes on recipient? Every public profile page reads
+       recent tips by recipient; the hot read gets the index.
+    """
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tips_sent')
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='tips_received')
+    amount = models.PositiveIntegerField(help_text='Stars moved from sender to recipient')
+    message = models.CharField(max_length=200, blank=True, help_text='Optional note, sanitized on the way in')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['recipient', '-created_at']),
+            models.Index(fields=['sender', '-created_at']),
+        ]
+
+    def __str__(self):
+        return f'@{self.sender} → @{self.recipient} {self.amount}★'
 
 
 @receiver(post_save, sender=User)

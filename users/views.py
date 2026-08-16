@@ -4,41 +4,116 @@ from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
+from django.db.models import Count, Sum
 from django.contrib import messages
 from django.core.mail import send_mail
 from django.conf import settings
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
-from .models import Profile, Follow, SiteSettings
-from .forms import ProfileForm
+from django.utils import timezone
+from datetime import datetime, timedelta
+from django_ratelimit.decorators import ratelimit
+from .models import Profile, Follow, SiteSettings, Tip
+from .forms import ProfileForm, TipForm
 from gallery.models import AppProject
 from gallery.notify import notify
 
-# 5 Whys: Why /u/<username>/ not /profile/<id>? Username is brand, SEO, like GitHub. Why not expose email? Privacy — only bio/location.
+# 5 Whys: Why /u/<username>/ not /profile/<id>? Username is brand, SEO, like GitHub.
+# Why not expose email? Privacy — only bio/location.
+# Why does profile_view fetch counts in one aggregate instead of .count() calls?
+# A profile page renders the same counts in the header and the tabs; two
+# COUNT queries per status cost more than one grouped aggregate on the same
+# indexed status column. Public pages are read hot — pay for them once.
 
 def profile_view(request, username):
     user = get_object_or_404(User, username=username)
     profile, _ = Profile.objects.get_or_create(user=user)
+    is_own = request.user.is_authenticated and request.user == user
+
+    # Published vibes are what the public sees. Own profile also shows
+    # pending/quarantined so the creator knows where their uploads stand.
     vibes = AppProject.objects.filter(owner=user, status='published').order_by('-created_at')
-    # If viewing own profile, also show pending/quarantined
-    if request.user == user:
+    if is_own:
         vibes_all = AppProject.objects.filter(owner=user).order_by('-created_at')
     else:
         vibes_all = vibes
+    counts = dict(
+        AppProject.objects.filter(owner=user)
+        .values_list('status')
+        .annotate(c=Count('id'))
+    )
+    published_count = counts.get('published', 0)
+    all_count = sum(counts.values())
+
     is_following = False
-    if request.user.is_authenticated and request.user != user:
+    if request.user.is_authenticated and not is_own:
         is_following = Follow.objects.filter(follower=request.user, following=user).exists()
-    followers = user.followers.select_related('follower')[:20]
-    following = user.following.select_related('following')[:20]
-    tab = request.GET.get('tab','vibes')
-    stars = []
+
+    tab = request.GET.get('tab', 'vibes')
+    if tab not in ('vibes', 'stars', 'followers', 'following'):
+        tab = 'vibes'
+
+    # 5 Whys: Why fetch the follower/following lists only when their tab is
+    # open? They used to be fetched on EVERY profile load and never rendered
+    # — dead queries. A tab nobody opened costs nothing, and the [:20] cap
+    # keeps the page cheap even for a creator with thousands of followers.
+    followers = []
+    following = []
+    following_set = set()
+    if tab in ('followers', 'following'):
+        followers = user.followers.select_related('follower')[:20]
+        following = user.following.select_related('following')[:20]
+        if request.user.is_authenticated:
+            following_set = set(
+                Follow.objects.filter(follower=request.user)
+                .values_list('following__username', flat=True)
+            )
+
+    # Stars tab: vibes THIS USER starred, most recent star first. 5 Whys:
+    # Why query Star rows instead of AppProject.star_set? The star row IS the
+    # fact "who starred what when" — one row per (user, project), unique by
+    # constraint. select_related('project__owner') kills the N+1 that the old
+    # AppProject query had on every card's owner.
+    starred = []
     if tab == 'stars':
         from gallery.models import Star
-        stars = AppProject.objects.filter(star_set__user=user).order_by('-star_set__created_at')
+        starred = (
+            Star.objects.filter(user=user)
+            .select_related('project', 'project__owner')
+            .order_by('-created_at')
+        )
+
+    # Rank + currency proof. rank() and stars_received() were computed on the
+    # model but never rendered anywhere — dead backend logic. They are the
+    # "is this creator worth following?" signal for a stranger's first visit.
+    rank = profile.rank()
+    stars_received = profile.stars_received()
+
+    # Tips are social proof — "this creator gets tipped". Two indexed reads
+    # on a public page; consistency beats staleness for money-adjacent data.
+    recent_tips = Tip.objects.filter(recipient=user).select_related('sender').order_by('-created_at')[:5]
+    tips_total = Tip.objects.filter(recipient=user).aggregate(t=Sum('amount'))['t'] or 0
+
+    # Next rank hint ("Silver at 10 ★") — presentation-only, so it lives in
+    # the view, not in ranks.py (whose dict shape other callers rely on).
+    from gallery.ranks import RANKS
+    next_rank = None
+    for threshold, name, _discount, _bonus in RANKS:
+        if threshold > rank['threshold']:
+            next_rank = {'name': name, 'threshold': threshold}
+            break
+
     return render(request, 'users/profile.html', {
-        'profile_user': user, 'profile': profile, 'vibes': vibes, 'vibes_all': vibes_all,
+        'profile_user': user, 'profile': profile, 'is_own': is_own,
+        'vibes': vibes, 'vibes_all': vibes_all,
+        'published_count': published_count, 'all_count': all_count,
         'is_following': is_following, 'followers': followers, 'following': following,
-        'tab': tab, 'stars': stars
+        'following_set': following_set,
+        'tab': tab, 'starred': starred,
+        'rank': rank, 'next_rank': next_rank, 'stars_received': stars_received,
+        'followers_count': user.followers.count(),
+        'following_count': user.following.count(),
+        'recent_tips': recent_tips, 'tips_total': tips_total,
     })
 
 @login_required
@@ -56,7 +131,18 @@ def edit_profile(request):
 
 @require_POST
 @login_required
+@ratelimit(key='user', rate='30/h', method='POST')
 def toggle_follow(request, username):
+    # 5 Whys: Why ratelimit follow? It was the only POST on the site without
+    # one — every other write (publish 5/h, comment 10/h) is limited. A bot
+    # could follow thousands of accounts in a minute, spamming inboxes with
+    # 'followed you' notifications. 30/h is generous for a human, brutal for
+    # a loop, and consistent with the fail-closed philosophy elsewhere.
+    # Why no explicit 429 here? django-ratelimit 4.x defaults to block=True:
+    # the decorator raises Ratelimited (a PermissionDenied) the moment the
+    # limit is exceeded, and the site's handler403 (safe_403) turns that into
+    # the same friendly 403 every other rate-limited endpoint returns. An
+    # explicit `if request.limited` branch would be unreachable dead code.
     target = get_object_or_404(User, username=username)
     if target == request.user:
         return JsonResponse({'error': 'Cannot follow yourself'}, status=400)
@@ -67,6 +153,50 @@ def toggle_follow(request, username):
         return JsonResponse({'following': False, 'followers': target.followers.count()})
     notify(target, 'follow', f'@{request.user.username} followed you', url=f'/u/{request.user.username}/')
     return JsonResponse({'following': True, 'followers': target.followers.count()})
+
+
+@require_POST
+@login_required
+@ratelimit(key='user', rate='20/h', method='POST')
+def tip_user(request, username):
+    # 5 Whys: Why 20/h, tighter than follow's 30/h? Tips move currency —
+    # the blast radius of a hijacked session is stars, not just follower
+    # counts. 20/h is plenty for genuine gratitude, a hard ceiling for a
+    # loop. Why no explicit 429 here? Same as follow: django-ratelimit
+    # 4.x block=True raises Ratelimited → handler403 → safe_403, the
+    # site-wide behaviour for every rate-limited POST.
+    target = get_object_or_404(User, username=username)
+    if target == request.user:
+        return JsonResponse({'error': 'You cannot tip yourself'}, status=400)
+    form = TipForm(request.POST)
+    if not form.is_valid():
+        return JsonResponse({'error': 'Tip must be 1–1000 stars with a note up to 200 chars.'}, status=400)
+    from .wallet import send_tip
+    try:
+        tip = send_tip(
+            request.user,
+            target,
+            form.cleaned_data['amount'],
+            form.cleaned_data['message'],
+        )
+    except ValueError as e:
+        return JsonResponse({'error': str(e)}, status=400)
+    notify(
+        target,
+        'tip',
+        f'@{request.user.username} tipped you {tip.amount}★',
+        body=tip.message or 'No message — just stars.',
+        url=f'/u/{request.user.username}/',
+    )
+    # F() updates happened in send_tip; refresh so the response shows the
+    # post-tip balance, not a stale cached Profile.
+    request.user.profile.refresh_from_db()
+    return JsonResponse({
+        'ok': True,
+        'amount': tip.amount,
+        'message': tip.message,
+        'balance': request.user.profile.stars_balance,
+    })
 
 @login_required
 def payout_dashboard(request):
@@ -81,6 +211,51 @@ def payout_dashboard(request):
     # The append-only ledger — every wallet move, newest first. This is the
     # answer to "why is my balance N ★?" without a support ticket.
     star_events = StarEvent.objects.filter(user=request.user)[:50]
+    tips_received = Tip.objects.filter(recipient=request.user).select_related('sender').order_by('-created_at')[:20]
+    tips_total = Tip.objects.filter(recipient=request.user).aggregate(t=Sum('amount'))['t'] or 0
+
+    # --- Activity charts: last 14 days, straight from the ledger. ----------
+    # 5 Whys: Why Python-side grouping instead of TruncDate? TruncDate's
+    # timezone handling has tripped more than one Django team; grouping
+    # localtime() dates in Python is unambiguous and the volume is one
+    # user's wallet rows. Why localtime? The dashboard is per-user; a
+    # "day" is their day, not UTC's.
+    now_local = timezone.localtime()
+    start_date = now_local.date() - timedelta(days=13)
+    start_dt = timezone.make_aware(
+        datetime.combine(start_date, datetime.min.time()),
+        timezone.get_current_timezone(),
+    )
+    ledger_events = StarEvent.objects.filter(user=request.user, created_at__gte=start_dt).only('created_at', 'delta')
+    net_by_day = {}
+    earned_by_day = {}
+    spent_by_day = {}
+    for ev in ledger_events:
+        d = timezone.localtime(ev.created_at).date()
+        net_by_day[d] = net_by_day.get(d, 0) + ev.delta
+        if ev.delta >= 0:
+            earned_by_day[d] = earned_by_day.get(d, 0) + ev.delta
+        else:
+            spent_by_day[d] = spent_by_day.get(d, 0) - ev.delta
+    chart_days = []
+    max_val = 0
+    for i in range(14):
+        d = start_date + timedelta(days=i)
+        e, s = earned_by_day.get(d, 0), spent_by_day.get(d, 0)
+        max_val = max(max_val, e, s)
+        chart_days.append({'date': d, 'earned': e, 'spent': s})
+    # Balance at the END of each day, walking backwards from the live
+    # balance: balance_end(day) = balance_end(day+1) - net(day+1).
+    trend = [0] * 14
+    running = request.user.profile.stars_balance
+    for i in range(13, -1, -1):
+        d = start_date + timedelta(days=i)
+        trend[i] = running
+        running -= net_by_day.get(d, 0)
+    from .charts import activity_chart, balance_chart
+    chart_activity_svg = activity_chart(chart_days, max_val)
+    chart_balance_svg = balance_chart(trend, min(trend), max(trend))
+
     return render(request, 'users/payout_dashboard.html', {
         'sales': sales,
         'trades': trades,
@@ -89,6 +264,10 @@ def payout_dashboard(request):
         'stars_earned': stars_earned(request.user),
         'stars_spent': stars_spent(request.user),
         'star_events': star_events,
+        'tips_received': tips_received,
+        'tips_total': tips_total,
+        'chart_activity_svg': chart_activity_svg,
+        'chart_balance_svg': chart_balance_svg,
         'total_zar': total_zar,
         'paystack_enabled': paystack_enabled(),
         'is_pro': request.user.profile.is_pro_active,

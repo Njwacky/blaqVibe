@@ -23,6 +23,25 @@
     {% for v in project.versions.all %}<div style="font-size:12px;display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--line)"><span>v{{ v.version }} — {{ v.changelog|default:"Update" }} • {{ v.created_at|date:"Y-m-d" }}</span><a href="{% url 'download_version' project.slug v.id %}" style="color:var(--link)">Download</a></div>{% endfor %}
   </div>
   {% endif %}
+
+  <div style="margin-top:16px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px">
+    <div style="font-size:12px;font-weight:700">Co-owners — split star trade revenue</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px">Each trade on this vibe pays every co-owner their % of the star cost, atomically; you keep the remainder. Paystack card sales still pay you (the owner) only — payouts aren't wired yet. Splits are rounded so every star is accounted for.</div>
+    {% for co in project.co_owners.all %}
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px">
+      <span><a href="{% url 'profile_view' co.user.username %}" style="color:var(--link)">@{{ co.user.username }}</a> — <b>{{ co.share_percent }}%</b></span>
+      <form method="post" action="{% url 'remove_co_owner' project.slug co.user.id %}" style="display:inline">{% csrf_token %}<button class="btnG" style="padding:4px 10px;font-size:11px">Remove</button></form>
+    </div>
+    {% empty %}
+    <div style="color:var(--muted);font-size:12px;padding:8px 0">No co-owners — you keep 100% of star trades.</div>
+    {% endfor %}
+    <form method="post" action="{% url 'add_co_owner' project.slug %}" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+      {% csrf_token %}
+      <div style="flex:1;min-width:140px"><label style="font-size:11px;color:var(--muted)">Username</label>{{ co_owner_form.username }}</div>
+      <div style="width:90px"><label style="font-size:11px;color:var(--muted)">Share %</label>{{ co_owner_form.share_percent }}</div>
+      <button class="btnV" style="padding:8px 14px">Add co-owner</button>
+    </form>
+  </div>
 </div>
 <link rel="stylesheet" href="/static/gallery/css/forms.css?v=theme-colors-20260815">
 {% endblock %}

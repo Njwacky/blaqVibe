@@ -26,13 +26,70 @@ from django.db.models import F, Sum
 from users.models import Profile, StarEvent
 
 from .access import effective_star_cost
-from .models import Trade
+from .models import AppProject, Trade
 
 
 class TradeError(Exception):
     def __init__(self, message):
         self.message = message
         super().__init__(message)
+
+
+def split_shares(project, total):
+    """Distribute `total` stars among owner + co-owners.
+
+    Returns [(user, amount), ...] where amounts sum EXACTLY to total and
+    every amount is >= 1 (zero-share recipients are omitted, so the list
+    may be shorter than the team). Owner keeps 100 − Σ(co-owner shares).
+
+    5 Whys:
+    1. Why largest-remainder instead of truncation? 5★ split 34/33/33:
+       floor gives 1+1+1 = 3 — two stars would vanish (or be minted if we
+       rounded up). Largest remainder hands the leftover to the biggest
+       fractional parts, so Σ == total always: buyer pays N, team gets N,
+       the ledger reconciles. A star is never created or destroyed by
+       arithmetic.
+    2. Why integer math (`p // 100`, `p % 100`) instead of floats?
+       Float division is fine at 2 decimals but the remainder loop needs
+       exactness; integer quotients/remainders are exact by construction.
+    3. Why omit zero-share recipients instead of creating 0★ Trade rows?
+       A "+0 ★" ledger row and Trade row is noise that breaks the "you
+       earned" display; the remainder pass guarantees the omitted rows
+       truly would have been 0.
+    4. Why owner first, then co-owners by id? The returned order is the
+       lock order in trade_for_download; a stable total order across
+       concurrent trades prevents deadlocks.
+    5. Why fall back to owner-gets-all when shares exceed 100? That state
+       is unreachable through the app (form validates Σ ≤ 100), but a
+       direct DB write must not pay out more than 100% — fail safe.
+    """
+    co = list(project.co_owners.select_related('user').order_by('id'))
+    used = sum(c.share_percent for c in co)
+    if used > 100:
+        # Defensive only — the app never allows this state.
+        return [(project.owner, total)]
+    entries = [(project.owner, 100 - used)]
+    entries += [(c.user, c.share_percent) for c in co]
+    entries = [(u, p) for u, p in entries if p > 0]
+    if not entries or total <= 0:
+        return []
+
+    quotas = []
+    for order, (u, p) in enumerate(entries):
+        quotas.append((u, total * p // 100, total * p % 100, order))
+    base = {}
+    given = 0
+    for u, q, _r, _o in quotas:
+        base[u] = q
+        given += q
+    remainder = total - given
+    # Largest fractional remainder first; ties break by stable order.
+    for u, _q, r, order in sorted(quotas, key=lambda t: (-t[2], t[3])):
+        if remainder <= 0:
+            break
+        base[u] += 1
+        remainder -= 1
+    return [(u, amt) for u, amt in base.items() if amt > 0]
 
 
 def trade_for_download(buyer, project):
@@ -80,9 +137,20 @@ def trade_for_download(buyer, project):
 
     try:
         with transaction.atomic():
+            # Lock the PROJECT row first: co-owner shares can change while a
+            # trade is mid-flight. Locking serializes "edit the split" vs
+            # "pay out" so the distribution always matches the current team.
+            locked = AppProject.objects.select_for_update().get(pk=project.pk)
+            # Re-check under the lock. The old schema-level unique
+            # (buyer, project) is gone (co-owner splits need one Trade row
+            # per recipient), so the project row is now the serialization
+            # point: a concurrent first-purchase waits on this lock, sees
+            # the rows we insert, and returns them instead of paying twice.
+            existing_locked = Trade.objects.filter(buyer=buyer, project=locked).first()
+            if existing_locked:
+                return existing_locked
             try:
                 buyer_p = Profile.objects.select_for_update().get(user=buyer)
-                seller_p = Profile.objects.select_for_update().get(user=project.owner)
             except Profile.DoesNotExist as exc:
                 raise TradeError('Account profile is missing. Refresh and try again.') from exc
             if buyer_p.stars_balance < cost:
@@ -90,25 +158,39 @@ def trade_for_download(buyer, project):
                     f'Need {cost} ★ to trade for “{project.title}” — you have {buyer_p.stars_balance} ★. '
                     'Earn stars by publishing vibes that get traded.'
                 )
+            # One Trade + ledger row PER RECIPIENT (owner + each co-owner).
+            # 5 Whys: why not one row with multiple sellers? Trade.seller is
+            # a single FK used by ranks, payout dashboard, trading history
+            # and ledger refs. Per-recipient rows keep every existing query
+            # correct unchanged — each person's "sold" list shows exactly
+            # their share. Lock order follows split_shares (owner first, then
+            # co-owners by id) so concurrent trades never deadlock.
+            shares = split_shares(locked, cost)
+            if not shares:
+                raise TradeError('No recipient for this trade. Try again.')
+            trades = []
+            for recipient, share in shares:
+                recipient_p = Profile.objects.select_for_update().get(user=recipient)
+                Profile.objects.filter(pk=recipient_p.pk).update(stars_balance=F('stars_balance') + share)
+                t = Trade.objects.create(
+                    buyer=buyer,
+                    seller=recipient,
+                    project=locked,
+                    cost=share,
+                )
+                trades.append(t)
+                # Ledger INSIDE the same transaction as the balance moves —
+                # a crash cannot leave money the ledger can't explain.
+                StarEvent.objects.create(
+                    user=recipient, delta=share, reason='trade_earn',
+                    ref=f'trade:{t.pk}:{locked.slug}',
+                )
             Profile.objects.filter(pk=buyer_p.pk).update(stars_balance=F('stars_balance') - cost)
-            Profile.objects.filter(pk=seller_p.pk).update(stars_balance=F('stars_balance') + cost)
-            trade = Trade.objects.create(
-                buyer=buyer,
-                seller=project.owner,
-                project=project,
-                cost=cost,
-            )
-            # Ledger both sides INSIDE the same transaction as the balance
-            # moves — a crash cannot leave money the ledger can't explain.
             StarEvent.objects.create(
                 user=buyer, delta=-cost, reason='trade_spend',
-                ref=f'trade:{trade.pk}:{project.slug}',
+                ref=f'trade:{trades[0].pk}:{locked.slug}',
             )
-            StarEvent.objects.create(
-                user=project.owner, delta=cost, reason='trade_earn',
-                ref=f'trade:{trade.pk}:{project.slug}',
-            )
-            return trade
+            return trades[0]
     except IntegrityError:
         existing = Trade.objects.filter(buyer=buyer, project=project).first()
         if existing:

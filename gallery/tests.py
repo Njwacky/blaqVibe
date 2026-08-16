@@ -10,7 +10,7 @@ from django.utils import timezone
 
 from gallery.access import user_can_download
 from gallery.forms import AppUploadForm
-from gallery.models import AppProject, Category, PaymentIntent, Sale, Star, Trade, VibeBattle
+from gallery.models import AppProject, Category, Notification, PaymentIntent, ProjectCoOwner, Sale, Star, Trade, VibeBattle
 from gallery.validators import validate_zip
 from users.models import Profile
 
@@ -2501,3 +2501,169 @@ class InteractionSignalTests(TestCase):
                    side_effect=RuntimeError('db on fire')):
             response = self.client.get(f'/app/{self.game.slug}/download/')
         self.assertEqual(response.status_code, 200)
+
+
+@override_settings(RATELIMIT_ENABLE=False)
+class CoOwnerSplitTests(TestCase):
+    """Co-owner revenue splits — the trust layer for team-built vibes.
+
+    5 Whys: Why test the money path so hard? Splits move currency to MORE
+    recipients per purchase — every invariant that held for one seller
+    (zero-sum, ledger reconciliation, no replay, verified gate) must hold
+    for N sellers, or the economy gains a rounding/minting hole.
+    """
+
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('owner', stars_balance=5)
+        self.buyer = make_user('buyer', stars_balance=10)
+        self.partner = make_user('partner', stars_balance=0)
+        self.partner2 = make_user('partner2', stars_balance=0)
+        self.project = make_project(self.owner, self.cat, star_cost=4, price_zar=0)
+        self.project.zip_file.save('paid.zip', make_zip_file({'app.py': 'print(1)\n'}), save=True)
+
+    def _trade(self):
+        self.client.login(username='buyer', password='pass12345')
+        return self.client.post(f'/app/{self.project.slug}/trade/')
+
+    def test_no_co_owners_owner_gets_everything(self):
+        """The pre-existing behaviour must not change when no split is set."""
+        response = self._trade()
+        self.assertEqual(response.status_code, 302)
+        self.owner.profile.refresh_from_db()
+        self.buyer.profile.refresh_from_db()
+        self.assertEqual(self.owner.profile.stars_balance, 9)   # 5 + 4
+        self.assertEqual(self.buyer.profile.stars_balance, 6)   # 10 - 4
+        self.assertEqual(Trade.objects.filter(buyer=self.buyer, project=self.project).count(), 1)
+        # Buyer still unlocks the ZIP.
+        download = self.client.get(f'/app/{self.project.slug}/download/')
+        self.assertEqual(download.status_code, 200)
+
+    def test_5050_split_pays_both_and_buyer_once(self):
+        ProjectCoOwner.objects.create(project=self.project, user=self.partner, share_percent=50)
+        response = self._trade()
+        self.assertEqual(response.status_code, 302)
+        self.owner.profile.refresh_from_db()
+        self.partner.profile.refresh_from_db()
+        self.buyer.profile.refresh_from_db()
+        self.assertEqual(self.owner.profile.stars_balance, 7)    # 5 + 2
+        self.assertEqual(self.partner.profile.stars_balance, 2)  # 0 + 2
+        self.assertEqual(self.buyer.profile.stars_balance, 6)    # 10 - 4
+        rows = list(Trade.objects.filter(buyer=self.buyer, project=self.project))
+        self.assertEqual(len(rows), 2)
+        self.assertEqual(sum(r.cost for r in rows), 4)           # zero-sum
+        # Replay must not pay twice.
+        self._trade()
+        self.assertEqual(Trade.objects.filter(buyer=self.buyer, project=self.project).count(), 2)
+        self.owner.profile.refresh_from_db()
+        self.partner.profile.refresh_from_db()
+        self.buyer.profile.refresh_from_db()
+        self.assertEqual(self.owner.profile.stars_balance, 7)
+        self.assertEqual(self.partner.profile.stars_balance, 2)
+        self.assertEqual(self.buyer.profile.stars_balance, 6)
+
+    def test_three_way_rounding_sums_exactly(self):
+        """5★ across 34/33/33 must distribute 2/2/1 — never 3 or 6."""
+        self.project.star_cost = 5
+        self.project.save(update_fields=['star_cost'])
+        ProjectCoOwner.objects.create(project=self.project, user=self.partner, share_percent=34)
+        ProjectCoOwner.objects.create(project=self.project, user=self.partner2, share_percent=33)
+        self._trade()
+        rows = list(Trade.objects.filter(buyer=self.buyer, project=self.project))
+        self.assertEqual(sum(r.cost for r in rows), 5)
+        self.assertEqual(
+            sorted(r.cost for r in rows), [1, 2, 2],
+            f'largest-remainder must hit 2/2/1, got {sorted(r.cost for r in rows)}',
+        )
+        # Every wallet reconciles with its ledger — the zero-sum invariant.
+        # (Opening admin_adjust rows mirror the balances make_user set
+        # directly, so sum(deltas) == balance holds before and after.)
+        from users.models import StarEvent
+        from users.wallet import ledger_balance
+        openings = {self.owner: 5, self.partner: 0, self.partner2: 0}
+        for u, opening in openings.items():
+            StarEvent.objects.create(user=u, delta=opening, reason='admin_adjust', ref='test-open')
+        for u in (self.owner, self.partner, self.partner2):
+            u.profile.refresh_from_db()
+            self.assertEqual(ledger_balance(u), u.profile.stars_balance, u.username)
+
+    def test_owner_zero_share_when_coowners_take_all(self):
+        ProjectCoOwner.objects.create(project=self.project, user=self.partner, share_percent=60)
+        ProjectCoOwner.objects.create(project=self.project, user=self.partner2, share_percent=40)
+        self._trade()
+        rows = list(Trade.objects.filter(buyer=self.buyer, project=self.project))
+        self.assertEqual(sum(r.cost for r in rows), 4)
+        self.assertEqual(sorted(r.cost for r in rows), [2, 2])
+        self.assertFalse(Trade.objects.filter(buyer=self.buyer, seller=self.owner).exists())
+        self.owner.profile.refresh_from_db()
+        self.assertEqual(self.owner.profile.stars_balance, 5)  # untouched
+
+    def test_management_rejects_sum_over_100(self):
+        ProjectCoOwner.objects.create(project=self.project, user=self.partner, share_percent=70)
+        self.client.login(username='owner', password='pass12345')
+        response = self.client.post(f'/app/{self.project.slug}/co-owners/add/', {
+            'username': 'partner2', 'share_percent': 40,
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(ProjectCoOwner.objects.filter(project=self.project, user=self.partner2).exists())
+
+    def test_management_rejects_owner_and_duplicate_and_unknown(self):
+        self.client.login(username='owner', password='pass12345')
+        ProjectCoOwner.objects.create(project=self.project, user=self.partner, share_percent=30)
+        url = f'/app/{self.project.slug}/co-owners/add/'
+        self.client.post(url, {'username': 'owner', 'share_percent': 10})       # owner is the remainder
+        self.client.post(url, {'username': 'partner', 'share_percent': 10})     # duplicate
+        self.client.post(url, {'username': 'nobody-here', 'share_percent': 10}) # unknown
+        self.assertEqual(ProjectCoOwner.objects.filter(project=self.project).count(), 1)
+
+    def test_add_remove_flow_and_notification(self):
+        self.client.login(username='owner', password='pass12345')
+        url = f'/app/{self.project.slug}/co-owners/add/'
+        response = self.client.post(url, {'username': 'partner', 'share_percent': 50})
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(ProjectCoOwner.objects.filter(project=self.project, user=self.partner, share_percent=50).exists())
+        self.assertTrue(Notification.objects.filter(user=self.partner, kind='co_owner').exists())
+        # Remove — share returns to the owner.
+        response = self.client.post(f'/app/{self.project.slug}/co-owners/{self.partner.id}/remove/')
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(ProjectCoOwner.objects.filter(project=self.project, user=self.partner).exists())
+        self._trade()
+        self.owner.profile.refresh_from_db()
+        self.assertEqual(self.owner.profile.stars_balance, 9)  # full 4 back to owner
+
+    def test_non_owner_cannot_manage(self):
+        self.client.login(username='partner', password='pass12345')
+        response = self.client.post(f'/app/{self.project.slug}/co-owners/add/', {
+            'username': 'partner2', 'share_percent': 50,
+        })
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(ProjectCoOwner.objects.filter(project=self.project).exists())
+
+    def test_co_owner_account_deletion_cascades_share_back(self):
+        ProjectCoOwner.objects.create(project=self.project, user=self.partner, share_percent=50)
+        partner_id = self.partner.pk
+        self.partner.delete()  # leaves the platform; pk becomes None afterwards
+        self.assertFalse(ProjectCoOwner.objects.filter(project=self.project, user_id=partner_id).exists())
+        self._trade()
+        rows = list(Trade.objects.filter(buyer=self.buyer, project=self.project))
+        self.assertEqual(len(rows), 1)  # only the owner is left
+        self.assertEqual(rows[0].cost, 4)
+        self.owner.profile.refresh_from_db()
+        self.assertEqual(self.owner.profile.stars_balance, 9)
+
+    def test_app_detail_shows_co_owners(self):
+        ProjectCoOwner.objects.create(project=self.project, user=self.partner, share_percent=50)
+        response = self.client.get(f'/app/{self.project.slug}/')
+        self.assertContains(response, 'Co-owner')
+        self.assertContains(response, '@partner')
+        self.assertContains(response, '50% of trades')
+
+    def test_split_trade_notifies_each_recipient_with_share(self):
+        ProjectCoOwner.objects.create(project=self.project, user=self.partner, share_percent=50)
+        self._trade()
+        owner_note = Notification.objects.filter(user=self.owner, kind='trade').first()
+        partner_note = Notification.objects.filter(user=self.partner, kind='trade').first()
+        self.assertIsNotNone(owner_note)
+        self.assertIsNotNone(partner_note)
+        self.assertIn('your share', partner_note.title)
+        self.assertIn('2 ★', partner_note.title)

@@ -73,3 +73,54 @@ class AppUploadForm(forms.ModelForm):
             raise forms.ValidationError("Provide either a ZIP file (full app) or HTML snippet.")
         return cleaned
 
+
+
+class CoOwnerForm(forms.Form):
+    """Add a co-owner to a vibe — username + share % of star trades.
+
+    5 Whys: Why a form instead of inline view checks? The same three rules
+    (user exists, not the owner, not already a co-owner, Σ shares ≤ 100)
+    must hold no matter who calls the view; a form is the one place they
+    live and the view stays a thin shell.
+    """
+    username = forms.CharField(max_length=150, widget=forms.TextInput(attrs={
+        'placeholder': 'username',
+        'class': 'field-input',
+        'autocomplete': 'off',
+    }))
+    share_percent = forms.IntegerField(min_value=1, max_value=100, widget=forms.NumberInput(attrs={
+        'placeholder': '30',
+        'class': 'field-input',
+        'min': 1,
+        'max': 100,
+    }))
+
+    def __init__(self, *args, project=None, **kwargs):
+        self.project = project
+        super().__init__(*args, **kwargs)
+
+    def clean_username(self):
+        username = (self.cleaned_data.get('username') or '').strip()
+        if not username:
+            raise forms.ValidationError('Enter a username.')
+        from django.contrib.auth.models import User
+        user = User.objects.filter(username=username).first()
+        if not user:
+            raise forms.ValidationError('No user with that username.')
+        if self.project and user.pk == self.project.owner_id:
+            raise forms.ValidationError('The owner already keeps the remainder — no need to add them.')
+        if self.project and self.project.co_owners.filter(user=user).exists():
+            raise forms.ValidationError(f'@{username} is already a co-owner.')
+        return username
+
+    def clean(self):
+        cleaned = super().clean()
+        share = cleaned.get('share_percent')
+        if self.project and share:
+            existing = sum(c.share_percent for c in self.project.co_owners.all())
+            if existing + share > 100:
+                raise forms.ValidationError(
+                    f'Co-owner shares already total {existing}% — adding {share}% would '
+                    f'exceed 100% (the owner must keep a remainder).'
+                )
+        return cleaned

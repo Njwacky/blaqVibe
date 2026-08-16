@@ -251,6 +251,46 @@ class AppReport(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     def __str__(self): return f"{self.project.slug} — {self.reason}"
 
+class ProjectCoOwner(models.Model):
+    """A revenue share in a vibe's star trades.
+
+    The OWNER keeps whatever the co-owners don't: owner_share =
+    100 − Σ(co-owner share_percent). Adding or removing a co-owner never
+    rewrites existing rows — the remainder always rebalances itself.
+
+    5 Whys:
+    1. Why percentages, not absolute star amounts? Star cost changes over
+       time (0 → 3 → 5); a percentage stays fair at every price point.
+    2. Why a separate table instead of a second owner FK on AppProject?
+       owner is non-null everywhere (templates, ranks, lifecycle ghost).
+       The table keeps owner = accountable entity; money splits are a
+       separate, removable attribute.
+    3. Why CASCADE on project? The row is pure metadata about the project;
+       a hard project delete (never paid) should take the split with it.
+    4. Why CASCADE on user? A co-owner leaving the platform removes their
+       share automatically — their percentage silently returns to the owner.
+    5. Why cap each share at 100 and validate the sum? The form enforces
+       Σ ≤ 100 so the owner's remainder never goes negative; the Check
+      Constraint guards direct writes.
+    """
+    project = models.ForeignKey(AppProject, on_delete=models.CASCADE, related_name='co_owners')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='co_owned_projects')
+    share_percent = models.PositiveSmallIntegerField(help_text='% of star trade revenue (1–100). Owner keeps the remainder.')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('project', 'user')
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(share_percent__gte=1) & models.Q(share_percent__lte=100),
+                name='co_owner_share_between_1_and_100',
+            ),
+        ]
+
+    def __str__(self):
+        return f'@{self.user.username} {self.share_percent}% of {self.project.slug}'
+
+
 class AppVersion(models.Model):
     """Git-like versions — Why not overwrite zip? History + stars preserved, rollback."""
     project = models.ForeignKey(AppProject, on_delete=models.CASCADE, related_name='versions')
@@ -274,9 +314,13 @@ class Trade(models.Model):
     3. Why nullable users but a protected project? The project row carries
        the ZIP buyers paid for; a user row carries nothing the counterparty
        needs.
-    4. Why keep unique (buyer, project)? One purchase per buyer per app —
-       NULLed buyers no longer collide because their Trade rows keep
-       history only.
+    4. Why NO unique (buyer, project) anymore? Co-owner splits create one
+       Trade row PER RECIPIENT (owner + each co-owner) so ranks, payout
+       dashboards and ledger refs each see exactly their share. "One
+       purchase per buyer" is now enforced in code (the early-return guard
+       + the re-check under the project lock in trade_for_download), not
+       by the schema — and the project-row lock serializes concurrent
+       purchases, which is stronger than letting one INSERT fail.
     5. Why not soft-delete users too? Django auth deletion is a legal
        (POPIA) erasure path; receipts just stop naming them.
     """
@@ -286,7 +330,7 @@ class Trade(models.Model):
     cost = models.PositiveIntegerField()
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
-        unique_together = ('buyer','project')  # one trade per buyer per app
+        indexes = [models.Index(fields=['buyer', 'project'])]
     def __str__(self): return f"{self.buyer} → {self.project.slug} ({self.cost}★)"
 
 class VibeView(models.Model):
@@ -456,6 +500,8 @@ class Notification(models.Model):
     KIND_CHOICES = [
         ('comment', 'Comment'),
         ('follow', 'Follow'),
+        ('tip', 'Tip'),
+        ('co_owner', 'Co-owner'),
         ('trade', 'Trade'),
         ('sale', 'Sale'),
         ('pr', 'Pull request'),

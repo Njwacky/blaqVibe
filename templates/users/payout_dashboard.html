@@ -15,7 +15,7 @@
 {% block content %}
 <div style="max-width:900px;margin:0 auto;padding:20px">
   <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">★ Earnings — stars</h1>
-  <p style="color:var(--muted);font-size:13px">Stars are the working money path. You earn them when someone trades your vibe, and you spend them to unlock others. No bank transfer is sent from this page.</p>
+  <p style="color:var(--muted);font-size:13px">Stars are the working money path. You earn them when someone trades your vibe or tips you, and you spend them to unlock others. No bank transfer is sent from this page.</p>
 
   {% if not is_pro %}
   <div class="pro-banner" style="margin-top:12px;background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:12px;padding:14px;display:flex;gap:12px;align-items:center">
@@ -39,6 +39,21 @@
   </div>
 
   <div style="margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px">
+    <div style="font-weight:700">📈 Activity — last 14 days</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:2px">Charts read the append-only <b>StarEvent ledger</b> — the same rows behind your balance. Views/clones history isn't tracked yet, so this is wallet truth, not pageviews.</div>
+    {% if chart_activity_svg %}
+      {{ chart_activity_svg|safe }}
+    {% else %}
+      <div style="color:var(--muted);font-size:13px;padding:12px;background:var(--input);border:1px dashed var(--line);border-radius:10px;margin-top:8px">No wallet activity in the last 14 days — trade a vibe, send a tip, or win a challenge and the chart comes alive.</div>
+    {% endif %}
+    {% if chart_balance_svg %}
+      {{ chart_balance_svg|safe }}
+    {% else %}
+      <div style="color:var(--muted);font-size:13px;padding:12px;background:var(--input);border:1px dashed var(--line);border-radius:10px;margin-top:8px">Balance history is empty — the ledger has no rows yet. Confirm your email for the 5★ welcome grant to start it.</div>
+    {% endif %}
+  </div>
+
+  <div style="margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px">
     <div style="font-weight:700">Star ledger</div>
     <div style="font-size:12px;color:var(--muted);margin-top:2px">Every wallet move, newest first — this is the receipt trail behind your balance.</div>
     {% for ev in star_events %}
@@ -49,6 +64,21 @@
     </div>
     {% empty %}
     <div style="color:var(--muted);font-size:13px;padding:12px;background:var(--input);border:1px dashed var(--line);border-radius:10px;margin-top:8px">No wallet moves yet. Confirm your email to receive the welcome grant, then trade vibes to earn.</div>
+    {% endfor %}
+  </div>
+
+  <div style="margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px">
+    <div style="font-weight:700">Tips received</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:2px">Gratitude stars — fans send them from your profile without a download. Total: <b>{{ tips_total }} ★</b>.</div>
+    {% for t in tips_received %}
+    <div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:12px">
+      <span style="font-weight:800;min-width:52px;text-align:right;color:#10B981">+{{ t.amount }} ★</span>
+      <a href="{% url 'profile_view' t.sender.username %}" style="color:var(--link)">@{{ t.sender.username }}</a>
+      <span style="flex:1;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{% if t.message %}“{{ t.message }}”{% else %}no message{% endif %}</span>
+      <span style="color:var(--muted)">{{ t.created_at|date:"Y-m-d H:i" }}</span>
+    </div>
+    {% empty %}
+    <div style="color:var(--muted);font-size:13px;padding:12px;background:var(--input);border:1px dashed var(--line);border-radius:10px;margin-top:8px">No tips yet. Tippers send stars without a download — one click from your profile.</div>
     {% endfor %}
   </div>
 

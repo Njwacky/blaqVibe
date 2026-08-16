@@ -5,7 +5,8 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from users.forms import SignUpForm
-from users.models import Profile
+from users.models import Follow, Profile, StarEvent
+from gallery.models import AppProject, Category, Notification
 
 
 @override_settings(RATELIMIT_ENABLE=False)
@@ -114,3 +115,499 @@ class AuthAndProTests(TestCase):
         self.assertContains(response, '3 ★')
         self.assertContains(response, 'stars are the complete money path')
         self.assertNotContains(response, 'YOUR PAYOUT (85%)')
+
+
+@override_settings(RATELIMIT_ENABLE=False)
+class ProfileAndFollowTests(TestCase):
+    """The whole profile + follow surface — the community backbone.
+
+    5 Whys: Why test this surface at all? Every discovery flow on the site
+    funnels through it: feed -> creator name -> profile -> follow. It had
+    ZERO tests while trading/payments had many; the follow economy cannot be
+    trusted if "click creator name" is the only untested hop in the chain.
+    """
+
+    def _make_user(self, username, **kw):
+        return User.objects.create_user(username, password='pass12345', email=f'{username}@test.com', **kw)
+
+    def _make_project(self, owner, title, status='published', stars=0):
+        cat = Category.objects.create(name='Apps', slug=f'cat-{title}-{owner.id}', type='full_app')
+        return AppProject.objects.create(
+            owner=owner,
+            title=title,
+            category=cat,
+            short_description='A short description of this vibe used in tests.',
+            readme='# Test Vibe\n\n' + ('This is a test readme with enough characters. ' * 4),
+            status=status,
+            stars=stars,
+        )
+
+    # --- Profile page ---
+
+    def test_profile_page_renders_for_anonymous(self):
+        owner = self._make_user('maker')
+        response = self.client.get('/u/maker/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '@maker')
+        self.assertContains(response, 'VIBES')
+        self.assertContains(response, 'FOLLOWERS')
+        self.assertContains(response, 'Joined')
+
+    def test_profile_404_for_unknown_user(self):
+        response = self.client.get('/u/no-such-user/')
+        self.assertEqual(response.status_code, 404)
+
+    def test_profile_shows_rank_and_star_stats(self):
+        owner = self._make_user('ranker')
+        self._make_project(owner, 'Star magnet', stars=12)  # 10 => Silver
+        response = self.client.get('/u/ranker/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Silver')       # rank pill
+        self.assertContains(response, '12 ★')          # stars earned stat
+
+    def test_own_profile_shows_pending_vibes(self):
+        owner = self._make_user('builder')
+        self._make_project(owner, 'Live one', status='published')
+        self._make_project(owner, 'Waiting one', status='pending')
+        self.client.login(username='builder', password='pass12345')
+        response = self.client.get('/u/builder/')
+        self.assertContains(response, 'Live one')
+        self.assertContains(response, 'Waiting one')
+        self.assertContains(response, 'Queued')
+
+    def test_other_profile_hides_pending_vibes(self):
+        owner = self._make_user('secretive')
+        self._make_project(owner, 'Public one', status='published')
+        self._make_project(owner, 'Hidden one', status='pending')
+        response = self.client.get('/u/secretive/')
+        self.assertContains(response, 'Public one')
+        self.assertNotContains(response, 'Hidden one')
+
+    # --- Creator-name links from discovery surfaces ---
+
+    def test_feed_links_creator_names_to_profiles(self):
+        owner = self._make_user('feedstar')
+        self._make_project(owner, 'Feed visible vibe')
+        response = self.client.get('/')
+        self.assertContains(response, '/u/feedstar/')
+
+    def test_app_detail_links_publisher_to_profile(self):
+        owner = self._make_user('publisher')
+        project = self._make_project(owner, 'Detail page vibe')
+        response = self.client.get(project.get_absolute_url())
+        self.assertContains(response, '/u/publisher/')
+
+    # --- Follow ---
+
+    def test_follow_toggle_and_unfollow(self):
+        fan = self._make_user('fan')
+        star = self._make_user('starlet')
+        self.client.login(username='fan', password='pass12345')
+        response = self.client.post('/u/starlet/follow/')
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['following'])
+        self.assertEqual(response.json()['followers'], 1)
+        self.assertTrue(Follow.objects.filter(follower=fan, following=star).exists())
+
+        response = self.client.post('/u/starlet/follow/')  # toggle off
+        self.assertFalse(response.json()['following'])
+        self.assertEqual(response.json()['followers'], 0)
+        self.assertFalse(Follow.objects.filter(follower=fan, following=star).exists())
+
+    def test_cannot_follow_self(self):
+        self._make_user('loner')
+        self.client.login(username='loner', password='pass12345')
+        response = self.client.post('/u/loner/follow/')
+        self.assertEqual(response.status_code, 400)
+
+    def test_follow_requires_login(self):
+        self._make_user('target')
+        response = self.client.post('/u/target/follow/')
+        self.assertEqual(response.status_code, 302)  # redirect to login
+        self.assertIn('/accounts/login', response.url)
+
+    def test_follow_creates_notification(self):
+        self._make_user('fan')
+        star = self._make_user('starlet')
+        self.client.login(username='fan', password='pass12345')
+        self.client.post('/u/starlet/follow/')
+        self.assertTrue(
+            Notification.objects.filter(user=star, kind='follow').exists()
+        )
+
+    @override_settings(
+        RATELIMIT_ENABLE=True,
+        RATELIMIT_USE_CACHE='ratelimit',
+        # 5 Whys: Why pin the cache here? The rate-limit cache follows
+        # REDIS_URL from .env at settings-import time. A test that silently
+        # depends on whether .env exists (Redis up or down) would pass on
+        # one machine and crash on another — a hermetic test pins locmem.
+        CACHES={
+            'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'test-default'},
+            'ratelimit': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'test-ratelimit'},
+        },
+    )
+    def test_follow_is_rate_limited(self):
+        # 5 Whys: Why assert 403, not 429? This codebase's ratelimit pattern
+        # (django-ratelimit 4.x, block=True) raises Ratelimited, which Django
+        # maps through handler403 to the site's friendly safe_403 page — the
+        # same behaviour publish/comments/battles have. Follow must not be
+        # the odd one out.
+        self._make_user('bot')
+        self._make_user('t1')
+        self._make_user('t2')
+        self.client.login(username='bot', password='pass12345')
+        last = None
+        for i in range(31):
+            target = 't1' if i % 2 == 0 else 't2'
+            last = self.client.post(f'/u/{target}/follow/')
+        self.assertEqual(last.status_code, 403)
+
+    # --- Tabs ---
+
+    def test_followers_tab_lists_followers(self):
+        fan = self._make_user('fan')
+        star = self._make_user('starlet')
+        Follow.objects.create(follower=fan, following=star)
+        response = self.client.get('/u/starlet/?tab=followers')
+        self.assertContains(response, 'fan')
+        self.assertContains(response, 'Follow')  # card button for the fan
+
+    def test_following_tab_lists_following(self):
+        fan = self._make_user('fan')
+        star = self._make_user('starlet')
+        Follow.objects.create(follower=fan, following=star)
+        response = self.client.get('/u/fan/?tab=following')
+        self.assertContains(response, 'starlet')
+
+    def test_stars_tab_orders_by_recent_star(self):
+        from gallery.models import Star
+        user = self._make_user('stargiver')
+        p_new = self._make_project(user, 'Starred recently')
+        p_old = self._make_project(user, 'Starred long ago')
+        Star.objects.create(user=user, project=p_old)
+        Star.objects.create(user=user, project=p_new)  # newest first
+        response = self.client.get('/u/stargiver/?tab=stars')
+        self.assertEqual(response.status_code, 200)
+        content = response.content.decode()
+        self.assertLess(content.index('Starred recently'), content.index('Starred long ago'))
+
+    def test_unknown_tab_falls_back_to_vibes(self):
+        owner = self._make_user('safefallback')
+        self._make_project(owner, 'Fallback vibe')
+        response = self.client.get('/u/safefallback/?tab=hack')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Fallback vibe')
+
+
+@override_settings(RATELIMIT_ENABLE=False)
+class TipTests(TestCase):
+    """Star tipping — the gratitude money path.
+
+    5 Whys: Why test tips like trades? Tips move spendable currency —
+    the same blast radius as a Trade. The wallet must be provably
+    zero-sum, ledgered, and gated, or the economy's "no minting" rule
+    is just a comment.
+    """
+
+    def _make_user(self, username, verified=True):
+        user = User.objects.create_user(username, password='pass12345', email=f'{username}@test.com')
+        if verified:
+            user.profile.email_verified = True
+            user.profile.save(update_fields=['email_verified'])
+            from users.wallet import grant_welcome_stars
+            grant_welcome_stars(user)  # real wallet path -> 5★
+        return user
+
+    # --- Wallet moves ---
+
+    def test_tip_moves_stars_and_writes_ledger(self):
+        from gallery.models import Notification
+        from users.models import StarEvent, Tip
+        sender = self._make_user('tipster')
+        recipient = self._make_user('tippee')
+        self.client.login(username='tipster', password='pass12345')
+        response = self.client.post('/u/tippee/tip/', {'amount': '3', 'message': 'Love your games!'})
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertTrue(data['ok'])
+        self.assertEqual(data['balance'], 2)  # 5 - 3
+
+        sender.profile.refresh_from_db()
+        recipient.profile.refresh_from_db()
+        self.assertEqual(sender.profile.stars_balance, 2)
+        self.assertEqual(recipient.profile.stars_balance, 8)  # 5 + 3
+
+        tip = Tip.objects.get()
+        self.assertEqual(tip.sender, sender)
+        self.assertEqual(tip.recipient, recipient)
+        self.assertEqual(tip.amount, 3)
+        self.assertEqual(tip.message, 'Love your games!')
+
+        # Ledger: one spend, one earn, same ref — zero-sum.
+        spend = StarEvent.objects.get(user=sender, reason='tip_spend')
+        earn = StarEvent.objects.get(user=recipient, reason='tip_earn')
+        self.assertEqual(spend.delta, -3)
+        self.assertEqual(earn.delta, 3)
+        self.assertEqual(spend.ref, f'tip:{tip.pk}')
+        self.assertEqual(earn.ref, f'tip:{tip.pk}')
+        # Wallet and ledger reconcile — the discipline the ledger exists for.
+        self.assertTrue(recipient.profile.stars_balance == 8)
+        from users.wallet import ledger_balance
+        self.assertEqual(ledger_balance(recipient), 8)
+
+        # Notification to the recipient.
+        self.assertTrue(Notification.objects.filter(user=recipient, kind='tip').exists())
+
+    def test_tip_rejects_insufficient_balance(self):
+        self._make_user('broke')
+        self._make_user('rich')
+        # Burn the 5★ grant down to 1★ via a ledgered admin-style adjust.
+        from users.models import StarEvent
+        from django.db.models import F
+        user = User.objects.get(username='broke')
+        from users.models import Profile
+        Profile.objects.filter(user=user).update(stars_balance=F('stars_balance') - 4)
+        StarEvent.objects.create(user=user, delta=-4, reason='admin_adjust', ref='test')
+        self.client.login(username='broke', password='pass12345')
+        response = self.client.post('/u/rich/tip/', {'amount': '3'})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('not enough', response.json()['error'].lower())
+
+    def test_tip_rejects_self(self):
+        self._make_user('loner')
+        self.client.login(username='loner', password='pass12345')
+        response = self.client.post('/u/loner/tip/', {'amount': '1'})
+        self.assertEqual(response.status_code, 400)
+
+    def test_tip_rejects_bad_amounts(self):
+        self._make_user('picker')
+        self._make_user('receivy')
+        self.client.login(username='picker', password='pass12345')
+        for bad in ('0', '-1', '1001', 'abc'):
+            response = self.client.post('/u/receivy/tip/', {'amount': bad})
+            self.assertEqual(response.status_code, 400, f'amount={bad}')
+
+    def test_tip_requires_verified_email(self):
+        sender = self._make_user('unverified', verified=False)
+        self._make_user('tippee2')
+        self.client.login(username='unverified', password='pass12345')
+        response = self.client.post('/u/tippee2/tip/', {'amount': '1'})
+        self.assertEqual(response.status_code, 400)
+        self.assertIn('email', response.json()['error'].lower())
+        sender.profile.refresh_from_db()
+        self.assertEqual(sender.profile.stars_balance, 0)  # nothing moved
+
+    def test_tip_requires_login(self):
+        self._make_user('target3')
+        response = self.client.post('/u/target3/tip/', {'amount': '1'})
+        self.assertEqual(response.status_code, 302)
+
+    def test_tip_message_is_sanitized(self):
+        # bleach tags=[] strip=True removes tag MARKUP but hoists inner text
+        # (same policy as Profile.bio). What must never survive is a live
+        # element or a javascript: URL — Django's template autoescape then
+        # renders any leftover text inert.
+        self._make_user('sani')
+        self._make_user('receivy2')
+        self.client.login(username='sani', password='pass12345')
+        response = self.client.post('/u/receivy2/tip/', {'amount': '1', 'message': '<a href="javascript:alert(1)">click</a><script>x</script>Hi'})
+        self.assertEqual(response.status_code, 200)
+        from users.models import Tip
+        stored = Tip.objects.get().message
+        self.assertNotIn('<a', stored)
+        self.assertNotIn('<script', stored)
+        self.assertNotIn('javascript:', stored)
+        self.assertIn('Hi', stored)  # hoisted text is fine — it renders escaped
+        # The profile page must not contain the live XSS vector either
+        # (the site's own <script> tags are fine — only the injection must
+        # be absent).
+        page = self.client.get('/u/receivy2/')
+        self.assertNotContains(page, 'javascript:')
+
+    @override_settings(
+        RATELIMIT_ENABLE=True,
+        RATELIMIT_USE_CACHE='ratelimit',
+        CACHES={
+            'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'tip-default'},
+            'ratelimit': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'tip-ratelimit'},
+        },
+    )
+    def test_tip_is_rate_limited(self):
+        self._make_user('tipbot')
+        for i in range(3):
+            self._make_user(f'victim{i}')
+        self.client.login(username='tipbot', password='pass12345')
+        last = None
+        for i in range(21):
+            last = self.client.post(f'/u/victim{i % 3}/tip/', {'amount': '1'})
+        self.assertEqual(last.status_code, 403)
+
+    # --- UI surfaces ---
+
+    def test_profile_shows_recent_tips(self):
+        self._make_user('giver')
+        creator = self._make_user('creat0r')
+        self.client.login(username='giver', password='pass12345')
+        self.client.post('/u/creat0r/tip/', {'amount': '2', 'message': 'dope'})
+        response = self.client.get('/u/creat0r/')
+        self.assertContains(response, 'Recent tips')
+        self.assertContains(response, '+2★')
+        self.assertContains(response, 'dope')
+
+    def test_payout_dashboard_shows_tips(self):
+        self._make_user('giver2')
+        self._make_user('boss')
+        self.client.login(username='giver2', password='pass12345')
+        self.client.post('/u/boss/tip/', {'amount': '4'})
+        self.client.login(username='boss', password='pass12345')
+        response = self.client.get('/payout/')
+        self.assertContains(response, 'Tips received')
+        self.assertContains(response, '+4 ★')
+
+
+class ChartTests(TestCase):
+    """Earnings-page charts — real ledger data, honest empty states.
+
+    5 Whys: Why test SVG markup? The charts are the one place the template
+    renders Python-built HTML with |safe. The generators only emit dates
+    and integers (no user text), but a regression that let user content
+    into the SVG would be an XSS hole — so the tests pin what the chart
+    CAN and CANNOT contain, and what the empty state says.
+    """
+
+    def _user_with_balance(self, username, balance):
+        user = User.objects.create_user(username, password='pass12345', email=f'{username}@test.com')
+        user.profile.email_verified = True
+        user.profile.stars_balance = balance
+        user.profile.save(update_fields=['email_verified', 'stars_balance'])
+        return user
+
+    def _ledger(self, user, delta, reason, days_ago=0):
+        ev = StarEvent.objects.create(user=user, delta=delta, reason=reason, ref='test')
+        StarEvent.objects.filter(pk=ev.pk).update(
+            created_at=timezone.now() - timedelta(days=days_ago)
+        )
+
+    def test_activity_chart_renders_earned_and_spent_bars(self):
+        user = self._user_with_balance('chartstar', 6)
+        self._ledger(user, 3, 'tip_earn', days_ago=0)      # earned today
+        self._ledger(user, -2, 'trade_spend', days_ago=1)  # spent yesterday
+        self.client.login(username='chartstar', password='pass12345')
+        response = self.client.get('/payout/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '<svg')
+        self.assertContains(response, '#10B981')  # earned bar fill
+        self.assertContains(response, '#EF4444')  # spent bar fill
+        self.assertContains(response, '>earned<')
+        self.assertContains(response, '>spent<')
+        self.assertContains(response, 'Stars earned vs spent, last 14 days')
+
+    def test_activity_chart_empty_state_when_no_events(self):
+        user = self._user_with_balance('nomo', 0)
+        self.client.login(username='nomo', password='pass12345')
+        response = self.client.get('/payout/')
+        self.assertContains(response, 'No wallet activity in the last 14 days')
+        self.assertNotContains(response, 'Stars earned vs spent')
+
+    def test_charts_ignore_events_outside_window(self):
+        user = self._user_with_balance('oldie', 0)
+        self._ledger(user, 9, 'tip_earn', days_ago=20)  # outside 14-day window
+        self.client.login(username='oldie', password='pass12345')
+        response = self.client.get('/payout/')
+        self.assertContains(response, 'No wallet activity in the last 14 days')
+
+    def test_balance_chart_draws_flat_real_balance(self):
+        user = self._user_with_balance('steady', 5)
+        self.client.login(username='steady', password='pass12345')
+        response = self.client.get('/payout/')
+        self.assertContains(response, '<polyline')       # the line exists
+        self.assertContains(response, 'Wallet balance, last 14 days')
+        self.assertContains(response, '5★')              # end-dot label = real balance
+
+    def test_balance_chart_empty_state_when_nothing_real(self):
+        user = self._user_with_balance('zero', 0)
+        self.client.login(username='zero', password='pass12345')
+        response = self.client.get('/payout/')
+        self.assertContains(response, 'Balance history is empty')
+        self.assertNotContains(response, '<polyline')
+
+    def test_chart_never_contains_user_text(self):
+        """User text must never reach the chart markup unescaped.
+
+        The SVG is built only from dates and integers, so an XSS payload
+        placed in a ledger ref must only ever appear ESCAPED (in the
+        ledger list, where Django autoescapes) — never as live markup.
+        The site's own <script> tags are fine; the injection is not.
+        """
+        user = self._user_with_balance('safechart', 5)
+        ev = StarEvent.objects.create(
+            user=user, delta=1, reason='tip_earn',
+            ref='<script>alert(1)</script>',
+        )
+        StarEvent.objects.filter(pk=ev.pk).update(created_at=timezone.now())
+        self.client.login(username='safechart', password='pass12345')
+        response = self.client.get('/payout/')
+        self.assertNotContains(response, '<script>alert(1)</script>')
+        self.assertNotContains(response, 'javascript:')
+        # The payload still exists in the DB — it was just rendered escaped.
+        self.assertContains(response, '&lt;script&gt;alert(1)&lt;/script&gt;')
+
+
+class AppDetailTipTests(TestCase):
+    """The ⭐ Tip widget on app-detail pages — same backend, new surface.
+
+    5 Whys: Why test the widget, not just the endpoint? The endpoint is
+    already covered by TipTests; these tests pin the DISCOVERY surface —
+    that a visitor on a vibe page can find the tip button, that the owner
+    never sees it on their own vibe, and that anonymous visitors get the
+    login path instead.
+    """
+
+    def setUp(self):
+        self.owner = User.objects.create_user('creator', password='pass12345', email='creator@test.com')
+        self.owner.profile.email_verified = True
+        self.owner.profile.save(update_fields=['email_verified'])
+        self.fan = User.objects.create_user('fanofapps', password='pass12345', email='fanofapps@test.com')
+        self.fan.profile.email_verified = True
+        self.fan.profile.stars_balance = 5
+        self.fan.profile.save(update_fields=['email_verified', 'stars_balance'])
+        cat = Category.objects.create(name='Apps', slug='tiptest-apps', type='full_app')
+        self.project = AppProject.objects.create(
+            owner=self.owner, title='Tip target vibe', category=cat,
+            short_description='A vibe to tip for.',
+            readme='# Tip\n\n' + ('Tippable vibe. ' * 20),
+            status='published', star_cost=2,
+        )
+
+    def test_visitor_sees_tip_button_and_panel(self):
+        self.client.login(username='fanofapps', password='pass12345')
+        response = self.client.get(self.project.get_absolute_url())
+        self.assertContains(response, '⭐ Tip')
+        self.assertContains(response, f'data-username="{self.owner.username}"')
+        self.assertContains(response, 'id="tip-panel"')
+        self.assertContains(response, 'Your balance: 5 ★')
+
+    def test_owner_never_sees_tip_button_on_own_vibe(self):
+        self.client.login(username='creator', password='pass12345')
+        response = self.client.get(self.project.get_absolute_url())
+        self.assertNotContains(response, '⭐ Tip')
+        self.assertNotContains(response, 'id="tip-panel"')
+
+    def test_anonymous_gets_login_link(self):
+        response = self.client.get(self.project.get_absolute_url())
+        self.assertContains(response, '⭐ Tip')
+        self.assertContains(response, '/accounts/login/')
+        self.assertNotContains(response, 'id="tip-panel"')
+
+    def test_tipping_from_app_detail_pays_the_owner(self):
+        """The button's data-username is the owner — a tip lands in their
+        wallet, not the vibe's (vibes have no wallet; people do)."""
+        self.client.login(username='fanofapps', password='pass12345')
+        response = self.client.post('/u/creator/tip/', {'amount': '2', 'message': 'from the vibe page'})
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'])
+        self.owner.profile.refresh_from_db()
+        self.assertEqual(self.owner.profile.stars_balance, 2)
+        self.fan.profile.refresh_from_db()
+        self.assertEqual(self.fan.profile.stars_balance, 3)
