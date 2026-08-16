@@ -1,395 +1,1917 @@
-{% extends 'gallery/base.html' %}
-{% load static %}
-{% block title %}{{ project.title }} — BlaqVibes{% endblock %}
-{% block og_title %}{{ project.title }} — BlaqVibes{% endblock %}
-{% block og_desc %}{{ project.short_description }}{% endblock %}
-{% block meta_desc %}{{ project.short_description }}{% endblock %}
-{% block og_image %}{% if project.thumbnail %}{{ request.scheme }}://{{ request.get_host }}{{ project.thumbnail.url }}{% else %}{{ block.super }}{% endif %}{% endblock %}
-{% block head %}
+{% extends 'gallery/base.html' %} {% load static %} {% block title %}{{
+project.title }} — BlaqVibes{% endblock %} {% block og_title %}{{ project.title
+}} — BlaqVibes{% endblock %} {% block og_desc %}{{ project.short_description
+}}{% endblock %} {% block meta_desc %}{{ project.short_description }}{% endblock
+%} {% block og_image %}{% if project.thumbnail %}{{ request.scheme }}://{{
+request.get_host }}{{ project.thumbnail.url }}{% else %}{{ block.super }}{%
+endif %}{% endblock %} {% block head %}
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"SoftwareApplication","name":"{{ project.title|escapejs }}","description":"{{ project.short_description|escapejs }}","author":{"@type":"Person","name":"{{ project.owner.username|escapejs }}"},"offers":{"@type":"Offer","price":"{{ project.price_zar|default:0 }}","priceCurrency":"ZAR"}}
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "{{ project.title|escapejs }}",
+    "description": "{{ project.short_description|escapejs }}",
+    "author": {
+      "@type": "Person",
+      "name": "{{ project.owner.username|escapejs }}"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "{{ project.price_zar|default:0 }}",
+      "priceCurrency": "ZAR"
+    }
+  }
 </script>
-{% endblock %}
-{% block content %}
-{% if project.status != 'published' %}
-<div id="scan-banner" data-scan-url="{% url 'scan_status' project.slug %}" style="max-width:1280px;margin:12px auto 0;padding:14px 16px;background:var(--warning-bg);border:1px solid var(--warning-border);color:var(--warning-soft-text);border-radius:12px;display:flex;align-items:center;gap:12px;font-size:13px;box-shadow:0 4px 16px rgba(245,158,11,.15)">
-  <span style="width:10px;height:10px;background:#F59E0B;border-radius:50%;animation:pulse 1.2s infinite;flex-shrink:0"></span>
+{% endblock %} {% block content %} {% if project.status != 'published' %}
+<div
+  id="scan-banner"
+  data-scan-url="{% url 'scan_status' project.slug %}"
+  style="
+    max-width: 1280px;
+    margin: 12px auto 0;
+    padding: 14px 16px;
+    background: var(--warning-bg);
+    border: 1px solid var(--warning-border);
+    color: var(--warning-soft-text);
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.15);
+  "
+>
+  <span
+    style="
+      width: 10px;
+      height: 10px;
+      background: #f59e0b;
+      border-radius: 50%;
+      animation: pulse 1.2s infinite;
+      flex-shrink: 0;
+    "
+  ></span>
   <div>
-    <div style="font-weight:700;color:var(--warning-soft-text)">⏳ Your vibe is in the queue — we’ll tell you when it’s uploaded!</div>
-    <div style="font-size:12px;color:var(--warning-soft-text);opacity:.9">Status: <b id="scan-text" style="color:inherit">{{ scan_status }}</b>{% if scan_reason %} — {{ scan_reason }}{% endif %}</div>
+    <div style="font-weight: 700; color: var(--warning-soft-text)">
+      ⏳ Your vibe is in the queue — we’ll tell you when it’s uploaded!
+    </div>
+    <div style="font-size: 12px; color: var(--warning-soft-text); opacity: 0.9">
+      Status: <b id="scan-text" style="color: inherit">{{ scan_status }}</b>{%
+      if scan_reason %} — {{ scan_reason }}{% endif %}
+    </div>
   </div>
-  <span style="margin-left:auto;font-size:11px;color:var(--warning-text);white-space:nowrap">🔒 scan → vuln → publish</span>
+  <span
+    style="
+      margin-left: auto;
+      font-size: 11px;
+      color: var(--warning-text);
+      white-space: nowrap;
+    "
+    >🔒 scan → vuln → publish</span
+  >
 </div>
 {% endif %}
 <div class="page detail-layout">
   <!-- LEFT -->
   <div>
     <div class="card">
-      <div style="height:40px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;background:var(--input);border-bottom:1px solid var(--line)">
-        <div style="display:flex;gap:6px;align-items:center"><span style="width:10px;height:10px;background:var(--danger-action);border-radius:50%"></span><span style="width:10px;height:10px;background:#F59E0B;border-radius:50%"></span><span style="width:10px;height:10px;background:#10B981;border-radius:50%"></span><span style="font-size:12px;color:var(--muted);margin-left:6px">{{ project.slug }} — Preview</span></div>
-        <span style="font-size:11px;background:var(--success-bg);color:var(--success-text);padding:4px 8px;border-radius:8px;font-weight:700">● Secure</span>
+      <div
+        style="
+          height: 40px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 12px;
+          background: var(--input);
+          border-bottom: 1px solid var(--line);
+        "
+      >
+        <div style="display: flex; gap: 6px; align-items: center">
+          <span
+            style="
+              width: 10px;
+              height: 10px;
+              background: var(--danger-action);
+              border-radius: 50%;
+            "
+          ></span
+          ><span
+            style="
+              width: 10px;
+              height: 10px;
+              background: #f59e0b;
+              border-radius: 50%;
+            "
+          ></span
+          ><span
+            style="
+              width: 10px;
+              height: 10px;
+              background: #10b981;
+              border-radius: 50%;
+            "
+          ></span
+          ><span style="font-size: 12px; color: var(--muted); margin-left: 6px"
+            >{{ project.slug }} — Preview</span
+          >
+        </div>
+        <span
+          style="
+            font-size: 11px;
+            background: var(--success-bg);
+            color: var(--success-text);
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-weight: 700;
+          "
+          >● Secure</span
+        >
       </div>
       {% if project.can_run_preview %}
-        <iframe src="{% url 'preview' project.slug %}" sandbox="allow-scripts allow-forms" referrerpolicy="no-referrer" style="width:100%;height:380px;border:none;background:#fff" title="{{ project.title }} preview"></iframe>
+      <iframe
+        src="{% url 'preview' project.slug %}"
+        sandbox="allow-scripts allow-forms"
+        referrerpolicy="no-referrer"
+        style="width: 100%; height: 380px; border: none; background: #fff"
+        title="{{ project.title }} preview"
+      ></iframe>
       {% else %}
-        <!-- Honest empty state. The rule for this site is that EVERY kind of
+      <!-- Honest empty state. The rule for this site is that EVERY kind of
              program may be published; the ones our sandbox cannot run say so
              plainly instead of showing a fake preview chrome. -->
-        <div style="height:320px;background:#fff;display:grid;place-items:center;color:#111;padding:20px">
-          <div style="text-align:center;max-width:420px">
-            <div style="font-size:30px;line-height:1">{{ project.kind_icon }}</div>
-            <div style="font-weight:700;margin-top:6px">{{ project.title }}</div>
-            <div style="font-size:12px;color:#475569;margin:6px 0">{{ project.kind_label }}{% if project.tech_stack %} • {{ project.tech_stack }}{% endif %} • {{ project.file_count }} files</div>
-            <div style="display:inline-block;font-size:11px;color:#475569;background:#F1F5F9;border:1px solid #CBD5E1;border-radius:8px;padding:6px 10px;margin-top:4px">No live preview for a {{ project.kind_label|lower }}</div>
-            <div style="font-size:11px;color:#475569;margin-top:8px">{{ project.preview_note }} {{ project.kind_meta.blurb }}</div>
+      <div
+        style="
+          height: 320px;
+          background: #fff;
+          display: grid;
+          place-items: center;
+          color: #111;
+          padding: 20px;
+        "
+      >
+        <div style="text-align: center; max-width: 420px">
+          <div style="font-size: 30px; line-height: 1">
+            {{ project.kind_icon }}
+          </div>
+          <div style="font-weight: 700; margin-top: 6px">
+            {{ project.title }}
+          </div>
+          <div style="font-size: 12px; color: #475569; margin: 6px 0">
+            {{ project.kind_label }}{% if project.tech_stack %} • {{
+            project.tech_stack }}{% endif %} • {{ project.file_count }} files
+          </div>
+          <div
+            style="
+              display: inline-block;
+              font-size: 11px;
+              color: #475569;
+              background: #f1f5f9;
+              border: 1px solid #cbd5e1;
+              border-radius: 8px;
+              padding: 6px 10px;
+              margin-top: 4px;
+            "
+          >
+            No live preview for a {{ project.kind_label|lower }}
+          </div>
+          <div style="font-size: 11px; color: #475569; margin-top: 8px">
+            {{ project.preview_note }} {{ project.kind_meta.blurb }}
           </div>
         </div>
+      </div>
       {% endif %}
-      <div style="margin:12px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px">
-        <div style="display:flex;justify-content:space-between;margin-bottom:6px"><span style="font-size:11px;letter-spacing:.06em;color:var(--muted);font-weight:700">DOWNLOAD</span><span style="font-size:11px;color:var(--warning-text)">{{ project.file_count }} files • {{ project.clones }} clones</span></div>
-        <div style="display:flex;gap:8px;align-items:center;background:var(--input);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-family:JetBrains Mono,monospace;font-size:11px;overflow:auto">
-          <span style="color:var(--muted)">$</span> {{ request.scheme }}://{{ request.get_host }}{% url 'download_zip' project.slug %}
-          <button class="btn-white js-copy" data-copy="{{ request.scheme }}://{{ request.get_host }}{% url 'download_zip' project.slug %}" style="margin-left:auto;padding:6px 10px;font-size:11px">Copy</button>
+      <div
+        style="
+          margin: 12px;
+          background: var(--bg);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 12px;
+        "
+      >
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 6px;
+          "
+        >
+          <span
+            style="
+              font-size: 11px;
+              letter-spacing: 0.06em;
+              color: var(--muted);
+              font-weight: 700;
+            "
+            >DOWNLOAD</span
+          ><span style="font-size: 11px; color: var(--warning-text)"
+            >{{ project.file_count }} files • {{ project.clones }} clones</span
+          >
         </div>
-        <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">
-          {% if project.zip_file %}
-            {% if can_download %}
-              <a href="{% url 'download_zip' project.slug %}" class="btn-violet" style="flex:1;justify-content:center">⬇ Download ZIP</a>
-            {% elif project.star_cost and user.is_authenticated and user != project.owner and not has_traded %}
-              <form method="post" action="{% url 'trade_download' project.slug %}" style="flex:1">{% csrf_token %}<button class="btn-violet" style="width:100%">⬇ Trade {{ project.star_cost }} ★ to Download</button></form>
-              <div style="width:100%;font-size:11px;color:var(--muted);text-align:center">You have {{ user.profile.stars_balance }} ★ — download stays locked until you trade{% if paystack_enabled %} or buy{% endif %}.</div>
-            {% elif not user.is_authenticated %}
-              <a href="{% url 'login' %}?next={{ request.path }}" class="btn-violet" style="flex:1;justify-content:center">Sign in to unlock</a>
-            {% else %}
-              <a href="#paywall" class="btn-violet" style="flex:1;justify-content:center">⬇ Unlock to download</a>
-            {% endif %}
+        <div
+          style="
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            background: var(--input);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 8px 10px;
+            font-family:
+              JetBrains Mono,
+              monospace;
+            font-size: 11px;
+            overflow: auto;
+          "
+        >
+          <span style="color: var(--muted)">$</span> {{ request.scheme }}://{{
+          request.get_host }}{% url 'download_zip' project.slug %}
+          <button
+            class="btn-white js-copy"
+            data-copy="{{ request.scheme }}://{{ request.get_host }}{% url 'download_zip' project.slug %}"
+            style="margin-left: auto; padding: 6px 10px; font-size: 11px"
+          >
+            Copy
+          </button>
+        </div>
+        <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap">
+          {% if project.zip_file %} {% if can_download %}
+          <a
+            href="{% url 'download_zip' project.slug %}"
+            class="btn-violet"
+            style="flex: 1; justify-content: center"
+            >⬇ Download ZIP</a
+          >
+          {% elif project.star_cost and user.is_authenticated and user !=
+          project.owner and not has_traded %}
+          <form
+            method="post"
+            action="{% url 'trade_download' project.slug %}"
+            style="flex: 1"
+          >
+            {% csrf_token %}<button class="btn-violet" style="width: 100%">
+              ⬇ Trade {{ project.star_cost }} ★ to Download
+            </button>
+          </form>
+          <div
+            style="
+              width: 100%;
+              font-size: 11px;
+              color: var(--muted);
+              text-align: center;
+            "
+          >
+            You have {{ user.profile.stars_balance }} ★ — download stays locked
+            until you trade{% if paystack_enabled %} or buy{% endif %}.
+          </div>
+          {% elif not user.is_authenticated %}
+          <a
+            href="{% url 'login' %}?next={{ request.path }}"
+            class="btn-violet"
+            style="flex: 1; justify-content: center"
+            >Sign in to unlock</a
+          >
+          {% else %}
+          <a
+            href="#paywall"
+            class="btn-violet"
+            style="flex: 1; justify-content: center"
+            >⬇ Unlock to download</a
+          >
+          {% endif %} {% endif %} {% if project.zip_file and can_download %}
+          <a
+            href="{% url 'git_clone' project.owner.username project.slug %}"
+            class="btn-ghost"
+            style="flex: 1; justify-content: center; text-align: center"
+            >⬇ ZIP file</a
+          >
           {% endif %}
-          {% if project.zip_file and can_download %}
-          <a href="{% url 'git_clone' project.owner.username project.slug %}" class="btn-ghost" style="flex:1;justify-content:center;text-align:center">⬇ ZIP file</a>
-          {% endif %}
-          <button class="btn-ghost js-copy-snippet" data-target="html-code">⎘ Copy Snippet</button>
-          <form method="post" action="{% url 'toggle_star' project.slug %}" class="js-star-form" style="display:inline">
-            {% csrf_token %}<button class="btn-ghost">{% if is_starred %}★ Starred{% else %}☆ Star{% endif %} {{ project.stars }}</button>
+          <button class="btn-ghost js-copy-snippet" data-target="html-code">
+            ⎘ Copy Snippet
+          </button>
+          <form
+            method="post"
+            action="{% url 'toggle_star' project.slug %}"
+            class="js-star-form"
+            style="display: inline"
+          >
+            {% csrf_token %}<button class="btn-ghost">
+              {% if is_starred %}★ Starred{% else %}☆ Star{% endif %} {{
+              project.stars }}
+            </button>
           </form>
           {% if not project.zip_file or can_download %}
-          <form method="post" action="{% url 'fork_vibe' project.slug %}" class="js-fork-form" style="display:inline">{% csrf_token %}<button class="btn-ghost">⑂ Fork {{ forks_count }}</button></form>
+          <form
+            method="post"
+            action="{% url 'fork_vibe' project.slug %}"
+            class="js-fork-form"
+            style="display: inline"
+          >
+            {% csrf_token %}<button class="btn-ghost">
+              ⑂ Fork {{ forks_count }}
+            </button>
+          </form>
           {% else %}
-          <button class="btn-ghost" type="button" disabled title="Unlock to fork">⑂ Unlock to fork</button>
-          {% endif %}
-          {% if user.is_authenticated %}
-          <form method="post" action="{% url 'toggle_bookmark' project.slug %}" class="js-save-form" style="display:inline">{% csrf_token %}<button class="btn-ghost">{% if is_bookmarked %}♥ Saved{% else %}♡ Save{% endif %}</button></form>
-          {% endif %}
-          {% if project.can_run_preview %}
-          <a href="{% url 'preview' project.slug %}" class="btn-ghost" style="flex:1;justify-content:center;text-align:center;background:var(--success-action);color:var(--on-accent)">▶ Run preview</a>
+          <button
+            class="btn-ghost"
+            type="button"
+            disabled
+            title="Unlock to fork"
+          >
+            ⑂ Unlock to fork
+          </button>
+          {% endif %} {% if user.is_authenticated %}
+          <form
+            method="post"
+            action="{% url 'toggle_bookmark' project.slug %}"
+            class="js-save-form"
+            style="display: inline"
+          >
+            {% csrf_token %}<button class="btn-ghost">
+              {% if is_bookmarked %}♥ Saved{% else %}♡ Save{% endif %}
+            </button>
+          </form>
+          {% endif %} {% if project.can_run_preview %}
+          <a
+            href="{% url 'preview' project.slug %}"
+            class="btn-ghost"
+            style="
+              flex: 1;
+              justify-content: center;
+              text-align: center;
+              background: var(--success-action);
+              color: var(--on-accent);
+            "
+            >▶ Run preview</a
+          >
           {% elif project.zip_file %}
-          <a href="{% url 'preview_files' project.slug %}" class="btn-ghost" style="flex:1;justify-content:center;text-align:center;background:var(--success-action);color:var(--on-accent)">📁 Browse files</a>
+          <a
+            href="{% url 'preview_files' project.slug %}"
+            class="btn-ghost"
+            style="
+              flex: 1;
+              justify-content: center;
+              text-align: center;
+              background: var(--success-action);
+              color: var(--on-accent);
+            "
+            >📁 Browse files</a
+          >
           {% endif %}
         </div>
 
         {% if project.zip_file and not can_download %}
-        <div id="paywall" style="margin-top:10px;background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:10px;padding:12px">
-          <div style="font-size:12px;color:var(--warning-soft-text);font-weight:700">🔒 This download is locked</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:4px;line-height:1.6">
-            {% if project.star_cost and paystack_enabled and project.price_zar %}Unlock with <b style="color:var(--warning-text)">{{ project.star_cost }} ★</b> (trade stars) or buy for <b style="color:var(--warning-text)">R{{ project.price_zar }}</b>.{% elif project.star_cost %}Unlock by trading <b style="color:var(--warning-text)">{{ project.star_cost }} ★</b>.{% elif paystack_enabled and project.price_zar %}Unlock by buying for <b style="color:var(--warning-text)">R{{ project.price_zar }}</b>.{% else %}Sign in to unlock this download.{% endif %}
-            {% if user.is_authenticated %}Your balance: <b style="color:var(--warning-soft-text)">{{ user.profile.stars_balance }} ★</b>.{% endif %}
+        <div
+          id="paywall"
+          style="
+            margin-top: 10px;
+            background: var(--warning-bg);
+            border: 1px solid var(--warning-border);
+            border-radius: 10px;
+            padding: 12px;
+          "
+        >
+          <div
+            style="
+              font-size: 12px;
+              color: var(--warning-soft-text);
+              font-weight: 700;
+            "
+          >
+            🔒 This download is locked
           </div>
-          <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-            {% if user.is_authenticated %}
-              {% if project.star_cost and not has_traded %}<form method="post" action="{% url 'trade_download' project.slug %}">{% csrf_token %}<button class="btn-violet" style="padding:8px 12px;font-size:12px">Trade {{ project.star_cost }} ★</button></form>{% endif %}
-              {% if paystack_enabled and project.price_zar and not has_bought %}<form method="post" action="{% url 'buy_vibe' project.slug %}">{% csrf_token %}<button class="btnV" style="padding:8px 12px;font-size:12px">💳 Buy R{{ project.price_zar }}</button></form>{% endif %}
-            {% else %}
-              <a href="{% url 'login' %}?next={{ request.path }}" class="btn-violet" style="padding:8px 12px;font-size:12px">Sign in to unlock</a>
+          <div
+            style="
+              font-size: 12px;
+              color: var(--muted);
+              margin-top: 4px;
+              line-height: 1.6;
+            "
+          >
+            {% if project.star_cost and paystack_enabled and project.price_zar
+            %}Unlock with
+            <b style="color: var(--warning-text)">{{ project.star_cost }} ★</b>
+            (trade stars) or buy for
+            <b style="color: var(--warning-text)">R{{ project.price_zar }}</b
+            >.{% elif project.star_cost %}Unlock by trading
+            <b style="color: var(--warning-text)">{{ project.star_cost }} ★</b
+            >.{% elif paystack_enabled and project.price_zar %}Unlock by buying
+            for
+            <b style="color: var(--warning-text)">R{{ project.price_zar }}</b
+            >.{% else %}Sign in to unlock this download.{% endif %} {% if
+            user.is_authenticated %}Your balance:
+            <b style="color: var(--warning-soft-text)"
+              >{{ user.profile.stars_balance }} ★</b
+            >.{% endif %}
+          </div>
+          <div
+            style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap"
+          >
+            {% if user.is_authenticated %} {% if project.star_cost and not
+            has_traded %}
+            <form
+              method="post"
+              action="{% url 'trade_download' project.slug %}"
+            >
+              {% csrf_token %}<button
+                class="btn-violet"
+                style="padding: 8px 12px; font-size: 12px"
+              >
+                Trade {{ project.star_cost }} ★
+              </button>
+            </form>
+            {% endif %} {% if paystack_enabled and project.price_zar and not
+            has_bought %}
+            <form method="post" action="{% url 'buy_vibe' project.slug %}">
+              {% csrf_token %}<button
+                class="btnV"
+                style="padding: 8px 12px; font-size: 12px"
+              >
+                💳 Buy R{{ project.price_zar }}
+              </button>
+            </form>
+            {% endif %} {% else %}
+            <a
+              href="{% url 'login' %}?next={{ request.path }}"
+              class="btn-violet"
+              style="padding: 8px 12px; font-size: 12px"
+              >Sign in to unlock</a
+            >
             {% endif %}
           </div>
         </div>
-        {% endif %}
-        {% if user_rank %}<div style="font-size:11px;color:var(--muted);margin-top:6px">Your rank: <b style="color:var(--warning-text)">{{ user_rank.name }}</b> ({{ user_rank.discount }}% Pro discount) • Earn stars when others star/trade your vibes → appears 1st when exploring</div>{% endif %}
-        {% if project.price_zar and project.price_zar > 0 %}
-        <div style="margin-top:8px;background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:10px;padding:10px">
-          <div style="font-size:11px;color:var(--warning-text);font-weight:700">ZAR price — R{{ project.price_zar }}</div>
-          {% if paystack_enabled %}
-            {% if user.is_authenticated and user != project.owner and not has_bought %}
-              <form method="post" action="{% url 'buy_vibe' project.slug %}" style="margin-top:6px">{% csrf_token %}<button class="btnV" style="width:100%">💳 Pay R{{ project.price_zar }} with Paystack</button></form>
-              <div style="font-size:11px;color:var(--muted);margin-top:4px">Real Paystack checkout. The ZIP unlocks only after a verified charge.</div>
-            {% elif has_bought %}<div style="font-size:11px;color:var(--success-text);margin-top:4px">✓ You bought this — <a href="{% url 'download_zip' project.slug %}" style="color:var(--success-text)">Download ZIP</a></div>
-            {% elif user == project.owner %}<div style="font-size:11px;color:var(--muted);margin-top:4px">Listed at R{{ project.price_zar }}. Bank payouts to you are not wired yet.</div>
-            {% endif %}
-          {% else %}
-            <div style="font-size:11px;color:var(--muted);margin-top:4px">Card checkout is off (no PAYSTACK_SECRET_KEY). {% if project.star_cost %}Trade {{ project.star_cost }} ★ to unlock.{% else %}Ask the creator or use stars.{% endif %}</div>
+        {% endif %} {% if user_rank %}
+        <div style="font-size: 11px; color: var(--muted); margin-top: 6px">
+          Your rank:
+          <b style="color: var(--warning-text)">{{ user_rank.name }}</b> ({{
+          user_rank.discount }}% Pro discount) • Earn stars when others
+          star/trade your vibes → appears 1st when exploring
+        </div>
+        {% endif %} {% if project.price_zar and project.price_zar > 0 %}
+        <div
+          style="
+            margin-top: 8px;
+            background: var(--warning-bg);
+            border: 1px solid var(--warning-border);
+            border-radius: 10px;
+            padding: 10px;
+          "
+        >
+          <div
+            style="
+              font-size: 11px;
+              color: var(--warning-text);
+              font-weight: 700;
+            "
+          >
+            ZAR price — R{{ project.price_zar }}
+          </div>
+          {% if paystack_enabled %} {% if user.is_authenticated and user !=
+          project.owner and not has_bought %}
+          <form
+            method="post"
+            action="{% url 'buy_vibe' project.slug %}"
+            style="margin-top: 6px"
+          >
+            {% csrf_token %}<button class="btnV" style="width: 100%">
+              💳 Pay R{{ project.price_zar }} with Paystack
+            </button>
+          </form>
+          <div style="font-size: 11px; color: var(--muted); margin-top: 4px">
+            Real Paystack checkout. The ZIP unlocks only after a verified
+            charge.
+          </div>
+          {% elif has_bought %}
+          <div
+            style="font-size: 11px; color: var(--success-text); margin-top: 4px"
+          >
+            ✓ You bought this —
+            <a
+              href="{% url 'download_zip' project.slug %}"
+              style="color: var(--success-text)"
+              >Download ZIP</a
+            >
+          </div>
+          {% elif user == project.owner %}
+          <div style="font-size: 11px; color: var(--muted); margin-top: 4px">
+            Listed at R{{ project.price_zar }}. Bank payouts to you are not
+            wired yet.
+          </div>
+          {% endif %} {% else %}
+          <div style="font-size: 11px; color: var(--muted); margin-top: 4px">
+            Card checkout is off (no PAYSTACK_SECRET_KEY). {% if
+            project.star_cost %}Trade {{ project.star_cost }} ★ to unlock.{%
+            else %}Ask the creator or use stars.{% endif %}
+          </div>
           {% endif %}
         </div>
-        {% endif %}
-        {% if user.is_authenticated and user == project.owner %}
-        <div style="display:flex;gap:6px;margin-top:8px">
-          <a href="{% url 'edit_vibe' project.slug %}" class="btn-ghost" style="flex:1;text-align:center">✎ Edit / Re-upload</a>
-          <form method="post" action="{% url 'delete_vibe' project.slug %}" class="js-delete-form" style="flex:1">{% csrf_token %}<button class="btn-ghost" style="width:100%;color:var(--danger-text)">🗑 Delete</button></form>
+        {% endif %} {% if user.is_authenticated and user == project.owner %}
+        <div style="display: flex; gap: 6px; margin-top: 8px">
+          <a
+            href="{% url 'edit_vibe' project.slug %}"
+            class="btn-ghost"
+            style="flex: 1; text-align: center"
+            >✎ Edit / Re-upload</a
+          >
+          <form
+            method="post"
+            action="{% url 'delete_vibe' project.slug %}"
+            class="js-delete-form"
+            style="flex: 1"
+          >
+            {% csrf_token %}<button
+              class="btn-ghost"
+              style="width: 100%; color: var(--danger-text)"
+            >
+              🗑 Delete
+            </button>
+          </form>
         </div>
         {% if launch_next %}
-        <a href="/launch/?artifact={{ launch_next.value }}" style="display:flex;gap:10px;align-items:center;margin-top:8px;background:var(--accent-soft-bg);border:1px solid var(--accent-border);border-radius:12px;padding:12px;text-decoration:none">
-          <span aria-hidden="true" style="display:grid;place-items:center;width:36px;height:36px;flex:0 0 36px;border-radius:10px;background:#fff;border:1px solid rgba(255,255,255,.18);overflow:hidden"><img src="{% static launch_next.icon %}" alt="" style="display:block;max-width:72%;max-height:72%"></span>
-          <span style="flex:1">
-            <span style="display:block;font-weight:800;color:var(--launch-text);font-size:13px">↗ Launch this vibe — {{ launch_next.name }}</span>
-            <span style="display:block;font-size:11px;color:var(--muted);margin-top:2px">We detected a {{ launch_next.name|lower }} in your ZIP. {{ launch_next.note }}. Step-by-step guides inside.</span>
+        <a
+          href="/launch/?artifact={{ launch_next.value }}"
+          style="
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 8px;
+            background: var(--accent-soft-bg);
+            border: 1px solid var(--accent-border);
+            border-radius: 12px;
+            padding: 12px;
+            text-decoration: none;
+          "
+        >
+          <span
+            aria-hidden="true"
+            style="
+              display: grid;
+              place-items: center;
+              width: 36px;
+              height: 36px;
+              flex: 0 0 36px;
+              border-radius: 10px;
+              background: #fff;
+              border: 1px solid rgba(255, 255, 255, 0.18);
+              overflow: hidden;
+            "
+            ><img
+              src="{% static launch_next.icon %}"
+              alt=""
+              style="display: block; max-width: 72%; max-height: 72%"
+          /></span>
+          <span style="flex: 1">
+            <span
+              style="
+                display: block;
+                font-weight: 800;
+                color: var(--launch-text);
+                font-size: 13px;
+              "
+              >↗ Launch this vibe — {{ launch_next.name }}</span
+            >
+            <span
+              style="
+                display: block;
+                font-size: 11px;
+                color: var(--muted);
+                margin-top: 2px;
+              "
+              >We detected a {{ launch_next.name|lower }} in your ZIP. {{
+              launch_next.note }}. Step-by-step guides inside.</span
+            >
           </span>
         </a>
-        {% endif %}
-        {% endif %}
-        <form method="post" action="{% url 'report_vibe' project.slug %}" style="margin-top:8px;display:flex;gap:6px">{% csrf_token %}
-          <select name="reason" style="flex:1;background:var(--input);border:1px solid var(--line);border-radius:8px;padding:6px;color:var(--text);font-size:12px"><option value="spam">Spam</option><option value="malware">Malware</option><option value="copyright">Copyright</option><option value="other">Other</option></select>
-          <input name="details" placeholder="Details (optional)" style="flex:2;min-width:0;background:var(--input);border:1px solid var(--line);border-radius:8px;padding:6px;color:var(--text);font-size:12px">
-          <button class="btn-ghost" style="padding:6px 10px;font-size:12px">Report</button>
+        {% endif %} {% endif %}
+        <form
+          method="post"
+          action="{% url 'report_vibe' project.slug %}"
+          style="margin-top: 8px; display: flex; gap: 6px"
+        >
+          {% csrf_token %}
+          <select
+            name="reason"
+            style="
+              flex: 1;
+              background: var(--input);
+              border: 1px solid var(--line);
+              border-radius: 8px;
+              padding: 6px;
+              color: var(--text);
+              font-size: 12px;
+            "
+          >
+            <option value="spam">Spam</option>
+            <option value="malware">Malware</option>
+            <option value="copyright">Copyright</option>
+            <option value="other">Other</option>
+          </select>
+          <input
+            name="details"
+            placeholder="Details (optional)"
+            style="
+              flex: 2;
+              min-width: 0;
+              background: var(--input);
+              border: 1px solid var(--line);
+              border-radius: 8px;
+              padding: 6px;
+              color: var(--text);
+              font-size: 12px;
+            "
+          />
+          <button class="btn-ghost" style="padding: 6px 10px; font-size: 12px">
+            Report
+          </button>
         </form>
       </div>
     </div>
 
     {% if user == project.owner %}
-    <div class="card" id="ai-readme" style="margin-top:12px;padding:14px;background:var(--accent-soft-bg);border-color:var(--accent-border)">
-      <div style="display:flex;align-items:center;gap:8px"><span style="font-size:16px">🤖</span><div><div style="font-weight:800">AI README — Gemini/Groq</div><div style="font-size:11px;color:var(--muted)">Generate from file_tree + tech_stack + code. Backend only, crush silently.</div></div></div>
-      <div style="margin-top:8px;display:flex;gap:8px">
-        <form method="post" action="{% url 'generate_ai_readme' project.slug %}" style="flex:1">{% csrf_token %}<button class="btnV" style="width:100%">✨ Generate AI README</button></form>
-        {% if project.ai_readme %}<form method="post" action="{% url 'apply_ai_readme' project.slug %}" style="flex:1">{% csrf_token %}<button class="btnG" style="width:100%">Apply AI README to vibe</button></form>{% endif %}
+    <div
+      class="card"
+      id="ai-readme"
+      style="
+        margin-top: 12px;
+        padding: 14px;
+        background: var(--accent-soft-bg);
+        border-color: var(--accent-border);
+      "
+    >
+      <div style="display: flex; align-items: center; gap: 8px">
+        <span style="font-size: 16px">🤖</span>
+        <div>
+          <div style="font-weight: 800">AI README — Gemini/Groq</div>
+          <div style="font-size: 11px; color: var(--muted)">
+            Generate from file_tree + tech_stack + code. Backend only, crush
+            silently.
+          </div>
+        </div>
       </div>
-      {% if project.ai_readme %}<div style="margin-top:8px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;max-height:200px;overflow:auto"><div style="font-size:11px;color:var(--muted);font-weight:700">AI README PREVIEW</div><div style="font-size:12px;white-space:pre-wrap;color:var(--text);margin-top:4px">{{ project.ai_readme|truncatechars:800 }}</div></div>{% endif %}
+      <div style="margin-top: 8px; display: flex; gap: 8px">
+        <form
+          method="post"
+          action="{% url 'generate_ai_readme' project.slug %}"
+          style="flex: 1"
+        >
+          {% csrf_token %}<button class="btnV" style="width: 100%">
+            ✨ Generate AI README
+          </button>
+        </form>
+        {% if project.ai_readme %}
+        <form
+          method="post"
+          action="{% url 'apply_ai_readme' project.slug %}"
+          style="flex: 1"
+        >
+          {% csrf_token %}<button class="btnG" style="width: 100%">
+            Apply AI README to vibe
+          </button>
+        </form>
+        {% endif %}
+      </div>
+      {% if project.ai_readme %}
+      <div
+        style="
+          margin-top: 8px;
+          background: var(--bg);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          max-height: 200px;
+          overflow: auto;
+        "
+      >
+        <div style="font-size: 11px; color: var(--muted); font-weight: 700">
+          AI README PREVIEW
+        </div>
+        <div
+          style="
+            font-size: 12px;
+            white-space: pre-wrap;
+            color: var(--text);
+            margin-top: 4px;
+          "
+        >
+          {{ project.ai_readme|truncatechars:800 }}
+        </div>
+      </div>
+      {% endif %}
     </div>
     {% endif %}
 
     <!-- TABS README / TREE / CODE -->
-    <div class="card" style="margin-top:12px;padding-bottom:12px" x-data="{tab:'readme'}">
-      <div style="display:flex;gap:6px;margin:12px 12px 0">
-        <button @click="tab='readme'" :class="tab==='readme'?'btn-white':'btn-ghost'" style="flex:1">📄 README.md</button>
-        <button @click="tab='tree'" :class="tab==='tree'?'btn-white':'btn-ghost'" style="flex:1">📁 Files ({{ project.file_count }})</button>
-        {% if project.html_code %}<button @click="tab='code'" :class="tab==='code'?'btn-white':'btn-ghost'" style="flex:1">💻 Code</button>{% endif %}
+    <div
+      class="card"
+      style="margin-top: 12px; padding-bottom: 12px"
+      x-data="{tab:'readme'}"
+    >
+      <div style="display: flex; gap: 6px; margin: 12px 12px 0">
+        <button
+          @click="tab='readme'"
+          :class="tab==='readme'?'btn-white':'btn-ghost'"
+          style="flex: 1"
+        >
+          📄 README.md
+        </button>
+        <button
+          @click="tab='tree'"
+          :class="tab==='tree'?'btn-white':'btn-ghost'"
+          style="flex: 1"
+        >
+          📁 Files ({{ project.file_count }})
+        </button>
+        {% if project.html_code %}<button
+          @click="tab='code'"
+          :class="tab==='code'?'btn-white':'btn-ghost'"
+          style="flex: 1"
+        >
+          💻 Code</button
+        >{% endif %}
       </div>
 
-      <div x-show="tab==='readme'" style="margin:12px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:14px">
-        <div style="font-size:11px;letter-spacing:.06em;color:var(--muted);font-weight:700;margin-bottom:8px">README — REQUIRED FOR EVERY VIBE</div>
-        <div style="font-size:13px;line-height:1.7;color:var(--text)">{{ project.readme_html|safe }}</div>
+      <div
+        x-show="tab==='readme'"
+        style="
+          margin: 12px;
+          background: var(--bg);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 14px;
+        "
+      >
+        <div
+          style="
+            font-size: 11px;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+            font-weight: 700;
+            margin-bottom: 8px;
+          "
+        >
+          README — REQUIRED FOR EVERY VIBE
+        </div>
+        <div style="font-size: 13px; line-height: 1.7; color: var(--text)">
+          {{ project.readme_html|safe }}
+        </div>
       </div>
 
-      <div x-show="tab==='tree'" style="margin:12px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px" x-data="{open:true}">
-        <div style="font-size:11px;letter-spacing:.06em;color:var(--muted);font-weight:700;margin-bottom:8px">FILE TREE — stock_app_vibes</div>
+      <div
+        x-show="tab==='tree'"
+        style="
+          margin: 12px;
+          background: var(--bg);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 12px;
+        "
+        x-data="{open:true}"
+      >
+        <div
+          style="
+            font-size: 11px;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+            font-weight: 700;
+            margin-bottom: 8px;
+          "
+        >
+          FILE TREE — stock_app_vibes
+        </div>
         {% if project.file_tree %}
-          <div style="font-family:JetBrains Mono,monospace;font-size:12px;line-height:1.8">
-            {{ project.file_tree|json_script:"tree-data" }}
-            <div id="tree-root" data-slug="{{ project.slug }}"></div>
+        <div
+          style="
+            font-family:
+              JetBrains Mono,
+              monospace;
+            font-size: 12px;
+            line-height: 1.8;
+          "
+        >
+          {{ project.file_tree|json_script:"tree-data" }}
+          <div id="tree-root" data-slug="{{ project.slug }}"></div>
+        </div>
+        <div
+          id="filePreview"
+          style="
+            display: none;
+            margin-top: 12px;
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 10px;
+          "
+        >
+          <div style="display: flex; justify-content: space-between">
+            <b
+              id="fileName"
+              style="
+                font-family:
+                  JetBrains Mono,
+                  monospace;
+                font-size: 12px;
+              "
+            ></b
+            ><button
+              class="btn-ghost js-close-preview"
+              style="padding: 4px 8px; font-size: 11px"
+            >
+              ✕
+            </button>
           </div>
-          <div id="filePreview" style="display:none;margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px">
-            <div style="display:flex;justify-content:space-between"><b id="fileName" style="font-family:JetBrains Mono,monospace;font-size:12px"></b><button class="btn-ghost js-close-preview" style="padding:4px 8px;font-size:11px">✕</button></div>
-            <pre id="fileCode" style="font-family:JetBrains Mono,monospace;font-size:11px;white-space:pre-wrap;overflow:auto;max-height:240px;margin-top:6px;color:var(--text)"></pre>
-          </div>
+          <pre
+            id="fileCode"
+            style="
+              font-family:
+                JetBrains Mono,
+                monospace;
+              font-size: 11px;
+              white-space: pre-wrap;
+              overflow: auto;
+              max-height: 240px;
+              margin-top: 6px;
+              color: var(--text);
+            "
+          ></pre>
+        </div>
         {% else %}
-          <div style="color:var(--muted);font-size:12px">No file tree — this is a snippet. See Code tab for HTML/CSS.</div>
+        <div style="color: var(--muted); font-size: 12px">
+          No file tree — this is a snippet. See Code tab for HTML/CSS.
+        </div>
         {% endif %}
-        <div style="margin-top:8px;font-size:11px;color:var(--muted)">Click any file to preview (200KB max). Full ZIP has everything.</div>
+        <div style="margin-top: 8px; font-size: 11px; color: var(--muted)">
+          Click any file to preview (200KB max). Full ZIP has everything.
+        </div>
       </div>
 
       {% if project.html_code %}
-      <div x-show="tab==='code'" style="margin:12px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px">
-        <div style="display:flex;gap:8px;margin-bottom:8px">
-          <button class="btn-white js-copy-code" data-target="html-code" data-copy-url="{% url 'copy_increment' project.slug %}" data-csrf="{{ csrf_token }}">Copy HTML</button>
-          <button class="btn-ghost js-copy-code" data-target="css-code">Copy CSS</button>
+      <div
+        x-show="tab==='code'"
+        style="
+          margin: 12px;
+          background: var(--bg);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 12px;
+        "
+      >
+        <div style="display: flex; gap: 8px; margin-bottom: 8px">
+          <button
+            class="btn-white js-copy-code"
+            data-target="html-code"
+            data-copy-url="{% url 'copy_increment' project.slug %}"
+            data-csrf="{{ csrf_token }}"
+          >
+            Copy HTML
+          </button>
+          <button class="btn-ghost js-copy-code" data-target="css-code">
+            Copy CSS
+          </button>
         </div>
-        <pre id="html-code" style="background:var(--card);padding:10px;border-radius:8px;overflow:auto;font-family:JetBrains Mono,monospace;font-size:11px;white-space:pre-wrap">{{ project.html_code }}</pre>
-        {% if project.css_code %}<pre id="css-code" style="background:var(--card);padding:10px;border-radius:8px;overflow:auto;margin-top:8px;font-family:JetBrains Mono,monospace;font-size:11px;white-space:pre-wrap">{{ project.css_code }}</pre>{% endif %}
+        <pre
+          id="html-code"
+          style="
+            background: var(--card);
+            padding: 10px;
+            border-radius: 8px;
+            overflow: auto;
+            font-family:
+              JetBrains Mono,
+              monospace;
+            font-size: 11px;
+            white-space: pre-wrap;
+          "
+        >
+{{ project.html_code }}</pre
+        >
+        {% if project.css_code %}
+        <pre
+          id="css-code"
+          style="
+            background: var(--card);
+            padding: 10px;
+            border-radius: 8px;
+            overflow: auto;
+            margin-top: 8px;
+            font-family:
+              JetBrains Mono,
+              monospace;
+            font-size: 11px;
+            white-space: pre-wrap;
+          "
+        >
+{{ project.css_code }}</pre
+        >
+        {% endif %}
       </div>
       {% endif %}
     </div>
 
     <!-- COMMENTS -->
-    <div class="card" id="comments" style="margin-top:12px;padding:14px">
-      <h3 style="font-weight:700">Comments • {{ comment_count }}</h3>
+    <div class="card" id="comments" style="margin-top: 12px; padding: 14px">
+      <h3 style="font-weight: 700">Comments • {{ comment_count }}</h3>
       {% if user.is_authenticated %}
-      <form method="post" action="{% url 'post_comment' project.slug %}" style="margin-top:10px;display:flex;gap:8px">
+      <form
+        method="post"
+        action="{% url 'post_comment' project.slug %}"
+        style="margin-top: 10px; display: flex; gap: 8px"
+      >
         {% csrf_token %}
-        <div style="width:32px;height:32px;border-radius:50%;background:var(--violet);color:var(--on-accent);display:grid;place-items:center;font-weight:800;font-size:12px;flex-shrink:0">{{ user.username|first|upper }}</div>
-        <div style="flex:1">
-          <textarea name="body" placeholder="Ask about setup, report a bug, share a vibe... (Markdown **bold** `code` allowed)" required style="width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--text);font-size:13px;min-height:72px"></textarea>
-          <div style="display:flex;justify-content:space-between;margin-top:6px"><span style="font-size:11px;color:var(--muted)">Be respectful • Markdown supported</span><button class="btn-violet">Comment</button></div>
+        <div
+          style="
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: var(--violet);
+            color: var(--on-accent);
+            display: grid;
+            place-items: center;
+            font-weight: 800;
+            font-size: 12px;
+            flex-shrink: 0;
+          "
+        >
+          {{ user.username|first|upper }}
+        </div>
+        <div style="flex: 1">
+          <textarea
+            name="body"
+            placeholder="Ask about setup, report a bug, share a vibe... (Markdown **bold** `code` allowed)"
+            required
+            style="
+              width: 100%;
+              background: var(--bg);
+              border: 1px solid var(--line);
+              border-radius: 10px;
+              padding: 10px;
+              color: var(--text);
+              font-size: 13px;
+              min-height: 72px;
+            "
+          ></textarea>
+          <div
+            style="
+              display: flex;
+              justify-content: space-between;
+              margin-top: 6px;
+            "
+          >
+            <span style="font-size: 11px; color: var(--muted)"
+              >Be respectful • Markdown supported</span
+            ><button class="btn-violet">Comment</button>
+          </div>
         </div>
       </form>
       {% else %}
-        <div style="margin-top:10px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:13px;color:var(--muted)">Please <a href="{% url 'login' %}" style="color:var(--link)">sign in</a> to comment.</div>
+      <div
+        style="
+          margin-top: 10px;
+          background: var(--bg);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          font-size: 13px;
+          color: var(--muted);
+        "
+      >
+        Please
+        <a href="{% url 'login' %}" style="color: var(--link)">sign in</a> to
+        comment.
+      </div>
       {% endif %}
-      <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
+      <div
+        style="
+          margin-top: 14px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        "
+      >
         {% for c in comments %}
-        <div style="padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:12px;display:flex;gap:10px">
-          <div style="width:32px;height:32px;border-radius:50%;background:var(--line);display:grid;place-items:center;font-weight:700;font-size:12px;flex-shrink:0">{{ c.user.username|first|upper }}</div>
-          <div style="flex:1">
-            <div style="display:flex;gap:6px;align-items:center"><b style="font-size:13px">@{{ c.user.username }}</b><span style="font-size:11px;color:var(--muted)">{{ c.created_at|timesince }} ago</span></div>
-            <div style="font-size:13px;margin-top:4px;line-height:1.6;color:var(--text)">{{ c.body_html|safe }}</div>
+        <div
+          style="
+            padding: 12px;
+            background: var(--bg);
+            border: 1px solid var(--line);
+            border-radius: 12px;
+            display: flex;
+            gap: 10px;
+          "
+        >
+          <div
+            style="
+              width: 32px;
+              height: 32px;
+              border-radius: 50%;
+              background: var(--line);
+              display: grid;
+              place-items: center;
+              font-weight: 700;
+              font-size: 12px;
+              flex-shrink: 0;
+            "
+          >
+            {{ c.user.username|first|upper }}
+          </div>
+          <div style="flex: 1">
+            <div style="display: flex; gap: 6px; align-items: center">
+              <b style="font-size: 13px">@{{ c.user.username }}</b
+              ><span style="font-size: 11px; color: var(--muted)"
+                >{{ c.created_at|timesince }} ago</span
+              >
+            </div>
+            <div
+              style="
+                font-size: 13px;
+                margin-top: 4px;
+                line-height: 1.6;
+                color: var(--text);
+              "
+            >
+              {{ c.body_html|safe }}
+            </div>
             {% for r in c.replies.all %}{% if not r.is_hidden %}
-              <div style="margin-top:8px;margin-left:12px;padding-left:10px;border-left:2px solid var(--line);display:flex;gap:8px">
-                <div style="width:24px;height:24px;border-radius:50%;background:var(--input);display:grid;place-items:center;font-size:10px">{{ r.user.username|first|upper }}</div>
-                <div><b style="font-size:12px">@{{ r.user.username }}</b><div style="font-size:13px">{{ r.body_html|safe }}</div></div>
+            <div
+              style="
+                margin-top: 8px;
+                margin-left: 12px;
+                padding-left: 10px;
+                border-left: 2px solid var(--line);
+                display: flex;
+                gap: 8px;
+              "
+            >
+              <div
+                style="
+                  width: 24px;
+                  height: 24px;
+                  border-radius: 50%;
+                  background: var(--input);
+                  display: grid;
+                  place-items: center;
+                  font-size: 10px;
+                "
+              >
+                {{ r.user.username|first|upper }}
               </div>
-            {% endif %}{% endfor %}
-            {% if user.is_authenticated %}
-            <form method="post" action="{% url 'post_comment' project.slug %}" style="margin-top:6px;display:flex;gap:6px">
-              {% csrf_token %}<input type="hidden" name="parent_id" value="{{ c.id }}"><input name="body" placeholder="Reply..." style="flex:1;background:var(--input);border:1px solid var(--line);border-radius:8px;padding:6px 8px;color:var(--text);font-size:12px"><button class="btn-ghost" style="padding:6px 10px;font-size:12px">Reply</button>
+              <div>
+                <b style="font-size: 12px">@{{ r.user.username }}</b>
+                <div style="font-size: 13px">{{ r.body_html|safe }}</div>
+              </div>
+            </div>
+            {% endif %}{% endfor %} {% if user.is_authenticated %}
+            <form
+              method="post"
+              action="{% url 'post_comment' project.slug %}"
+              style="margin-top: 6px; display: flex; gap: 6px"
+            >
+              {% csrf_token %}<input
+                type="hidden"
+                name="parent_id"
+                value="{{ c.id }}"
+              /><input
+                name="body"
+                placeholder="Reply..."
+                style="
+                  flex: 1;
+                  background: var(--input);
+                  border: 1px solid var(--line);
+                  border-radius: 8px;
+                  padding: 6px 8px;
+                  color: var(--text);
+                  font-size: 12px;
+                "
+              /><button
+                class="btn-ghost"
+                style="padding: 6px 10px; font-size: 12px"
+              >
+                Reply
+              </button>
             </form>
             {% endif %}
           </div>
         </div>
         {% empty %}
-          <div style="color:var(--muted);font-size:13px;text-align:center;padding:12px">No comments yet. Be the first to vibe!</div>
+        <div
+          style="
+            color: var(--muted);
+            font-size: 13px;
+            text-align: center;
+            padding: 12px;
+          "
+        >
+          No comments yet. Be the first to vibe!
+        </div>
         {% endfor %}
       </div>
     </div>
 
     <!-- NOLO COMPARE — Backend logic, no judgment, side-by-side -->
-    <div class="card" style="margin-top:12px;padding:14px;background:var(--bg)">
-      <div style="display:flex;align-items:center;gap:8px">
-        <a href="https://www.flaticon.com/free-icons/ui" title="Ui icons created by lakonicon - Flaticon" target="_blank" rel="noopener noreferrer" style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;background:var(--input);border:1px solid var(--line);border-radius:8px;color:var(--warning-text);text-decoration:none;font-size:16px">
+    <div
+      class="card"
+      style="margin-top: 12px; padding: 14px; background: var(--bg)"
+    >
+      <div style="display: flex; align-items: center; gap: 8px">
+        <a
+          href="https://www.flaticon.com/free-icons/ui"
+          title="Ui icons created by lakonicon - Flaticon"
+          target="_blank"
+          rel="noopener noreferrer"
+          style="
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background: var(--input);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            color: var(--warning-text);
+            text-decoration: none;
+            font-size: 16px;
+          "
+        >
           🤖
         </a>
         <div>
-          <div style="font-weight:800">Ask Nolo to Compare</div>
-          <div style="font-size:11px;color:var(--muted)">Nolo doesn’t judge — she just shows features side-by-side. You pick the function you want. Backend only.</div>
+          <div style="font-weight: 800">Ask Nolo to Compare</div>
+          <div style="font-size: 11px; color: var(--muted)">
+            Nolo doesn’t judge — she just shows features side-by-side. You pick
+            the function you want. Backend only.
+          </div>
         </div>
       </div>
-      <div style="margin-top:6px;font-size:10px;color:var(--muted)">Icon: <a href="https://www.flaticon.com/free-icons/ui" title="Ui icons created by lakonicon - Flaticon" target="_blank" rel="noopener noreferrer" style="color:var(--link);text-decoration:none">Ui icons created by lakonicon - Flaticon</a></div>
-      <div style="margin-top:8px;font-size:12px;color:var(--muted)">Need help asking Nolo about this app or finding new templates? <a href="{% url 'nolo_chat' %}" style="color:var(--link);text-decoration:none">Open Nolo Chat</a>.</div>
-      <form id="nolo-form" data-url="{% url 'nolo_compare' %}" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <div style="margin-top: 6px; font-size: 10px; color: var(--muted)">
+        Icon:
+        <a
+          href="https://www.flaticon.com/free-icons/ui"
+          title="Ui icons created by lakonicon - Flaticon"
+          target="_blank"
+          rel="noopener noreferrer"
+          style="color: var(--link); text-decoration: none"
+          >Ui icons created by lakonicon - Flaticon</a
+        >
+      </div>
+      <div style="margin-top: 8px; font-size: 12px; color: var(--muted)">
+        Need help asking Nolo about this app or finding new templates?
+        <a
+          href="{% url 'nolo_chat' %}"
+          style="color: var(--link); text-decoration: none"
+          >Open Nolo Chat</a
+        >.
+      </div>
+      <form
+        id="nolo-form"
+        data-url="{% url 'nolo_compare' %}"
+        style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap"
+      >
         {% csrf_token %}
-        <input type="hidden" name="a_slug" value="{{ project.slug }}">
-        <select name="b_slug" id="nolo-b" style="flex:1;background:var(--input);border:1px solid var(--line);border-radius:10px;padding:8px;color:var(--text);font-size:12px">
+        <input type="hidden" name="a_slug" value="{{ project.slug }}" />
+        <select
+          name="b_slug"
+          id="nolo-b"
+          style="
+            flex: 1;
+            background: var(--input);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 8px;
+            color: var(--text);
+            font-size: 12px;
+          "
+        >
           <option value="">Compare with...</option>
-          {% for p in compare_options %}<option value="{{ p.slug }}">{{ p.title }} — {{ p.tech_stack }}</option>{% endfor %}
+          {% for p in compare_options %}
+          <option value="{{ p.slug }}">
+            {{ p.title }} — {{ p.tech_stack }}
+          </option>
+          {% endfor %}
         </select>
-        <button class="btn-violet" style="padding:8px 14px;font-size:12px">Compare</button>
+        <button class="btn-violet" style="padding: 8px 14px; font-size: 12px">
+          Compare
+        </button>
       </form>
-      <div id="nolo-result" style="display:none;margin-top:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;font-size:12px;line-height:1.6"></div>
+      <div
+        id="nolo-result"
+        style="
+          display: none;
+          margin-top: 10px;
+          background: var(--card);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          font-size: 12px;
+          line-height: 1.6;
+        "
+      ></div>
     </div>
 
     <!-- NOLO AUTO-REVIEW + HUMAN REVIEWS -->
     {% if nolo_review %}
-    <div class="card" style="margin-top:12px;padding:14px;background:var(--accent-soft-bg);border-color:var(--accent-border)">
-      <div style="display:flex;align-items:center;gap:10px">
-        <span style="font-size:22px">🤖</span>
-        <div style="flex:1">
-          <div style="font-weight:800">Nolo Auto-Review — {{ nolo_review.score }}/10</div>
-          <div style="font-size:11px;color:var(--muted)">Heuristic (no LLM key) • Backend only, crush silently</div>
+    <div
+      class="card"
+      style="
+        margin-top: 12px;
+        padding: 14px;
+        background: var(--accent-soft-bg);
+        border-color: var(--accent-border);
+      "
+    >
+      <div style="display: flex; align-items: center; gap: 10px">
+        <span style="font-size: 22px">🤖</span>
+        <div style="flex: 1">
+          <div style="font-weight: 800">
+            Nolo Auto-Review — {{ nolo_review.score }}/10
+          </div>
+          <div style="font-size: 11px; color: var(--muted)">
+            Heuristic (no LLM key) • Backend only, crush silently
+          </div>
         </div>
-        <span style="font-size:24px;font-weight:800;color:var(--warning-text)">{{ nolo_review.score }}<span style="font-size:12px;color:var(--muted)">/10</span></span>
+        <span
+          style="font-size: 24px; font-weight: 800; color: var(--warning-text)"
+          >{{ nolo_review.score }}<span
+            style="font-size: 12px; color: var(--muted)"
+            >/10</span
+          ></span
+        >
       </div>
-      <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div><div style="font-size:11px;font-weight:700;color:var(--success-text)">Pros</div><div style="font-size:12px;margin-top:4px">{% for p in nolo_review.pros %}<div>• {{ p }}</div>{% empty %}<div style="color:var(--muted)">—</div>{% endfor %}</div></div>
-        <div><div style="font-size:11px;font-weight:700;color:var(--warning-text)">Fixes</div><div style="font-size:12px;margin-top:4px">{% for f in nolo_review.fixes %}<div>• {{ f }}</div>{% empty %}<div style="color:var(--muted)">No fixes — great vibe!</div>{% endfor %}</div></div>
+      <div
+        style="
+          margin-top: 10px;
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 10px;
+        "
+      >
+        <div>
+          <div
+            style="
+              font-size: 11px;
+              font-weight: 700;
+              color: var(--success-text);
+            "
+          >
+            Pros
+          </div>
+          <div style="font-size: 12px; margin-top: 4px">
+            {% for p in nolo_review.pros %}
+            <div>• {{ p }}</div>
+            {% empty %}
+            <div style="color: var(--muted)">—</div>
+            {% endfor %}
+          </div>
+        </div>
+        <div>
+          <div
+            style="
+              font-size: 11px;
+              font-weight: 700;
+              color: var(--warning-text);
+            "
+          >
+            Fixes
+          </div>
+          <div style="font-size: 12px; margin-top: 4px">
+            {% for f in nolo_review.fixes %}
+            <div>• {{ f }}</div>
+            {% empty %}
+            <div style="color: var(--muted)">No fixes — great vibe!</div>
+            {% endfor %}
+          </div>
+        </div>
       </div>
     </div>
     {% endif %}
 
-    <div class="card" id="reviews" style="margin-top:12px;padding:14px">
-      <div style="display:flex;align-items:center;gap:10px">
-        <h3 style="font-weight:700">Reviews • {{ project.review_count }} {% if project.avg_rating %}<span style="color:var(--warning-text)">★ {{ project.avg_rating }}/5</span>{% endif %}</h3>
-        <span style="margin-left:auto;font-size:11px;color:var(--muted)">Nolo 0-10 + Humans 1-5</span>
+    <div class="card" id="reviews" style="margin-top: 12px; padding: 14px">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <h3 style="font-weight: 700">
+          Reviews • {{ project.review_count }} {% if project.avg_rating %}<span
+            style="color: var(--warning-text)"
+            >★ {{ project.avg_rating }}/5</span
+          >{% endif %}
+        </h3>
+        <span style="margin-left: auto; font-size: 11px; color: var(--muted)"
+          >Nolo 0-10 + Humans 1-5</span
+        >
       </div>
       {% if user.is_authenticated %}
-      <form method="post" action="{% url 'post_review' project.slug %}" style="margin-top:10px;display:flex;gap:8px;align-items:center">
+      <form
+        method="post"
+        action="{% url 'post_review' project.slug %}"
+        style="margin-top: 10px; display: flex; gap: 8px; align-items: center"
+      >
         {% csrf_token %}
-        <select name="rating" style="background:var(--input);border:1px solid var(--line);border-radius:10px;padding:8px;color:var(--text);font-size:12px"><option value="5">5 ★</option><option value="4">4 ★</option><option value="3">3 ★</option><option value="2">2 ★</option><option value="1">1 ★</option></select>
-        <input name="text" placeholder="Write a review (sanitized, crush silently)..." style="flex:1;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:8px;color:var(--text);font-size:12px">
-        <button class="btn-violet" style="padding:8px 12px;font-size:12px">Post Review</button>
+        <select
+          name="rating"
+          style="
+            background: var(--input);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 8px;
+            color: var(--text);
+            font-size: 12px;
+          "
+        >
+          <option value="5">5 ★</option>
+          <option value="4">4 ★</option>
+          <option value="3">3 ★</option>
+          <option value="2">2 ★</option>
+          <option value="1">1 ★</option>
+        </select>
+        <input
+          name="text"
+          placeholder="Write a review (sanitized, crush silently)..."
+          style="
+            flex: 1;
+            background: var(--bg);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 8px;
+            color: var(--text);
+            font-size: 12px;
+          "
+        />
+        <button class="btn-violet" style="padding: 8px 12px; font-size: 12px">
+          Post Review
+        </button>
       </form>
-      <div style="font-size:11px;color:var(--muted);margin-top:4px">Must trade or star first to review — backend checks Trade/Star.</div>
+      <div style="font-size: 11px; color: var(--muted); margin-top: 4px">
+        Must trade or star first to review — backend checks Trade/Star.
+      </div>
       {% else %}
-      <div style="margin-top:8px;font-size:12px;color:var(--muted)">Please <a href="{% url 'login' %}" style="color:var(--link)">sign in</a> to review. Trade or star first.</div>
+      <div style="margin-top: 8px; font-size: 12px; color: var(--muted)">
+        Please
+        <a href="{% url 'login' %}" style="color: var(--link)">sign in</a> to
+        review. Trade or star first.
+      </div>
       {% endif %}
-      <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
+      <div
+        style="
+          margin-top: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        "
+      >
         {% for r in reviews %}
-        <div style="padding:10px;background:var(--bg);border:1px solid var(--line);border-radius:10px;display:flex;gap:10px">
-          <div style="width:28px;height:28px;border-radius:50%;background:var(--line);display:grid;place-items:center;font-weight:700;font-size:11px">{{ r.user.username|first|upper }}</div>
-          <div style="flex:1">
-            <div style="display:flex;gap:6px;align-items:center"><b style="font-size:13px">@{{ r.user.username }}</b><span style="color:var(--warning-text)">★ {{ r.rating }}/5</span><span style="font-size:11px;color:var(--muted)">{{ r.created_at|timesince }} ago</span></div>
-            <div style="font-size:12px;margin-top:2px;color:var(--text)">{{ r.text|default:"—" }}</div>
+        <div
+          style="
+            padding: 10px;
+            background: var(--bg);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            display: flex;
+            gap: 10px;
+          "
+        >
+          <div
+            style="
+              width: 28px;
+              height: 28px;
+              border-radius: 50%;
+              background: var(--line);
+              display: grid;
+              place-items: center;
+              font-weight: 700;
+              font-size: 11px;
+            "
+          >
+            {{ r.user.username|first|upper }}
+          </div>
+          <div style="flex: 1">
+            <div style="display: flex; gap: 6px; align-items: center">
+              <b style="font-size: 13px">@{{ r.user.username }}</b
+              ><span style="color: var(--warning-text)">★ {{ r.rating }}/5</span
+              ><span style="font-size: 11px; color: var(--muted)"
+                >{{ r.created_at|timesince }} ago</span
+              >
+            </div>
+            <div style="font-size: 12px; margin-top: 2px; color: var(--text)">
+              {{ r.text|default:"—" }}
+            </div>
           </div>
         </div>
-        {% empty %}<div style="color:var(--muted);font-size:12px;text-align:center;padding:8px">No human reviews yet. Be the first!</div>{% endfor %}
+        {% empty %}
+        <div
+          style="
+            color: var(--muted);
+            font-size: 12px;
+            text-align: center;
+            padding: 8px;
+          "
+        >
+          No human reviews yet. Be the first!
+        </div>
+        {% endfor %}
       </div>
     </div>
   </div>
 
   <!-- RIGHT -->
   <div>
-    <div class="card" style="padding:14px">
-      <div style="display:flex;gap:6px;margin-bottom:8px">
-        <a href="{% url 'feed' %}?program={{ project.kind }}" class="badge" style="background:var(--accent-soft-bg);color:var(--accent-text);text-decoration:none" title="{{ project.kind_meta.blurb }}">{{ project.kind_icon }} {{ project.kind_label }}</a>
-        {% if project.zip_file %}<span class="badge" style="background:var(--warning-bg);color:var(--warning-text)">Full App</span>{% else %}<span class="badge" style="background:var(--accent-soft-bg);color:var(--accent-text)">Snippet</span>{% endif %}
-        {% if project.can_run_preview %}<span class="badge" style="background:var(--success-bg);color:var(--success-text)">▶ Playable here</span>{% else %}<span class="badge" style="background:var(--input);border:1px solid var(--line);color:var(--muted)" title="{{ project.preview_note }}">📁 Files only</span>{% endif %}
-        {% if user.is_authenticated and user == project.owner and project.kind_evidence %}<span class="badge" style="background:var(--input);border:1px solid var(--line);color:var(--muted)" title="Why we labelled it a {{ project.kind_label }}: {{ project.kind_evidence|join:', ' }}. Change it in Edit.">why?</span>{% endif %}
-        {% if project.ai_generated %}<span class="badge" style="border:1px solid var(--warning-border);color:var(--warning-text)">🤖 {{ project.ai_tool }}</span>{% endif %}
+    <div class="card" style="padding: 14px">
+      <div style="display: flex; gap: 6px; margin-bottom: 8px">
+        <a
+          href="{% url 'feed' %}?program={{ project.kind }}"
+          class="badge"
+          style="
+            background: var(--accent-soft-bg);
+            color: var(--accent-text);
+            text-decoration: none;
+          "
+          title="{{ project.kind_meta.blurb }}"
+          >{{ project.kind_icon }} {{ project.kind_label }}</a
+        >
+        {% if project.zip_file %}<span
+          class="badge"
+          style="background: var(--warning-bg); color: var(--warning-text)"
+          >Full App</span
+        >{% else %}<span
+          class="badge"
+          style="background: var(--accent-soft-bg); color: var(--accent-text)"
+          >Snippet</span
+        >{% endif %} {% if project.can_run_preview %}<span
+          class="badge"
+          style="background: var(--success-bg); color: var(--success-text)"
+          >▶ Playable here</span
+        >{% else %}<span
+          class="badge"
+          style="
+            background: var(--input);
+            border: 1px solid var(--line);
+            color: var(--muted);
+          "
+          title="{{ project.preview_note }}"
+          >📁 Files only</span
+        >{% endif %} {% if user.is_authenticated and user == project.owner and
+        project.kind_evidence %}<span
+          class="badge"
+          style="
+            background: var(--input);
+            border: 1px solid var(--line);
+            color: var(--muted);
+          "
+          title="Why we labelled it a {{ project.kind_label }}: {{ project.kind_evidence|join:', ' }}. Change it in Edit."
+          >why?</span
+        >{% endif %} {% if project.ai_generated %}<span
+          class="badge"
+          style="
+            border: 1px solid var(--warning-border);
+            color: var(--warning-text);
+          "
+          >🤖 {{ project.ai_tool }}</span
+        >{% endif %}
       </div>
-      <h3 style="font-weight:700">{{ project.title }}</h3>
-      <p style="font-size:12px;color:var(--muted);margin:6px 0;line-height:1.5">{{ project.short_description }}</p>
-      <div style="font-size:12px;display:flex;flex-direction:column">
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Publisher</span><b>@{{ project.owner.username }} {% if project.owner.profile.rank %}<span style="font-size:10px;background:var(--warning-bg);color:var(--warning-text);padding:2px 6px;border-radius:6px">{{ project.owner.profile.rank.name }}</span>{% endif %}</b></div>
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Stack</span><b>{{ project.tech_stack|default:"HTML/CSS" }}</b></div>
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Files</span><b>{{ project.file_count }} • {{ project.clones }} clones</b></div>
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Trade Cost</span><b>{% if project.star_cost %}{{ project.star_cost }} ★ {% if project.star_cost == 1 %}Bronze{% elif project.star_cost == 2 %}Bronze{% elif project.star_cost <= 3 %}Silver{% else %}Gold{% endif %}{% else %}0 ★ Free{% endif %}</b></div>
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Forks</span><b>⑂ {{ forks_count }} • {% if project.forked_from %}Forked from <a href="{{ project.forked_from.get_absolute_url }}" style="color:var(--link)">@{{ project.forked_from.owner.username }}</a>{% else %}Original{% endif %}</b></div>
-        <div style="display:flex;justify-content:space-between;padding:8px 0"><span style="color:var(--muted)">License</span><b>MIT</b></div>
+      <h3 style="font-weight: 700">{{ project.title }}</h3>
+      <p
+        style="
+          font-size: 12px;
+          color: var(--muted);
+          margin: 6px 0;
+          line-height: 1.5;
+        "
+      >
+        {{ project.short_description }}
+      </p>
+      <div style="font-size: 12px; display: flex; flex-direction: column">
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--line);
+          "
+        >
+          <span style="color: var(--muted)">Publisher</span
+          ><b
+            >@{{ project.owner.username }} {% if project.owner.profile.rank
+            %}<span
+              style="
+                font-size: 10px;
+                background: var(--warning-bg);
+                color: var(--warning-text);
+                padding: 2px 6px;
+                border-radius: 6px;
+              "
+              >{{ project.owner.profile.rank.name }}</span
+            >{% endif %}</b
+          >
+        </div>
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--line);
+          "
+        >
+          <span style="color: var(--muted)">Stack</span
+          ><b>{{ project.tech_stack|default:"HTML/CSS" }}</b>
+        </div>
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--line);
+          "
+        >
+          <span style="color: var(--muted)">Files</span
+          ><b>{{ project.file_count }} • {{ project.clones }} clones</b>
+        </div>
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--line);
+          "
+        >
+          <span style="color: var(--muted)">Trade Cost</span
+          ><b
+            >{% if project.star_cost %}{{ project.star_cost }} ★ {% if
+            project.star_cost == 1 %}Bronze{% elif project.star_cost == 2
+            %}Bronze{% elif project.star_cost <= 3 %}Silver{% else %}Gold{%
+            endif %}{% else %}0 ★ Free{% endif %}</b
+          >
+        </div>
+        <div
+          style="
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid var(--line);
+          "
+        >
+          <span style="color: var(--muted)">Forks</span
+          ><b
+            >⑂ {{ forks_count }} • {% if project.forked_from %}Forked from
+            <a
+              href="{{ project.forked_from.get_absolute_url }}"
+              style="color: var(--link)"
+              >@{{ project.forked_from.owner.username }}</a
+            >{% else %}Original{% endif %}</b
+          >
+        </div>
+        <div
+          style="display: flex; justify-content: space-between; padding: 8px 0"
+        >
+          <span style="color: var(--muted)">License</span><b>MIT</b>
+        </div>
       </div>
       {% if project.language_stats %}
-      <div style="margin-top:10px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px">
-        <div style="font-size:11px;color:var(--muted);font-weight:700">LANGUAGES — % OF CODE</div>
-        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+      <div
+        style="
+          margin-top: 10px;
+          background: var(--bg);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--muted); font-weight: 700">
+          LANGUAGES — % OF CODE
+        </div>
+        <div style="margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap">
           {% for lang, pct in project.language_stats.items %}
-          <span style="background:var(--input);border:1px solid var(--line);padding:4px 8px;border-radius:8px;font-size:11px"><span style="width:8px;height:8px;border-radius:50%;background:{% if lang == 'Python' %}#3776AB{% elif lang == 'JavaScript' %}#F7DF1E{% elif lang == 'CSS' %}#1572B6{% elif lang == 'HTML' %}#E34F26{% else %}#7C3AED{% endif %};display:inline-block"></span> {{ lang }} {{ pct }}%</span>
+          <span
+            style="
+              background: var(--input);
+              border: 1px solid var(--line);
+              padding: 4px 8px;
+              border-radius: 8px;
+              font-size: 11px;
+            "
+            ><span
+              style="width:8px;height:8px;border-radius:50%;background:{% if lang == 'Python' %}#3776AB{% elif lang == 'JavaScript' %}#F7DF1E{% elif lang == 'CSS' %}#1572B6{% elif lang == 'HTML' %}#E34F26{% else %}#7C3AED{% endif %};display:inline-block"
+            ></span>
+            {{ lang }} {{ pct }}%</span
+          >
           {% endfor %}
         </div>
-        <div style="margin-top:8px;height:8px;border-radius:100px;display:flex;overflow:hidden;background:var(--input)">
-          {% for lang, pct in project.language_stats.items %}<div style="width:{{ pct }}%;background:{% if lang == 'Python' %}#3776AB{% elif lang == 'JavaScript' %}#F7DF1E{% elif lang == 'CSS' %}#1572B6{% elif lang == 'HTML' %}#E34F26{% else %}#7C3AED{% endif %}"></div>{% endfor %}
+        <div
+          style="
+            margin-top: 8px;
+            height: 8px;
+            border-radius: 100px;
+            display: flex;
+            overflow: hidden;
+            background: var(--input);
+          "
+        >
+          {% for lang, pct in project.language_stats.items %}
+          <div
+            style="width:{{ pct }}%;background:{% if lang == 'Python' %}#3776AB{% elif lang == 'JavaScript' %}#F7DF1E{% elif lang == 'CSS' %}#1572B6{% elif lang == 'HTML' %}#E34F26{% else %}#7C3AED{% endif %}"
+          ></div>
+          {% endfor %}
         </div>
-        <div style="font-size:10px;color:var(--muted);margin-top:4px">Backend detected from ZIP extensions, size-weighted — no JS can fake it.</div>
+        <div style="font-size: 10px; color: var(--muted); margin-top: 4px">
+          Backend detected from ZIP extensions, size-weighted — no JS can fake
+          it.
+        </div>
+      </div>
+      {% endif %} {% if project.ai_prompt %}
+      <div
+        style="
+          margin-top: 10px;
+          background: var(--bg);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+        "
+      >
+        <div
+          style="font-size: 11px; color: var(--warning-text); font-weight: 700"
+        >
+          🤖 AI PROMPT
+        </div>
+        <div
+          style="
+            font-size: 12px;
+            color: var(--text);
+            margin-top: 4px;
+            white-space: pre-wrap;
+          "
+        >
+          {{ project.ai_prompt }}
+        </div>
       </div>
       {% endif %}
-      {% if project.ai_prompt %}<div style="margin-top:10px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px"><div style="font-size:11px;color:var(--warning-text);font-weight:700">🤖 AI PROMPT</div><div style="font-size:12px;color:var(--text);margin-top:4px;white-space:pre-wrap">{{ project.ai_prompt }}</div></div>{% endif %}
-      <div style="margin-top:10px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px"><div style="font-size:11px;color:var(--success-text);font-weight:700">🔒 SECURITY</div><div style="font-size:12px;line-height:1.6;margin-top:4px">✅ Sanitized README<br>✅ Path traversal blocked<br>✅ Sandboxed preview</div></div>
+      <div
+        style="
+          margin-top: 10px;
+          background: var(--bg);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+        "
+      >
+        <div
+          style="font-size: 11px; color: var(--success-text); font-weight: 700"
+        >
+          🔒 SECURITY
+        </div>
+        <div style="font-size: 12px; line-height: 1.6; margin-top: 4px">
+          ✅ Sanitized README<br />✅ Path traversal blocked<br />✅ Sandboxed
+          preview
+        </div>
+      </div>
       {% if published_forks %}
-      <div style="margin-top:10px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px">
-        <div style="font-size:11px;color:var(--muted);font-weight:700">⑂ FORKS ({{ forks_count }}) — <a href="{% url 'fork_network' project.slug %}" style="color:var(--link)">View network →</a> • <a href="{% url 'pr_list' project.slug %}" style="color:var(--link)">PRs ({{ prs_count }}) →</a></div>
-        {% for f in published_forks %}<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--line)"><a href="{{ f.get_absolute_url }}" style="color:var(--link)">{{ f.title }}</a> by @{{ f.owner.username }} • {{ f.stars }} ★</div>{% endfor %}
+      <div
+        style="
+          margin-top: 10px;
+          background: var(--bg);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--muted); font-weight: 700">
+          ⑂ FORKS ({{ forks_count }}) —
+          <a
+            href="{% url 'fork_network' project.slug %}"
+            style="color: var(--link)"
+            >View network →</a
+          >
+          •
+          <a href="{% url 'pr_list' project.slug %}" style="color: var(--link)"
+            >PRs ({{ prs_count }}) →</a
+          >
+        </div>
+        {% for f in published_forks %}
+        <div
+          style="
+            font-size: 12px;
+            padding: 4px 0;
+            border-bottom: 1px solid var(--line);
+          "
+        >
+          <a href="{{ f.get_absolute_url }}" style="color: var(--link)"
+            >{{ f.title }}</a
+          >
+          by @{{ f.owner.username }} • {{ f.stars }} ★
+        </div>
+        {% endfor %}
       </div>
       {% else %}
-      <div style="margin-top:10px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px">
-        <div style="font-size:11px;color:var(--muted);font-weight:700">⑂ FORKS — <a href="{% url 'fork_network' project.slug %}" style="color:var(--link)">View network →</a> • <a href="{% url 'pr_list' project.slug %}" style="color:var(--link)">PRs ({{ prs_count }}) →</a></div>
-        <div style="font-size:12px;color:var(--muted)">No forks yet — be the first!</div>
+      <div
+        style="
+          margin-top: 10px;
+          background: var(--bg);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--muted); font-weight: 700">
+          ⑂ FORKS —
+          <a
+            href="{% url 'fork_network' project.slug %}"
+            style="color: var(--link)"
+            >View network →</a
+          >
+          •
+          <a href="{% url 'pr_list' project.slug %}" style="color: var(--link)"
+            >PRs ({{ prs_count }}) →</a
+          >
+        </div>
+        <div style="font-size: 12px; color: var(--muted)">
+          No forks yet — be the first!
+        </div>
       </div>
-      {% endif %}
-      {% if project.forked_from %}
-      <div style="margin-top:10px;background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:10px;padding:10px">
-        <div style="font-size:11px;color:var(--warning-text);font-weight:700">⑂ Forked from <a href="{{ project.forked_from.get_absolute_url }}" style="color:var(--warning-text)">@{{ project.forked_from.owner.username }}/{{ project.forked_from.slug }}</a></div>
+      {% endif %} {% if project.forked_from %}
+      <div
+        style="
+          margin-top: 10px;
+          background: var(--warning-bg);
+          border: 1px solid var(--warning-border);
+          border-radius: 10px;
+          padding: 10px;
+        "
+      >
+        <div
+          style="font-size: 11px; color: var(--warning-text); font-weight: 700"
+        >
+          ⑂ Forked from
+          <a
+            href="{{ project.forked_from.get_absolute_url }}"
+            style="color: var(--warning-text)"
+            >@{{ project.forked_from.owner.username }}/{{
+            project.forked_from.slug }}</a
+          >
+        </div>
         {% if user == project.owner and project.status == 'published' %}
-        <form method="post" action="{% url 'create_pr' project.slug %}" style="margin-top:8px;display:flex;gap:6px">{% csrf_token %}<input name="title" placeholder="PR title" required style="flex:1;background:var(--input);border:1px solid var(--line);border-radius:8px;padding:6px;color:var(--text);font-size:11px"><button class="btnV" style="padding:6px 10px;font-size:11px">Create PR → {{ project.forked_from.slug }}</button></form>
+        <form
+          method="post"
+          action="{% url 'create_pr' project.slug %}"
+          style="margin-top: 8px; display: flex; gap: 6px"
+        >
+          {% csrf_token %}<input
+            name="title"
+            placeholder="PR title"
+            required
+            style="
+              flex: 1;
+              background: var(--input);
+              border: 1px solid var(--line);
+              border-radius: 8px;
+              padding: 6px;
+              color: var(--text);
+              font-size: 11px;
+            "
+          /><button class="btnV" style="padding: 6px 10px; font-size: 11px">
+            Create PR → {{ project.forked_from.slug }}
+          </button>
+        </form>
         {% endif %}
       </div>
       {% endif %}
       <!-- Who viewed — owner + active Pro only -->
       {% if viewers is not None %}
-      <div style="margin-top:10px;background:var(--bg);border:1px solid var(--accent-border);border-radius:10px;padding:10px">
-        <div style="font-size:11px;color:var(--link);font-weight:700">Who viewed — only you can see this ({{ viewer_count }} views)</div>
-        {% if viewers %}
-          {% for v in viewers %}<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between"><span><a href="{% url 'profile_view' v.viewer.username %}" style="color:var(--link)">@{{ v.viewer.username }}</a> • {{ v.count }}×</span><span style="color:var(--muted);font-size:11px">{{ v.last_viewed|timesince }} ago</span></div>{% endfor %}
-        {% else %}<div style="font-size:11px;color:var(--muted)">No named views yet — share your vibe!</div>{% endif %}
+      <div
+        style="
+          margin-top: 10px;
+          background: var(--bg);
+          border: 1px solid var(--accent-border);
+          border-radius: 10px;
+          padding: 10px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--link); font-weight: 700">
+          Who viewed — only you can see this ({{ viewer_count }} views)
+        </div>
+        {% if viewers %} {% for v in viewers %}
+        <div
+          style="
+            font-size: 12px;
+            padding: 4px 0;
+            border-bottom: 1px solid var(--line);
+            display: flex;
+            justify-content: space-between;
+          "
+        >
+          <span
+            ><a
+              href="{% url 'profile_view' v.viewer.username %}"
+              style="color: var(--link)"
+              >@{{ v.viewer.username }}</a
+            >
+            • {{ v.count }}×</span
+          ><span style="color: var(--muted); font-size: 11px"
+            >{{ v.last_viewed|timesince }} ago</span
+          >
+        </div>
+        {% endfor %} {% else %}
+        <div style="font-size: 11px; color: var(--muted)">
+          No named views yet — share your vibe!
+        </div>
+        {% endif %}
       </div>
       {% elif show_viewer_upsell %}
-      <div style="margin-top:10px;background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:10px;padding:10px">
-        <div style="font-size:11px;color:var(--warning-text);font-weight:700">Who viewed — Pro only</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:4px">{{ viewer_count }} views — <a href="{% url 'payout_dashboard' %}" style="color:var(--warning-text)">start a 7-day Pro trial</a> to see names. Visitors never see this list.</div>
+      <div
+        style="
+          margin-top: 10px;
+          background: var(--warning-bg);
+          border: 1px solid var(--warning-border);
+          border-radius: 10px;
+          padding: 10px;
+        "
+      >
+        <div
+          style="font-size: 11px; color: var(--warning-text); font-weight: 700"
+        >
+          Who viewed — Pro only
+        </div>
+        <div style="font-size: 12px; color: var(--muted); margin-top: 4px">
+          {{ viewer_count }} views —
+          <a
+            href="{% url 'payout_dashboard' %}"
+            style="color: var(--warning-text)"
+            >start a 7-day Pro trial</a
+          >
+          to see names. Visitors never see this list.
+        </div>
       </div>
       {% endif %}
     </div>
-    <div class="card" style="margin-top:12px;padding:14px;background:var(--bg)">
-      <h4 style="font-size:11px;letter-spacing:.06em;color:var(--muted)">HOW TO ACCESS</h4>
-      <ol style="font-size:12px;line-height:1.7;margin-top:6px;padding-left:16px;color:var(--text)"><li>Read README</li><li>Explore Files tree</li><li>Read comments</li><li>Download ZIP</li></ol>
+    <div
+      class="card"
+      style="margin-top: 12px; padding: 14px; background: var(--bg)"
+    >
+      <h4 style="font-size: 11px; letter-spacing: 0.06em; color: var(--muted)">
+        HOW TO ACCESS
+      </h4>
+      <ol
+        style="
+          font-size: 12px;
+          line-height: 1.7;
+          margin-top: 6px;
+          padding-left: 16px;
+          color: var(--text);
+        "
+      >
+        <li>Read README</li>
+        <li>Explore Files tree</li>
+        <li>Read comments</li>
+        <li>Download ZIP</li>
+      </ol>
     </div>
-    <div class="card" style="margin-top:12px;padding:14px;background:linear-gradient(145deg,color-mix(in srgb,#7C3AED 12%,var(--card)),var(--card));border-color:color-mix(in srgb,#7C3AED 45%,var(--line))">
-      <div style="color:var(--launch-text);font-size:10px;font-weight:800;letter-spacing:.1em;text-transform:uppercase">Ready for real users?</div>
-      <h4 style="font-family:Space Grotesk,sans-serif;font-size:16px;margin-top:5px">Take this vibe beyond preview.</h4>
-      <p style="font-size:11px;line-height:1.55;color:var(--muted);margin-top:5px">Choose the right host or store, prepare its required artifact, and follow official publishing steps.</p>
-      <a href="{% url 'launch_hub' %}" class="btnV" style="width:100%;margin-top:10px">Open launch guide ↗</a>
+    <div
+      class="card"
+      style="
+        margin-top: 12px;
+        padding: 14px;
+        background: linear-gradient(
+          145deg,
+          color-mix(in srgb, #7c3aed 12%, var(--card)),
+          var(--card)
+        );
+        border-color: color-mix(in srgb, #7c3aed 45%, var(--line));
+      "
+    >
+      <div
+        style="
+          color: var(--launch-text);
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        "
+      >
+        Ready for real users?
+      </div>
+      <h4
+        style="
+          font-family:
+            Space Grotesk,
+            sans-serif;
+          font-size: 16px;
+          margin-top: 5px;
+        "
+      >
+        Take this vibe beyond preview.
+      </h4>
+      <p
+        style="
+          font-size: 11px;
+          line-height: 1.55;
+          color: var(--muted);
+          margin-top: 5px;
+        "
+      >
+        Choose the right host or store, prepare its required artifact, and
+        follow official publishing steps.
+      </p>
+      <a
+        href="{% url 'launch_hub' %}"
+        class="btnV"
+        style="width: 100%; margin-top: 10px"
+        >Open launch guide ↗</a
+      >
     </div>
   </div>
 </div>
+{% endblock %} {% block scripts %}
+<script src="/static/gallery/js/detail.js?v=theme-colors-20260815"></script>
 {% endblock %}
-{% block scripts %}<script src="/static/gallery/js/detail.js?v=theme-colors-20260815"></script>{% endblock %}

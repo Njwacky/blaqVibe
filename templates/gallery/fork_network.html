@@ -1,51 +1,165 @@
-{% extends 'gallery/base.html' %}
-{% block title %}Fork Network — {{ root.title }} — BlaqVibes{% endblock %}
-{% block content %}
-<div style="max-width:1100px;margin:0 auto;padding:20px">
-  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">⑂ Fork Network — {{ root.title }}</h1>
-  <p style="color:var(--muted);font-size:13px">Tree of remixes — <code>forked_from</code> FK, backend built, no JS secrets. Click any vibe to view.</p>
+{% extends 'gallery/base.html' %} {% block title %}Fork Network — {{ root.title
+}} — BlaqVibes{% endblock %} {% block content %}
+<div style="max-width: 1100px; margin: 0 auto; padding: 20px">
+  <h1
+    style="
+      font-family:
+        Space Grotesk,
+        sans-serif;
+      font-size: 22px;
+    "
+  >
+    ⑂ Fork Network — {{ root.title }}
+  </h1>
+  <p style="color: var(--muted); font-size: 13px">
+    Tree of remixes — <code>forked_from</code> FK, backend built, no JS secrets.
+    Click any vibe to view.
+  </p>
 
-  <div style="margin-top:16px;display:flex;gap:16px;overflow:auto;padding:12px;background:var(--bg);border:1px solid var(--line);border-radius:14px">
+  <div
+    style="
+      margin-top: 16px;
+      display: flex;
+      gap: 16px;
+      overflow: auto;
+      padding: 12px;
+      background: var(--bg);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+    "
+  >
     <!-- Root -->
-    <div style="min-width:220px">
-      <a href="{{ root.get_absolute_url }}" class="card" style="padding:12px;display:block;border-color:var(--accent-border);box-shadow:0 0 0 1px #7C3AED">
-        <div style="font-weight:800">{{ root.title }}</div>
-        <div style="font-size:11px;color:var(--muted)">@{{ root.owner.username }} • {{ root.forks.count }} forks • ★ {{ root.stars }}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:4px">Root • {{ root.tech_stack|default:"—" }}</div>
+    <div style="min-width: 220px">
+      <a
+        href="{{ root.get_absolute_url }}"
+        class="card"
+        style="
+          padding: 12px;
+          display: block;
+          border-color: var(--accent-border);
+          box-shadow: 0 0 0 1px #7c3aed;
+        "
+      >
+        <div style="font-weight: 800">{{ root.title }}</div>
+        <div style="font-size: 11px; color: var(--muted)">
+          @{{ root.owner.username }} • {{ root.forks.count }} forks • ★ {{
+          root.stars }}
+        </div>
+        <div style="font-size: 10px; color: var(--muted); margin-top: 4px">
+          Root • {{ root.tech_stack|default:"—" }}
+        </div>
       </a>
-      <div style="margin-left:20px;margin-top:8px;border-left:2px solid var(--line);padding-left:12px;display:flex;flex-direction:column;gap:8px">
+      <div
+        style="
+          margin-left: 20px;
+          margin-top: 8px;
+          border-left: 2px solid var(--line);
+          padding-left: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        "
+      >
         {% for fork in forks %}
-        <a href="{{ fork.get_absolute_url }}" class="card" style="padding:10px;display:block">
-          <div style="font-weight:700;font-size:13px">{{ fork.title }}</div>
-          <div style="font-size:11px;color:var(--muted)">@{{ fork.owner.username }} • {{ fork.forks.count }} forks • ★ {{ fork.stars }}</div>
-          {% if fork.forked_from.slug != root.slug %}<div style="font-size:10px;color:var(--muted)">forked from @{{ fork.forked_from.owner.username }}</div>{% endif %}
+        <a
+          href="{{ fork.get_absolute_url }}"
+          class="card"
+          style="padding: 10px; display: block"
+        >
+          <div style="font-weight: 700; font-size: 13px">{{ fork.title }}</div>
+          <div style="font-size: 11px; color: var(--muted)">
+            @{{ fork.owner.username }} • {{ fork.forks.count }} forks • ★ {{
+            fork.stars }}
+          </div>
+          {% if fork.forked_from.slug != root.slug %}
+          <div style="font-size: 10px; color: var(--muted)">
+            forked from @{{ fork.forked_from.owner.username }}
+          </div>
+          {% endif %}
         </a>
         {% empty %}
-        <div style="color:var(--muted);font-size:12px;padding:8px;border:1px dashed var(--line);border-radius:10px">No forks yet — be the first to fork!</div>
+        <div
+          style="
+            color: var(--muted);
+            font-size: 12px;
+            padding: 8px;
+            border: 1px dashed var(--line);
+            border-radius: 10px;
+          "
+        >
+          No forks yet — be the first to fork!
+        </div>
         {% endfor %}
       </div>
     </div>
 
     <!-- Stats -->
-    <div style="min-width:260px">
-      <div class="card" style="padding:12px">
-        <div style="font-size:12px;font-weight:700">Network Stats</div>
-        <div style="margin-top:8px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div style="background:var(--input);border:1px solid var(--line);border-radius:10px;padding:8px;text-align:center"><div style="font-weight:800;font-size:18px">{{ forks.count }}</div><div style="font-size:11px;color:var(--muted)">Forks</div></div>
-          <div style="background:var(--input);border:1px solid var(--line);border-radius:10px;padding:8px;text-align:center"><div style="font-weight:800;font-size:18px">{{ root.forks.count }}</div><div style="font-size:11px;color:var(--muted)">Direct</div></div>
+    <div style="min-width: 260px">
+      <div class="card" style="padding: 12px">
+        <div style="font-size: 12px; font-weight: 700">Network Stats</div>
+        <div
+          style="
+            margin-top: 8px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+          "
+        >
+          <div
+            style="
+              background: var(--input);
+              border: 1px solid var(--line);
+              border-radius: 10px;
+              padding: 8px;
+              text-align: center;
+            "
+          >
+            <div style="font-weight: 800; font-size: 18px">
+              {{ forks.count }}
+            </div>
+            <div style="font-size: 11px; color: var(--muted)">Forks</div>
+          </div>
+          <div
+            style="
+              background: var(--input);
+              border: 1px solid var(--line);
+              border-radius: 10px;
+              padding: 8px;
+              text-align: center;
+            "
+          >
+            <div style="font-weight: 800; font-size: 18px">
+              {{ root.forks.count }}
+            </div>
+            <div style="font-size: 11px; color: var(--muted)">Direct</div>
+          </div>
         </div>
-        <div style="margin-top:8px;font-size:11px;color:var(--muted)">Trending boost: forks × 2 added to `clones*3 + stars`. High forks → appears 1st.</div>
+        <div style="margin-top: 8px; font-size: 11px; color: var(--muted)">
+          Trending boost: forks × 2 added to `clones*3 + stars`. High forks →
+          appears 1st.
+        </div>
       </div>
-      <div class="card" style="margin-top:12px;padding:12px">
-        <div style="font-size:12px;font-weight:700">How it works</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px">Every fork is a new `AppProject` with `forked_from` FK, copied ZIP, re-queued scan. Fork of fork is allowed — tree can be 2 levels. Backend builds tree via `forked_from` reverse, frontend renders CSS tree, no D3 needed at 100 forks.</div>
+      <div class="card" style="margin-top: 12px; padding: 12px">
+        <div style="font-size: 12px; font-weight: 700">How it works</div>
+        <div style="font-size: 11px; color: var(--muted); margin-top: 4px">
+          Every fork is a new `AppProject` with `forked_from` FK, copied ZIP,
+          re-queued scan. Fork of fork is allowed — tree can be 2 levels.
+          Backend builds tree via `forked_from` reverse, frontend renders CSS
+          tree, no D3 needed at 100 forks.
+        </div>
       </div>
     </div>
   </div>
 
-  <div style="margin-top:12px;display:flex;gap:8px">
+  <div style="margin-top: 12px; display: flex; gap: 8px">
     <a href="{{ root.get_absolute_url }}" class="btnG">← Back to Vibe</a>
-    <form method="post" action="{% url 'fork_vibe' root.slug %}" style="display:inline">{% csrf_token %}<button class="btnV">⑂ Fork this vibe</button></form>
+    <form
+      method="post"
+      action="{% url 'fork_vibe' root.slug %}"
+      style="display: inline"
+    >
+      {% csrf_token %}<button class="btnV">⑂ Fork this vibe</button>
+    </form>
   </div>
 </div>
 {% endblock %}
