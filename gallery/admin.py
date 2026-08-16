@@ -1,5 +1,17 @@
 from django.contrib import admin
-from .models import Category, Tag, AppProject, AppFile, Comment, Star
+from .models import Category, Tag, AppProject, AppFile, Comment, Star, ProjectCoOwner
+
+
+@admin.register(ProjectCoOwner)
+class ProjectCoOwnerAdmin(admin.ModelAdmin):
+    list_display = ('project', 'user', 'share_percent', 'created_at')
+    search_fields = ('project__slug', 'user__username')
+    list_filter = ('share_percent',)
+    # Support tool only: the app validates Σ ≤ 100 through CoOwnerForm; the
+    # CheckConstraint guards per-row bounds. No add/edit shortcuts here that
+    # could bypass the sum rule — inline editing is disabled.
+    def has_change_permission(self, request, obj=None):
+        return False
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):
