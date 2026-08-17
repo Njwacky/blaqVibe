@@ -82,6 +82,135 @@ def _authorization_headers():
     }
 
 
+# --- Transfers — creator cash-outs (users/payouts.py owns the Payout row) --
+# 5 Whys:
+# 1. Why look up the bank code at transfer time instead of a hardcoded SA
+#    bank list? Codes change and a wrong code sends money to the wrong
+#    bank. GET /bank?currency=ZAR is Paystack's own list — the same one
+#    its dashboard uses to validate.
+# 2. Why match on a normalised name? Creators type "capitec bank",
+#    "CAPITEC", "Capitec Bank Ltd". Comparing alphanumerics-only,
+#    lowercase, with contains fallback, matches all of those without a
+#    60-entry dropdown we would have to maintain.
+# 3. Why recipient + transfer instead of a single call? That IS the
+#    Paystack Transfers API: create a reusable recipient, then transfer
+#    to it. Two calls, two receipts (recipient_code + transfer_code).
+# 4. Why does a successful response still not mark the Payout paid?
+#    Transfers are async — pending OTP, approval, or the bank. Only a
+#    human confirming real money moved flips the row (never-pretend
+#    rule; see users/payouts.decide_payout).
+# 5. Why raise instead of returning None on failure? The admin queue
+#    must show the exact reason ("bank code not found", "insufficient
+#    balance") — a swallowed failure looks like a sent EFT.
+
+def _normalise_bank(name: str) -> str:
+    return ''.join(c for c in (name or '').lower() if c.isalnum())
+
+
+def resolve_zar_bank_code(bank_name: str) -> str:
+    """Find the Paystack bank code for a free-text SA bank name.
+
+    Raises PaymentError when the bank cannot be matched — never guesses,
+    because a transfer with a wrong bank code is money to the wrong door.
+    """
+    if not paystack_enabled():
+        raise PaymentError('Paystack is not configured — pay by EFT and record the reference.')
+    wanted = _normalise_bank(bank_name)
+    if not wanted:
+        raise PaymentError('The payout has no bank name.')
+    try:
+        response = requests.get(
+            'https://api.paystack.co/bank',
+            params={'currency': 'ZAR', 'pay_with_bank': 'false'},
+            headers=_authorization_headers(),
+            timeout=10,
+        )
+        response.raise_for_status()
+        banks = (response.json().get('data') or [])
+    except Exception as exc:
+        logger.warning('Paystack bank list failed: %s', exc)
+        raise PaymentError('Could not reach Paystack for the bank list. Pay by EFT instead.') from exc
+
+    exact, partial = None, None
+    for bank in banks:
+        code, name = str(bank.get('code') or ''), str(bank.get('name') or '')
+        normalised = _normalise_bank(name)
+        if normalised == wanted:
+            exact = code
+            break
+        if not partial and (wanted in normalised or normalised in wanted):
+            partial = code
+    code = exact or partial
+    if not code:
+        known = ', '.join(str(b.get('name')) for b in banks[:12])
+        raise PaymentError(
+            f'"{bank_name}" is not a bank Paystack recognises for ZAR. '
+            f'Known banks include: {known}. Fix the payout or pay by EFT.'
+        )
+    return code
+
+
+def initiate_payout_transfer(payout) -> str:
+    """Start a real Paystack transfer for a Payout row. Returns the code.
+
+    Never marks the payout paid — transfers stay pending until the admin
+    confirms (users/payouts.record_transfer_reference + decide_payout).
+    """
+    if not paystack_enabled():
+        raise PaymentError('Paystack is not configured. Pay by EFT and record the reference.')
+    from users.payouts import record_transfer_reference
+
+    bank_code = resolve_zar_bank_code(payout.bank_name)
+
+    try:
+        recipient_response = requests.post(
+            'https://api.paystack.co/transferrecipient',
+            json={
+                'type': 'nuban',
+                'name': payout.holder_name,
+                'account_number': payout.account_number,
+                'bank_code': bank_code,
+                'currency': 'ZAR',
+            },
+            headers=_authorization_headers(),
+            timeout=10,
+        )
+        recipient_data = recipient_response.json()
+    except Exception as exc:
+        logger.warning('Paystack recipient fail: %s', exc)
+        raise PaymentError('Could not create the bank recipient. No transfer was made.') from exc
+    recipient_code = (recipient_data.get('data') or {}).get('recipient_code') if recipient_data.get('status') else None
+    if not recipient_code:
+        message = (recipient_data.get('message') or 'recipient rejected')
+        raise PaymentError(f'Paystack rejected the bank details: {message}')
+
+    reference = f'blaqpay-{payout.id}-{secrets.token_hex(6)}'
+    try:
+        transfer_response = requests.post(
+            'https://api.paystack.co/transfer',
+            json={
+                'source': 'balance',
+                'amount': int(payout.amount_zar) * 100,
+                'recipient': recipient_code,
+                'reason': f'BlaqVibes cash-out #{payout.id}',
+                'reference': reference,
+            },
+            headers=_authorization_headers(),
+            timeout=10,
+        )
+        transfer_data = transfer_response.json()
+    except Exception as exc:
+        logger.warning('Paystack transfer fail: %s', exc)
+        raise PaymentError('Could not start the transfer. No money moved.') from exc
+    transfer_code = (transfer_data.get('data') or {}).get('transfer_code') if transfer_data.get('status') else None
+    if not transfer_code:
+        message = (transfer_data.get('message') or 'transfer rejected')
+        raise PaymentError(f'Paystack did not start the transfer: {message}')
+
+    record_transfer_reference(payout.id, transfer_code)
+    return transfer_code
+
+
 def create_checkout(user, project):
     """Freeze price, create or reuse a PaymentIntent, initialize Paystack.
 

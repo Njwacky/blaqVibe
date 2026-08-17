@@ -39,7 +39,8 @@ to `.github/workflows/ci.yml` (needs the `workflows` permission).
 - **Preview files** is an in-app page (sandboxed snippet or file list + README). It is not Docker and not a live host.
 - **Stars** are the complete money path: new users get 5 ★, a trade moves `star_cost` from buyer to seller atomically, and that Trade unlocks the ZIP.
 - Paid ZIPs stay locked until a Trade or a verified Paystack Sale. Fork, git URL, file contents, and `/media/apps/zips/` cannot skip that.
-- Card checkout is real Paystack initialize + signed webhook, and only if `PAYSTACK_SECRET_KEY` is set. The Buy button is hidden otherwise. Bank payouts to creators are **not** implemented.
+- Card checkout is real Paystack initialize + signed webhook, and only if `PAYSTACK_SECRET_KEY` is set. The Buy button is hidden otherwise.
+- **Creator cash-outs exist.** `/payout/` lets a verified creator hold stars (10 ★ = R1, min 500 ★) and request a bank payout; the hold is ledgered (`payout_hold`). A money admin approves/rejects at `/admin/payouts/` — rejection refunds the stars (`payout_refund`). With `PAYSTACK_SECRET_KEY` set the admin can start a real Paystack transfer (code recorded on the row); a human still flips it to *paid*, because a pending transfer is not money in the bank.
 - Missing ClamAV does **not** auto-publish. The vibe stays pending for human review.
 - Battle votes no longer inflate project stars.
 - PR merge copies the fork ZIP + file list onto the target and re-queues a scan.

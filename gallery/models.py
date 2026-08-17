@@ -509,6 +509,7 @@ class Notification(models.Model):
         ('quarantined', 'Quarantined'),
         ('review', 'Review'),
         ('challenge', 'Challenge'),
+        ('payout', 'Payout'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
     kind = models.CharField(max_length=20, choices=KIND_CHOICES)
