@@ -17,6 +17,7 @@ gunicorn==22.0.0
 sentry-sdk==2.8.0
 requests==2.33.0
 psycopg[binary]==3.2.3
+dulwich==1.2.12
 pip-audit==2.7.3
 django-allauth==65.19.1
 PyJWT==2.13.0

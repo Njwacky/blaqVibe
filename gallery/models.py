@@ -510,6 +510,7 @@ class Notification(models.Model):
         ('review', 'Review'),
         ('challenge', 'Challenge'),
         ('payout', 'Payout'),
+        ('git_push', 'Git push'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
     kind = models.CharField(max_length=20, choices=KIND_CHOICES)
@@ -599,3 +600,41 @@ class KindAffinity(models.Model):
 
     def __str__(self):
         return f'{self.user} likes {self.kind} ({self.score:.1f})'
+
+
+class CloneEvent(models.Model):
+    """Append-only clone log — the admin charts' source of truth.
+
+    5 Whys:
+    1. Why a log table instead of charting `AppProject.clones`? That counter
+       is cumulative with no timestamps — a "clones/day" chart drawn from it
+       would be fiction. This table is the one append-only time series the
+       clone metric actually has.
+    2. Why both a counter AND rows? Cards/ranks need the cheap integer; the
+       dashboard needs the history. `record_clone` writes both in the same
+       code path so they can never drift.
+    3. Why `source` ('git' | 'zip')? A ZIP download and a `git clone` are
+       different behaviours — the chart can show them separately, and the
+       git daemon throttles only its own rows (a retried pack transfer must
+       not mint a clone per retry).
+    4. Why an ip_hash for anonymous rows only? Git clones are throttled per
+       actor per project per hour; authenticated users are keyed by user,
+       anonymous by a SHA-256 of the IP — no raw IP is stored, and the hash
+       is used only for that throttle and the anonymous slice of the chart.
+    5. Why CASCADE on project but SET_NULL on user? Clone history belongs to
+       the vibe; if the account goes away (POPIA erasure), the row stays as
+       an anonymous event instead of vanishing from the chart.
+    """
+    SOURCE_CHOICES = [('git', 'git clone/fetch'), ('zip', 'zip download')]
+    project = models.ForeignKey(AppProject, on_delete=models.CASCADE, related_name='clone_events')
+    user = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='clone_events')
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default='zip')
+    ip_hash = models.CharField(max_length=64, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        indexes = [models.Index(fields=['project', '-created_at'])]
+
+    def __str__(self):
+        who = f'@{self.user.username}' if self.user else 'anon'
+        return f'{who} cloned {self.project.slug} via {self.source}'

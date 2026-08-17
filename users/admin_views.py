@@ -1,14 +1,64 @@
+from datetime import timedelta
+
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.models import User
 from django.contrib import messages
+from django.utils import timezone
 from django.views.decorators.http import require_POST
+from django.db.models import Count, Sum
+from django.db.models.functions import TruncDate
+
 from .decorators import admin_required, superadmin_required
 from .models import Profile, AdminLog
-from gallery.models import AppProject, AppReport, Trade
+from .charts import daily_bars_chart, h_bars_chart
+from gallery.models import AppProject, AppReport, CloneEvent, ScanJob, Trade
+
+DAYS = 14
+
+# 5 Whys on the dashboard's data rules:
+# 1. Why chart append-only logs (CloneEvent, Trade, ScanJob, date_joined)
+#    instead of cumulative counters? Cumulative ints have no history — a
+#    "clones/day" line drawn from them would be a lie (same rule as the
+#    earnings charts). Only rows with timestamps get charted.
+# 2. Why is "quarantine rate" jobs-with-an-outcome / not all uploads? A
+#    scan that never concluded (still queued/scanning) is not data about
+#    the app, it is data about the queue.
+# 3. Why server-rendered SVG? Same as earnings: zero third-party JS, works
+#    with JS disabled, testable as markup.
+# 4. Why 14 days? Long enough to see a trend, short enough to stay
+#    readable; the earnings page already proved the shape.
+# 5. Why does an all-zero series render "no data yet" instead of an empty
+#    axis? Honesty — a brand-new install would otherwise look like a dead
+#    platform. Charts start when the logs start.
+
+
+def _fmt(v):
+    if v is None:
+        return '0'
+    if v >= 1000:
+        return f'{v / 1000:.1f}k'
+    return str(int(v))
+
+
+def _days_list():
+    today = timezone.localdate()
+    return [today - timedelta(days=i) for i in reversed(range(DAYS))]
+
+
+def _daily_counts(queryset, field, days, aggregate='count'):
+    """Map TruncDate(field) -> n for the given queryset, filled to `days`."""
+    agg = Count('id') if aggregate == 'count' else Sum('cost')
+    rows = queryset.annotate(day=TruncDate(field)).values('day').annotate(n=agg)
+    counts = {r['day']: (r['n'] or 0) for r in rows}
+    return [counts.get(d, 0) for d in days]
+
 
 @admin_required
 def admin_dashboard(request):
-    # Stats — backend only, no JS secrets
+    days = _days_list()
+    start = days[0]
+    since = timezone.now() - timedelta(days=DAYS - 1)
+
     stats = {
         'total_vibes': AppProject.objects.count(),
         'published': AppProject.objects.filter(status='published').count(),
@@ -17,10 +67,105 @@ def admin_dashboard(request):
         'total_trades': Trade.objects.count(),
         'reports': AppReport.objects.count(),
         'users': User.objects.count(),
+        'total_clones': AppProject.objects.aggregate(n=Sum('clones'))['n'] or 0,
     }
-    top_creators = User.objects.all()[:10]  # simple
-    recent_reports = AppReport.objects.select_related('project','user').order_by('-created_at')[:10]
-    return render(request, 'users/admin_dashboard.html', {'stats': stats, 'top_creators': top_creators, 'recent_reports': recent_reports})
+
+    # Quarantine rate over scans WITH a conclusive outcome.
+    scan_q = ScanJob.objects.filter(status='quarantined').count()
+    scan_clean = ScanJob.objects.filter(status='clean').count()
+    stats['quarantine_rate'] = round(scan_q / (scan_q + scan_clean) * 100, 1) if (scan_q + scan_clean) else None
+
+    trade_rows = Trade.objects.filter(created_at__date__gte=start)
+    charts = {
+        'clones': daily_bars_chart(
+            'Clones per day, last 14 days',
+            days,
+            [{'name': 'clones', 'color': '#8B5CF6',
+              'values': _daily_counts(CloneEvent.objects.filter(created_at__date__gte=start), 'created_at', days)}],
+            fmt=_fmt,
+        ),
+        'trades': daily_bars_chart(
+            'Trades per day, last 14 days',
+            days,
+            [{'name': 'trades', 'color': '#10B981',
+              'values': _daily_counts(trade_rows, 'created_at', days)}],
+            fmt=_fmt,
+        ),
+        'star_volume': daily_bars_chart(
+            'Stars moved per day, last 14 days',
+            days,
+            [{'name': '★ volume', 'color': '#F59E0B',
+              'values': _daily_counts(trade_rows, 'created_at', days, aggregate='sum')}],
+            fmt=_fmt,
+        ),
+        'signups': daily_bars_chart(
+            'Signups per day, last 14 days',
+            days,
+            [{'name': 'signups', 'color': '#3B82F6',
+              'values': _daily_counts(User.objects.filter(date_joined__date__gte=start), 'date_joined', days)}],
+            fmt=_fmt,
+        ),
+        'uploads': daily_bars_chart(
+            'Vibes uploaded per day, last 14 days',
+            days,
+            [{'name': 'uploads', 'color': '#EC4899',
+              'values': _daily_counts(AppProject.objects.filter(created_at__date__gte=start), 'created_at', days)}],
+            fmt=_fmt,
+        ),
+        'scans': daily_bars_chart(
+            'Scan outcomes per day, last 14 days (stacked)',
+            days,
+            [
+                {'name': 'clean', 'color': '#10B981',
+                 'values': _daily_counts(ScanJob.objects.filter(status='clean', updated_at__date__gte=start), 'updated_at', days)},
+                {'name': 'quarantined', 'color': '#EF4444',
+                 'values': _daily_counts(ScanJob.objects.filter(status='quarantined', updated_at__date__gte=start), 'updated_at', days)},
+                {'name': 'failed', 'color': '#F59E0B',
+                 'values': _daily_counts(ScanJob.objects.filter(status='failed', updated_at__date__gte=start), 'updated_at', days)},
+            ],
+            stacked=True,
+            fmt=_fmt,
+        ),
+    }
+    stats['star_volume_14d'] = sum(
+        (r['n'] or 0) for r in trade_rows.annotate(day=TruncDate('created_at')).values('day').annotate(n=Sum('cost'))
+    )
+
+    top_stars = list(
+        AppProject.objects.filter(status='published').order_by('-stars')[:8]
+    )
+    top_clones_rows = list(
+        CloneEvent.objects.filter(created_at__gte=since)
+        .values('project_id').annotate(n=Count('id')).order_by('-n')[:8]
+    )
+    top_clone_projects = {
+        p.pk: p for p in AppProject.objects.filter(
+            pk__in=[r['project_id'] for r in top_clones_rows]
+        )
+    }
+    charts['top_stars'] = h_bars_chart(
+        'Top vibes by stars',
+        [{'label': p.title, 'value': p.stars} for p in top_stars if p.stars],
+        hrefs=[p.get_absolute_url() for p in top_stars if p.stars],
+        fmt=_fmt,
+        bar_color='#F59E0B',
+    )
+    charts['top_clones'] = h_bars_chart(
+        'Top vibes by clones, last 30 days',
+        [{'label': top_clone_projects[r['project_id']].title, 'value': r['n']}
+         for r in top_clones_rows if r['project_id'] in top_clone_projects],
+        hrefs=[top_clone_projects[r['project_id']].get_absolute_url()
+               for r in top_clones_rows if r['project_id'] in top_clone_projects],
+        fmt=_fmt,
+        bar_color='#8B5CF6',
+    )
+
+    recent_reports = AppReport.objects.select_related('project', 'user').order_by('-created_at')[:10]
+    return render(request, 'users/admin_dashboard.html', {
+        'stats': stats,
+        'charts': charts,
+        'recent_reports': recent_reports,
+    })
 
 @superadmin_required
 def manage_roles(request):

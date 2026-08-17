@@ -4,19 +4,69 @@
 <div style="max-width:1100px;margin:0 auto;padding:20px">
   <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">🛡️ Admin Dashboard — {{ user.profile.role }}</h1>
   <p style="color:var(--muted);font-size:13px">Backend only, no JS secrets. Role: {{ user.profile.role }} — {{ stats.published }} published, {{ stats.pending }} pending, {{ stats.quarantined }} quarantined.</p>
+
   <div style="margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
     <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">TOTAL VIBES</div><div style="font-weight:800;font-size:20px">{{ stats.total_vibes }}</div></div>
     <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">PENDING</div><div style="font-weight:800;font-size:20px;color:var(--warning-text)">{{ stats.pending }}</div></div>
     <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">QUARANTINED</div><div style="font-weight:800;font-size:20px;color:var(--danger-text)">{{ stats.quarantined }}</div></div>
     <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">TRADES</div><div style="font-weight:800;font-size:20px">{{ stats.total_trades }}</div></div>
   </div>
-  <div style="margin-top:16px;display:flex;gap:8px">
+  <div style="margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+    <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">CLONES (ALL TIME)</div><div style="font-weight:800;font-size:20px">{{ stats.total_clones }}</div></div>
+    <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">QUARANTINE RATE</div><div style="font-weight:800;font-size:20px;{% if stats.quarantine_rate > 20 %}color:var(--danger-text){% endif %}">{% if stats.quarantine_rate is None %}—{% else %}{{ stats.quarantine_rate }}%{% endif %}</div></div>
+    <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">USERS</div><div style="font-weight:800;font-size:20px">{{ stats.users }}</div></div>
+    <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">★ VOLUME (14D)</div><div style="font-weight:800;font-size:20px">{{ stats.star_volume_14d }}</div></div>
+  </div>
+
+  <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
     <a href="{% url 'moderation_queue' %}" class="btnV">🛡️ Moderation Queue</a>
     <a href="{% url 'payout_queue' %}" class="btnV">🏦 Payout Queue</a>
     {% if user.profile.is_superadmin %}<a href="{% url 'manage_roles' %}" class="btnG">Manage Roles</a>{% endif %}
+    <a href="{% url 'audit_log' %}" class="btnG">📜 Audit Log</a>
     <a href="/blaq-admin-secure/" class="btnG">Django Admin</a>
   </div>
-  <h2 style="margin-top:16px;font-size:14px">Recent Reports</h2>
+
+  <h2 style="margin-top:20px;font-size:14px">📈 Momentum — last 14 days</h2>
+  <div style="margin-top:10px;display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
+    <div class="card" style="padding:12px">
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">CLONES / DAY</div>
+      {% if charts.clones %}{{ charts.clones|safe }}{% else %}<div style="color:var(--muted);font-size:12px;padding:20px 0;text-align:center">No clones logged yet — the chart appears as events accumulate.</div>{% endif %}
+    </div>
+    <div class="card" style="padding:12px">
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">TRADES / DAY</div>
+      {% if charts.trades %}{{ charts.trades|safe }}{% else %}<div style="color:var(--muted);font-size:12px;padding:20px 0;text-align:center">No trades yet.</div>{% endif %}
+    </div>
+    <div class="card" style="padding:12px">
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">★ VOLUME / DAY</div>
+      {% if charts.star_volume %}{{ charts.star_volume|safe }}{% else %}<div style="color:var(--muted);font-size:12px;padding:20px 0;text-align:center">No stars moved yet.</div>{% endif %}
+    </div>
+    <div class="card" style="padding:12px">
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">SIGNUPS / DAY</div>
+      {% if charts.signups %}{{ charts.signups|safe }}{% else %}<div style="color:var(--muted);font-size:12px;padding:20px 0;text-align:center">No signups logged yet.</div>{% endif %}
+    </div>
+    <div class="card" style="padding:12px">
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">UPLOADS / DAY</div>
+      {% if charts.uploads %}{{ charts.uploads|safe }}{% else %}<div style="color:var(--muted);font-size:12px;padding:20px 0;text-align:center">No uploads logged yet.</div>{% endif %}
+    </div>
+    <div class="card" style="padding:12px">
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">SCAN OUTCOMES / DAY (STACKED)</div>
+      {% if charts.scans %}{{ charts.scans|safe }}{% else %}<div style="color:var(--muted);font-size:12px;padding:20px 0;text-align:center">No scans concluded yet.</div>{% endif %}
+    </div>
+  </div>
+
+  <h2 style="margin-top:20px;font-size:14px">🏆 Top vibes</h2>
+  <div style="margin-top:10px;display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
+    <div class="card" style="padding:12px">
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">BY STARS</div>
+      {% if charts.top_stars %}{{ charts.top_stars|safe }}{% else %}<div style="color:var(--muted);font-size:12px;padding:20px 0;text-align:center">No starred vibes yet.</div>{% endif %}
+    </div>
+    <div class="card" style="padding:12px">
+      <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">BY CLONES (30D)</div>
+      {% if charts.top_clones %}{{ charts.top_clones|safe }}{% else %}<div style="color:var(--muted);font-size:12px;padding:20px 0;text-align:center">No clones logged yet.</div>{% endif %}
+    </div>
+  </div>
+
+  <h2 style="margin-top:20px;font-size:14px">Recent Reports</h2>
   {% for r in recent_reports %}<div style="background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:6px;font-size:12px"><b>{{ r.project.title }}</b> — {{ r.reason }} • {{ r.details|default:"—" }} • by {% if r.user %}@{{ r.user.username }}{% else %}anon{% endif %} • {{ r.created_at|timesince }} ago</div>{% empty %}<div style="color:var(--muted);font-size:12px">No reports</div>{% endfor %}
 </div>
 {% endblock %}

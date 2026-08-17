@@ -32,6 +32,14 @@ class Profile(models.Model):
     allow_prs = models.BooleanField(default=True)
     allow_comments = models.BooleanField(default=True)
     allow_reviews = models.BooleanField(default=True)
+    # Git daemon credential for social-login users (no password on file).
+    # ONLY the SHA-256 lives here; the plaintext is shown once at rotate.
+    # 5 Whys: Why a token at all? `git push` uses Basic auth — GitHub/Gmail
+    # users have no usable Django password. Why hash it? A credential at
+    # rest in plaintext is a breach waiting for a DB dump. Why sha256 not
+    # bcrypt? It is high-entropy (token_urlsafe) and compared with
+    # compare_digest; bcrypt's strength is against low-entropy secrets.
+    git_token_hash = models.CharField(max_length=64, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
         constraints = [
@@ -58,6 +66,20 @@ class Profile(models.Model):
     def followers_count(self): return self.user.followers.count()
     def following_count(self): return self.user.following.count()
     def vibes_count(self): return self.user.projects.filter(status='published').count()
+
+    def rotate_git_token(self) -> str:
+        """Issue a fresh git credential; returns the plaintext ONCE.
+
+        The caller shows it to the user in a success message. Only the
+        SHA-256 hash is stored, and Basic auth checks passwords first —
+        the token never shadows a real password.
+        """
+        import hashlib
+        import secrets
+        token = 'git_' + secrets.token_urlsafe(24)
+        self.git_token_hash = hashlib.sha256(token.encode('utf-8')).hexdigest()
+        self.save(update_fields=['git_token_hash'])
+        return token
     def stars_received(self):
         from django.db.models import Sum
         return self.user.projects.aggregate(s=Sum('stars'))['s'] or 0
