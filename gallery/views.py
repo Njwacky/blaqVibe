@@ -9,7 +9,7 @@ from django.http import Http404, HttpResponse, JsonResponse, HttpResponseRedirec
 from django.core.paginator import Paginator
 from django.utils import timezone
 from django.views.decorators.http import require_POST
-from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from django_ratelimit.decorators import ratelimit
 import zipfile, os, json, logging
 
@@ -232,6 +232,14 @@ def app_detail(request, slug):
         has_bought = Sale.objects.filter(buyer=request.user, project=project).exists()
         is_bookmarked = Bookmark.objects.filter(user=request.user, project=project).exists()
     can_download = user_can_download(request.user, project) if project.zip_file else True
+    # Who may `git push` — owner or a co-owner, never anonymous, never a
+    # removed vibe. The daemon re-checks this with Basic auth on the wire;
+    # this flag only decides whether the page shows push instructions.
+    can_push = (
+        request.user.is_authenticated and project.status != 'removed'
+        and (request.user.pk == project.owner_id
+             or any(co.user_id == request.user.pk for co in project.co_owners.all()))
+    )
     viewers = None
     show_viewer_upsell = False
     try:
@@ -282,6 +290,7 @@ def app_detail(request, slug):
         'has_traded': has_traded,
         'has_bought': has_bought,
         'can_download': can_download,
+        'can_push': can_push,
         'scan_reason': owner_scan_reason(project) if request.user.is_authenticated and (request.user == project.owner or user_is_moderator(request.user)) else '',
         'comment_count': getattr(project, 'comment_count', 0),
         'published_forks': [f for f in project.forks.all() if f.status == 'published'][:5],
@@ -513,7 +522,7 @@ def download_zip(request, slug):
             return redirect(f"{settings.LOGIN_URL}?next={request.path}")
         return redirect(project.get_absolute_url())
     taste.record(request.user, project, 'download', project=project)
-    return serve_project_zip(project)
+    return serve_project_zip(project, user=request.user, ip=request.META.get('REMOTE_ADDR', ''))
 
 def file_preview(request, slug, path):
     project = get_object_or_404(AppProject, slug=slug, status='published')
@@ -771,16 +780,22 @@ def report_vibe(request, slug):
         logging.getLogger(__name__).exception(f"report crush: {e}")
         return redirect(get_object_or_404(AppProject, slug=slug).get_absolute_url())
 
-def git_clone(request, username, slug):
-    project = get_object_or_404(AppProject, slug=slug, owner__username=username, status='published')
-    if not project.zip_file:
-        raise Http404
-    if not user_can_download(request.user, project):
-        messages.error(request, access_denied_message(request.user, project))
-        if not request.user.is_authenticated:
-            return redirect(f"{settings.LOGIN_URL}?next={request.path}")
-        return redirect(project.get_absolute_url())
-    return serve_project_zip(project)
+@csrf_exempt
+@ratelimit(key='ip', rate='60/m', method='POST')
+def git_clone(request, username, slug, rest=''):
+    """Real git smart-HTTP endpoint — `git clone` AND `git push` work.
+
+    gating lives in git_daemon.handle_git_request:
+    - pull follows the download rules (free vibes clone anonymously,
+      paid vibes 401 until Basic credentials that traded/bought are sent)
+    - push REQUIRES Basic auth (password or git token) as owner/co-owner,
+      never a browser session, so a cross-site POST cannot move refs
+      (csrf_exempt is safe for exactly that reason)
+    - a successful push re-enters the scan queue before the vibe goes
+      live again — no scan bypass via git.
+    """
+    from .git_daemon import handle_git_request
+    return handle_git_request(request, username, slug, rest)
 
 @login_required
 @require_POST
@@ -984,7 +999,6 @@ def buy_vibe(request, slug):
         messages.error(request, exc.message)
         return redirect(project.get_absolute_url())
 
-from django.views.decorators.csrf import csrf_exempt
 @csrf_exempt
 @require_POST
 def paystack_webhook(request):

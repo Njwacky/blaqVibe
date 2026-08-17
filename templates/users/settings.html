@@ -177,6 +177,23 @@
   </div>
   {% endif %}
 
+  <div id="git-token" style="margin-top:28px;padding:16px;border:1px solid var(--line);background:var(--card);border-radius:12px">
+    <h2 style="font-size:14px;font-weight:700">🔑 Git access</h2>
+    <p style="font-size:12px;color:var(--muted);margin:6px 0 12px">
+      Your vibes are real git repos at <code>/git/&lt;you&gt;/&lt;vibe&gt;.git</code> — clone with your
+      username and password, or use a git token if you signed in with Google/GitHub (no password on file).
+      {% if profile.git_token_hash %}
+      Status: <b style="color:var(--success-text)">token set</b>. Rotate to invalidate the old one.
+      {% else %}
+      Status: <b style="color:var(--warning-text)">no token yet</b> — generate one to push from your terminal.
+      {% endif %}
+    </p>
+    <form method="post" action="{% url 'regenerate_git_token' %}">
+      {% csrf_token %}
+      <button class="btn-ghost">{% if profile.git_token_hash %}Rotate token (revokes the old one){% else %}Generate git token{% endif %}</button>
+    </form>
+  </div>
+
   <div style="margin-top:28px;padding:16px;border:1px solid var(--line);background:var(--card);border-radius:12px">
     <h2 style="font-size:14px;font-weight:700">Email</h2>
     <p class="help" style="margin:6px 0 10px">

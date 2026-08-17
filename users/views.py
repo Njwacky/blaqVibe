@@ -342,6 +342,32 @@ def settings_view(request):
 
 @login_required
 @require_POST
+@ratelimit(key='user', rate='5/h', method='POST')
+def regenerate_git_token(request):
+    """Issue a fresh git credential — plaintext shown ONCE, hash stored.
+
+    5 Whys: Why rotate instead of a fixed token? A git credential that
+    leaked (shell history, CI logs) must die without deleting the account.
+    Why show it in a flash message? We do not store plaintext, so the
+    rotation response is the only moment the user can copy it. Why 5/h?
+    Rotation invalidates the old token; a flood would be a self-DoS.
+    """
+    if getattr(request, 'limited', False):
+        messages.error(request, 'Rate limit: 5 git tokens per hour.')
+        return redirect('settings')
+    try:
+        token = request.user.profile.rotate_git_token()
+        messages.success(
+            request,
+            f'New git token (shows once — copy it now): {token} '
+            'Use your username + this token as the password for git clone/push.',
+        )
+    except Exception:
+        messages.error(request, 'Could not rotate the git token. Try again.')
+    return redirect('settings')
+
+@login_required
+@require_POST
 def toggle_setting(request):
     """Toggle any user or site setting — 1 tap, no form, crush silently, backend only."""
     try:

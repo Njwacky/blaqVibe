@@ -1,5 +1,4 @@
 """Serve paid ZIPs only through gated views — never via /media/ or .url."""
-from django.db.models import F
 from django.http import FileResponse, Http404, HttpResponseRedirect
 
 from .storages import get_presigned_url, is_s3_enabled
@@ -26,11 +25,13 @@ def serve_named_zip(file_field, download_name):
         raise Http404
 
 
-def serve_project_zip(project):
+def serve_project_zip(project, user=None, ip=''):
     if not project.zip_file:
         raise Http404
-    from .models import AppProject
-    AppProject.objects.filter(pk=project.pk).update(clones=F('clones') + 1)
+    # One served ZIP = one clone, logged append-only for the admin charts
+    # (source='zip') and counted on the project in the same code path.
+    from .git_daemon import record_clone
+    record_clone(project, user, 'zip', ip)
     return serve_named_zip(project.zip_file, f'{project.slug}.zip')
 
 
