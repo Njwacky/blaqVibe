@@ -15,7 +15,7 @@
 {% block content %}
 <div style="max-width:900px;margin:0 auto;padding:20px">
   <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">★ Earnings — stars</h1>
-  <p style="color:var(--muted);font-size:13px">Stars are the working money path. You earn them when someone trades your vibe or tips you, and you spend them to unlock others. No bank transfer is sent from this page.</p>
+  <p style="color:var(--muted);font-size:13px">Stars are the working money path. You earn them when someone trades your vibe or tips you, and you spend them to unlock others. Cash out below — a money admin reviews each payout before real ZAR leaves.</p>
 
   {% if not is_pro %}
   <div class="pro-banner" style="margin-top:12px;background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:12px;padding:14px;display:flex;gap:12px;align-items:center">
@@ -36,6 +36,56 @@
     <div class="card" style="padding:14px;text-align:center;border-color:var(--warning-border)"><div style="font-size:11px;color:var(--muted)">BALANCE</div><div style="font-weight:800;font-size:20px;color:var(--warning-text)">{{ stars_balance }} ★</div><div style="font-size:11px;color:var(--muted)">Ready to trade</div></div>
     <div class="card" style="padding:14px;text-align:center"><div style="font-size:11px;color:var(--muted)">EARNED FROM TRADES</div><div style="font-weight:800;font-size:20px">{{ stars_earned }} ★</div><div style="font-size:11px;color:var(--muted)">Sum of sold trades</div></div>
     <div class="card" style="padding:14px;text-align:center"><div style="font-size:11px;color:var(--muted)">SPENT</div><div style="font-weight:800;font-size:20px">{{ stars_spent }} ★</div><div style="font-size:11px;color:var(--muted)">Sum of bought trades</div></div>
+  </div>
+
+  <div style="margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px">
+    <div style="font-weight:700">🏦 Cash out stars</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:2px">Rate: <b>{{ payout_rate_label }}</b>. Stars are held the moment you request (they stop being spendable); if the payout is rejected they come straight back.</div>
+
+    {% if open_payout %}
+    <div style="margin-top:10px;background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:10px;padding:12px;font-size:13px">
+      <b>In review:</b> {{ open_payout.amount_stars }} ★ → R{{ open_payout.amount_zar }} to {{ open_payout.bank_name }} {{ open_payout.account_masked }}
+      {% if open_payout.provider_ref %} • Paystack transfer {{ open_payout.provider_ref }}{% endif %}
+      . One payout at a time — you will get a notification when it is paid or rejected.
+    </div>
+    {% else %}
+    <form method="post" action="{% url 'request_payout' %}" style="margin-top:10px;display:grid;grid-template-columns:repeat(2,1fr);gap:10px">
+      {% csrf_token %}
+      <div>
+        <label class="field-label">Stars to cash out (min {{ payout_min_stars }}, max {{ payout_max_stars }})</label>
+        <input class="field-input" type="number" name="amount_stars" min="{{ payout_min_stars }}" max="{{ payout_max_stars }}" step="10" placeholder="e.g. 500 = R50" required>
+      </div>
+      <div>
+        <label class="field-label">Bank</label>
+        <input class="field-input" type="text" name="bank_name" maxlength="100" placeholder="e.g. Capitec" required>
+      </div>
+      <div>
+        <label class="field-label">Account number</label>
+        <input class="field-input" type="text" name="account_number" maxlength="20" inputmode="numeric" pattern="[0-9]{4,20}" placeholder="Digits only" required>
+      </div>
+      <div>
+        <label class="field-label">Account holder</label>
+        <input class="field-input" type="text" name="holder_name" maxlength="80" placeholder="Name as the bank knows it" required>
+      </div>
+      <div style="grid-column:1/-1;display:flex;justify-content:flex-end">
+        <button class="btnV" style="padding:10px 16px">Request cash-out</button>
+      </div>
+    </form>
+    {% endif %}
+
+    {% if payouts %}
+    <div style="margin-top:12px;font-size:12px;color:var(--muted)">Payout history</div>
+    {% for p in payouts %}
+    <div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:12px;flex-wrap:wrap">
+      {% if p.status == 'paid' %}<span style="background:var(--success-bg);color:var(--success-text);padding:3px 8px;border-radius:6px;font-weight:700">PAID</span>
+      {% elif p.status == 'rejected' %}<span style="background:var(--danger-bg);color:var(--danger-text);padding:3px 8px;border-radius:6px;font-weight:700">REJECTED</span>
+      {% else %}<span style="background:var(--warning-bg);color:var(--warning-text);padding:3px 8px;border-radius:6px;font-weight:700">IN REVIEW</span>{% endif %}
+      <b>{{ p.amount_stars }} ★ → R{{ p.amount_zar }}</b>
+      <span style="color:var(--muted)">{{ p.bank_name }} {{ p.account_masked }} • {{ p.created_at|date:"Y-m-d H:i" }}</span>
+      {% if p.admin_note %}<span style="color:var(--muted)">“{{ p.admin_note }}”</span>{% endif %}
+    </div>
+    {% endfor %}
+    {% endif %}
   </div>
 
   <div style="margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px">
@@ -85,7 +135,7 @@
   {% if paystack_enabled %}
   <div style="margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px">
     <div style="font-weight:700">Card sales (Paystack)</div>
-    <div style="font-size:12px;color:var(--muted);margin-top:4px">Verified checkout only. Recorded sales: R{{ total_zar }}. Bank payouts to your account are not wired yet — that needs Paystack Transfers plus your bank details.</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:4px">Verified checkout only. Recorded sales: R{{ total_zar }}. Cash those earnings out with the panel above.</div>
     {% for s in sales %}
     <div style="background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:8px">
       <div style="font-weight:700;font-size:13px">{{ s.project.title }} <span style="font-size:11px;background:var(--success-bg);color:var(--success-text);padding:3px 7px;border-radius:6px">R{{ s.amount_zar }}</span></div>

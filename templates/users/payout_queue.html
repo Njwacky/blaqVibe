@@ -1,0 +1,60 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Payout queue — BlaqVibes{% endblock %}
+{% block content %}
+<div style="max-width:900px;margin:0 auto;padding:20px">
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">🏦 Payout queue</h1>
+  <p style="color:var(--muted);font-size:13px">
+    Cash-out requests. Stars are already held from each creator's wallet — you only decide what happens to the real money.
+    Rate: {{ payout_rate_label }}. Queue total: <b>R{{ queue_total_zar }}</b>.
+    {% if paystack_enabled %}"Pay with Paystack" starts a real transfer (code recorded) — confirm it succeeded in the Paystack dashboard, then "Mark paid".
+    {% else %}Paystack transfers are off (no <code>PAYSTACK_SECRET_KEY</code>) — pay by EFT and mark paid with the reference.{% endif %}
+  </p>
+
+  {% if messages %}
+    {% for m in messages %}<div style="margin-top:10px;padding:10px 12px;border-radius:10px;font-size:13px;background:var(--input);border:1px solid var(--line)">{{ m }}</div>{% endfor %}
+  {% endif %}
+
+  <div style="margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px">
+    <div style="font-weight:700">Waiting on a decision</div>
+    {% for p in open_payouts %}
+    <div style="border:1px solid var(--line);border-radius:10px;padding:12px;margin-top:10px">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        {% if p.user %}<a href="{% url 'profile_view' p.user.username %}" style="font-weight:700;color:var(--link)">@{{ p.user.username }}</a>{% else %}<span style="font-weight:700">(deleted user)</span>{% endif %}
+        <b>{{ p.amount_stars }} ★ → R{{ p.amount_zar }}</b>
+        <span style="font-size:11px;background:var(--warning-bg);color:var(--warning-text);padding:3px 8px;border-radius:6px">requested {{ p.created_at|date:"Y-m-d H:i" }}</span>
+        {% if p.provider_ref %}<span style="font-size:11px;background:var(--input);border:1px solid var(--line);padding:3px 8px;border-radius:6px">transfer {{ p.provider_ref }}</span>{% endif %}
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:6px">
+        {{ p.holder_name }} • {{ p.bank_name }} • {{ p.account_number }}{% if p.user %} • verified email: {% if p.user.profile.email_verified %}yes{% else %}<b style="color:var(--danger-text)">NO</b>{% endif %}{% endif %}
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
+        <form method="post" action="{% url 'payout_decide' p.pk %}" style="display:flex;gap:8px;flex:1;min-width:260px;align-items:center;flex-wrap:wrap">
+          {% csrf_token %}
+          <input class="field-input" type="text" name="note" maxlength="200" placeholder="EFT reference / reason" style="flex:1;min-width:140px">
+          <button class="btnV" name="action" value="pay" style="background:var(--success-action)">Mark paid</button>
+          <button class="btnV" name="action" value="reject" style="background:var(--danger,#c0392b)">Reject + refund</button>
+          {% if paystack_enabled %}<button class="btnV" name="action" value="transfer">Pay with Paystack</button>{% endif %}
+        </form>
+      </div>
+    </div>
+    {% empty %}
+    <div style="color:var(--muted);font-size:13px;padding:12px;background:var(--input);border:1px dashed var(--line);border-radius:10px;margin-top:8px">Queue is empty — no one is waiting on cash.</div>
+    {% endfor %}
+  </div>
+
+  <div style="margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px">
+    <div style="font-weight:700">Recently decided</div>
+    {% for p in recent_payouts %}
+    <div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:12px;flex-wrap:wrap">
+      {% if p.status == 'paid' %}<span style="background:var(--success-bg);color:var(--success-text);padding:3px 8px;border-radius:6px;font-weight:700">PAID</span>
+      {% else %}<span style="background:var(--danger-bg);color:var(--danger-text);padding:3px 8px;border-radius:6px;font-weight:700">REJECTED</span>{% endif %}
+      <b>{{ p.amount_stars }} ★ → R{{ p.amount_zar }}</b>
+      <span style="color:var(--muted)">@{{ p.user.username|default:"deleted" }} • {{ p.bank_name }} {{ p.account_masked }} • {{ p.decided_at|date:"Y-m-d H:i" }} • by @{{ p.reviewed_by.username|default:"—" }}</span>
+      {% if p.admin_note %}<span style="color:var(--muted)">“{{ p.admin_note }}”</span>{% endif %}
+    </div>
+    {% empty %}
+    <div style="color:var(--muted);font-size:13px;padding:12px;border:1px dashed var(--line);border-radius:10px;margin-top:8px">No decisions yet.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

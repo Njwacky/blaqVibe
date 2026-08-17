@@ -1,10 +1,4 @@
-{% extends 'gallery/base.html' %} {% load static %} {% block title %}{{
-project.title }} — BlaqVibes{% endblock %} {% block og_title %}{{ project.title
-}} — BlaqVibes{% endblock %} {% block og_desc %}{{ project.short_description
-}}{% endblock %} {% block meta_desc %}{{ project.short_description }}{% endblock
-%} {% block og_image %}{% if project.thumbnail %}{{ request.scheme }}://{{
-request.get_host }}{{ project.thumbnail.url }}{% else %}{{ block.super }}{%
-endif %}{% endblock %} {% block head %}
+{% extends 'gallery/base.html' %} {% load static %} {% block title %}{{project.title }} — BlaqVibes{% endblock %} {% block og_title %}{{ project.title}} — BlaqVibes{% endblock %} {% block og_desc %}{{ project.short_description}}{% endblock %} {% block meta_desc %}{{ project.short_description }}{% endblock%} {% block og_image %}{% if project.thumbnail %}{{ request.scheme }}://{{request.get_host }}{{ project.thumbnail.url }}{% else %}{{ block.super }}{%endif %}{% endblock %} {% block head %}
 <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -56,8 +50,7 @@ endif %}{% endblock %} {% block head %}
       ⏳ Your vibe is in the queue — we’ll tell you when it’s uploaded!
     </div>
     <div style="font-size: 12px; color: var(--warning-soft-text); opacity: 0.9">
-      Status: <b id="scan-text" style="color: inherit">{{ scan_status }}</b>{%
-      if scan_reason %} — {{ scan_reason }}{% endif %}
+      Status: <b id="scan-text" style="color: inherit">{{ scan_status }}</b>{%      if scan_reason %} — {{ scan_reason }}{% endif %}
     </div>
   </div>
   <span
@@ -157,8 +150,7 @@ endif %}{% endblock %} {% block head %}
             {{ project.title }}
           </div>
           <div style="font-size: 12px; color: #475569; margin: 6px 0">
-            {{ project.kind_label }}{% if project.tech_stack %} • {{
-            project.tech_stack }}{% endif %} • {{ project.file_count }} files
+            {{ project.kind_label }}{% if project.tech_stack %} • {{            project.tech_stack }}{% endif %} • {{ project.file_count }} files
           </div>
           <div
             style="
@@ -224,8 +216,7 @@ endif %}{% endblock %} {% block head %}
             overflow: auto;
           "
         >
-          <span style="color: var(--muted)">$</span> {{ request.scheme }}://{{
-          request.get_host }}{% url 'download_zip' project.slug %}
+          <span style="color: var(--muted)">$</span> {{ request.scheme }}://{{          request.get_host }}{% url 'download_zip' project.slug %}
           <button
             class="btn-white js-copy"
             data-copy="{{ request.scheme }}://{{ request.get_host }}{% url 'download_zip' project.slug %}"
@@ -242,8 +233,7 @@ endif %}{% endblock %} {% block head %}
             style="flex: 1; justify-content: center"
             >⬇ Download ZIP</a
           >
-          {% elif project.star_cost and user.is_authenticated and user !=
-          project.owner and not has_traded %}
+          {% elif project.star_cost and user.is_authenticated and user !=          project.owner and not has_traded %}
           <form
             method="post"
             action="{% url 'trade_download' project.slug %}"
@@ -296,8 +286,7 @@ endif %}{% endblock %} {% block head %}
             style="display: inline"
           >
             {% csrf_token %}<button class="btn-ghost">
-              {% if is_starred %}★ Starred{% else %}☆ Star{% endif %} {{
-              project.stars }}
+              {% if is_starred %}★ Starred{% else %}☆ Star{% endif %} {{              project.stars }}
             </button>
           </form>
           {% if not project.zip_file or can_download %}
@@ -363,8 +352,7 @@ endif %}{% endblock %} {% block head %}
               line-height: 1.6;
             "
           >
-            {% if project.star_cost and paystack_enabled and project.price_zar
-            %}Unlock with
+            {% if project.star_cost and paystack_enabled and project.price_zar            %}Unlock with
             <b style="color: var(--warning-text)">{{ project.star_cost }} ★</b>
             (trade stars) or buy for
             <b style="color: var(--warning-text)">R{{ project.price_zar }}</b
@@ -373,8 +361,7 @@ endif %}{% endblock %} {% block head %}
             >.{% elif paystack_enabled and project.price_zar %}Unlock by buying
             for
             <b style="color: var(--warning-text)">R{{ project.price_zar }}</b
-            >.{% else %}Sign in to unlock this download.{% endif %} {% if
-            user.is_authenticated %}Your balance:
+            >.{% else %}Sign in to unlock this download.{% endif %} {% if            user.is_authenticated %}Your balance:
             <b style="color: var(--warning-soft-text)"
               >{{ user.profile.stars_balance }} ★</b
             >.{% endif %}
@@ -382,8 +369,7 @@ endif %}{% endblock %} {% block head %}
           <div
             style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap"
           >
-            {% if user.is_authenticated %} {% if project.star_cost and not
-            has_traded %}
+            {% if user.is_authenticated %} {% if project.star_cost and not            has_traded %}
             <form
               method="post"
               action="{% url 'trade_download' project.slug %}"
@@ -395,8 +381,7 @@ endif %}{% endblock %} {% block head %}
                 Trade {{ project.star_cost }} ★
               </button>
             </form>
-            {% endif %} {% if paystack_enabled and project.price_zar and not
-            has_bought %}
+            {% endif %} {% if paystack_enabled and project.price_zar and not            has_bought %}
             <form method="post" action="{% url 'buy_vibe' project.slug %}">
               {% csrf_token %}<button
                 class="btnV"
@@ -487,8 +472,7 @@ endif %}{% endblock %} {% block head %}
                 color: var(--muted);
                 margin-top: 2px;
               "
-              >We detected a {{ launch_next.name|lower }} in your ZIP. {{
-              launch_next.note }}. Step-by-step guides inside.</span
+              >We detected a {{ launch_next.name|lower }} in your ZIP. {{              launch_next.note }}. Step-by-step guides inside.</span
             >
           </span>
         </a>
@@ -1354,8 +1338,7 @@ endif %}{% endblock %} {% block head %}
           "
           title="{{ project.preview_note }}"
           >📁 Files only</span
-        >{% endif %} {% if user.is_authenticated and user == project.owner and
-        project.kind_evidence %}<span
+        >{% endif %} {% if user.is_authenticated and user == project.owner and        project.kind_evidence %}<span
           class="badge"
           style="
             background: var(--input);
@@ -1376,12 +1359,23 @@ endif %}{% endblock %} {% block head %}
       <h3 style="font-weight:700">{{ project.title }}</h3>
       <p style="font-size:12px;color:var(--muted);margin:6px 0;line-height:1.5">{{ project.short_description }}</p>
       <div style="font-size:12px;display:flex;flex-direction:column">
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Publisher</span><b>@{{ project.owner.username }} {% if project.owner.profile.rank %}<span style="font-size:10px;background:var(--warning-bg);color:var(--warning-text);padding:2px 6px;border-radius:6px">{{ project.owner.profile.rank.name }}</span>{% endif %}</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Publisher</span><b><a href="{% url 'profile_view' project.owner.username %}" style="color:var(--link)">@{{ project.owner.username }}</a> {% if project.owner.profile.rank %}<span style="font-size:10px;background:var(--warning-bg);color:var(--warning-text);padding:2px 6px;border-radius:6px">{{ project.owner.profile.rank.name }}</span>{% endif %}</b></div>
+        {% for co in project.co_owners.all %}
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Co-owner</span><b><a href="{% url 'profile_view' co.user.username %}" style="color:var(--link)">@{{ co.user.username }}</a> — {{ co.share_percent }}% of trades</b></div>
+        {% endfor %}
         <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Stack</span><b>{{ project.tech_stack|default:"HTML/CSS" }}</b></div>
         <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Files</span><b>{{ project.file_count }} • {{ project.clones }} clones</b></div>
         <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Trade Cost</span><b>{% if project.star_cost %}{{ project.star_cost }} ★ {% if project.star_cost == 1 %}Bronze{% elif project.star_cost == 2 %}Bronze{% elif project.star_cost <= 3 %}Silver{% else %}Gold{% endif %}{% else %}0 ★ Free{% endif %}</b></div>
         <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Forks</span><b>⑂ {{ forks_count }} • {% if project.forked_from %}Forked from <a href="{{ project.forked_from.get_absolute_url }}" style="color:var(--link)">@{{ project.forked_from.owner.username }}</a>{% else %}Original{% endif %}</b></div>
         <div style="display:flex;justify-content:space-between;padding:8px 0"><span style="color:var(--muted)">License</span><b>MIT</b></div>
+      </div>
+      {% comment %}
+        Tip widget — the same shared partials the profile uses, wired to the
+        vibe's owner. tip.js (loaded in the scripts block) drives the panel.
+      {% endcomment %}
+      <div style="margin-top:10px">
+        {% include 'gallery/_tip_button.html' with tip_recipient_username=project.owner.username %}
+        {% include 'gallery/_tip_panel.html' with tip_recipient_username=project.owner.username %}
       </div>
       {% if project.language_stats %}
       <div
@@ -1560,8 +1554,7 @@ endif %}{% endblock %} {% block head %}
           <a
             href="{{ project.forked_from.get_absolute_url }}"
             style="color: var(--warning-text)"
-            >@{{ project.forked_from.owner.username }}/{{
-            project.forked_from.slug }}</a
+            >@{{ project.forked_from.owner.username }}/{{            project.forked_from.slug }}</a
           >
         </div>
         {% if user == project.owner and project.status == 'published' %}
@@ -1737,5 +1730,5 @@ endif %}{% endblock %} {% block head %}
 </div>
 {% endblock %} {% block scripts %}
 <script src="/static/gallery/js/detail.js?v=theme-colors-20260815"></script>
+<script src="/static/gallery/js/tip.js?v=shared-tip-20260816"></script>
 {% endblock %}
-{% block scripts %}<script src="/static/gallery/js/detail.js?v=theme-colors-20260815"></script>{% endblock %}

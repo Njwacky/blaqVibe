@@ -13,8 +13,9 @@ from django.utils.encoding import force_bytes, force_str
 from django.utils import timezone
 from datetime import datetime, timedelta
 from django_ratelimit.decorators import ratelimit
-from .models import Profile, Follow, SiteSettings, Tip
+from .models import MAX_PAYOUT_STARS, MIN_PAYOUT_STARS, Payout, Profile, Follow, SiteSettings, Tip
 from .forms import ProfileForm, TipForm
+from .payouts import PayoutError, payout_rate_label, request_payout as request_payout_hold
 from gallery.models import AppProject
 from gallery.notify import notify
 
@@ -273,7 +274,39 @@ def payout_dashboard(request):
         'is_pro': request.user.profile.is_pro_active,
         'pro_since': getattr(request.user.profile, 'pro_since', None),
         'pro_until': getattr(request.user.profile, 'pro_until', None),
+        # --- Cash-out panel (users/payouts.py holds the rules) -----------
+        'payouts': Payout.objects.filter(user=request.user)[:10],
+        'open_payout': Payout.objects.filter(user=request.user, status='requested').first(),
+        'payout_rate_label': payout_rate_label(),
+        'payout_min_stars': MIN_PAYOUT_STARS,
+        'payout_max_stars': MAX_PAYOUT_STARS,
     })
+
+@login_required
+@require_POST
+def request_payout(request):
+    """Queue a cash-out. All money rules live in users.payouts — the view
+    only carries the user's input and the outcome back to the dashboard."""
+    try:
+        payout = request_payout_hold(
+            request.user,
+            request.POST.get('amount_stars'),
+            request.POST.get('bank_name'),
+            request.POST.get('account_number'),
+            request.POST.get('holder_name'),
+        )
+        messages.success(
+            request,
+            f'Cash-out queued: {payout.amount_stars} ★ → R{payout.amount_zar} to '
+            f'{payout.bank_name} {payout.account_masked}. A money admin reviews it next.',
+        )
+    except PayoutError as e:
+        messages.error(request, e.message)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('payout view crush')
+        messages.error(request, 'Cash-out failed — nothing was debited. Try again.')
+    return redirect('payout_dashboard')
 
 @login_required
 @require_POST

@@ -132,6 +132,8 @@ class StarEvent(models.Model):
         ('challenge_bounty', 'Challenge bounty'),
         ('admin_adjust', 'Admin adjustment'),
         ('backfill', 'Ledger backfill'),
+        ('payout_hold', 'Payout — stars held for cash-out'),
+        ('payout_refund', 'Payout — rejected, stars returned'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='star_events')
     delta = models.IntegerField()
@@ -181,6 +183,83 @@ class Tip(models.Model):
 
     def __str__(self):
         return f'@{self.sender} → @{self.recipient} {self.amount}★'
+
+
+# --- Star → ZAR cash-out rules (users/payouts.py is the only writer) -------
+# 5 Whys: Why constants here? The rate and minimum are money policy; keeping
+# them next to the ledger they debit means anyone touching the money path
+# trips over them first. Why whole-ZAR only? Paystack amounts are integer
+# cents; a fractional rate would round differently per request size and the
+# frozen amount_zar would stop matching what a creator was quoted.
+STARS_PER_ZAR = 10          # 10 ★ = R1
+MIN_PAYOUT_STARS = 500      # R50 — below this a bank transfer fee eats the payout
+MAX_PAYOUT_STARS = 50000    # R5 000 per request — one human-sized EFT, not a whale exit
+
+
+class Payout(models.Model):
+    """A creator cash-out request — stars held, ZAR paid by an admin.
+
+    5 Whys:
+    1. Why hold stars at request time instead of at approval? The stars
+       must stop being spendable the moment the creator asks for cash,
+       or they can trade the same stars to a friend AND receive the EFT.
+       The hold is the debit; approval just moves real money.
+    2. Why refund as a NEW ledger row ('payout_refund') instead of
+       deleting the hold? The ledger is append-only (see StarEvent). A
+       rejected payout is a real event; the refund row is its answer.
+    3. Why is amount_zar frozen on the row? The rate is policy and can
+       change. The creator was quoted R50 for 500 ★; paying tomorrow's
+       rate is a different sale (same rule as PaymentIntent).
+    4. Why plain bank fields, not a vaulted wallet? There is no Paystack
+       recipient storage yet; a bank name + account number is exactly
+       what a human needs to type an EFT, and the row is only shown to
+       the creator and money admins (never public — non-admin pages get
+       account_masked).
+    5. Why SET_NULL on user, like Sale? A payout is a money record.
+       Account deletion must not erase the audit trail of cash that
+       left the building; the masked account digits keep it traceable.
+    """
+    STATUS_CHOICES = [
+        ('requested', 'Requested'),
+        ('paid', 'Paid'),
+        ('rejected', 'Rejected'),
+    ]
+    user = models.ForeignKey(User, null=True, on_delete=models.SET_NULL, related_name='payouts')
+    amount_stars = models.PositiveIntegerField(help_text='Stars held from the wallet at request time')
+    amount_zar = models.PositiveIntegerField(help_text='ZAR frozen at request — the quoted amount')
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default='requested')
+    bank_name = models.CharField(max_length=100)
+    account_number = models.CharField(max_length=20)
+    holder_name = models.CharField(max_length=80)
+    admin_note = models.CharField(max_length=200, blank=True, help_text='EFT reference or rejection reason')
+    provider_ref = models.CharField(max_length=100, blank=True, help_text='Paystack transfer code when a transfer was initiated')
+    reviewed_by = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='payout_reviews')
+    created_at = models.DateTimeField(auto_now_add=True)
+    decided_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['status', '-created_at']),
+            models.Index(fields=['user', '-created_at']),
+        ]
+
+    def __str__(self):
+        who = f'@{self.user.username}' if self.user else '(deleted user)'
+        return f'{who} {self.amount_stars}★ → R{self.amount_zar} ({self.status})'
+
+    @property
+    def account_last4(self):
+        num = (self.account_number or '').strip()
+        return num[-4:] if len(num) > 4 else num
+
+    @property
+    def account_masked(self):
+        """What non-money pages may show: bank + last 4 digits only."""
+        num = (self.account_number or '').strip()
+        if len(num) <= 4:
+            return num
+        return f'••••{num[-4:]}'
 
 
 @receiver(post_save, sender=User)
