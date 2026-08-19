@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views, trading_views, api_views, launch_views
 from .csp_views import csp_report
-from .moderation import moderation_queue, moderation_action
+from .moderation import moderation_queue, moderation_action, comment_report_action, comment_action
 urlpatterns = [
     path('', views.feed, name='feed'),
     path('sitemap.xml', views.sitemap_xml, name='sitemap'),
@@ -17,7 +17,10 @@ urlpatterns = [
     path('my-vibes/', views.my_vibes, name='my_vibes'),
     path('trades/', trading_views.trading_history, name='trading_history'),
     path('moderation/queue/', moderation_queue, name='moderation_queue'),
+    path('moderation/comments/<int:report_id>/', comment_report_action, name='comment_report_action'),
+    path('moderation/comment/<int:comment_id>/', comment_action, name='comment_moderation_action'),
     path('moderation/<slug:slug>/', moderation_action, name='moderation_action'),
+    path('app/<slug:slug>/comments/<int:comment_id>/report/', views.report_comment, name='report_comment'),
     path('app/<slug:slug>/', views.app_detail, name='app_detail'),
     path('app/<slug:slug>/edit/', views.edit_vibe, name='edit_vibe'),
     path('app/<slug:slug>/co-owners/add/', views.add_co_owner, name='add_co_owner'),

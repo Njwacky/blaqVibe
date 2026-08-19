@@ -1,4 +1,5 @@
 {% extends 'gallery/base.html' %}
+{% load safe_display %}
 {% block title %}Saved vibes — BlaqVibes{% endblock %}
 {% block content %}
 <div class="page">
@@ -6,7 +7,7 @@
   <div class="vibe-grid" style="margin-top:14px">
     {% for b in bookmarks %}
     <a href="{{ b.project.get_absolute_url }}" class="card" style="display:block;padding:14px">
-      <div style="font-weight:700">{{ b.project.title }}</div>
+      <div style="font-weight:700">{{ b.project.title|public_text:"Untitled vibe" }}</div>
       <div class="help" style="margin-top:4px">{{ b.project.short_description|truncatechars:90 }}</div>
       <div class="help" style="margin-top:8px">@{{ b.project.owner.username }} • ★ {{ b.project.stars }}</div>
     </a>

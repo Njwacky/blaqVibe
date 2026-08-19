@@ -647,14 +647,24 @@ def edit_vibe(request, slug):
             p = form.save(commit=False)
             # Versioning: if new ZIP, save old as AppVersion
             if 'zip_file' in request.FILES and project.zip_file:
-                from .profanity import validate_public_text
+                from django.core.exceptions import ValidationError
+                from .profanity import PUBLIC_LANGUAGE_ERROR, validate_public_text
                 from .prompt_sanitize import sanitize_prompt
+                changelog_raw = sanitize_prompt(request.POST.get('changelog', 'Update'))[:280]
                 try:
-                    changelog = validate_public_text(
-                        sanitize_prompt(request.POST.get('changelog', 'Update'))[:280]
-                    ) or 'Update'
-                except Exception:
+                    changelog = validate_public_text(changelog_raw) or 'Update'
+                except ValidationError:
+                    # Honesty over silence: the author is TOLD why their
+                    # note was not stored. The old zip still gets its
+                    # snapshot — only the note falls back to "Update".
                     changelog = 'Update'
+                    messages.error(
+                        request,
+                        'Your changelog was not saved: it used language that is '
+                        'not allowed in public text, so this version is listed as '
+                        '“Update” instead. Reword it and upload again to attach '
+                        'your own note.',
+                    )
                 AppVersion.objects.create(project=project, zip_file=project.zip_file, version=f"1.{project.versions.count()+1}.0", changelog=changelog)
             p.status = 'pending'
             p.save()
@@ -793,6 +803,43 @@ def report_vibe(request, slug):
         import logging
         logging.getLogger(__name__).exception(f"report crush: {e}")
         return redirect(get_object_or_404(AppProject, slug=slug).get_absolute_url())
+
+@require_POST
+@ratelimit(key='ip', rate='10/h', method='POST')
+def report_comment(request, slug, comment_id):
+    """Report a comment — the report button the comment spec promised.
+
+    Same contract as report_vibe: visitors (not just logged-in users) can
+    report; the IP rate limit is the brake against spam. The comment is
+    NOT auto-hidden — a moderator decides in the in-app queue. Raw words
+    stay visible to moderators only.
+    """
+    try:
+        if getattr(request, 'limited', False):
+            messages.error(request, "Rate limit: too many reports. Try again later.")
+            return redirect(get_object_or_404(AppProject, slug=slug).get_absolute_url() + '#comments')
+        project = get_object_or_404(AppProject, slug=slug)
+        comment = get_object_or_404(Comment, pk=comment_id, project=project)
+        from .prompt_sanitize import sanitize_prompt
+        from .models import CommentReport
+        reason = request.POST.get('reason', 'other')
+        if reason not in ('abusive', 'spam', 'harassment', 'other'):
+            reason = 'other'
+        details = sanitize_prompt(request.POST.get('details', ''))[:500]
+        reporter = request.user if request.user.is_authenticated else None
+        # One open report per logged-in person per comment — repeat
+        # clicks must not flood the queue. Anonymous reports ride the
+        # rate limit instead.
+        if reporter and CommentReport.objects.filter(comment=comment, reporter=reporter, resolved=False).exists():
+            messages.info(request, "You already reported this comment — moderators will review it.")
+            return redirect(project.get_absolute_url() + '#comments')
+        CommentReport.objects.create(comment=comment, reporter=reporter, reason=reason, details=details)
+        messages.success(request, "Reported — moderators will review. Thank you.")
+        return redirect(project.get_absolute_url() + '#comments')
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).exception(f"report_comment crush: {e}")
+        return redirect(get_object_or_404(AppProject, slug=slug).get_absolute_url() + '#comments')
 
 @csrf_exempt
 @ratelimit(key='ip', rate='60/m', method='POST')

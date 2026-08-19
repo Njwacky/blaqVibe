@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html>
 <head>
+{% load safe_display %}
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{ project.title }}</title>
+<title>{{ project.title|public_text:'Untitled vibe' }}</title>
 {% if project.css_code %}<style>{{ project.css_code }}</style>{% endif %}
 </head>
 <body>

@@ -1,4 +1,5 @@
-{% extends 'gallery/base.html' %} {% block title %}Fork Network — {{ root.title
+{% extends 'gallery/base.html' %}
+{% load safe_display %} {% block title %}Fork Network — {{ root.title
 }} — BlaqVibes{% endblock %} {% block content %}
 <div style="max-width: 1100px; margin: 0 auto; padding: 20px">
   <h1
@@ -9,7 +10,7 @@
       font-size: 22px;
     "
   >
-    ⑂ Fork Network — {{ root.title }}
+    ⑂ Fork Network — {{ root.title|public_text:"Untitled vibe" }}
   </h1>
   <p style="color: var(--muted); font-size: 13px">
     Tree of remixes — <code>forked_from</code> FK, backend built, no JS secrets.
@@ -40,9 +41,9 @@
           box-shadow: 0 0 0 1px #7c3aed;
         "
       >
-        <div style="font-weight: 800">{{ root.title }}</div>
+        <div style="font-weight: 800">{{ root.title|public_text:"Untitled vibe" }}</div>
         <div style="font-size: 11px; color: var(--muted)">
-          @{{ root.owner.username }} • {{ root.forks.count }} forks • ★ {{
+          @{{ root.owner.username|public_text:"user" }} • {{ root.forks.count }} forks • ★ {{
           root.stars }}
         </div>
         <div style="font-size: 10px; color: var(--muted); margin-top: 4px">
@@ -66,14 +67,14 @@
           class="card"
           style="padding: 10px; display: block"
         >
-          <div style="font-weight: 700; font-size: 13px">{{ fork.title }}</div>
+          <div style="font-weight: 700; font-size: 13px">{{ fork.title|public_text:"Untitled vibe" }}</div>
           <div style="font-size: 11px; color: var(--muted)">
-            @{{ fork.owner.username }} • {{ fork.forks.count }} forks • ★ {{
+            @{{ fork.owner.username|public_text:"user" }} • {{ fork.forks.count }} forks • ★ {{
             fork.stars }}
           </div>
           {% if fork.forked_from.slug != root.slug %}
           <div style="font-size: 10px; color: var(--muted)">
-            forked from @{{ fork.forked_from.owner.username }}
+            forked from @{{ fork.forked_from.owner.username|public_text:"user" }}
           </div>
           {% endif %}
         </a>

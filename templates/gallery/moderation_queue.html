@@ -3,7 +3,40 @@
 {% block content %}
 <div style="max-width:1100px;margin:0 auto;padding:20px">
   <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">🛡️ Moderation Queue</h1>
-  <p style="color:var(--muted);font-size:13px">Staff only — approve pending vibes or review quarantined (virus/secrets). All actions are backend, no JS secrets.</p>
+  <p style="color:var(--muted);font-size:13px">Staff only — approve pending vibes, review quarantined (virus/secrets), and action comment reports. Raw text is shown here on purpose: moderators must see what visitors reported.</p>
+
+  <h2 style="margin:16px 0 8px;font-size:14px">⚑ Comment Reports ({{ comment_reports|length }})</h2>
+  {% for rep in comment_reports %}
+  <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px">
+    <div style="font-size:12px;color:var(--muted)">
+      {{ rep.get_reason_display }} • reported by {% if rep.reporter %}@{{ rep.reporter.username }}{% else %}a visitor{% endif %} • {{ rep.created_at|timesince }} ago
+      • on <a href="{{ rep.comment.project.get_absolute_url }}#comments" style="color:var(--link)" target="_blank">{{ rep.comment.project.slug }}</a>
+      • by @{{ rep.comment.user.username }}
+    </div>
+    <div style="font-size:13px;margin-top:6px;padding:8px;background:var(--bg);border:1px solid var(--line);border-radius:8px;white-space:pre-wrap">{{ rep.comment.body }}</div>
+    {% if rep.details %}<div style="font-size:12px;color:var(--muted);margin-top:4px">Reporter note: “{{ rep.details }}”</div>{% endif %}
+    <form method="post" action="{% url 'comment_report_action' rep.id %}" style="display:flex;gap:6px;margin-top:8px">{% csrf_token %}
+      <button name="action" value="hide" class="btn-violet" style="padding:6px 12px;font-size:12px;background:var(--danger-action)">Hide comment</button>
+      <button name="action" value="dismiss" class="btn-ghost" style="padding:6px 12px;font-size:12px">Dismiss report</button>
+    </form>
+  </div>
+  {% empty %}<div style="color:var(--muted);font-size:13px;padding:12px;background:var(--bg);border:1px dashed var(--line);border-radius:10px">No open comment reports.</div>{% endfor %}
+
+  {% if hidden_comments %}
+  <h2 style="margin:16px 0 8px;font-size:14px">🙈 Hidden Comments ({{ hidden_comments|length }})</h2>
+  {% for c in hidden_comments %}
+  <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:12px">
+    <div style="flex:1">
+      <div style="font-size:12px;color:var(--muted)">@{{ c.user.username }} on <a href="{{ c.project.get_absolute_url }}#comments" style="color:var(--link)" target="_blank">{{ c.project.slug }}</a> • {{ c.created_at|timesince }} ago</div>
+      <div style="font-size:13px;margin-top:4px;padding:6px 8px;background:var(--bg);border:1px solid var(--line);border-radius:8px;white-space:pre-wrap">{{ c.body }}</div>
+    </div>
+    <form method="post" action="{% url 'comment_moderation_action' c.id %}" style="display:flex;gap:6px">{% csrf_token %}
+      <button name="action" value="unhide" class="btn-ghost" style="padding:6px 12px;font-size:12px" title="Comments blocked by the language gate stay hidden — their save() re-hides them.">Unhide</button>
+    </form>
+  </div>
+  {% endfor %}
+  <p style="font-size:11px;color:var(--muted)">Comments caught by the language gate re-hide themselves on save — unhiding only works for moderator-hidden ones.</p>
+  {% endif %}
 
   <h2 style="margin:16px 0 8px;font-size:14px">⏳ Pending Scan/Review ({{ pending.count }})</h2>
   {% for p in pending %}
@@ -11,7 +44,7 @@
     <div style="flex:1">
       <div style="font-weight:700">{{ p.title }} <span style="font-size:11px;color:var(--muted)">@{{ p.owner.username }} • {{ p.tech_stack|default:"—" }} • {{ p.file_count }} files</span></div>
       <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.short_description }}</div>
-      <div style="font-size:11px;color:var(--warning-text)">Status: {{ p.status }} • <a href="{{ p.get_absolute_url }}" style="color:var(--link)" target="_blank">View</a> • <a href="{% url 'scan_status' p.slug %}" style="color:var(--muted)">scan-status json</a></div>
+      <div style="font-size:11px;color:var(--warning-text)">Status: {{ p.status }}{% if p.scan_report.language_gate %} • 🚫 held by the public-language gate ({{ p.scan_report.language_gate.fields|join:", " }}){% endif %} • <a href="{{ p.get_absolute_url }}" style="color:var(--link)" target="_blank">View</a> • <a href="{% url 'scan_status' p.slug %}" style="color:var(--muted)">scan-status json</a></div>
     </div>
     <form method="post" action="{% url 'moderation_action' p.slug %}" style="display:flex;gap:6px">{% csrf_token %}
       <button name="action" value="approve" class="btn-violet" style="padding:8px 12px;font-size:12px">✓ Approve → Published</button>

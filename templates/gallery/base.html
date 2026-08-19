@@ -1,4 +1,5 @@
 {% load static %}
+{% load safe_display %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -54,7 +55,7 @@ try{
       <div class="nav-user" id="nav-user">
         <button type="button" id="nav-user-btn" class="nav-user-btn" aria-haspopup="true" aria-expanded="false">
           {% if user.profile.avatar %}<img src="{{ user.profile.avatar.url }}" alt="" class="nav-avatar">{% else %}<span class="nav-avatar nav-avatar-fallback">{{ user.username|first|upper }}</span>{% endif %}
-          <span class="nav-user-name">@{{ user.username }}</span>
+          <span class="nav-user-name">@{{ user.username|public_text:"user" }}</span>
           {% if unread_notifications %}<span class="nav-badge">{{ unread_notifications }}</span>{% endif %}
           <span aria-hidden="true" style="font-size:10px">▾</span>
         </button>

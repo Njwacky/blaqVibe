@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+{% load safe_display %}
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>{{ project.title }} — preview</title>
+<title>{{ project.title|public_text:'Untitled vibe' }} — preview</title>
 <style>html,body{margin:0;padding:0;height:100%;overflow:hidden}iframe{width:100%;height:100%;border:none;background:#fff}</style>
 </head>
 <body>

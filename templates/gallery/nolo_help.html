@@ -1,4 +1,5 @@
 {% extends 'gallery/base.html' %}
+{% load safe_display %}
 {% block title %}Nolo Chat — BlaqVibes{% endblock %}
 {% block head %}
 <style>
@@ -81,7 +82,7 @@
         <div style="margin-top:12px;display:grid;gap:10px">
           {% for app in recent_apps %}
           <a href="{% url 'app_detail' app.slug %}" style="display:block;padding:12px;background:var(--card);border:1px solid var(--line);border-radius:16px;text-decoration:none;color:var(--text)">
-            <div style="font-size:13px;font-weight:700">{{ app.title }}</div>
+            <div style="font-size:13px;font-weight:700">{{ app.title|public_text:'Untitled vibe' }}</div>
             <div style="font-size:11px;color:var(--muted)">{{ app.short_description|truncatechars:60 }}</div>
           </a>
           {% empty %}

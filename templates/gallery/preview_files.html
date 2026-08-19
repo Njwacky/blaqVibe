@@ -1,10 +1,11 @@
 {% extends 'gallery/base.html' %}
-{% block title %}Preview files — {{ project.title }} — BlaqVibes{% endblock %}
+{% load safe_display %}
+{% block title %}Preview files — {{ project.title|public_text:'Untitled vibe' }} — BlaqVibes{% endblock %}
 {% block content %}
 <div style="max-width:900px;margin:0 auto;padding:20px">
   <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;gap:12px;align-items:center">
     <div style="flex:1">
-      <div style="font-weight:800">Preview files — {{ project.title }}</div>
+      <div style="font-weight:800">Preview files — {{ project.title|public_text:'Untitled vibe' }}</div>
       <div style="font-size:12px;color:var(--muted);margin-top:4px">File names and README only. This is not a running server and not Docker.</div>
     </div>
     <span style="font-size:11px;background:var(--input);border:1px solid var(--line);padding:4px 8px;border-radius:8px;font-weight:700">Files</span>

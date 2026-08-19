@@ -19,13 +19,18 @@ def extract_features(project):
 
 def compare_apps(a, b):
     try:
+        # The result reaches a browser (nolo_compare) and a public page
+        # (pr_detail) — free text goes through the same display backstop
+        # as the API serializer.
+        from .profanity import display_text
+
         def info(p):
             try:
                 lang = p.language_stats if getattr(p, 'language_stats', None) else {}
                 return {
-                    'title': p.title,
+                    'title': display_text(p.title, 'Untitled vibe'),
                     'slug': p.slug,
-                    'tech_stack': p.tech_stack,
+                    'tech_stack': display_text(p.tech_stack, ''),
                     'languages': lang,
                     'file_count': p.file_count,
                     'stars': p.stars,
@@ -34,7 +39,7 @@ def compare_apps(a, b):
                     'readme_len': len(p.readme or ''),
                 }
             except Exception:
-                return {'title': getattr(p,'title','?'), 'slug': getattr(p,'slug','?'), 'features': []}
+                return {'title': display_text(getattr(p, 'title', '?'), 'Untitled vibe'), 'slug': getattr(p, 'slug', '?'), 'features': []}
         ia, ib = info(a), info(b)
         diff = {
             'only_in_a': [f for f in ia['features'] if f not in ib['features']],

@@ -8,7 +8,7 @@ boundary, and every public POST that can show user text.
 from django.test import TestCase, override_settings
 
 from gallery.forms import AppUploadForm, CommentForm, ReviewForm
-from gallery.models import Comment, Notification, Review
+from gallery.models import AppProject, Comment, Notification, Review
 from gallery.profanity import (
     PUBLIC_LANGUAGE_ERROR,
     contains_profanity,
@@ -228,3 +228,430 @@ class OtherPublicWriteGatesTests(TestCase):
         note.refresh_from_db()
         self.assertEqual(note.title, 'New activity on BlaqVibes')
         self.assertEqual(note.body, '')
+
+
+# --- Local languages, display backstops, ORM gates, social signups --------
+
+
+class LocalLanguageMatcherTests(TestCase):
+    """Durban speaks more than English. The gate must too."""
+
+    def test_local_language_abuse_is_caught(self):
+        for text in (
+            'jy is n klootzak',
+            'what a cuiter honestly',
+            'daai hoer steel code',
+            'uyisifebe wena',
+            'uyisilima ungakhulumi',
+            'le app ibhalwe yisidenge',
+            'wena sithutha',
+            'uyisiphukuphuku',
+            'umqundu wakho unuka',
+            'stop being such a hotnot',
+            'fokken poes',
+        ):
+            self.assertTrue(contains_profanity(text), text)
+
+    def test_innocent_local_speech_stays_allowed(self):
+        for text in (
+            # mampara is documented as affectionate ("silly goose") —
+            # blocking it kills real speech without stopping abuse.
+            'ai mampara, look, this is how we do it',
+            'Eish, the build failed again.',
+            'sharp sharp — see you at the Durban meetup',
+            'isilinganiso means measurement in isiZulu',
+            'the tokoloshe is folklore, not abuse',
+        ):
+            self.assertFalse(contains_profanity(text), text)
+
+    def test_english_sex_education_words_are_not_blocked(self):
+        # The gate stops vulgarity and slurs, not safety vocabulary.
+        for text in (
+            'Our README explains sex education resources for schools.',
+            'This app teaches consent and rape prevention.',
+            'A porn filter would break this safety toolkit.',
+        ):
+            self.assertFalse(contains_profanity(text), text)
+
+
+class DisplayTextBackstopTests(TestCase):
+    def test_clean_value_passes_through(self):
+        from gallery.profanity import display_text
+        self.assertEqual(display_text('Stock tracker', 'x'), 'Stock tracker')
+        self.assertEqual(display_text('', 'fallback'), 'fallback')
+        self.assertEqual(display_text(None, 'fallback'), 'fallback')
+
+    def test_dirty_value_becomes_placeholder_without_echo(self):
+        from gallery.profanity import display_text
+        out = display_text('this is fucking broken', 'Untitled vibe')
+        self.assertEqual(out, 'Untitled vibe')
+        self.assertNotIn('fuck', out)
+
+    def test_template_filters_replace_and_escape(self):
+        from django.template import Context, Template
+        rendered = Template(
+            "{% load safe_display %}{{ t|public_text:'Untitled' }}"
+        ).render(Context({'t': 'what a load of bullshit'}))
+        self.assertEqual(rendered, 'Untitled')
+
+        rendered = Template(
+            "{% load safe_display %}{{ h|public_html|safe }}"
+        ).render(Context({'h': '<p>you are an asshole</p>'}))
+        self.assertNotIn('asshole', rendered)
+        self.assertIn('hidden', rendered)
+
+        # Clean HTML survives untouched (still safe-marked by |safe).
+        rendered = Template(
+            "{% load safe_display %}{{ h|public_html|safe }}"
+        ).render(Context({'h': '<p>nice work</p>'}))
+        self.assertEqual(rendered, '<p>nice work</p>')
+
+
+@override_settings(SEED_DEMO=False)
+class ProjectOrmGateTests(TestCase):
+    """Admin/shell writes must never publish blocked words."""
+
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('owner')
+
+    def test_dirty_title_cannot_be_published_via_orm(self):
+        project = AppProject.objects.create(
+            owner=self.owner,
+            category=self.cat,
+            title='My fucking tracker',
+            short_description='A short description of this vibe.',
+            readme='# H\n\n' + ('enough text for the readme here. ' * 5),
+            status='published',
+        )
+        project.refresh_from_db()
+        # Held, not rewritten: raw words stay for moderators, status drops.
+        self.assertEqual(project.status, 'pending')
+        self.assertEqual(project.title, 'My fucking tracker')
+        self.assertIn('language_gate', project.scan_report)
+        # Not on the feed, not in the API.
+        page = self.client.get('/')
+        self.assertNotContains(page, 'fucking')
+        api = self.client.get('/api/v1/apps/')
+        self.assertNotContains(api, 'fucking')
+
+    def test_dirty_slug_is_never_minted(self):
+        project = AppProject.objects.create(
+            owner=self.owner,
+            category=self.cat,
+            title='fuck you all',
+            short_description='A short description of this vibe.',
+            readme='# H\n\n' + ('enough text for the readme here. ' * 5),
+        )
+        self.assertNotIn('fuck', project.slug)
+
+    def test_clean_full_save_still_publishes(self):
+        project = make_project(self.owner, self.cat, title='Clean title')
+        project.refresh_from_db()
+        self.assertEqual(project.status, 'published')
+        self.assertNotIn('language_gate', project.scan_report or {})
+
+    def test_full_clean_raises_field_errors_for_admin(self):
+        from django.core.exceptions import ValidationError
+        project = AppProject(
+            owner=self.owner,
+            category=self.cat,
+            title='what a klootzak app',
+            short_description='A short description.',
+            readme='fine',
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            project.full_clean()
+        self.assertIn('title', ctx.exception.message_dict)
+
+    def test_display_backstop_catches_a_shell_edit(self):
+        project = make_project(self.owner, self.cat, title='Clean title')
+        # Bypass save() entirely, like a raw shell UPDATE.
+        AppProject.objects.filter(pk=project.pk).update(title='this is shit')
+        page = self.client.get(f'/app/{project.slug}/')
+        self.assertNotContains(page, 'this is shit')
+        self.assertContains(page, 'Untitled vibe')
+        feed = self.client.get('/')
+        self.assertNotContains(feed, 'this is shit')
+        api = self.client.get(f'/api/v1/apps/{project.slug}/')
+        self.assertNotContains(api, 'this is shit')
+        self.assertContains(api, 'Untitled vibe')
+
+    def test_changelog_backstop(self):
+        from gallery.models import AppVersion
+        project = make_project(self.owner, self.cat)
+        version = AppVersion(project=project, version='1.1.0', changelog='fokken bullshit release')
+        version.save()
+        version.refresh_from_db()
+        self.assertEqual(version.changelog, 'Update')
+
+
+@override_settings(SEED_DEMO=False)
+class SocialUsernameGateTests(TestCase):
+    """GitHub/Google signups never touch SignUpForm — the adapter gates them."""
+
+    def test_clean_username_helper_is_a_noop(self):
+        from users.adapters import force_clean_username
+        user = make_user('clean_handle')
+        self.assertIsNone(force_clean_username(user))
+        user.refresh_from_db()
+        self.assertEqual(user.username, 'clean_handle')
+
+    def test_dirty_username_is_force_renamed(self):
+        from django.contrib.auth.models import User
+        from users.adapters import force_clean_username
+        user = User.objects.create_user(username='fuckyou', password='pass12345')
+        renamed = force_clean_username(user)
+        self.assertEqual(renamed, f'user_{user.pk}')
+        user.refresh_from_db()
+        self.assertEqual(user.username, f'user_{user.pk}')
+        self.assertFalse(contains_profanity(user.username))
+
+    def test_rename_avoids_collisions(self):
+        from django.contrib.auth.models import User
+        from users.adapters import force_clean_username
+        dirty = User.objects.create_user(username='poes', password='pass12345')
+        User.objects.create_user(username=f'user_{dirty.pk}', password='x')
+        renamed = force_clean_username(dirty)
+        self.assertEqual(renamed, f'user_{dirty.pk}_1')
+
+    def test_auto_signup_refused_for_dirty_provider_handle(self):
+        from types import SimpleNamespace
+        from users.adapters import BlaqSocialAccountAdapter
+        adapter = BlaqSocialAccountAdapter()
+        dirty = SimpleNamespace(user=SimpleNamespace(username='fuckyou'))
+        clean = SimpleNamespace(user=SimpleNamespace(username='nolo_ai'))
+        self.assertFalse(adapter.is_auto_signup_allowed(None, dirty))
+        self.assertTrue(adapter.is_auto_signup_allowed(None, clean))
+
+    def test_account_adapter_clean_username_rejects(self):
+        from django.core.exceptions import ValidationError
+        from users.adapters import BlaqAccountAdapter
+        adapter = BlaqAccountAdapter()
+        with self.assertRaises(ValidationError):
+            adapter.clean_username('fuckyou')
+        self.assertEqual(adapter.clean_username('nolo_ai'), 'nolo_ai')
+
+    def test_social_save_user_renames_and_notifies(self):
+        """Full adapter path: a dirty handle becomes user_<pk> + the
+        person is told why (no silent rewrite)."""
+        from types import SimpleNamespace
+        from django.contrib.auth.models import User
+        from users.adapters import BlaqSocialAccountAdapter
+
+        adapter = BlaqSocialAccountAdapter()
+        user = User(username='fuckyou')
+        sociallogin = SimpleNamespace(
+            user=user,
+            account=SimpleNamespace(provider='github', extra_data={'login': 'fuckyou'}),
+        )
+
+        def fake_super_save(self, request, sociallogin, form=None):
+            sociallogin.user.set_unusable_password()
+            sociallogin.user.save()
+            return sociallogin.user
+
+        import users.adapters as adapters_module
+        original = adapters_module.DefaultSocialAccountAdapter.save_user
+        adapters_module.DefaultSocialAccountAdapter.save_user = fake_super_save
+        try:
+            saved = adapter.save_user(None, sociallogin)
+        finally:
+            adapters_module.DefaultSocialAccountAdapter.save_user = original
+
+        saved.refresh_from_db()
+        self.assertEqual(saved.username, f'user_{saved.pk}')
+        profile = saved.profile
+        profile.refresh_from_db()
+        # A dirty GitHub handle is never copied onto the public profile.
+        self.assertEqual(profile.github, '')
+        note = Notification.objects.filter(user=saved, kind='moderation').first()
+        self.assertIsNotNone(note)
+        self.assertNotIn('fuck', note.body.lower())
+
+
+@override_settings(SEED_DEMO=False)
+class ScrubMigrationTests(TestCase):
+    """Existing rows from before the gate get held/renamed, never rewritten."""
+
+    def _run(self, module_name, func_name='_scrub_accounts'):
+        import importlib
+        from django.apps import apps as global_apps
+        module = importlib.import_module(f'gallery.migrations.{module_name}')
+        getattr(module, func_name)(global_apps, None)
+
+    def test_accounts_migration_renames_and_notifies(self):
+        from django.contrib.auth.models import User
+        user = User.objects.create_user(
+            username='fuckyou', password='pass12345',
+            first_name='Normal', last_name='Name',
+        )
+        user.profile.github = 'fuckyou-dev'
+        user.profile.save(update_fields=['github'])
+        clean = User.objects.create_user(username='nolo_ai', password='pass12345')
+
+        self._run('0028_scrub_existing_accounts')
+
+        user.refresh_from_db()
+        clean.refresh_from_db()
+        self.assertEqual(user.username, f'user_{user.pk}')
+        self.assertEqual(clean.username, 'nolo_ai')
+        user.profile.refresh_from_db()
+        self.assertEqual(user.profile.github, '')
+        note = Notification.objects.filter(user=user, kind='moderation').first()
+        self.assertIsNotNone(note)
+        self.assertIn('username', note.title.lower())
+        # The old word must never be echoed back to anyone.
+        self.assertNotIn('fuckyou', note.body)
+
+    def test_accounts_migration_blanks_dirty_notification_urls(self):
+        owner = make_user('note_owner')
+        note = Notification.objects.create(
+            user=owner, kind='follow', title='Someone followed you',
+            url='/u/fuckyou/',
+        )
+        self._run('0028_scrub_existing_accounts')
+        note.refresh_from_db()
+        self.assertEqual(note.url, '')
+
+    def test_vibes_migration_holds_dirty_published_rows(self):
+        cat = make_category()
+        owner = make_user('owner')
+        project = make_project(owner, cat, title='Legacy clean vibe')
+        # Simulate a pre-gate shell write that bypassed save().
+        AppProject.objects.filter(pk=project.pk).update(
+            title='what a load of shit', slug='load-of-shit-app',
+        )
+        from gallery.models import AppVersion
+        version = AppVersion.objects.create(
+            project=project, version='1.1.0', changelog='fokken kak release',
+        )
+
+        self._run('0027_hold_public_vibe_profanity', '_hold')
+
+        project.refresh_from_db()
+        version.refresh_from_db()
+        self.assertEqual(project.status, 'pending')
+        self.assertIn('language_gate', project.scan_report)
+        self.assertNotIn('shit', project.slug)
+        # Raw text survives for moderators — never silently rewritten.
+        self.assertEqual(project.title, 'what a load of shit')
+        self.assertEqual(version.changelog, 'Update')
+
+
+@override_settings(RATELIMIT_ENABLE=False, SEED_DEMO=False, MEDIA_ROOT='/tmp/blaqvibes-tests-changelog')
+class ChangelogHonestyTests(TestCase):
+    """A vulgar changelog must not be silently rewritten to "Update" —
+    the author has to be told why."""
+
+    def setUp(self):
+        from gallery.tests import make_zip_file
+        self.cat = make_category()
+        self.owner = make_user('owner')
+        self.project = make_project(self.owner, self.cat, title='Clean vibe')
+        self.project.zip_file.save('app.zip', make_zip_file({'app.py': 'print(1)\n'}), save=True)
+
+    def _edit_post(self, changelog):
+        self.client.login(username='owner', password='pass12345')
+        from gallery.tests import make_zip_file
+        return self.client.post(
+            f'/app/{self.project.slug}/edit/',
+            {
+                'title': 'Clean vibe',
+                'category': self.cat.pk,
+                'short_description': 'A short description of this vibe.',
+                'readme': '# Heading\n\n' + ('Enough characters in this readme for the form. ' * 3),
+                'star_cost': '0',
+                'price_zar': '0',
+                'changelog': changelog,
+                'zip_file': make_zip_file({'app.py': 'print(2)\n'}),
+            },
+            follow=True,
+        )
+
+    def test_vulgar_changelog_is_flagged_to_the_author(self):
+        response = self._edit_post('fokken kak release')
+        self.assertContains(response, 'Your changelog was not saved')
+        version = self.project.versions.order_by('created_at').first()
+        self.assertIsNotNone(version)
+        self.assertEqual(version.changelog, 'Update')
+
+    def test_clean_changelog_is_kept(self):
+        self._edit_post('Fixed the chart bug')
+        version = self.project.versions.order_by('created_at').first()
+        self.assertEqual(version.changelog, 'Fixed the chart bug')
+
+
+@override_settings(SEED_DEMO=False)
+class AdminGatesTests(TestCase):
+    def test_staff_user_form_rejects_dirty_username(self):
+        from django.core.exceptions import ValidationError
+        from users.admin import BlaqUserChangeForm
+        user = make_user('staff_target')
+        form = BlaqUserChangeForm(instance=user)
+        form.cleaned_data = {'username': 'fuckyou'}
+        with self.assertRaises(ValidationError):
+            form.clean_username()
+        form.cleaned_data = {'username': 'clean_name'}
+        self.assertEqual(form.clean_username(), 'clean_name')
+
+    def test_project_clean_blocks_admin_style_save(self):
+        """Django admin validates via full_clean before saving — dirty
+        titles must become an error, not a published row."""
+        from django.core.exceptions import ValidationError
+        cat = make_category()
+        owner = make_user('owner2')
+        project = make_project(owner, cat, title='Clean title')
+        project.title = 'this is shit'
+        with self.assertRaises(ValidationError):
+            project.full_clean()
+
+
+@override_settings(SEED_DEMO=False)
+class RealAllauthSocialFormTests(TestCase):
+    """The actual allauth social signup form — not a mock of it. When
+    auto-signup is refused for a dirty handle, THIS form is what the
+    person sees, and its username field must run our gate."""
+
+    def _form(self, username):
+        from types import SimpleNamespace
+        from django.contrib.auth.models import User
+        from allauth.socialaccount.forms import SignupForm
+        user = User(username=username, email=f'{username}@test.com')
+        sociallogin = SimpleNamespace(user=user, email_addresses=[])
+        return SignupForm(
+            sociallogin=sociallogin,
+            data={'username': username, 'email': f'{username}@test.com'},
+        )
+
+    def test_dirty_provider_handle_rejected_by_real_form(self):
+        form = self._form('fuckyou')
+        self.assertFalse(form.is_valid())
+        self.assertIn('username', form.errors)
+        self.assertNotIn('fuckyou', str(form.errors['username']))
+
+    def test_clean_handle_accepted_by_real_form(self):
+        form = self._form('nolo_ai')
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_obfuscated_handle_rejected_by_real_form(self):
+        form = self._form('fvckyou123')
+        self.assertFalse(form.is_valid())
+        self.assertIn('username', form.errors)
+
+
+@override_settings(SEED_DEMO=False)
+class ReadmeRenderBackstopTests(TestCase):
+    def test_dirty_readme_html_never_renders(self):
+        cat = make_category()
+        owner = make_user('readme_owner')
+        project = make_project(owner, cat, title='Readme vibe')
+        # Simulate a shell write of both the markdown AND the rendered
+        # HTML, bypassing save() entirely.
+        AppProject.objects.filter(pk=project.pk).update(
+            readme='this is a fucking mess',
+            readme_html='<p>this is a fucking mess</p>',
+        )
+        page = self.client.get(f'/app/{project.slug}/')
+        self.assertNotContains(page, 'fucking')
+        self.assertContains(page, 'The README for this vibe was removed.')

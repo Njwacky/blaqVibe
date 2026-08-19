@@ -1,13 +1,13 @@
-{% extends 'gallery/base.html' %} {% load static %} {% block title %}{{project.title }} — BlaqVibes{% endblock %} {% block og_title %}{{ project.title}} — BlaqVibes{% endblock %} {% block og_desc %}{{ project.short_description}}{% endblock %} {% block meta_desc %}{{ project.short_description }}{% endblock%} {% block og_image %}{% if project.thumbnail %}{{ request.scheme }}://{{request.get_host }}{{ project.thumbnail.url }}{% else %}{{ block.super }}{%endif %}{% endblock %} {% block head %}
+{% extends 'gallery/base.html' %} {% load static %} {% load safe_display %} {% block title %}{{ project.title|public_text:"Untitled vibe" }} — BlaqVibes{% endblock %} {% block og_title %}{{ project.title|public_text:"Untitled vibe" }} — BlaqVibes{% endblock %} {% block og_desc %}{{ project.short_description|public_text }}{% endblock %} {% block meta_desc %}{{ project.short_description|public_text }}{% endblock%} {% block og_image %}{% if project.thumbnail %}{{ request.scheme }}://{{request.get_host }}{{ project.thumbnail.url }}{% else %}{{ block.super }}{%endif %}{% endblock %} {% block head %}
 <script type="application/ld+json">
   {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
-    "name": "{{ project.title|escapejs }}",
-    "description": "{{ project.short_description|escapejs }}",
+    "name": "{{ project.title|public_text:"Untitled vibe"|escapejs }}",
+    "description": "{{ project.short_description|public_text|escapejs }}",
     "author": {
       "@type": "Person",
-      "name": "{{ project.owner.username|escapejs }}"
+      "name": "{{ project.owner.username|public_text:"user"|escapejs }}"
     },
     "offers": {
       "@type": "Offer",
@@ -126,7 +126,7 @@
         sandbox="allow-scripts allow-forms"
         referrerpolicy="no-referrer"
         style="width: 100%; height: 380px; border: none; background: #fff"
-        title="{{ project.title }} preview"
+        title="{{ project.title|public_text:'Untitled vibe' }} preview"
       ></iframe>
       {% else %}
       <!-- Honest empty state. The rule for this site is that EVERY kind of
@@ -147,10 +147,10 @@
             {{ project.kind_icon }}
           </div>
           <div style="font-weight: 700; margin-top: 6px">
-            {{ project.title }}
+            {{ project.title|public_text:"Untitled vibe" }}
           </div>
           <div style="font-size: 12px; color: #475569; margin: 6px 0">
-            {{ project.kind_label }}{% if project.tech_stack %} • {{            project.tech_stack }}{% endif %} • {{ project.file_count }} files
+            {{ project.kind_label }}{% if project.tech_stack %} • {{ project.tech_stack|public_text }}{% endif %} • {{ project.file_count }} files
           </div>
           <div
             style="
@@ -668,7 +668,7 @@
           README — REQUIRED FOR EVERY VIBE
         </div>
         <div style="font-size: 13px; line-height: 1.7; color: var(--text)">
-          {{ project.readme_html|safe }}
+          {{ project.readme_html|public_html:'<p>The README for this vibe was removed.</p>'|safe }}
         </div>
       </div>
 
@@ -931,7 +931,7 @@
           </div>
           <div style="flex: 1">
             <div style="display: flex; gap: 6px; align-items: center">
-              <b style="font-size: 13px">@{{ c.user.username }}</b
+              <b style="font-size: 13px">@{{ c.user.username|public_text:"user" }}</b
               ><span style="font-size: 11px; color: var(--muted)"
                 >{{ c.created_at|timesince }} ago</span
               >
@@ -944,8 +944,33 @@
                 color: var(--text);
               "
             >
-              {{ c.body_html|safe }}
+              {{ c.body_html|public_html|safe }}
             </div>
+            <!-- Visitors can report a comment, same as they can report the
+                 vibe itself — the IP rate limit is the spam brake. -->
+            <form
+              method="post"
+              action="{% url 'report_comment' project.slug c.id %}"
+              style="margin-top: 4px; display: flex; gap: 6px; align-items: center"
+            >
+              {% csrf_token %}
+              <select
+                name="reason"
+                style="background: var(--input); border: 1px solid var(--line); border-radius: 8px; padding: 3px 6px; color: var(--text); font-size: 11px"
+              >
+                <option value="abusive">Abusive language</option>
+                <option value="harassment">Harassment</option>
+                <option value="spam">Spam</option>
+                <option value="other">Other</option>
+              </select>
+              <button
+                class="btn-ghost"
+                title="Report this comment to moderators"
+                style="padding: 2px 8px; font-size: 11px; color: var(--muted)"
+              >
+                ⚑ Report comment
+              </button>
+            </form>
             {% for r in c.replies.all %}{% if not r.is_hidden %}
             <div
               style="
@@ -970,9 +995,22 @@
               >
                 {{ r.user.username|first|upper }}
               </div>
-              <div>
-                <b style="font-size: 12px">@{{ r.user.username }}</b>
-                <div style="font-size: 13px">{{ r.body_html|safe }}</div>
+              <div style="flex: 1">
+                <b style="font-size: 12px">@{{ r.user.username|public_text:"user" }}</b>
+                <div style="font-size: 13px">{{ r.body_html|public_html|safe }}</div>
+                <form
+                  method="post"
+                  action="{% url 'report_comment' project.slug r.id %}"
+                  style="margin-top: 2px"
+                >
+                  {% csrf_token %}<input type="hidden" name="reason" value="abusive" /><button
+                    class="btn-ghost"
+                    title="Report this reply to moderators"
+                    style="padding: 1px 6px; font-size: 10px; color: var(--muted)"
+                  >
+                    ⚑ Report
+                  </button>
+                </form>
               </div>
             </div>
             {% endif %}{% endfor %} {% if user.is_authenticated %}
@@ -1099,7 +1137,7 @@
           <option value="">Compare with...</option>
           {% for p in compare_options %}
           <option value="{{ p.slug }}">
-            {{ p.title }} — {{ p.tech_stack }}
+            {{ p.title|public_text:"Untitled vibe" }} — {{ p.tech_stack|public_text }}
           </option>
           {% endfor %}
         </select>
@@ -1297,14 +1335,14 @@
           </div>
           <div style="flex: 1">
             <div style="display: flex; gap: 6px; align-items: center">
-              <b style="font-size: 13px">@{{ r.user.username }}</b
+              <b style="font-size: 13px">@{{ r.user.username|public_text:"user" }}</b
               ><span style="color: var(--warning-text)">★ {{ r.rating }}/5</span
               ><span style="font-size: 11px; color: var(--muted)"
                 >{{ r.created_at|timesince }} ago</span
               >
             </div>
             <div style="font-size: 12px; margin-top: 2px; color: var(--text)">
-              {{ r.text|default:"—" }}
+              {{ r.text|public_text|default:"—" }}
             </div>
           </div>
         </div>
@@ -1378,17 +1416,17 @@
           >🤖 {{ project.ai_tool }}</span
         >{% endif %}
       </div>
-      <h3 style="font-weight:700">{{ project.title }}</h3>
-      <p style="font-size:12px;color:var(--muted);margin:6px 0;line-height:1.5">{{ project.short_description }}</p>
+      <h3 style="font-weight:700">{{ project.title|public_text:"Untitled vibe" }}</h3>
+      <p style="font-size:12px;color:var(--muted);margin:6px 0;line-height:1.5">{{ project.short_description|public_text }}</p>
       <div style="font-size:12px;display:flex;flex-direction:column">
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Publisher</span><b><a href="{% url 'profile_view' project.owner.username %}" style="color:var(--link)">@{{ project.owner.username }}</a> {% if project.owner.profile.rank %}<span style="font-size:10px;background:var(--warning-bg);color:var(--warning-text);padding:2px 6px;border-radius:6px">{{ project.owner.profile.rank.name }}</span>{% endif %}</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Publisher</span><b><a href="{% url 'profile_view' project.owner.username %}" style="color:var(--link)">@{{ project.owner.username|public_text:"user" }}</a> {% if project.owner.profile.rank %}<span style="font-size:10px;background:var(--warning-bg);color:var(--warning-text);padding:2px 6px;border-radius:6px">{{ project.owner.profile.rank.name }}</span>{% endif %}</b></div>
         {% for co in project.co_owners.all %}
         <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Co-owner</span><b><a href="{% url 'profile_view' co.user.username %}" style="color:var(--link)">@{{ co.user.username }}</a> — {{ co.share_percent }}% of trades</b></div>
         {% endfor %}
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Stack</span><b>{{ project.tech_stack|default:"HTML/CSS" }}</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Stack</span><b>{{ project.tech_stack|public_text|default:"HTML/CSS" }}</b></div>
         <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Files</span><b>{{ project.file_count }} • {{ project.clones }} clones</b></div>
         <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Trade Cost</span><b>{% if project.star_cost %}{{ project.star_cost }} ★ {% if project.star_cost == 1 %}Bronze{% elif project.star_cost == 2 %}Bronze{% elif project.star_cost <= 3 %}Silver{% else %}Gold{% endif %}{% else %}0 ★ Free{% endif %}</b></div>
-        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Forks</span><b>⑂ {{ forks_count }} • {% if project.forked_from %}Forked from <a href="{{ project.forked_from.get_absolute_url }}" style="color:var(--link)">@{{ project.forked_from.owner.username }}</a>{% else %}Original{% endif %}</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Forks</span><b>⑂ {{ forks_count }} • {% if project.forked_from %}Forked from <a href="{{ project.forked_from.get_absolute_url }}" style="color:var(--link)">@{{ project.forked_from.owner.username|public_text:"user" }}</a>{% else %}Original{% endif %}</b></div>
         <div style="display:flex;justify-content:space-between;padding:8px 0"><span style="color:var(--muted)">License</span><b>MIT</b></div>
       </div>
       {% comment %}
@@ -1527,9 +1565,9 @@
           "
         >
           <a href="{{ f.get_absolute_url }}" style="color: var(--link)"
-            >{{ f.title }}</a
+            >{{ f.title|public_text:"Untitled vibe" }}</a
           >
-          by @{{ f.owner.username }} • {{ f.stars }} ★
+          by @{{ f.owner.username|public_text:"user" }} • {{ f.stars }} ★
         </div>
         {% endfor %}
       </div>

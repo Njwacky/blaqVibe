@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Category, Tag, AppProject, AppFile, Comment, Star, ProjectCoOwner
+from .models import Category, Tag, AppProject, AppFile, Comment, Star, ProjectCoOwner, CommentReport
 
 
 @admin.register(ProjectCoOwner)
@@ -38,3 +38,10 @@ class AppProjectAdmin(admin.ModelAdmin):
 class CommentAdmin(admin.ModelAdmin):
     list_display = ('project','user','parent','is_hidden','created_at')
     list_filter = ('is_hidden',)
+    search_fields = ('body','user__username','project__slug')
+
+@admin.register(CommentReport)
+class CommentReportAdmin(admin.ModelAdmin):
+    list_display = ('comment','reason','reporter','resolved','created_at')
+    list_filter = ('resolved','reason')
+    search_fields = ('comment__body','reporter__username')

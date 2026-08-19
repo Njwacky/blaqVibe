@@ -1,8 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+{% load safe_display %}
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Preview — {{ project.title }}</title>
+<title>Preview — {{ project.title|public_text:'Untitled vibe' }}</title>
 <script>
 try {
   var theme = localStorage.getItem('blaq-theme');

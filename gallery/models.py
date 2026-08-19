@@ -120,10 +120,43 @@ class AppProject(models.Model):
             models.Index(fields=['status', '-appeal_score'], name='gallery_app_status_appeal_idx'),
             models.Index(fields=['status', 'kind', '-appeal_score'], name='gallery_app_kind_appeal_idx'),
         ]
+    # Public-text fields a staff admin edit or a shell create can write
+    # without ever touching AppUploadForm. One list so save(), clean()
+    # and the migration all gate the same fields.
+    PUBLIC_TEXT_FIELDS = ('title', 'readme', 'short_description', 'tech_stack')
+
+    def dirty_public_fields(self):
+        """Names of public-text fields that currently hold blocked words."""
+        from .profanity import contains_profanity
+        return [
+            name for name in self.PUBLIC_TEXT_FIELDS
+            if contains_profanity(getattr(self, name, '') or '')
+        ]
+
+    def clean(self):
+        """Honest errors for admin/form paths that run full_clean().
+
+        Django admin validates through clean() before saving, so a staff
+        edit that types a slur into the title gets a form error — not a
+        silent rewrite, not a published slur.
+        """
+        from django.core.exceptions import ValidationError
+        from .profanity import PUBLIC_LANGUAGE_ERROR
+        errors = {
+            name: PUBLIC_LANGUAGE_ERROR for name in self.dirty_public_fields()
+        }
+        if errors:
+            raise ValidationError(errors)
+
     def save(self, *args, **kwargs):
+        # Public-language backstop — runs BEFORE slug generation so a
+        # blocked title can never mint a blocked URL either.
+        dirty_fields = self.dirty_public_fields()
         try:
             if not self.slug:
-                base = slugify(self.title)[:200]
+                # A dirty title must not seed the slug; the moderation
+                # queue still shows the raw title to staff.
+                base = slugify('vibe' if dirty_fields else self.title)[:200] or 'vibe'
                 slug = base
                 i=1
                 while AppProject.objects.filter(slug=slug).exists():
@@ -167,6 +200,42 @@ class AppProject(models.Model):
         except Exception:
             import logging
             logging.getLogger(__name__).exception('AppProject.save pre-process failed')
+
+        # --- Public-language gate (the ORM/admin backstop) ----------------
+        # 5 Whys:
+        # 1. Why here? AppUploadForm gates the publish/edit views, but a
+        #    staff edit in Django admin or a shell create bypasses every
+        #    form and lands straight on the feed and the public API.
+        # 2. Why demote to pending instead of raising? A raise would crash
+        #    background tasks that re-save an already-dirty legacy row
+        #    (appeal scores, classification). Demoting is fail-closed AND
+        #    keeps the pipeline alive.
+        # 3. Why not rewrite the words? Silent rewriting hides from the
+        #    owner what was stored. The raw text stays for moderators in
+        #    the queue; it just cannot be public.
+        # 4. Why log into scan_report? Moderators opening the queue see
+        #    WHY the vibe is held — the reason travels with the row.
+        # 5. Why touch update_fields? save(update_fields=['appeal_score'])
+        #    must still persist the demotion, or the row stays published.
+        if dirty_fields:
+            from django.utils import timezone
+            if self.status == 'published':
+                self.status = 'pending'
+            report = dict(self.scan_report or {})
+            report['language_gate'] = {
+                'fields': dirty_fields,
+                'at': timezone.now().isoformat(),
+                'note': 'Blocked language in public text — held from the feed until reworded.',
+            }
+            self.scan_report = report
+            update_fields = kwargs.get('update_fields')
+            if update_fields is not None:
+                update_fields = list(update_fields)
+                for field in ('status', 'scan_report'):
+                    if field not in update_fields:
+                        update_fields.append(field)
+                kwargs['update_fields'] = update_fields
+
         super().save(*args, **kwargs)
     def get_absolute_url(self):
         return reverse('app_detail', args=[self.slug])
@@ -244,6 +313,46 @@ class Comment(models.Model):
             self.body_html = render_markdown_inline(self.body)
         super().save(*args, **kwargs)
 
+class CommentReport(models.Model):
+    """A visitor flagging a comment — the report button the comment spec
+    promised ("Report comment -> CommentReport model").
+
+    5 Whys:
+    1. Why a model and not a flag on Comment? A comment can be reported
+       several times by different people for different reasons; the
+       queue needs the who/why/when, not a boolean.
+    2. Why keep the reporter nullable? report_vibe already lets visitors
+       report without an account — comments get the same door. Rate
+       limiting (IP) is the abuse brake, matching the vibe report view.
+    3. Why `resolved` and not delete-on-handle? Moderators need an audit
+       trail: hide vs dismiss is a decision someone made, and the row is
+       the receipt.
+    4. Why CASCADE on comment? The report is metadata about that comment;
+       when the comment is legally erased, its reports go with it.
+    5. Why SET_NULL on reporter? Deleting an account must not erase the
+       fact that a comment was flagged (the queue decision stays valid).
+    """
+    REASON_CHOICES = [
+        ('abusive', 'Abusive or vulgar language'),
+        ('spam', 'Spam'),
+        ('harassment', 'Harassment'),
+        ('other', 'Other'),
+    ]
+    comment = models.ForeignKey(Comment, on_delete=models.CASCADE, related_name='reports')
+    reporter = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='comment_reports')
+    reason = models.CharField(max_length=20, choices=REASON_CHOICES, default='other')
+    details = models.CharField(max_length=500, blank=True)
+    resolved = models.BooleanField(default=False, help_text='True once a moderator hid or dismissed it')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['resolved', '-created_at'])]
+
+    def __str__(self):
+        return f'Report #{self.id} on comment #{self.comment_id} ({self.reason})'
+
+
 class ScanJob(models.Model):
     """Queue tracking — backend only, JS polls status via scan_status view (no secrets)."""
     project = models.OneToOneField(AppProject, on_delete=models.CASCADE, related_name='scan_job')
@@ -310,6 +419,16 @@ class AppVersion(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
         ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        # ORM/admin backstop. The edit view tells the author when their
+        # changelog is rejected; this catch is for writes that skipped it
+        # (shell, admin, git push snapshots).
+        from .profanity import contains_profanity
+        if contains_profanity(self.changelog):
+            self.changelog = 'Update'
+        super().save(*args, **kwargs)
+
     def __str__(self): return f"{self.project.slug} v{self.version}"
 
 class Trade(models.Model):
@@ -526,6 +645,7 @@ class Notification(models.Model):
         ('challenge', 'Challenge'),
         ('payout', 'Payout'),
         ('git_push', 'Git push'),
+        ('moderation', 'Moderation'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
     kind = models.CharField(max_length=20, choices=KIND_CHOICES)

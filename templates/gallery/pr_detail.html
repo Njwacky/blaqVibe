@@ -1,28 +1,29 @@
 {% extends 'gallery/base.html' %}
-{% block title %}PR #{{ pr.id }} — {{ pr.title }} — BlaqVibes{% endblock %}
+{% load safe_display %}
+{% block title %}PR #{{ pr.id }} — {{ pr.title|public_text:"Pull request" }} — BlaqVibes{% endblock %}
 {% block content %}
 <div style="max-width:1000px;margin:0 auto;padding:20px">
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
     <a href="{% url 'pr_list' pr.target.slug %}" class="btnG">← PRs for {{ pr.target.slug }}</a>
     <span style="font-size:11px;padding:4px 8px;border-radius:8px;font-weight:700;background:{% if pr.status == 'open' %}var(--warning-bg);color:var(--warning-text){% elif pr.status == 'merged' %}var(--success-bg);color:var(--success-text){% else %}var(--line);color:var(--muted){% endif %}">{{ pr.status }}</span>
-    <span style="font-size:12px;color:var(--muted)">#{{ pr.id }} • {{ pr.source.slug }} → {{ pr.target.slug }} • by @{{ pr.author.username }} • {{ pr.created_at|timesince }} ago</span>
+    <span style="font-size:12px;color:var(--muted)">#{{ pr.id }} • {{ pr.source.slug }} → {{ pr.target.slug }} • by @{{ pr.author.username|public_text:"user" }} • {{ pr.created_at|timesince }} ago</span>
   </div>
 
-  <h1 style="font-family:Space Grotesk,sans-serif;font-size:20px;margin-top:12px">{{ pr.title }}</h1>
-  <p style="color:var(--muted);font-size:13px;margin-top:4px">{{ pr.description|default:"No description — Nolo auto-review below." }}</p>
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:20px;margin-top:12px">{{ pr.title|public_text:"Pull request" }}</h1>
+  <p style="color:var(--muted);font-size:13px;margin-top:4px">{{ pr.description|public_text|default:"No description — Nolo auto-review below." }}</p>
 
   <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
     <div class="card" style="padding:12px">
-      <div style="font-size:11px;color:var(--warning-text);font-weight:700">Source (Fork) — {{ pr.source.title }}</div>
-      <div style="font-size:12px;color:var(--muted);margin-top:4px">@{{ pr.source.owner.username }} • {{ pr.source.file_count }} files • ★{{ pr.source.stars }} • {{ pr.source.tech_stack|default:"—" }}</div>
+      <div style="font-size:11px;color:var(--warning-text);font-weight:700">Source (Fork) — {{ pr.source.title|public_text:"Untitled vibe" }}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px">@{{ pr.source.owner.username|public_text:"user" }} • {{ pr.source.file_count }} files • ★{{ pr.source.stars }} • {{ pr.source.tech_stack|public_text|default:"—" }}</div>
       <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
         {% for lang,pct in pr.source.language_stats.items %}<span style="background:var(--input);border:1px solid var(--line);padding:3px 7px;border-radius:8px;font-size:11px">{{ lang }} {{ pct }}%</span>{% endfor %}
       </div>
       <a href="{{ pr.source.get_absolute_url }}" style="display:block;margin-top:8px;text-align:center;background:var(--input);border:1px solid var(--line);padding:6px;border-radius:8px;font-size:12px;color:var(--text);text-decoration:none">View Source Vibe →</a>
     </div>
     <div class="card" style="padding:12px">
-      <div style="font-size:11px;color:var(--link);font-weight:700">Target (Original) — {{ pr.target.title }}</div>
-      <div style="font-size:12px;color:var(--muted);margin-top:4px">@{{ pr.target.owner.username }} • {{ pr.target.file_count }} files • ★{{ pr.target.stars }} • {{ pr.target.tech_stack|default:"—" }}</div>
+      <div style="font-size:11px;color:var(--link);font-weight:700">Target (Original) — {{ pr.target.title|public_text:"Untitled vibe" }}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px">@{{ pr.target.owner.username|public_text:"user" }} • {{ pr.target.file_count }} files • ★{{ pr.target.stars }} • {{ pr.target.tech_stack|public_text|default:"—" }}</div>
       <div style="margin-top:6px;display:flex;gap:6px;flex-wrap:wrap">
         {% for lang,pct in pr.target.language_stats.items %}<span style="background:var(--input);border:1px solid var(--line);padding:3px 7px;border-radius:8px;font-size:11px">{{ lang }} {{ pct }}%</span>{% endfor %}
       </div>

@@ -1,14 +1,15 @@
 {% extends 'gallery/base.html' %}
-{% block title %}{{ challenge.title }} — BlaqVibes{% endblock %}
+{% load safe_display %}
+{% block title %}{{ challenge.title|public_text:"Challenge" }} — BlaqVibes{% endblock %}
 {% block content %}
 <div style="max-width:900px;margin:0 auto;padding:20px">
   <a href="{% url 'challenge_list' %}" style="font-size:12px;color:var(--muted)">← All Challenges</a>
-  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px;margin-top:8px">{{ challenge.title }} <span style="font-size:11px;background:var(--warning-fill);color:var(--on-warning);padding:4px 8px;border-radius:8px">{{ challenge.bounty_stars }} ★ bounty</span> <span style="font-size:11px;background:var(--input);border:1px solid var(--line);padding:4px 8px;border-radius:8px">#{{ challenge.tag }}</span></h1>
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px;margin-top:8px">{{ challenge.title|public_text:"Challenge" }} <span style="font-size:11px;background:var(--warning-fill);color:var(--on-warning);padding:4px 8px;border-radius:8px">{{ challenge.bounty_stars }} ★ bounty</span> <span style="font-size:11px;background:var(--input);border:1px solid var(--line);padding:4px 8px;border-radius:8px">#{{ challenge.tag }}</span></h1>
   <p style="color:var(--muted);font-size:13px;margin-top:4px">{{ challenge.description }}</p>
   <div style="font-size:11px;color:var(--muted);margin-top:4px">Ends {{ challenge.end|date:"Y-m-d H:i" }} • {% if challenge.is_active %}<span style="color:var(--success-text)">● Active</span>{% else %}Closed{% endif %} • Publish with tag <code style="background:var(--line);padding:2px 6px;border-radius:6px">#{{ challenge.tag }}</code> to join</div>
   {% if challenge.winner %}
   <div style="margin-top:12px;background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:12px;padding:12px;display:flex;gap:12px;align-items:center">
-    <span style="font-size:20px">🏆</span><div style="flex:1"><div style="font-weight:800">Winner — {{ challenge.winner.title }} by @{{ challenge.winner.owner.username }}</div><div style="font-size:11px;color:var(--muted)">Got {{ challenge.bounty_stars }} ★ + Pro + top 1st</div></div><a href="{{ challenge.winner.get_absolute_url }}" style="background:var(--warning-fill);color:var(--on-warning);padding:8px 12px;border-radius:10px;font-weight:700;font-size:12px;text-decoration:none">View Winner →</a>
+    <span style="font-size:20px">🏆</span><div style="flex:1"><div style="font-weight:800">Winner — {{ challenge.winner.title|public_text:"Untitled vibe" }} by @{{ challenge.winner.owner.username|public_text:"user" }}</div><div style="font-size:11px;color:var(--muted)">Got {{ challenge.bounty_stars }} ★ + Pro + top 1st</div></div><a href="{{ challenge.winner.get_absolute_url }}" style="background:var(--warning-fill);color:var(--on-warning);padding:8px 12px;border-radius:10px;font-weight:700;font-size:12px;text-decoration:none">View Winner →</a>
   </div>
   {% endif %}
 
@@ -16,7 +17,7 @@
   <div style="margin-top:8px;display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
     {% for p in submissions %}
     <a href="{{ p.get_absolute_url }}" class="card" style="padding:12px;display:block;text-decoration:none">
-      <div style="font-weight:700">{{ p.title }}</div>
+      <div style="font-weight:700">{{ p.title|public_text:"Untitled vibe" }}</div>
       <div style="font-size:12px;color:var(--muted)">@{{ p.owner.username }} • {{ p.tech_stack|default:"—" }} • ★ {{ p.stars }} • {{ p.language_stats|default:"" }}</div>
       <div style="font-size:11px;color:var(--muted);margin-top:4px">{{ p.short_description|truncatechars:60 }}</div>
       {% if user.is_authenticated and user.profile.is_admin and challenge.is_active and not challenge.winner %}

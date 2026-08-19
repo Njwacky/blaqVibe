@@ -2,6 +2,7 @@ from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 
 from .models import AppProject
+from .profanity import display_text
 from .taxonomy import PROGRAM_KINDS
 
 
@@ -20,13 +21,18 @@ def _serialize(project):
        that cannot be played.
     5. Why expose `appeal_score`? It is the ordering the feed uses; hiding
        it would make the API's ordering unexplainable to its users.
+
+    Every free-text field goes through profanity.display_text — the same
+    render-time backstop the templates use. A row that slipped past the
+    write gates (shell edit, legacy data) still cannot leak a blocked
+    word through the API. Placeholders keep the shape of the response.
     """
     return {
         'slug': project.slug,
-        'title': project.title,
-        'description': project.short_description,
-        'owner': project.owner.username,
-        'tech_stack': project.tech_stack,
+        'title': display_text(project.title, 'Untitled vibe'),
+        'description': display_text(project.short_description, ''),
+        'owner': display_text(project.owner.username, 'user'),
+        'tech_stack': display_text(project.tech_stack, ''),
         'stars': project.stars,
         'clones': project.clones,
         'star_cost': int(project.star_cost or 0),
@@ -63,7 +69,8 @@ def api_app_detail(request, slug):
         status='published',
     )
     data = _serialize(project)
-    data['readme'] = project.readme
+    # README is free text too — same backstop as the other fields.
+    data['readme'] = display_text(project.readme, '')
     data['file_count'] = project.file_count
     return JsonResponse(data)
 

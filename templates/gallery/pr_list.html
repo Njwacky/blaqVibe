@@ -1,8 +1,9 @@
 {% extends 'gallery/base.html' %}
-{% block title %}Pull Requests — {{ target.title }} — BlaqVibes{% endblock %}
+{% load safe_display %}
+{% block title %}Pull Requests — {{ target.title|public_text:"Untitled vibe" }} — BlaqVibes{% endblock %}
 {% block content %}
 <div style="max-width:900px;margin:0 auto;padding:20px">
-  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">⑂ Pull Requests — {{ target.title }}</h1>
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">⑂ Pull Requests — {{ target.title|public_text:"Untitled vibe" }}</h1>
   <p style="color:var(--muted);font-size:13px">Fork → Edit → PR to original. Original owner merges. Backend checks <code>forked_from == target</code>, rate limit 5/h, crush silently.</p>
   <div style="margin-top:12px;display:flex;gap:8px">
     <a href="{{ target.get_absolute_url }}" class="btnG">← Back to Vibe</a>
@@ -14,7 +15,7 @@
     {% for fork in user.projects.all %}
       {% if fork.forked_from_id == target.id and fork.status == 'published' %}
         <div style="margin-top:12px;background:var(--card);border:1px solid var(--accent-border);border-radius:12px;padding:12px">
-          <div style="font-weight:700">Create PR from your fork: {{ fork.title }}</div>
+          <div style="font-weight:700">Create PR from your fork: {{ fork.title|public_text:"Untitled vibe" }}</div>
           <form method="post" action="{% url 'create_pr' fork.slug %}" style="margin-top:8px;display:grid;gap:8px">{% csrf_token %}
             <input name="title" placeholder="PR title — e.g., Fix chart bug" required style="background:var(--input);border:1px solid var(--line);border-radius:8px;padding:8px;color:var(--text);font-size:12px">
             <textarea name="description" placeholder="What changed? (sanitized, 2000 max)" style="background:var(--input);border:1px solid var(--line);border-radius:8px;padding:8px;color:var(--text);font-size:12px;min-height:60px"></textarea>
@@ -30,9 +31,9 @@
   <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:8px;display:flex;gap:12px;align-items:center">
     <div style="width:36px;height:36px;border-radius:8px;background:{% if pr.status == 'open' %}var(--warning-bg){% elif pr.status == 'merged' %}var(--success-bg){% else %}var(--line){% endif %};display:grid;place-items:center;font-size:12px;font-weight:800;color:{% if pr.status == 'open' %}var(--warning-text){% elif pr.status == 'merged' %}var(--success-text){% else %}var(--muted){% endif %}">#{{ pr.id }}</div>
     <div style="flex:1">
-      <div style="font-weight:700"><a href="{% url 'pr_detail' pr.target.slug pr.id %}" style="color:var(--text);text-decoration:none">{{ pr.title }}</a> <span style="font-size:11px;padding:3px 7px;border-radius:8px;background:{% if pr.status == 'open' %}var(--warning-bg);color:var(--warning-text){% elif pr.status == 'merged' %}var(--success-bg);color:var(--success-text){% else %}var(--line);color:var(--muted){% endif %}">{{ pr.status }}</span></div>
-      <div style="font-size:12px;color:var(--muted)">{{ pr.source.title }} (@{{ pr.author.username }}) → {{ pr.target.title }} • {{ pr.created_at|timesince }} ago</div>
-      {% if pr.description %}<div style="font-size:12px;margin-top:4px;color:var(--text)">{{ pr.description }}</div>{% endif %}
+      <div style="font-weight:700"><a href="{% url 'pr_detail' pr.target.slug pr.id %}" style="color:var(--text);text-decoration:none">{{ pr.title|public_text:"Pull request" }}</a> <span style="font-size:11px;padding:3px 7px;border-radius:8px;background:{% if pr.status == 'open' %}var(--warning-bg);color:var(--warning-text){% elif pr.status == 'merged' %}var(--success-bg);color:var(--success-text){% else %}var(--line);color:var(--muted){% endif %}">{{ pr.status }}</span></div>
+      <div style="font-size:12px;color:var(--muted)">{{ pr.source.title|public_text:"Untitled vibe" }} (@{{ pr.author.username|public_text:"user" }}) → {{ pr.target.title|public_text:"Untitled vibe" }} • {{ pr.created_at|timesince }} ago</div>
+      {% if pr.description %}<div style="font-size:12px;margin-top:4px;color:var(--text)">{{ pr.description|public_text }}</div>{% endif %}
       <div style="margin-top:6px"><a href="{% url 'pr_detail' pr.target.slug pr.id %}" style="font-size:11px;color:var(--link)">View diff →</a></div>
     </div>
     {% if user == target.owner and pr.status == 'open' %}

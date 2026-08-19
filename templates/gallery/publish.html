@@ -1,4 +1,5 @@
 {% extends 'gallery/base.html' %}
+{% load safe_display %}
 {% block title %}Publish — BlaqVibes{% endblock %}
 {% block content %}
 <div style="max-width:640px;margin:0 auto;padding:20px">
@@ -44,7 +45,7 @@
           {% if challenge %}
           <div style="background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:10px;padding:10px;display:flex;gap:8px;align-items:center">
             <input type="checkbox" name="challenge_join" id="challenge_join" style="width:auto">
-            <label for="challenge_join" style="flex:1;font-size:12px">Join Challenge of the Week — <b style="color:var(--warning-text)">{{ challenge.title }}</b> ({{ challenge.bounty_stars }} ★ bounty, tag #{{ challenge.tag }})<br><span style="color:var(--muted)">{{ challenge.description|truncatechars:80 }}</span></label>
+            <label for="challenge_join" style="flex:1;font-size:12px">Join Challenge of the Week — <b style="color:var(--warning-text)">{{ challenge.title|public_text:'Challenge' }}</b> ({{ challenge.bounty_stars }} ★ bounty, tag #{{ challenge.tag }})<br><span style="color:var(--muted)">{{ challenge.description|public_text|truncatechars:80 }}</span></label>
           </div>
           {% endif %}
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">

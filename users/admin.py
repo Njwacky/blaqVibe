@@ -1,6 +1,47 @@
 from django.contrib import admin
+from django.contrib.auth.admin import UserAdmin as DjangoUserAdmin
+from django.contrib.auth.forms import UserChangeForm, UserCreationForm
+from django.contrib.auth.models import User
+
+from gallery.profanity import validate_public_text
 
 from .models import AdminLog, Profile, StarEvent
+
+
+def _clean_language(value):
+    """The public-language gate for usernames edited in Django admin.
+
+    Staff edits go through full_clean(), so a blocked username becomes a
+    form error here instead of @slur on every card. (Shell writes still
+    bypass forms — the render-time display backstop catches those.)
+    """
+    return validate_public_text(value, allow_blank=False)
+
+
+class BlaqUserChangeForm(UserChangeForm):
+    def clean_username(self):
+        # UserChangeForm defines no clean_username of its own — read the
+        # field straight from cleaned_data and gate it.
+        return _clean_language(self.cleaned_data.get('username'))
+
+
+class BlaqUserCreationForm(UserCreationForm):
+    def clean_username(self):
+        return _clean_language(super().clean_username())
+
+
+# The stock auth admin lets staff type any username; the gate above
+# replaces it. Unregister + re-register keeps every other UserAdmin
+# behavior (password reset, permissions) intact.
+admin.site.unregister(User)
+
+
+@admin.register(User)
+class BlaqUserAdmin(DjangoUserAdmin):
+    form = BlaqUserChangeForm
+    add_form = BlaqUserCreationForm
+    list_display = ('username', 'email', 'is_staff', 'date_joined')
+    search_fields = ('username', 'email')
 
 
 @admin.register(Profile)

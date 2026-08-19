@@ -1,4 +1,5 @@
 {% extends 'gallery/base.html' %}
+{% load safe_display %}
 {% block title %}Leaderboard — BlaqVibes{% endblock %}
 {% block head %}
 <style>
@@ -22,8 +23,8 @@
         <div style="width:32px;height:32px;border-radius:8px;background:{% if forloop.counter == 1 %}var(--warning-fill){% elif forloop.counter == 2 %}#475569{% elif forloop.counter == 3 %}#92400E{% else %}var(--input){% endif %};display:grid;place-items:center;font-weight:800;color:{% if forloop.counter == 1 %}var(--on-warning){% elif forloop.counter <= 3 %}#fff{% else %}var(--muted){% endif %}">#{{ forloop.counter }}</div>
         <img src="/static/branding/icon-32.png" style="width:36px;height:36px;border-radius:8px">
         <div style="flex:1">
-          <div style="font-weight:700">{{ v.title|truncatechars:28 }} <span style="font-size:11px;background:var(--warning-bg);color:var(--warning-text);padding:2px 6px;border-radius:6px">{{ v.battle_wins }} wins</span></div>
-          <div style="font-size:11px;color:var(--muted)">@{{ v.owner.username }} • ★ {{ v.stars }} • {{ v.language_stats|default:"" }}</div>
+          <div style="font-weight:700">{{ v.title|public_text:'Untitled'|truncatechars:28 }} <span style="font-size:11px;background:var(--warning-bg);color:var(--warning-text);padding:2px 6px;border-radius:6px">{{ v.battle_wins }} wins</span></div>
+          <div style="font-size:11px;color:var(--muted)">@{{ v.owner.username|public_text:'user' }} • ★ {{ v.stars }} • {{ v.language_stats|default:"" }}</div>
         </div>
         <a href="{{ v.get_absolute_url }}" style="font-size:11px;color:var(--link)">View →</a>
       </div>
@@ -37,7 +38,7 @@
         <div style="width:32px;height:32px;border-radius:50%;background:var(--violet);color:var(--on-accent);display:grid;place-items:center;font-weight:800;font-size:12px">#{{ forloop.counter }}</div>
         <img src="{% if u.profile.avatar %}{{ u.profile.avatar.url }}{% else %}/static/branding/icon-32.png{% endif %}" style="width:32px;height:32px;border-radius:8px;object-fit:cover">
         <div style="flex:1">
-          <div style="font-weight:700">@{{ u.username }} <span style="font-size:10px;background:{% if u.rank.name == 'Platinum' %}var(--violet){% elif u.rank.name == 'Gold' %}var(--warning-fill){% elif u.rank.name == 'Silver' %}#475569{% else %}var(--input){% endif %};color:{% if u.rank.name == 'Gold' %}var(--on-warning){% elif u.rank.name == 'Bronze' %}var(--text){% else %}var(--on-accent){% endif %};padding:2px 6px;border-radius:6px">{{ u.rank.name }}</span></div>
+          <div style="font-weight:700">@{{ u.username|public_text:'user' }} <span style="font-size:10px;background:{% if u.rank.name == 'Platinum' %}var(--violet){% elif u.rank.name == 'Gold' %}var(--warning-fill){% elif u.rank.name == 'Silver' %}#475569{% else %}var(--input){% endif %};color:{% if u.rank.name == 'Gold' %}var(--on-warning){% elif u.rank.name == 'Bronze' %}var(--text){% else %}var(--on-accent){% endif %};padding:2px 6px;border-radius:6px">{{ u.rank.name }}</span></div>
           <div style="font-size:11px;color:var(--muted)">{{ u.rank.stars }} ★ • {{ u.rank.discount }}% Pro discount • {{ u.vibes_count }} vibes</div>
         </div>
         <a href="{% url 'profile_view' u.username %}" style="font-size:11px;color:var(--link)">Profile →</a>

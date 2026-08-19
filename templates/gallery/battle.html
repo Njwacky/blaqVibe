@@ -1,4 +1,5 @@
 {% extends 'gallery/base.html' %}
+{% load safe_display %}
 {% block title %}Vibe Battles — BlaqVibes{% endblock %}
 {% block head %}
 <style>
@@ -100,20 +101,20 @@
           "
         >
           <div style="font-weight: 700; font-size: 13px">
-            {{ battle.vibe_a.title|truncatechars:30 }}
+            {{ battle.vibe_a.title|public_text:"Untitled"|truncatechars:30 }}
           </div>
           <div style="font-size: 11px; color: #64748b">
-            {{ battle.vibe_a.tech_stack|default:"—" }} • {{
+            {{ battle.vibe_a.tech_stack|public_text|default:"—" }} • {{
             battle.vibe_a.file_count }} files
           </div>
         </div>
       </div>
       <div style="padding: 14px; flex: 1; overflow: auto">
         <div style="font-weight: 700; font-size: 15px">
-          {{ battle.vibe_a.title }}
+          {{ battle.vibe_a.title|public_text:"Untitled vibe" }}
         </div>
         <div style="font-size: 12px; color: var(--muted); margin-top: 4px">
-          {{ battle.vibe_a.short_description|truncatechars:100 }}
+          {{ battle.vibe_a.short_description|public_text|truncatechars:100 }}
         </div>
         <div style="font-size: 11px; color: var(--muted); margin-top: 6px">
           @{{ battle.vibe_a.owner.username }} • ★ {{ battle.vibe_a.stars }}
@@ -149,7 +150,7 @@
             class="btnV"
             style="width: 100%; padding: 12px; font-size: 13px"
           >
-            Pick Left — {{ battle.vibe_a.title|truncatechars:20 }}
+            Pick Left — {{ battle.vibe_a.title|public_text:"Untitled"|truncatechars:20 }}
           </button>
         </form>
         <a
@@ -202,20 +203,20 @@
           "
         >
           <div style="font-weight: 700; font-size: 12px">
-            {{ battle.vibe_b.title|truncatechars:30 }}
+            {{ battle.vibe_b.title|public_text:"Untitled"|truncatechars:30 }}
           </div>
           <div style="font-size: 11px; color: #64748b">
-            {{ battle.vibe_b.tech_stack|default:"—" }} • {{
+            {{ battle.vibe_b.tech_stack|public_text|default:"—" }} • {{
             battle.vibe_b.file_count }} files
           </div>
         </div>
       </div>
       <div style="padding: 14px; flex: 1; overflow: auto">
         <div style="font-weight: 700; font-size: 15px">
-          {{ battle.vibe_b.title }}
+          {{ battle.vibe_b.title|public_text:"Untitled vibe" }}
         </div>
         <div style="font-size: 12px; color: var(--muted); margin-top: 4px">
-          {{ battle.vibe_b.short_description|truncatechars:100 }}
+          {{ battle.vibe_b.short_description|public_text|truncatechars:100 }}
         </div>
         <div style="font-size: 11px; color: var(--muted); margin-top: 6px">
           @{{ battle.vibe_b.owner.username }} • ★ {{ battle.vibe_b.stars }}
@@ -257,7 +258,7 @@
               font-size: 13px;
             "
           >
-            Pick Right — {{ battle.vibe_b.title|truncatechars:20 }}
+            Pick Right — {{ battle.vibe_b.title|public_text:"Untitled"|truncatechars:20 }}
           </button>
         </form>
         <a

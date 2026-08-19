@@ -1,5 +1,6 @@
 {% extends 'gallery/base.html' %}
-{% block title %}@{{ profile_user.username }} — BlaqVibes{% endblock %}
+{% load safe_display %}
+{% block title %}@{{ profile_user.username|public_text:"user" }} — BlaqVibes{% endblock %}
 {% block content %}
 <div style="max-width:1100px;margin:0 auto;padding:20px">
   <!-- Header -->
@@ -9,19 +10,19 @@
     </div>
     <div style="flex:1;min-width:240px">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <span style="font-weight:800;font-size:18px">@{{ profile_user.username }}</span>
+        <span style="font-weight:800;font-size:18px">@{{ profile_user.username|public_text:"user" }}</span>
         {% if profile_user.is_staff %}<span style="font-size:11px;background:var(--warning-fill);color:var(--on-warning);padding:4px 8px;border-radius:8px;font-weight:700">STAFF</span>{% endif %}
         {# Rank pill — social proof computed by gallery.ranks, rendered here. #}
         <span aria-label="Rank: {{ rank.name }}" title="{{ rank.name }} creator — {{ rank.threshold }}+ stars" style="font-size:11px;padding:4px 8px;border-radius:8px;font-weight:700;{% if rank.name == 'Platinum' %}background:#e5e4e2;color:#222{% elif rank.name == 'Gold' %}background:#f5c518;color:#3a2e00{% elif rank.name == 'Silver' %}background:#c0c0c0;color:#1a1a1a{% else %}background:var(--warning-bg);color:var(--warning-text){% endif %}">
           {% if rank.name == 'Platinum' %}💎{% elif rank.name == 'Gold' %}🥇{% elif rank.name == 'Silver' %}🥈{% else %}🥉{% endif %} {{ rank.name }}
         </span>
-        {% if profile.location %}<span style="font-size:11px;background:var(--bg);border:1px solid var(--line);padding:4px 8px;border-radius:8px">{{ profile.location }}</span>{% endif %}
+        {% if profile.location %}<span style="font-size:11px;background:var(--bg);border:1px solid var(--line);padding:4px 8px;border-radius:8px">{{ profile.location|public_text }}</span>{% endif %}
       </div>
-      <div style="font-size:13px;color:var(--text);margin:6px 0">{{ profile.bio|default:"No bio yet — what do you build?" }}</div>
+      <div style="font-size:13px;color:var(--text);margin:6px 0">{{ profile.bio|public_text|default:"No bio yet — what do you build?" }}</div>
       <div style="display:flex;gap:12px;font-size:12px;color:var(--muted);flex-wrap:wrap">
         {% if profile.website %}<a href="{{ profile.website }}" target="_blank" rel="noopener nofollow" style="color:var(--link)">↗ {{ profile.website|slice:":28" }}</a>{% endif %}
-        {% if profile.github %}<a href="https://github.com/{{ profile.github }}" target="_blank" rel="noopener nofollow" style="color:var(--muted)">GitHub @{{ profile.github }}</a>{% endif %}
-        {% if profile.twitter %}<a href="https://x.com/{{ profile.twitter }}" target="_blank" rel="noopener nofollow" style="color:var(--muted)">𝕏 @{{ profile.twitter }}</a>{% endif %}
+        {% if profile.github %}<a href="https://github.com/{{ profile.github }}" target="_blank" rel="noopener nofollow" style="color:var(--muted)">GitHub @{{ profile.github|public_text }}</a>{% endif %}
+        {% if profile.twitter %}<a href="https://x.com/{{ profile.twitter }}" target="_blank" rel="noopener nofollow" style="color:var(--muted)">𝕏 @{{ profile.twitter|public_text }}</a>{% endif %}
         <span>Joined {{ profile_user.date_joined|date:"M Y" }}</span>
       </div>
     </div>
@@ -60,9 +61,9 @@
     <div id="recent-tips-list">
       {% for t in recent_tips %}
       <div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line);font-size:12px;margin-top:6px">
-        <a href="{% url 'profile_view' t.sender.username %}" style="color:var(--link);font-weight:700">@{{ t.sender.username }}</a>
+        <a href="{% url 'profile_view' t.sender.username %}" style="color:var(--link);font-weight:700">@{{ t.sender.username|public_text:"user" }}</a>
         <span style="font-weight:800;color:var(--warning-text)">+{{ t.amount }}★</span>
-        {% if t.message %}<span style="color:var(--muted);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">“{{ t.message }}”</span>{% endif %}
+        {% if t.message %}<span style="color:var(--muted);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">“{{ t.message|public_text }}”</span>{% endif %}
         <span style="color:var(--muted);font-size:11px">{{ t.created_at|timesince }} ago</span>
       </div>
       {% endfor %}
@@ -82,9 +83,9 @@
     <div class="vibe-grid" style="margin-top:12px">
       {% for s in starred %}
       <a href="{{ s.project.get_absolute_url }}" class="card" style="padding:12px;display:block">
-        <div style="font-weight:700;font-size:14px">{{ s.project.title }}</div>
-        <div style="font-size:12px;color:var(--muted)">{{ s.project.short_description|truncatechars:60 }}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:6px">★ {{ s.project.stars }} • by <a href="{% url 'profile_view' s.project.owner.username %}" style="color:var(--link)">@{{ s.project.owner.username }}</a> • starred {{ s.created_at|timesince }} ago</div>
+        <div style="font-weight:700;font-size:14px">{{ s.project.title|public_text:"Untitled vibe" }}</div>
+        <div style="font-size:12px;color:var(--muted)">{{ s.project.short_description|public_text|truncatechars:60 }}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">★ {{ s.project.stars }} • by <a href="{% url 'profile_view' s.project.owner.username %}" style="color:var(--link)">@{{ s.project.owner.username|public_text:"user" }}</a> • starred {{ s.created_at|timesince }} ago</div>
       </a>
       {% empty %}<div style="grid-column:1/-1;color:var(--muted);padding:20px;text-align:center">No stars yet — vibes this creator has starred show up here.</div>{% endfor %}
     </div>
@@ -96,8 +97,8 @@
           {% if f.follower.profile.avatar %}<img src="{{ f.follower.profile.avatar.url }}" style="width:100%;height:100%;object-fit:cover" alt="">{% else %}{{ f.follower.username|first|upper }}{% endif %}
         </div>
         <div style="flex:1;min-width:0">
-          <a href="{% url 'profile_view' f.follower.username %}" style="font-weight:700;font-size:14px;color:var(--link)">@{{ f.follower.username }}</a>
-          <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ f.follower.profile.bio|default:"No bio yet"|truncatechars:60 }}</div>
+          <a href="{% url 'profile_view' f.follower.username %}" style="font-weight:700;font-size:14px;color:var(--link)">@{{ f.follower.username|public_text:"user" }}</a>
+          <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ f.follower.profile.bio|public_text|default:"No bio yet"|truncatechars:60 }}</div>
         </div>
         {% if user.is_authenticated and f.follower.username != user.username %}
           <button class="btn-ghost js-follow-btn" style="font-size:12px;padding:6px 12px" data-username="{{ f.follower.username }}" data-csrf="{{ csrf_token }}">{% if f.follower.username in following_set %}✓ Following{% else %}Follow{% endif %}</button>
@@ -116,8 +117,8 @@
           {% if f.following.profile.avatar %}<img src="{{ f.following.profile.avatar.url }}" style="width:100%;height:100%;object-fit:cover" alt="">{% else %}{{ f.following.username|first|upper }}{% endif %}
         </div>
         <div style="flex:1;min-width:0">
-          <a href="{% url 'profile_view' f.following.username %}" style="font-weight:700;font-size:14px;color:var(--link)">@{{ f.following.username }}</a>
-          <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ f.following.profile.bio|default:"No bio yet"|truncatechars:60 }}</div>
+          <a href="{% url 'profile_view' f.following.username %}" style="font-weight:700;font-size:14px;color:var(--link)">@{{ f.following.username|public_text:"user" }}</a>
+          <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ f.following.profile.bio|public_text|default:"No bio yet"|truncatechars:60 }}</div>
         </div>
         {% if user.is_authenticated and f.following.username != user.username %}
           <button class="btn-ghost js-follow-btn" style="font-size:12px;padding:6px 12px" data-username="{{ f.following.username }}" data-csrf="{{ csrf_token }}">{% if f.following.username in following_set %}✓ Following{% else %}Follow{% endif %}</button>
@@ -136,9 +137,9 @@
           {% else %}<span style="background:var(--danger-bg);color:var(--danger-text);padding:3px 7px;border-radius:8px;font-size:11px;font-weight:700">🚨 Quarantined</span>{% endif %}
           {% if p.ai_generated %}<span style="border:1px solid var(--warning-border);color:var(--warning-text);padding:3px 7px;border-radius:8px;font-size:11px">🤖</span>{% endif %}
         </div>
-        <div style="font-weight:700;font-size:14px">{{ p.title }}</div>
-        <div style="font-size:12px;color:var(--muted)">{{ p.short_description|truncatechars:70 }}</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:6px">{{ p.tech_stack|default:"—" }} • ★ {{ p.stars }} • ⬇ {{ p.clones }}</div>
+        <div style="font-weight:700;font-size:14px">{{ p.title|public_text:"Untitled vibe" }}</div>
+        <div style="font-size:12px;color:var(--muted)">{{ p.short_description|public_text|truncatechars:70 }}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">{{ p.tech_stack|public_text|default:"—" }} • ★ {{ p.stars }} • ⬇ {{ p.clones }}</div>
       </a>
       {% empty %}<div style="grid-column:1/-1;color:var(--muted);padding:20px;text-align:center">No vibes yet. {% if is_own %}<a href="{% url 'publish' %}" style="color:var(--link)">Publish your first vibe</a>{% endif %}</div>{% endfor %}
     </div>

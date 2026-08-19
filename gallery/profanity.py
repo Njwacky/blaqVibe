@@ -26,9 +26,17 @@
 5. Why still scan on model.save and in notify()?
    Admin, the shell, a future API, and a forgotten view can bypass a
    form. save() refuses to render the words publicly (comments hide;
-   review text blanks). notify() drops a quote that slipped through
-   so an inbox is never the leak. At 10k vibes this is the only
-   thing that still works when a new write path appears.
+   review text blanks; a vibe with a dirty title is demoted back to
+   pending instead of being rewritten). notify() drops a quote that
+   slipped through so an inbox is never the leak. And display_text()
+   re-checks at render time — forms, ORM, API serializer and templates
+   all get one shared last line of defense. At 10k vibes this is the
+   only thing that still works when a new write path appears.
+
+The word list speaks the city: English plus Afrikaans, isiZulu and
+isiXhosa. A Durban-first gallery with an English-only blocklist leaks
+the moment a comment section argues in the languages Durban actually
+argues in.
 """
 from __future__ import annotations
 
@@ -83,6 +91,31 @@ _BLOCKED_WORDS = frozenset({
     'moer',
     'kak',
     'naai',
+    # More Afrikaans: the same tier as the English list above.
+    'klootzak',          # asshole
+    'cuiter', 'kuiter',  # the c-word, Afrikaans spelling
+    'slet',              # slut
+    'hoer',              # whore
+    # South African racial slurs — the K-word is already listed; these two
+    # are the other documented ones still aimed at people in this country.
+    'hotnot',            # slur for Coloured people
+    'koelie', 'coolie',  # slur for Indian people
+    # isiZulu / isiXhosa — Durban's everyday abuse. An English-only list
+    # leaks the moment a comment section speaks the city's languages.
+    # Sexual abuse and body-part insults, the same tier we block in English
+    # ("cunt", "whore", "asshole" — all already above):
+    'isifebe', 'sifebe',   # whore / prostitute (isiZulu)
+    'ifeba',               # pimp (isiZulu)
+    'umqundu', 'qundu',    # asshole (isiZulu/isiXhosa)
+    'igolo',               # crude word for female genitals (isiZulu)
+    # The direct personal insults that fill comment sections ("wena
+    # silima!"). Deliberately NOT listed: "mampara" — documented SA
+    # dictionaries and everyday usage make it affectionate ("silly goose"),
+    # so blocking it would kill real speech without stopping abuse.
+    'isilima', 'silima',         # idiot / fool (isiZulu)
+    'isithutha', 'sithutha',     # fool / imbecile (isiZulu/isiXhosa)
+    'isiphukuphuku',             # dunce (isiZulu)
+    'isidenge', 'sidenge',       # mad / dumb person (isiXhosa)
 })
 
 # Multi-word phrases that never appear as a single token.
@@ -186,6 +219,16 @@ _STICKY = frozenset({
 })
 
 
+# Nguni nouns take prefixes ("u-yi-silima" = you are an idiot), so the
+# insult stem sits at the END of the token. Whole-token matching alone
+# would miss "uyisilima" / "yisidenge" — the forms people actually type.
+# Every stem here is ≥ 6 letters and abuse-specific, so an accidental
+# endswith match in real prose is implausible.
+_LOCAL_SUFFIXES = frozenset({
+    'silima', 'sithutha', 'sidenge', 'sifebe', 'iphukuphuku',
+})
+
+
 def _token_is_blocked(token: str) -> bool:
     candidates = {token, _collapse_repeats(token), _fully_collapse(token)}
     if candidates & _BLOCKED_WORDS:
@@ -195,6 +238,11 @@ def _token_is_blocked(token: str) -> bool:
     for form in candidates:
         for bad in _STICKY:
             if form == bad or form.startswith(bad):
+                return True
+    # Suffix match for prefixed Nguni insults (see _LOCAL_SUFFIXES).
+    for form in candidates:
+        for stem in _LOCAL_SUFFIXES:
+            if form.endswith(stem):
                 return True
     return False
 
@@ -238,3 +286,32 @@ def validate_public_text(text: str | None, *, allow_blank: bool = True) -> str:
 def public_text_is_clean(text: str | None) -> bool:
     """Boolean wrapper for views that do not want to catch ValidationError."""
     return not contains_profanity(text)
+
+
+def display_text(value, placeholder: str = '') -> str:
+    """Render-time backstop — the last line of defense for public pages.
+
+    5 Whys:
+    1. Why check AGAIN at display time when forms and save() already gate?
+       A forgotten field, a shell write, an old row, a new API — one of
+       them will happen. This helper is the net under all of them.
+    2. Why one shared helper instead of a filter per template? The rule
+       ("never render a blocked word") must have exactly one home. A
+       template filter and the JSON API both call THIS function, so the
+       word list cannot drift between surfaces.
+    3. Why replace the whole value with a placeholder instead of masking
+       the word? "f***" still IS the word. A placeholder tells the reader
+       something was withheld without re-publishing the abuse.
+    4. Why return the placeholder even for the API? The API is a public
+       rendering surface too — third-party clients show our words.
+    5. Why does this never raise? Display must not 500. The worst case is
+       a placeholder where a title was, not a leak.
+    """
+    if value is None:
+        return placeholder
+    text = str(value)
+    if not text.strip():
+        return placeholder or text
+    if contains_profanity(text):
+        return placeholder
+    return text
