@@ -2,6 +2,7 @@ from django import forms
 from .models import AppProject
 from .validators import validate_zip
 from .prompt_sanitize import sanitize_prompt
+from .profanity import validate_public_text
 from .taxonomy import UPLOAD_KIND_CHOICES, coerce_kind
 
 class AppUploadForm(forms.ModelForm):
@@ -34,29 +35,33 @@ class AppUploadForm(forms.ModelForm):
             'html_code': forms.Textarea(attrs={'rows':6, 'placeholder':'<div>Snippet HTML (for snippet only)</div>'}),
             'star_cost': forms.NumberInput(attrs={'min':0,'max':5, 'placeholder':'0=free, 2=Bronze'}),
         }
+    def clean_title(self):
+        title = (self.cleaned_data.get('title') or '').strip()
+        return validate_public_text(title, allow_blank=False)
+
     def clean_readme(self):
         md = self.cleaned_data.get('readme', '') or ''
         if len(md.strip()) < 100:
             raise forms.ValidationError("README must be at least 100 characters. Explain what the app does, stack, and how to run.")
         if '# ' not in md:
             raise forms.ValidationError("README needs at least one heading (e.g. '# My App').")
-        return md
+        return validate_public_text(md)
 
     def clean_ai_prompt(self):
         prompt = self.cleaned_data.get('ai_prompt', '') or ''
         if prompt and len(prompt) > 5000:
             raise forms.ValidationError("Prompt max 5000 chars")
-        return sanitize_prompt(prompt)
+        return validate_public_text(sanitize_prompt(prompt))
 
     def clean_short_description(self):
         txt = self.cleaned_data.get('short_description', '') or ''
         import bleach
-        return bleach.clean(txt, tags=[], strip=True)[:260]
+        return validate_public_text(bleach.clean(txt, tags=[], strip=True)[:260])
 
     def clean_tech_stack(self):
         txt = self.cleaned_data.get('tech_stack', '') or ''
         import bleach
-        return bleach.clean(txt, tags=[], strip=True)[:200]
+        return validate_public_text(bleach.clean(txt, tags=[], strip=True)[:200])
 
     def clean_creator_kind(self):
         """Blank stays blank (auto-detect); anything else must be in the taxonomy."""
@@ -73,6 +78,40 @@ class AppUploadForm(forms.ModelForm):
             raise forms.ValidationError("Provide either a ZIP file (full app) or HTML snippet.")
         return cleaned
 
+
+class CommentForm(forms.Form):
+    """The one place comment rules live.
+
+    5 Whys: Why a form instead of parsing request.POST in the view?
+    1. Length, sanitize, and the language gate must apply no matter who
+       calls the view — a form is that one place.
+    2. Why not only Comment.save()? save() can hide a row, but the author
+       deserves an error they can act on. A hidden comment looks like a bug.
+    3. Why not JS? Anyone can POST. The browser is not a gate.
+    4. Why sanitize AND the language gate? bleach stops scripts; the
+       language gate stops slurs. They are different attacks.
+    5. Why at 10k comments? A future /api/comments/ that reuses this form
+       cannot forget the rule.
+    """
+    body = forms.CharField(min_length=5, max_length=2000)
+    parent_id = forms.IntegerField(required=False)
+
+    def clean_body(self):
+        raw = (self.cleaned_data.get('body') or '').strip()
+        body = sanitize_prompt(raw)[:2000]
+        if len(body) < 5:
+            raise forms.ValidationError('Comment must be 5–2000 characters.')
+        return validate_public_text(body, allow_blank=False)
+
+
+class ReviewForm(forms.Form):
+    """Same reason as CommentForm: one gate for rating + public text."""
+    rating = forms.IntegerField(min_value=1, max_value=5)
+    text = forms.CharField(required=False, max_length=1000)
+
+    def clean_text(self):
+        text = sanitize_prompt(self.cleaned_data.get('text') or '')[:1000]
+        return validate_public_text(text)
 
 
 class CoOwnerForm(forms.Form):

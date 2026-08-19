@@ -111,9 +111,13 @@ def create_draft_challenges():
         past = get_past_challenge_titles()
         cands = generate_challenge_candidates(past, n=3)
         created = []
+        from .profanity import contains_profanity
         for cand in cands:
             # Check tag not exists
             if Challenge.objects.filter(tag=cand['tag']).exists():
+                continue
+            if contains_profanity(cand.get('title')) or contains_profanity(cand.get('description')):
+                logger.warning('dropped draft challenge with blocked language')
                 continue
             ch = Challenge.objects.create(
                 title=cand['title'],
