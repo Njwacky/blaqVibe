@@ -14,7 +14,7 @@ from django_ratelimit.decorators import ratelimit
 import zipfile, os, json, logging
 
 from .models import AppProject, Category, Comment, Star, AppFile, ScanJob, AppReport, AppVersion, Review, Trade, PullRequest, ProjectCoOwner
-from .forms import AppUploadForm, CoOwnerForm
+from .forms import AppUploadForm, CoOwnerForm, CommentForm, ReviewForm
 from .storages import get_presigned_url, is_s3_enabled
 from .search import search_projects
 from .access import user_can_download, user_can_see_project, user_is_moderator, access_denied_message
@@ -198,7 +198,7 @@ def app_detail(request, slug):
     ).prefetch_related('forks__owner', 'files', 'co_owners__user').annotate(
         forks_count=Count('forks', distinct=True),
         prs_count=Count('prs_incoming', distinct=True),
-        comment_count=Count('comments', distinct=True),
+        comment_count=Count('comments', filter=Q(comments__is_hidden=False), distinct=True),
     )
     project = get_object_or_404(qs, slug=slug)
     # Only published visible to visitors, owners can see their pending/quarantined
@@ -564,15 +564,19 @@ def post_comment(request, slug):
         if not getattr(project.owner.profile, 'allow_comments', True):
             messages.error(request, "Comments are turned off for this vibe.")
             return redirect(project.get_absolute_url())
-        from .prompt_sanitize import sanitize_prompt
-        body = sanitize_prompt(request.POST.get('body','').strip())[:2000]
-        parent_id = request.POST.get('parent_id')
-        if len(body) < 5 or len(body) > 2000:
-            return HttpResponse("Comment 5-2000 chars", status=400)
+        form = CommentForm(request.POST)
+        if not form.is_valid():
+            # Surface the first error (length or language) so the author
+            # can reword. Never persist, never notify.
+            err = next(iter(form.errors.values()))[0]
+            messages.error(request, err)
+            return redirect(project.get_absolute_url() + '#comments')
+        body = form.cleaned_data['body']
         parent = None
+        parent_id = form.cleaned_data.get('parent_id')
         if parent_id:
             try:
-                parent = Comment.objects.get(pk=parent_id, project=project)
+                parent = Comment.objects.get(pk=parent_id, project=project, is_hidden=False)
             except Exception:
                 parent = None
         Comment.objects.create(project=project, user=request.user, body=body, parent=parent)
@@ -590,15 +594,17 @@ def post_comment(request, slug):
 def post_review(request, slug):
     try:
         from .models import Review
-        from .prompt_sanitize import sanitize_prompt
         project = get_object_or_404(AppProject, slug=slug, status='published')
         if not getattr(project.owner.profile, 'allow_reviews', True):
             messages.error(request, "Reviews are turned off for this vibe.")
             return redirect(project.get_absolute_url())
-        rating = int(request.POST.get('rating', 0))
-        text = sanitize_prompt(request.POST.get('text',''))[:1000]
-        if rating < 1 or rating > 5:
-            return HttpResponse("Rating 1-5", status=400)
+        form = ReviewForm(request.POST)
+        if not form.is_valid():
+            err = next(iter(form.errors.values()))[0]
+            messages.error(request, err)
+            return redirect(project.get_absolute_url() + '#reviews')
+        rating = form.cleaned_data['rating']
+        text = form.cleaned_data['text']
         if Trade.objects.filter(buyer=request.user, project=project).exists() or Star.objects.filter(user=request.user, project=project).exists() or project.owner == request.user:
             # Allow review if traded/starred/owner
             review, created = Review.objects.update_or_create(user=request.user, project=project, defaults={'rating': rating, 'text': text})
@@ -641,7 +647,15 @@ def edit_vibe(request, slug):
             p = form.save(commit=False)
             # Versioning: if new ZIP, save old as AppVersion
             if 'zip_file' in request.FILES and project.zip_file:
-                AppVersion.objects.create(project=project, zip_file=project.zip_file, version=f"1.{project.versions.count()+1}.0", changelog=request.POST.get('changelog','Update'))
+                from .profanity import validate_public_text
+                from .prompt_sanitize import sanitize_prompt
+                try:
+                    changelog = validate_public_text(
+                        sanitize_prompt(request.POST.get('changelog', 'Update'))[:280]
+                    ) or 'Update'
+                except Exception:
+                    changelog = 'Update'
+                AppVersion.objects.create(project=project, zip_file=project.zip_file, version=f"1.{project.versions.count()+1}.0", changelog=changelog)
             p.status = 'pending'
             p.save()
             form.save_m2m()
@@ -954,6 +968,10 @@ def apply_ai_readme(request, slug):
     try:
         project = get_object_or_404(AppProject, slug=slug, owner=request.user)
         if project.ai_readme:
+            from .profanity import PUBLIC_LANGUAGE_ERROR, contains_profanity
+            if contains_profanity(project.ai_readme):
+                messages.error(request, PUBLIC_LANGUAGE_ERROR)
+                return redirect(project.get_absolute_url())
             project.readme = project.ai_readme
             project.save()
             messages.success(request, "AI README applied!")

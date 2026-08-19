@@ -101,8 +101,12 @@ def create_pr(request, slug):
             messages.info(request, "PR already open for this fork")
             return redirect(target.get_absolute_url())
         from .prompt_sanitize import sanitize_prompt
+        from .profanity import PUBLIC_LANGUAGE_ERROR, contains_profanity
         title = sanitize_prompt(request.POST.get('title',''))[:200] or f"PR: {source.title} → {target.title}"
         description = sanitize_prompt(request.POST.get('description',''))[:2000]
+        if contains_profanity(title) or contains_profanity(description):
+            messages.error(request, PUBLIC_LANGUAGE_ERROR)
+            return redirect(source.get_absolute_url())
         pr = PullRequest.objects.create(source=source, target=target, author=request.user, title=title, description=description, status='open')
         notify(target.owner, 'pr', f'@{request.user.username} opened PR #{pr.id} on {target.title}', title, f'/app/{target.slug}/prs/{pr.id}/view/')
         try:

@@ -2,6 +2,7 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm, PasswordResetForm, SetPasswordForm
 from django.contrib.auth.models import User
 from .models import Profile
+from gallery.profanity import validate_public_text
 import bleach
 
 
@@ -25,8 +26,20 @@ class ProfileForm(forms.ModelForm):
         }
 
     def clean_bio(self):
-        bio = self.cleaned_data.get('bio', '')
-        return bleach.clean(bio, tags=[], strip=True)[:280]
+        bio = bleach.clean(self.cleaned_data.get('bio', ''), tags=[], strip=True)[:280]
+        return validate_public_text(bio)
+
+    def clean_location(self):
+        location = bleach.clean(self.cleaned_data.get('location', ''), tags=[], strip=True)[:80]
+        return validate_public_text(location)
+
+    def clean_github(self):
+        github = (self.cleaned_data.get('github') or '').strip().lstrip('@')[:80]
+        return validate_public_text(github)
+
+    def clean_twitter(self):
+        twitter = (self.cleaned_data.get('twitter') or '').strip().lstrip('@')[:80]
+        return validate_public_text(twitter)
 
     def clean_avatar(self):
         f = self.cleaned_data.get('avatar')
@@ -51,7 +64,9 @@ class TipForm(forms.Form):
 
     def clean_message(self):
         # Same bleach policy as bio: no tags, stripped, hard cap.
-        return bleach.clean(self.cleaned_data.get('message', ''), tags=[], strip=True)[:200]
+        # Then the public-language gate — a tip note shows on the profile.
+        note = bleach.clean(self.cleaned_data.get('message', ''), tags=[], strip=True)[:200]
+        return validate_public_text(note)
 
 
 class SignUpForm(UserCreationForm):
@@ -104,7 +119,7 @@ class SignUpForm(UserCreationForm):
         username = (self.cleaned_data.get('username') or '').strip()
         if not username:
             raise forms.ValidationError("Username is required.")
-        return username
+        return validate_public_text(username, allow_blank=False)
 
     def save(self, commit=True):
         user = super().save(commit=False)

@@ -8,6 +8,13 @@ def notify(user, kind, title, body='', url=''):
         return None
     try:
         from .models import Notification
+        from .profanity import contains_profanity
+        # An inbox is still a public-ish surface (the recipient did not
+        # write the quote). Drop a body/title that slipped past a caller.
+        if contains_profanity(body):
+            body = ''
+        if contains_profanity(title):
+            title = 'New activity on BlaqVibes'
         return Notification.objects.create(
             user=user,
             kind=kind,

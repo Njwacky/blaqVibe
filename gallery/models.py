@@ -231,7 +231,17 @@ class Comment(models.Model):
         ordering = ['created_at']
     def save(self, *args, **kwargs):
         from .sanitizers import render_markdown_inline
-        self.body_html = render_markdown_inline(self.body)
+        from .profanity import contains_profanity
+        # Defense in depth: a shell/admin write that skipped the form must
+        # still never render the words. The raw body stays for moderators.
+        if contains_profanity(self.body):
+            self.is_hidden = True
+            self.body_html = (
+                '<p>This comment was hidden because it used language '
+                'that is not allowed here.</p>'
+            )
+        else:
+            self.body_html = render_markdown_inline(self.body)
         super().save(*args, **kwargs)
 
 class ScanJob(models.Model):
@@ -408,7 +418,12 @@ class Review(models.Model):
     def save(self, *args, **kwargs):
         try:
             from .prompt_sanitize import sanitize_prompt
+            from .profanity import contains_profanity
             self.text = sanitize_prompt(self.text)[:1000]
+            # Rating can stay; the words cannot. The form already rejects
+            # the POST — this is the ORM/admin backstop.
+            if contains_profanity(self.text):
+                self.text = ''
         except Exception: pass
         super().save(*args, **kwargs)
         try:
