@@ -1,0 +1,13 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Check your inbox — BlaqVibes{% endblock %}
+{% block content %}
+<div class="auth-wrap card" style="padding:24px">
+  <h2 style="font-weight:700">Check your inbox</h2>
+  <p class="help" style="margin:8px 0 16px">
+    We sent a confirmation link{% if email %} to <b>{{ email }}</b>{% endif %}.
+    Open it to verify the mailbox — the welcome stars wait on the other side.
+  </p>
+  <a href="{% url 'login' %}" class="btn-ghost" style="width:100%;justify-content:center">Back to login</a>
+</div>
+<link rel="stylesheet" href="/static/gallery/css/forms.css?v=theme-colors-20260815">
+{% endblock %}

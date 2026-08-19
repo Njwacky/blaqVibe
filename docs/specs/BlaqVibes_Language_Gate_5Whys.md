@@ -46,6 +46,47 @@
 
 ---
 
+## 1b. RECHECK DISCOVERY: THE SOCIAL FLOW ITSELF WAS NOT WIRED
+
+> The recheck ("it must not be a demo") traced the gated flow to its start
+> and found the start did not exist: the provider OAuth routes were never
+> mounted, so every "Continue with GitHub/Google" button 404'd in
+> production. A language gate on an unreachable flow is a demo. Fixed.
+
+**Why 1: How do we know it was really broken?**
+1. `resolve('/accounts/social/github/login/')` raised `Resolver404`; `blaqvibes/urls.py` only included `allauth.socialaccount.urls` (signup/connections/error pages), never the provider login/callback routes.
+2. `docs/specs/SOCIAL_AUTH.md` states "Code is wired" and documents the exact callback paths — the spec and the code disagreed; the spec lost.
+3. Verified over real HTTP, not just in tests: with credentials configured, the login button POST now 302s to `github.com/login/oauth/authorize` with the correct `redirect_uri`; without credentials, the route is a clean 404 and no button renders.
+4. The previous review's premise ("GitHub/Google create accounts via users/adapters.py") was true of the adapter code but could never have been exercised in production — adapters without routes are dead code.
+
+**Why 2: Why mount provider routes from `SOCIALACCOUNT_PROVIDERS` instead of always?**
+1. An unconfigured provider has no client id — its login view would raise `ImproperlyConfigured` (a 500) instead of a clean 404; mounting only configured providers fails closed.
+2. The button visibility rule (`users.social.configured_social_providers`) and the route table now share one source of truth — the environment — so they cannot disagree.
+3. Deployments without keys ship zero new URL surface; adding a key adds exactly that provider's two routes. Auditable.
+4. Alternative method (rejected): mount all providers unconditionally. Loses on point 1 and on the principle that unreachable-but-live endpoints are an attack surface (probing, error leakage).
+
+**Why 3: Why alias `account_login`/`account_signup`/`account_logout` to the app's own views?**
+1. allauth's entrance pages — including the social signup form the gate routes dirty handles to — call `reverse('account_login')` unconditionally; without the names those pages 500 with `NoReverseMatch`. Proven by the end-to-end test failing before the aliases existed.
+2. Aliases point allauth at the app's existing login/signup/logout views: one login page, one signup page, no duplicate allauth scaffolding, no brand-less templates.
+3. Alternative method (rejected): include the whole `allauth.account.urls`. Loses — it would mount a parallel full auth system (allauth's own login/signup/password pages) competing with the app's custom forms and templates.
+4. The aliases are two `path()` lines each, co-located with the originals in `urls.py` — the mapping is visible in one screen, not buried in an include.
+
+**Why 4: Why mount allauth's email-confirmation routes + branded templates?**
+1. With `ACCOUNT_EMAIL_VERIFICATION='optional'`, every social signup mails a confirmation link that reverses `account_confirm_email` — another missing name, another 500 on a real user path.
+2. Only the confirmation mechanism is mounted (`/accounts/confirm-email/…`), not the rest of allauth's account pages — minimal surface for a real function.
+3. The two pages are branded (`templates/account/email_confirm.html`, `verification_sent.html`) instead of allauth's default `{% element %}` scaffolding, which would have needed its own base templates and would look like a different site.
+4. Verified in the end-to-end test: the signup save now completes through the verification-mail step that crashed before.
+
+**Why 5: Why is the proof end-to-end and not unit?**
+1. The new `gallery/test_social_flow.py` drives the REAL URLs (`POST /accounts/social/github/login/` → state from the redirect → `GET /login/callback/`), the real session/state validation, the real provider extraction (`login` → username), the real allauth `SignupForm` — only the two network hops to github.com are faked, because GitHub is outside this codebase.
+2. It asserts the gate's actual decisions in-flow: dirty handle → auto-signup refused → redirected to the form → dirty rejected again → clean handle creates the user; clean handle → one-step auto-signup with `profile.github` set; same-email member connects instead of duplicating.
+3. The urlconf rebuild in `setUp`/`tearDown` pins that a deployment WITH keys has the routes and one WITHOUT keys does not — both states tested, not assumed.
+4. Manual HTTP rehearsal confirmed the same: `Continue with GitHub` renders with keys, 302s to GitHub's authorize endpoint with the documented callback; without keys, 404 and no button. Tests and reality agree.
+
+**Full code:** `blaqvibes/urls.py` (provider mount, aliases, confirmation routes), `templates/account/*.html`, `gallery/test_social_flow.py` (4 end-to-end cases).
+
+---
+
 ## 2. DJANGO ADMIN / ORM GATE (`AppProject.save()` ignored title/README/description)
 
 **Why 1: Why was this a real leak?**
@@ -275,5 +316,6 @@
 ## VERIFICATION RECEIPT
 
 - `scripts/ci.sh` (migrate → seed_demo → full suite → seeded-catalog assert): **green**.
-- **359 tests**, including 39 written for this work: matcher (local languages, anti-false-positive), every public POST gate, ORM/admin gates, display backstops (page + API + readme_html), real allauth social form, both scrub migrations, comment-report loop (visitor → queue → hide/dismiss/unhide → 403s → ratelimit), changelog honesty, admin user form.
+- **363 tests**, including 43 written for this work: matcher (local languages, anti-false-positive), every public POST gate, ORM/admin gates, display backstops (page + API + readme_html), real allauth social form, the full end-to-end OAuth signup flow (section 1b), both scrub migrations, comment-report loop (visitor → queue → hide/dismiss/unhide → 403s → ratelimit), changelog honesty, admin user form.
 - Live attack rehearsal passed: obfuscated signup username rejected; isiZulu insult comment rejected at the form and hidden at the ORM; shell-corrupted title/readme leak nowhere (feed, page, both API endpoints); visitor report → moderator hide removes the words from the page.
+- Real-HTTP rehearsal of the social flow: with provider keys, `Continue with GitHub` renders and POST 302s to github.com with the documented callback; without keys, no button and a clean 404.
