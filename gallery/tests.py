@@ -501,6 +501,39 @@ class SeedSettingsTests(TestCase):
         self.assertFalse(settings.SEED_DEMO)
 
 
+class DatabaseUrlTests(TestCase):
+    # _db_from_url used to lstrip('/') every NAME, silently turning the
+    # absolute sqlite path in `sqlite:////abs/app.db` into a relative one —
+    # the only symptom was a late "unable to open database file" at connect.
+    # These cases pin the URL contract: strip the one URL-separator slash,
+    # keep the path's own leading slash.
+    def _name(self, url):
+        from blaqvibes.settings import _db_from_url
+        return _db_from_url(url)
+
+    def test_relative_sqlite_unchanged(self):
+        cfg = self._name('sqlite:///bv-unit.db')
+        self.assertEqual(cfg['ENGINE'], 'django.db.backends.sqlite3')
+        self.assertEqual(cfg['NAME'], 'bv-unit.db')
+
+    def test_absolute_sqlite_keeps_leading_slash(self):
+        cfg = self._name('sqlite:////tmp/bv-unit.db')
+        self.assertEqual(cfg['ENGINE'], 'django.db.backends.sqlite3')
+        self.assertEqual(cfg['NAME'], '/tmp/bv-unit.db')
+
+    def test_in_memory_sqlite_unchanged(self):
+        self.assertEqual(self._name('sqlite:///:memory:')['NAME'], ':memory:')
+
+    def test_postgres_fields_untouched(self):
+        cfg = self._name('postgres://blaq:s3cret@db.internal:5432/vibes')
+        self.assertEqual(cfg['ENGINE'], 'django.db.backends.postgresql')
+        self.assertEqual(cfg['NAME'], 'vibes')
+        self.assertEqual(cfg['USER'], 'blaq')
+        self.assertEqual(cfg['PASSWORD'], 's3cret')
+        self.assertEqual(cfg['HOST'], 'db.internal')
+        self.assertEqual(cfg['PORT'], '5432')
+
+
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False, PAYSTACK_SECRET_KEY='', PAYSTACK_ENABLED=False)
 class FiveWhysHolesTests(TestCase):
     def setUp(self):

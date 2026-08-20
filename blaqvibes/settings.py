@@ -272,9 +272,20 @@ def _db_from_url(url: str):
         engine = 'django.db.backends.mysql'
     else:
         engine = 'django.db.backends.sqlite3'
+    raw_name = unquote(parsed.path)
+    if engine == 'django.db.backends.sqlite3':
+        # The first slash after the scheme is the URL separator, not part of
+        # the file name — strip exactly one. sqlite:///app.db → app.db
+        # (relative), sqlite:////abs/app.db → /abs/app.db (absolute),
+        # sqlite:///:memory: → :memory:. A blanket lstrip('/') silently
+        # turned absolute paths into relative ones, and the failure only
+        # surfaced later as "unable to open database file".
+        name = raw_name[1:] if raw_name.startswith('/') else raw_name
+    else:
+        name = raw_name.lstrip('/')
     return {
         'ENGINE': engine,
-        'NAME': unquote(parsed.path.lstrip('/')),
+        'NAME': name,
         'USER': unquote(parsed.username or ''),
         'PASSWORD': unquote(parsed.password or ''),
         'HOST': parsed.hostname or '',
