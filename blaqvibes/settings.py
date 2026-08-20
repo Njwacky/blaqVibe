@@ -68,6 +68,13 @@ ANTHROPIC_MODEL = os.getenv('ANTHROPIC_MODEL', 'claude-3-5-haiku-latest')
 # Tests stay empty unless a test calls seed_demo() itself.
 TESTING = any(arg == 'test' for arg in sys.argv) or os.getenv('DJANGO_TEST') == '1'
 SEED_DEMO = os.getenv('SEED_DEMO', '1' if (LOCAL_DEV and not TESTING) else '0') == '1'
+if TESTING:
+    # A test run must start from an empty grid even when .env exports
+    # SEED_DEMO=1 for dev: the post_migrate hook fires while the test
+    # database is being built — before any override_settings applies — and
+    # the suite asserts exact catalog counts (SeedDemoTests,
+    # DiscoveryFeedTests). Tests that want the catalog call seed_demo().
+    SEED_DEMO = False
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -265,9 +272,20 @@ def _db_from_url(url: str):
         engine = 'django.db.backends.mysql'
     else:
         engine = 'django.db.backends.sqlite3'
+    raw_name = unquote(parsed.path)
+    if engine == 'django.db.backends.sqlite3':
+        # The first slash after the scheme is the URL separator, not part of
+        # the file name — strip exactly one. sqlite:///app.db → app.db
+        # (relative), sqlite:////abs/app.db → /abs/app.db (absolute),
+        # sqlite:///:memory: → :memory:. A blanket lstrip('/') silently
+        # turned absolute paths into relative ones, and the failure only
+        # surfaced later as "unable to open database file".
+        name = raw_name[1:] if raw_name.startswith('/') else raw_name
+    else:
+        name = raw_name.lstrip('/')
     return {
         'ENGINE': engine,
-        'NAME': unquote(parsed.path.lstrip('/')),
+        'NAME': name,
         'USER': unquote(parsed.username or ''),
         'PASSWORD': unquote(parsed.password or ''),
         'HOST': parsed.hostname or '',
@@ -345,7 +363,16 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+# Email — defined exactly once. Dev has no SMTP daemon: default to the
+# console backend so signup / password-reset / queue-done mail lands in the
+# runserver logs. Production does NOT silently swallow mail into a console
+# void — it falls back to Django's SMTP default and real deployments set
+# EMAIL_BACKEND + host credentials explicitly (see .env.example).
+EMAIL_BACKEND = os.getenv(
+    'EMAIL_BACKEND',
+    'django.core.mail.backends.console.EmailBackend'
+    if LOCAL_DEV else 'django.core.mail.backends.smtp.EmailBackend',
+)
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@blaqvibes.co.za')
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/accounts/login/'
