@@ -22,7 +22,7 @@ Local / CI auto-loads the demo catalog (`seed_demo`) so the first visit is
 not an empty grid. Production stays empty until you run the command or set
 `SEED_DEMO=1`.
 
-Tests:
+Tests (the auto-seed is forced off during test runs, no matter what `.env` says):
 
 ```bash
 DJANGO_LOCAL_DEV=1 DJANGO_TEST=1 python manage.py test gallery users

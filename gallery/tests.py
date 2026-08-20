@@ -490,6 +490,17 @@ class SeedDemoTests(TestCase):
         self.assertNotContains(response, 'Publish your first vibe')
 
 
+class SeedSettingsTests(TestCase):
+    def test_auto_seed_is_forced_off_during_tests(self):
+        # Regression: .env may export SEED_DEMO=1 for dev, but the
+        # post_migrate hook fires while the test database is being built —
+        # before any override_settings applies — so a polluted test DB used
+        # to break SeedDemoTests/DiscoveryFeedTests. Settings must force it
+        # off for test runs no matter what the environment says.
+        from django.conf import settings
+        self.assertFalse(settings.SEED_DEMO)
+
+
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False, PAYSTACK_SECRET_KEY='', PAYSTACK_ENABLED=False)
 class FiveWhysHolesTests(TestCase):
     def setUp(self):
