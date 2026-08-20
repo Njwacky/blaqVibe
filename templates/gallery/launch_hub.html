@@ -128,7 +128,7 @@
           <span class="launch-route__badge" aria-hidden="true">✓</span>
           <span class="launch-route__copy">
             <em>{{ item.eyebrow }}</em>
-            <b>{{ item.name }}</b>
+            <b>{{ item.name }}{% if item.review.is_outdated %} <span class="launch-route__stale" title="Needs review — verify against live sources">⚠</span>{% endif %}</b>
             <small>{{ item.summary }}</small>
           </span>
           <span class="launch-route__meta">
@@ -154,6 +154,49 @@
         {% if match_count %}<span aria-hidden="true">✓</span> Lit-up cards match what you're holding. Open one for the source-backed steps.{% else %}<span aria-hidden="true">⚠</span> No matching route in this filter — tap “All destinations” above to see them.{% endif %}
       {% else %}<span aria-hidden="true">👆</span> Tap a card above — the matching destinations light up instantly.{% endif %}
     </p>
+  </section>
+
+  <section class="launch-compare" id="compare" aria-labelledby="compare-title">
+    <div class="launch-section-head">
+      <div><p class="launch-overline">Decision aid</p><h2 id="compare-title">Compare before you choose</h2></div>
+      <p>Three or four platforms still feel like a coin flip — this table narrows it. Cost labels were checked in {{ last_reviewed }}; pricing and policies change, so open the guide (→) for the live sources before committing.</p>
+    </div>
+    <div class="launch-compare__groups">
+      {% for group in comparison_groups %}
+      <details class="launch-compare-group" data-compare-group="{{ group.slug }}"{% if forloop.first %} open{% endif %}>
+        <summary>
+          <span class="launch-compare-group__head">
+            <b>{{ group.label }}</b>
+            <em>{{ group.question }}</em>
+          </span>
+          <span class="launch-compare-group__arrow" aria-hidden="true">▾</span>
+        </summary>
+        <div class="launch-compare-table-wrap">
+          <table class="launch-compare-table">
+            <thead>
+              <tr><th>Platform</th><th>Cost</th><th>Pace</th><th>Best for</th><th aria-label="Open guide"></th></tr>
+            </thead>
+            <tbody>
+              {% for row in group.rows %}
+              <tr>
+                <td>
+                  <a href="{% url 'launch_guide' row.slug %}" class="launch-compare-platform">
+                    <span class="launch-brand launch-brand--{{ row.slug }}" aria-hidden="true"><img src="{% static row.icon %}" alt=""></span>
+                    <span><b>{{ row.name }}</b><small>{{ row.eyebrow }}</small></span>
+                  </a>
+                </td>
+                <td class="launch-compare-cost">{{ row.cost }}</td>
+                <td>{{ row.pace }}</td>
+                <td class="launch-compare-best">{% for item in row.best_for %}{{ item }}{% if not forloop.last %} · {% endif %}{% endfor %}</td>
+                <td><a href="{% url 'launch_guide' row.slug %}" class="launch-compare-open" aria-label="Open {{ row.name }} guide" title="Open guide">→</a></td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
+      {% endfor %}
+    </div>
   </section>
 
   <section class="launch-boundary-strip" aria-label="Important boundary">

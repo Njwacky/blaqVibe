@@ -60,7 +60,33 @@ class PrivateMediaStorage(S3Storage if S3Storage is not None else object):
 
 
 def is_s3_enabled():
-    return bool(os.getenv('AWS_ACCESS_KEY_ID') or getattr(settings, 'AWS_ACCESS_KEY_ID', None))
+    """True when S3/R2 credentials are set AND the site-level toggle is on.
+
+    5 Whys:
+    1. Why check the DB toggle here and not in the caller? Every code path
+       that decides "should I use S3?" flows through this function —
+       gating here covers every path with one change.
+    2. Why default True (fail-closed toward S3 use)? A broken or absent
+       SiteSettings row means the env-var check alone decides, which is
+       the pre-existing behaviour. The toggle is an ADMIN OVERRIDE for
+       ops who need to cut over to local storage temporarily.
+    3. Why not cache the toggle? It is changed by a superadmin in the
+       Settings page and should take effect immediately — caching would
+       need a TTL or a flush, neither of which is simpler than one
+       indexed PK lookup per download.
+    4. Why catch all exceptions? A DB outage during a download must not
+       crash the download — fall through to the env-var check.
+    5. Why the env-var check first? It is a local constant (no DB call);
+       failing fast avoids the DB read when S3 is not even configured.
+    """
+    s3_key = bool(os.getenv('AWS_ACCESS_KEY_ID') or getattr(settings, 'AWS_ACCESS_KEY_ID', None))
+    if not s3_key:
+        return False
+    try:
+        from users.models import SiteSettings
+        return SiteSettings.get().r2_enabled
+    except Exception:
+        return True  # on error, trust the env var
 
 
 def get_presigned_url(s3_key, expires=300, filename=None):

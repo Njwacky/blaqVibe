@@ -15,7 +15,6 @@ import zipfile, os, json, logging
 
 from .models import AppProject, Category, Comment, Star, AppFile, ScanJob, AppReport, AppVersion, Review, Trade, PullRequest, ProjectCoOwner
 from .forms import AppUploadForm, CoOwnerForm, CommentForm, ReviewForm
-from .storages import get_presigned_url, is_s3_enabled
 from .search import search_projects
 from .access import user_can_download, user_can_see_project, user_is_moderator, access_denied_message
 from .zip_serve import serve_project_zip, owner_scan_reason
@@ -138,6 +137,21 @@ def feed(request):
                 tech = bleach.clean(tech, tags=[], strip=True)[:100]
             except Exception: pass
             projects = projects.filter(tech_stack__icontains=tech)
+        # 5 Whys: Why force q to '' instead of conditionally calling
+        # search_projects? search_projects handles empty q by returning
+        # the sorted queryset; setting q to '' reuses that path without
+        # adding a branch. Why allow filters to still work when search
+        # is off? A feed without text search should still let users
+        # browse by category/kind/tech — those filters are index-only
+        # and cost nothing. Why fail-closed? If the setting cannot be
+        # read, search stays on (default True) so a broken DB row never
+        # silences the feed.
+        try:
+            from users.models import SiteSettings
+            if not SiteSettings.get().search_enabled:
+                q = ''
+        except Exception:
+            pass
         projects = search_projects(projects, q, sort=sort, user=request.user)
         if not projects.exists() and getattr(settings, 'SEED_DEMO', False):
             try:
@@ -304,6 +318,7 @@ def app_detail(request, slug):
         'launch_next': launch_next,
         'forks_count': getattr(project, 'forks_count', 0),
         'prs_count': getattr(project, 'prs_count', 0),
+        'show_language': getattr(project.owner.profile, 'show_language', True),
     })
 
 def scan_status(request, slug):
@@ -612,6 +627,31 @@ def post_review(request, slug):
                 messages.success(request, f"Review {rating}★ posted — Nolo and human ratings now show.")
             else:
                 messages.success(request, f"Review updated to {rating}★")
+            # Email the owner if they want review emails.
+            # 5 Whys: Why email on top of the in-app notify? A review
+            # changes the vibe's average rating and affects its ranking —
+            # the owner needs to know even when they are offline. Why a
+            # per-user toggle? A creator with many vibes may not want an
+            # email for every single review. Why fail_silently? An MTA
+            # blip must not block the user from seeing their updated review.
+            if project.owner != request.user and getattr(project.owner.profile, 'email_on_review', True) and project.owner.email:
+                try:
+                    send_mail(
+                        subject=f"★ New {rating}★ review on “{project.title}”",
+                        message=(
+                            f"Hi @{project.owner.username},\n\n"
+                            f"@{request.user.username} just left a {rating}★ review on "
+                            f"your vibe “{project.title}”.\n\n"
+                            f"Review: {text[:200] if text else '(no text)'}\n"
+                            f"View: {settings.SITE_URL}/app/{project.slug}/#reviews\n\n"
+                            f"BlaqVibes — Publish the Vibes.\n"
+                        ),
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=[project.owner.email],
+                        fail_silently=True,
+                    )
+                except Exception:
+                    logger.exception(f"review email fail {project.slug}")
         else:
             messages.error(request, "Trade or star the vibe first to review — earn the right.")
         return redirect(project.get_absolute_url() + '#reviews')
@@ -846,6 +886,31 @@ def trade_download(request, slug):
                     f'@{request.user.username} traded {r.cost} ★ for {project.title}{share_note}',
                     url=project.get_absolute_url(),
                 )
+            # Email the seller(s) if they want trade emails.
+            # 5 Whys: Why email on top of the in-app notify? A star trade
+            # is a money event — the notification must survive a closed
+            # tab. Email is the durable channel. Why a per-user toggle?
+            # Big creators with high trade volume don't want an inbox
+            # flooded with "1 ★ traded" emails every hour. Why fail_silently?
+            # An MTA outage must not crash the download.
+            if who and getattr(who.profile, 'email_on_trade', True) and who.email:
+                try:
+                    send_mail(
+                        subject=f"★ Trade: @{request.user.username} traded {r.cost} ★ for {project.title}",
+                        message=(
+                            f"Hi @{who.username},\n\n"
+                            f"@{request.user.username} just traded {r.cost} ★ "
+                            f"for your vibe “{project.title}”.\n\n"
+                            f"View: {settings.SITE_URL}/app/{project.slug}/\n"
+                            f"Dashboard: {settings.SITE_URL}/payout/\n\n"
+                            f"BlaqVibes — Publish the Vibes.\n"
+                        ),
+                        from_email=settings.DEFAULT_FROM_EMAIL,
+                        recipient_list=[who.email],
+                        fail_silently=True,
+                    )
+                except Exception:
+                    logger.exception(f"trade email fail {project.slug}")
         request.user.profile.refresh_from_db()
         messages.success(
             request,

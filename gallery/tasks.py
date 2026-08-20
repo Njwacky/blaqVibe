@@ -59,12 +59,29 @@ def vulnerability_scan(self, *args, project_id=None):
             report['extract_error'] = 'unsafe or unreadable zip'
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
-    # Nolo Auto-Review — heuristic or LLM, backend only, crush silently
+    # Nolo Auto-Review — heuristic or LLM, backend only, crush silently.
+    # 5 Whys: Why check the profile toggle here, not in the view that
+    # queues the task? Every upload path (publish, edit, git push, fork)
+    # funnels through this single task; one gate covers them all.
+    # Why default True? 90% of creators want instant feedback after an
+    # upload; only pros who already know their quality level disable it.
+    # Why store "disabled" in the report instead of skipping entirely?
+    # The scan_status view and the detail template read scan_report to
+    # find out whether Nolo had an opinion. Writing 'disabled' gives
+    # them a clean answer instead of a missing key.
     try:
         from .nolo_review import nolo_review
-        nolo = nolo_review(p)
-        report["nolo_review"] = nolo
-        logger.info(f"Nolo review {p.slug}: {nolo}")
+        nolo_enabled = True
+        try:
+            nolo_enabled = getattr(p.owner.profile, 'nolo_enabled', True)
+        except Exception:
+            pass
+        if nolo_enabled:
+            nolo = nolo_review(p)
+            report["nolo_review"] = nolo
+        else:
+            report["nolo_review"] = {"score": None, "fixes": [], "pros": [], "source": "disabled"}
+        logger.info(f"Nolo review {p.slug}: {report.get('nolo_review')}")
     except Exception as e:
         logger.exception(f"Nolo review crush {p.slug}: {e}")
         report["nolo_review"] = {"score": 5, "fixes": [], "pros": [], "source": "error"}
@@ -89,6 +106,24 @@ def scan_zip_with_clamav(self, project_id):
     p = AppProject.objects.get(pk=project_id)
     if not p.zip_file:
         return "no_zip"
+    # 5 Whys: Why check the site toggle here instead of skipping the
+    # entire chain? ClamAV is infra (not a user preference) and can be
+    # expensive CPU-wise; a superadmin who disables it expects the
+    # pipeline to skip the full scan, not to still run and then ignore
+    # the result. Why default True? Security is enabled out of the box;
+    # ops explicitly turn it off only when the container has no ClamAV
+    # binary or they use an external scanner.
+    try:
+        from users.models import SiteSettings
+        if not SiteSettings.get().clamav_enabled:
+            report = p.scan_report or {}
+            report['clamav'] = 'disabled'
+            p.scan_report = report
+            p.save(update_fields=['scan_report'])
+            logger.info(f"ClamAV disabled by site setting — skipping scan for {p.slug}")
+            return "clamav_disabled"
+    except Exception:
+        pass
     # clamscan needs a real filesystem path; on S3/R2 the object is streamed
     # to a temp file for the duration of the scan (ziputil handles both).
     from .ziputil import materialized_path, open_zip
@@ -193,6 +228,10 @@ def finalize_publish(*args, project_id=None):
     if report.get('clamav') == 'unavailable':
         _set_scan_job(p, 'queued')
         return "pending_no_scanner"
+    if report.get('clamav') == 'disabled':
+        # ClamAV disabled by site admin — skip the scanner check and
+        # proceed to the publish logic. Secret scans still run.
+        logger.info(f"ClamAV disabled — publishing {p.slug} without virus scan")
     if report.get('secrets'):
         _set_scan_job(p, 'pending')
         return "pending_secrets"

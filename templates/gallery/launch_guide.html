@@ -13,6 +13,13 @@
     <span>{{ guide.eyebrow }}</span>
   </nav>
 
+  {% if guide.review.is_outdated %}
+  <div class="launch-warning" role="status">
+    <span aria-hidden="true">!</span>
+    <div>This guide was last reviewed {{ guide.review.days_since|default:"?" }} days ago — platform policies and prices change. Verify every claim against the live sources below before acting.</div>
+  </div>
+  {% endif %}
+
   <header class="launch-guide-hero">
     <div class="launch-guide-hero__main">
       <span class="launch-kicker"><span class="launch-brand launch-brand--micro launch-brand--{{ guide.slug }}" aria-hidden="true"><img src="{% static guide.icon %}" alt=""></span>{{ guide.eyebrow }}</span>
@@ -147,6 +154,37 @@
         <span aria-hidden="true">⌁</span>
         <div><b>Stuck on a command?</b><p>Angle brackets mark values you must replace. If your framework needs a build or start command not shown here, use that framework’s own production guide—do not guess.</p></div>
       </div>
+
+      <section class="launch-framework-ref card" id="framework-commands" aria-labelledby="framework-ref-title">
+        <p class="launch-overline">Before you deploy</p>
+        <h2 id="framework-ref-title">Find your framework’s command</h2>
+        <p class="launch-framework-ref__intro">Guides say “use your framework’s real command” — this is where to find it. Every command is from the framework’s own docs; when a command is project-specific, the note tells you where it lives in your project.</p>
+        {% for entry in framework_commands %}
+        <details class="launch-framework" data-framework="{{ entry.slug }}">
+          <summary>
+            <span>{{ entry.name }}</span>
+            <em>{{ entry.kind }}</em>
+          </summary>
+          <div class="launch-framework__body">
+            <p>{{ entry.how_to_find }}</p>
+            {% if entry.commands %}
+            <ul class="launch-framework__commands">
+              {% for command in entry.commands %}
+              <li>
+                <code>{{ command.text }}</code>
+                {% if command.label %}<span>{{ command.label }}</span>{% endif %}
+                {% if command.replace %}<em>{{ command.replace }}</em>{% endif %}
+              </li>
+              {% endfor %}
+            </ul>
+            {% else %}
+            <p class="launch-framework__no-command">No universal CLI command — see the official export/deploy guide below.</p>
+            {% endif %}
+            <a href="{{ entry.docs.url }}" target="_blank" rel="noopener noreferrer">{{ entry.docs.label }} ↗</a>
+          </div>
+        </details>
+        {% endfor %}
+      </section>
     </aside>
   </div>
 

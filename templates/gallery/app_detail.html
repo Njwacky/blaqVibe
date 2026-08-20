@@ -1399,7 +1399,7 @@
         {% include 'gallery/_tip_button.html' with tip_recipient_username=project.owner.username %}
         {% include 'gallery/_tip_panel.html' with tip_recipient_username=project.owner.username %}
       </div>
-      {% if project.language_stats %}
+      {% if project.language_stats and show_language %}
       <div
         style="
           margin-top: 10px;

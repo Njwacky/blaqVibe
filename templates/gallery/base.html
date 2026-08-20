@@ -172,6 +172,7 @@ try{
   </div>
 </footer>
 <div id="toast" class="toast">✓ Copied!</div>
+{% if pwa_enabled %}
 <div id="pwa-install-banner" style="display:none;position:fixed;bottom:20px;background:var(--card);border:1px solid var(--accent-border);border-radius:16px;padding:14px 16px;max-width:380px;width:calc(100% - 32px);box-shadow:0 12px 40px rgba(0,0,0,.5);z-index:999;align-items:center;gap:12px">
   <img src="/static/branding/icon-48.png" style="width:48px;height:48px;border-radius:10px;flex-shrink:0">
   <div style="flex:1">
@@ -251,6 +252,7 @@ if(iosHint){
   });
 }
 </script>
+{% endif %}
 {% block scripts %}{% endblock %}
 </body>
 </html>
