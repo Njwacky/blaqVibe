@@ -47,8 +47,9 @@ The missing capability is **release-path confidence**, not file transfer. A crea
 
 ## Maintenance checklist
 
-- Review every URL and claim in `gallery/launch_guides.py` at least quarterly.
-- Update `LAST_REVIEWED` only after opening all source pages and checking commands and dashboard terminology.
-- Run the route, source-scheme, placeholder, content-boundary, and rendering tests in `gallery/tests.py`.
-- Spot-check all desktop and mobile layouts, keyboard focus, copy buttons, artifact recommendations, and local checklist state.
+- Keep `gallery/launch_guides.py`, `gallery/framework_commands.py`, and `gallery/comparison.py` in sync: `LAST_REVIEWED` and each guide's `last_reviewed` are updated only after opening every source page (platform docs + framework docs) and checking commands, placeholders, dashboard terminology, and comparison cost labels.
+- A guide whose `last_reviewed` is older than 90 days is flagged in the UI and by `python manage.py check_guide_reviews --fail` — treat that as the trigger to re-review, not the review itself.
+- Recheck the `cost` labels in `gallery/comparison.py` (free tier / trial / fees) on the same quarterly pass — they are deliberately coarse so a price change usually only needs a wording tweak, but a platform removing its free tier (as Fly.io did) must be reflected.
+- Run the route, source-scheme, placeholder, content-boundary, framework-command, comparison-matrix, and rendering tests in `gallery/tests.py`.
+- Spot-check all desktop and mobile layouts, keyboard focus, copy buttons, artifact recommendations, framework-command accordions, comparison tables, and local checklist state.
 - Never add credentials, affiliate links, or claims that BlaqVibes performs the external submission.

@@ -843,7 +843,7 @@ class LaunchGuideTests(TestCase):
         required_fields = {
             'slug', 'category', 'icon', 'eyebrow', 'title', 'summary', 'result',
             'artifact', 'time', 'good_for', 'not_for', 'prerequisites', 'steps',
-            'checklist', 'sources',
+            'checklist', 'sources', 'last_reviewed',
         }
         allowed_categories = {item['slug'] for item in CATEGORIES} - {'all'}
         slugs = [guide['slug'] for guide in LAUNCH_GUIDES]
@@ -912,6 +912,15 @@ class LaunchGuideTests(TestCase):
             'macos-direct': {'developer.apple.com'},
             'flathub': {'docs.flathub.org'},
             'chrome-web-store': {'developer.chrome.com'},
+            'aws-s3-cloudfront': {'docs.aws.amazon.com'},
+            'azure-static-web-apps': {'learn.microsoft.com'},
+            'pythonanywhere': {'help.pythonanywhere.com'},
+            'netlify': {'docs.netlify.com'},
+            'supabase': {'supabase.com'},
+            'digitalocean-app-platform': {'docs.digitalocean.com'},
+            'railway': {'docs.railway.com'},
+            'fly-io': {'fly.io'},
+            'google-cloud-run': {'cloud.google.com'},
         }
         self.assertEqual(set(expected_hosts), {guide['slug'] for guide in LAUNCH_GUIDES})
         for guide in LAUNCH_GUIDES:
@@ -982,7 +991,200 @@ class LaunchGuideTests(TestCase):
         self.assertContains(response, 'High-stakes')
         self.assertTrue(any(step.get('high_risk') for step in response.context['guide']['steps']))
 
+    def test_every_guide_has_a_parseable_last_reviewed(self):
+        """Per-guide review tracking: no guide may ship without a date."""
+        from datetime import date
+        from gallery.launch_guides import LAUNCH_GUIDES
+        for guide in LAUNCH_GUIDES:
+            with self.subTest(slug=guide['slug']):
+                raw = guide.get('last_reviewed', '')
+                self.assertTrue(raw, f'{guide["slug"]} has no last_reviewed')
+                date.fromisoformat(raw)  # raises on garbage
 
+    def test_guide_pages_expose_review_status(self):
+        from gallery.launch_views import _review_status
+        from gallery.launch_guides import LAUNCH_GUIDES
+        for guide in LAUNCH_GUIDES:
+            status = _review_status(guide)
+            self.assertIn('days_since', status)
+            self.assertIn('is_outdated', status)
+        response = self.client.get('/launch/vercel-web/')
+        self.assertIn('review', response.context['guide'])
+        self.assertContains(response, 'Sources last reviewed')
+
+    def test_review_status_flags_missing_and_unparseable_dates(self):
+        from gallery.launch_views import _review_status
+        self.assertTrue(_review_status({})['is_outdated'])
+        self.assertTrue(_review_status({'last_reviewed': 'not a date'})['is_outdated'])
+        self.assertIsNone(_review_status({})['days_since'])
+
+    def test_review_status_detects_stale_guides(self):
+        from datetime import date, timedelta
+        from gallery.launch_views import _review_status, REVIEW_MAX_AGE_DAYS
+        old = date.today() - timedelta(days=REVIEW_MAX_AGE_DAYS + 1)
+        fresh = date.today()
+        self.assertTrue(_review_status({'last_reviewed': old.isoformat()})['is_outdated'])
+        self.assertFalse(_review_status({'last_reviewed': fresh.isoformat()})['is_outdated'])
+
+    def test_check_guide_reviews_command_fails_on_stale_guide(self):
+        """--fail must exit non-zero when any guide is older than --days."""
+        from datetime import date, timedelta
+        from unittest.mock import patch
+        from django.core.management import call_command
+        stale_guide = {
+            'slug': 'stale-guide',
+            'last_reviewed': (date.today() - timedelta(days=200)).isoformat(),
+        }
+        with patch(
+            'gallery.management.commands.check_guide_reviews.LAUNCH_GUIDES',
+            [stale_guide],
+        ):
+            with self.assertRaises(SystemExit) as cm:
+                call_command('check_guide_reviews', days=90, fail=True)
+            self.assertEqual(cm.exception.code, 1)
+
+    def test_check_guide_reviews_command_passes_on_fresh_guides(self):
+        from datetime import date
+        from unittest.mock import patch
+        from io import StringIO
+        from django.core.management import call_command
+        fresh_guide = {'slug': 'fresh-guide', 'last_reviewed': date.today().isoformat()}
+        out = StringIO()
+        with patch(
+            'gallery.management.commands.check_guide_reviews.LAUNCH_GUIDES',
+            [fresh_guide],
+        ):
+            call_command('check_guide_reviews', days=90, stdout=out)
+        self.assertIn('reviewed within 90 days', out.getvalue())
+
+
+
+@override_settings(RATELIMIT_ENABLE=False)
+class ComparisonMatrixTests(TestCase):
+    """The hub comparison matrix must reference only real guides and stay honest."""
+
+    def test_every_group_row_references_a_real_guide(self):
+        from gallery.launch_guides import GUIDES_BY_SLUG
+        from gallery.comparison import COMPARISON_GROUPS
+        for group in COMPARISON_GROUPS:
+            with self.subTest(group=group['slug']):
+                self.assertTrue(group['label'])
+                self.assertTrue(group['question'])
+                self.assertTrue(group['rows'])
+                for row in group['rows']:
+                    self.assertIn(row['slug'], GUIDES_BY_SLUG)
+                    self.assertTrue(row['cost'], f"{row['slug']} missing cost label")
+
+    def test_groups_do_not_duplicate_rows(self):
+        from gallery.comparison import COMPARISON_GROUPS
+        seen = set()
+        for group in COMPARISON_GROUPS:
+            for row in group['rows']:
+                key = (group['slug'], row['slug'])
+                self.assertNotIn(key, seen)
+                seen.add(key)
+
+    def test_enriched_rows_carry_guide_fields(self):
+        from gallery.launch_guides import GUIDES_BY_SLUG
+        from gallery.comparison import enrich_comparison_groups
+        groups = enrich_comparison_groups(GUIDES_BY_SLUG)
+        self.assertEqual(len(groups), 6)
+        for group in groups:
+            for row in group['rows']:
+                self.assertTrue(row['name'])
+                self.assertTrue(row['pace'])
+                self.assertTrue(row['cost'])
+                self.assertTrue(row['icon'])
+                self.assertTrue(row['best_for'])
+
+    def test_enrich_skips_malformed_guides_without_crashing(self):
+        """A guide dict missing fields the template needs must be skipped, not fatal."""
+        from gallery.comparison import enrich_comparison_groups
+        guide_by_slug = {'cloudflare-pages': {'icon': 'only-icon.svg'}}  # no slug/name/pace
+        groups = enrich_comparison_groups(guide_by_slug)
+        self.assertEqual(sum(len(x['rows']) for x in groups), 0)
+
+    def test_hub_renders_the_comparison_matrix(self):
+        response = self.client.get('/launch/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Compare before you choose')
+        self.assertContains(response, 'Static site hosts')
+        self.assertContains(response, 'Server / full-stack hosts')
+        self.assertContains(response, 'Free tier')
+        self.assertContains(response, 'US$100 per product fee')
+        self.assertGreaterEqual(len(response.context['comparison_groups']), 6)
+
+    def test_matrix_links_to_real_guides(self):
+        response = self.client.get('/launch/')
+        body = response.content.decode()
+        self.assertIn('/launch/cloudflare-pages/', body)
+        self.assertIn('/launch/railway/', body)
+        self.assertIn('/launch/steam/', body)
+
+
+@override_settings(RATELIMIT_ENABLE=False)
+class FrameworkCommandTests(TestCase):
+    """The sidebar command reference must stay as honest as the guides."""
+
+    def test_every_entry_has_complete_structure(self):
+        from gallery.framework_commands import FRAMEWORK_COMMANDS
+        for entry in FRAMEWORK_COMMANDS:
+            with self.subTest(entry=entry['slug']):
+                self.assertTrue(entry['name'])
+                self.assertIn(entry['kind'], ('frontend', 'backend', 'mobile', 'game'))
+                self.assertTrue(entry['how_to_find'])
+                self.assertTrue(entry['docs']['label'])
+                self.assertTrue(entry['docs']['url'])
+                for cmd in entry['commands']:
+                    self.assertTrue(cmd['text'])
+                    self.assertNotIn('API_KEY=', cmd['text'])
+                    self.assertNotIn('PASSWORD=', cmd['text'])
+                    if '<' in cmd['text']:
+                        self.assertTrue(cmd.get('replace'), f"{entry['slug']} command has unmarked placeholder")
+
+    def test_all_doc_sources_are_https_and_official_domains(self):
+        from urllib.parse import urlparse
+        from gallery.framework_commands import FRAMEWORK_COMMANDS
+        allowed_hosts = {
+            'nextjs.org', 'vite.dev', 'svelte.dev', 'angular.dev',
+            'docs.djangoproject.com', 'flask.palletsprojects.com',
+            'fastapi.tiangolo.com', 'expressjs.com', 'guides.rubyonrails.org',
+            'laravel.com', 'docs.flutter.dev', 'docs.godotengine.org',
+        }
+        for entry in FRAMEWORK_COMMANDS:
+            with self.subTest(entry=entry['slug']):
+                parsed = urlparse(entry['docs']['url'])
+                self.assertEqual(parsed.scheme, 'https')
+                self.assertIn(parsed.hostname, allowed_hosts)
+
+    def test_guide_page_renders_the_framework_reference(self):
+        response = self.client.get('/launch/vercel-web/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Find your framework')
+        self.assertContains(response, 'Next.js')
+        self.assertContains(response, 'React (Vite)')
+        self.assertTrue(response.context['framework_commands'])
+
+    def test_filter_matches_guide_audience(self):
+        from gallery.framework_commands import framework_commands_for_guide
+        django_guide = {'name': 'Render', 'eyebrow': 'Backend & full stack', 'summary': 'Django, Express, FastAPI', 'good_for': ('Django', 'FastAPI')}
+        matched = framework_commands_for_guide(django_guide)
+        slugs = [e['slug'] for e in matched]
+        self.assertIn('django', slugs)
+        self.assertIn('fastapi', slugs)
+        # Never empty
+        self.assertTrue(matched)
+
+    def test_unmatched_guide_falls_back_to_full_table(self):
+        from gallery.framework_commands import FRAMEWORK_COMMANDS, framework_commands_for_guide
+        store_guide = {'name': 'App Store', 'eyebrow': 'iPhone, iPad', 'summary': 'Submit for review', 'good_for': ('iOS',)}
+        self.assertEqual(framework_commands_for_guide(store_guide), FRAMEWORK_COMMANDS)
+
+    def test_backend_guide_renders_django_commands(self):
+        response = self.client.get('/launch/render-web-service/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'gunicorn')
+        self.assertContains(response, 'collectstatic')
 
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False)

@@ -1,0 +1,12 @@
+{% extends 'gallery/base.html' %}
+{% load static %}
+{% block title %}Down for maintenance — BlaqVibes{% endblock %}
+{% block body %}
+<div style="max-width:500px;margin:80px auto;text-align:center;padding:0 20px">
+  <img src="{% static 'branding/error-fork.png' %}" alt="" style="width:120px;height:120px;opacity:.6;margin-bottom:20px">
+  <h1 style="font-size:28px;margin:0 0 10px">Down for maintenance</h1>
+  <p style="color:var(--muted);font-size:14px;line-height:1.6">
+    We're making BlaqVibes better. Back in a few minutes.
+  </p>
+</div>
+{% endblock %}

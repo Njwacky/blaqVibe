@@ -159,10 +159,17 @@ class AppProject(models.Model):
             # Auto language detect (crush silently). Reads through the
             # storage API so it works on local disk AND S3/R2 — FieldFile.path
             # raises NotImplementedError on remote backends.
+            # 5 Whys: Why check the toggle here and not in the upload form?
+            # save() is the single entry point for every code path that
+            # creates or updates a project (publish, edit, fork, git push).
+            # Gating here means every path respects the user's choice. Why
+            # default True? Auto-detect is the primary discovery signal for
+            # trading; manual tech_stack only is a power-user opt-out.
             if self.zip_file and not self.language_stats:
                 try:
-                    from .language import detect_languages_from_field
-                    self.language_stats = detect_languages_from_field(self.zip_file)
+                    if getattr(self.owner.profile, 'auto_language', True):
+                        from .language import detect_languages_from_field
+                        self.language_stats = detect_languages_from_field(self.zip_file)
                 except Exception: pass
         except Exception:
             import logging

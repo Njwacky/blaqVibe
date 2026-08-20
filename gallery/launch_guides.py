@@ -5,7 +5,7 @@ linked official documentation and placeholders are visibly marked. Dashboard wor
 and requirements should be rechecked against those sources when this file is updated.
 """
 
-LAST_REVIEWED = "13 August 2026"
+LAST_REVIEWED = "20 August 2026"
 
 CATEGORIES = (
     {"slug": "all", "label": "All destinations"},
@@ -27,6 +27,7 @@ COMMON_SAFETY = (
 LAUNCH_GUIDES = (
     {
         "slug": "cloudflare-pages",
+        "last_reviewed": "2026-08-20",
         "category": "web",
         "icon": "gallery/icons/launch/brands/cloudflare.svg",
         "name": "Cloudflare Pages",
@@ -82,6 +83,7 @@ LAUNCH_GUIDES = (
     },
     {
         "slug": "vercel-web",
+        "last_reviewed": "2026-08-20",
         "category": "web",
         "icon": "gallery/icons/launch/brands/vercel.svg",
         "name": "Vercel",
@@ -140,6 +142,7 @@ LAUNCH_GUIDES = (
     },
     {
         "slug": "render-web-service",
+        "last_reviewed": "2026-08-20",
         "category": "web",
         "icon": "gallery/icons/launch/brands/render.svg",
         "name": "Render",
@@ -194,6 +197,7 @@ LAUNCH_GUIDES = (
     },
     {
         "slug": "installable-pwa",
+        "last_reviewed": "2026-08-20",
         "category": "web",
         "icon": "gallery/icons/launch/brands/pwa.svg",
         "name": "Installable PWA",
@@ -241,6 +245,7 @@ LAUNCH_GUIDES = (
     },
     {
         "slug": "docker-hub",
+        "last_reviewed": "2026-08-20",
         "category": "distribution",
         "icon": "gallery/icons/launch/brands/docker.svg",
         "name": "Docker Hub",
@@ -294,6 +299,7 @@ LAUNCH_GUIDES = (
     },
     {
         "slug": "google-play",
+        "last_reviewed": "2026-08-20",
         "category": "mobile",
         "icon": "gallery/icons/launch/brands/google-play.svg",
         "name": "Google Play",
@@ -348,6 +354,7 @@ LAUNCH_GUIDES = (
     },
     {
         "slug": "apple-app-store",
+        "last_reviewed": "2026-08-20",
         "category": "mobile",
         "icon": "gallery/icons/launch/brands/app-store.svg",
         "name": "App Store",
@@ -402,6 +409,7 @@ LAUNCH_GUIDES = (
     },
     {
         "slug": "itchio",
+        "last_reviewed": "2026-08-20",
         "category": "games",
         "icon": "gallery/icons/launch/brands/itchio.svg",
         "name": "itch.io",
@@ -454,6 +462,7 @@ LAUNCH_GUIDES = (
     },
     {
         "slug": "steam",
+        "last_reviewed": "2026-08-20",
         "category": "games",
         "icon": "gallery/icons/launch/brands/steam.svg",
         "name": "Steam",
@@ -510,6 +519,7 @@ LAUNCH_GUIDES = (
     },
     {
         "slug": "microsoft-store",
+        "last_reviewed": "2026-08-20",
         "category": "desktop",
         "icon": "gallery/icons/launch/brands/microsoft-store.svg",
         "name": "Microsoft Store",
@@ -564,6 +574,7 @@ LAUNCH_GUIDES = (
     },
     {
         "slug": "macos-direct",
+        "last_reviewed": "2026-08-20",
         "category": "desktop",
         "icon": "gallery/icons/launch/brands/apple.svg",
         "name": "macOS direct",
@@ -617,6 +628,7 @@ LAUNCH_GUIDES = (
     },
     {
         "slug": "flathub",
+        "last_reviewed": "2026-08-20",
         "category": "desktop",
         "icon": "gallery/icons/launch/brands/flathub.svg",
         "name": "Flathub",
@@ -682,6 +694,7 @@ LAUNCH_GUIDES = (
     },
     {
         "slug": "chrome-web-store",
+        "last_reviewed": "2026-08-20",
         "category": "distribution",
         "icon": "gallery/icons/launch/brands/chrome-web-store.svg",
         "name": "Chrome Web Store",
@@ -731,6 +744,508 @@ LAUNCH_GUIDES = (
             {"label": "Chrome Web Store: program policies", "url": "https://developer.chrome.com/docs/webstore/program-policies"},
         ),
     },
+    {
+        "slug": "aws-s3-cloudfront",
+        "last_reviewed": "2026-08-20",
+        "category": "web",
+        "icon": "gallery/icons/launch/brands/aws.svg",
+        "name": "AWS S3 + CloudFront",
+        "pace": "More setup",
+        "eyebrow": "Static web on AWS",
+        "title": "Host a static site on AWS S3 with CloudFront",
+        "summary": "For an HTML/CSS/JavaScript site or a single-page app that you want to serve through a global CDN with an optional custom domain and HTTPS.",
+        "result": "A public HTTPS CloudFront distribution that serves files from an S3 bucket",
+        "artifact": "A build-output folder containing index.html and its assets",
+        "time": "More setup than Cloudflare Pages, but offers full AWS infrastructure access",
+        "good_for": ("Single-page apps", "Landing pages", "Static React/Vue builds", "Sites that need AWS IAM integration"),
+        "not_for": "A running server process, API backend, or any application that needs server-side code. Use AWS Lambda or a server host instead.",
+        "prerequisites": (
+            "An AWS account with programmatic access keys configured.",
+            "The AWS CLI installed and authenticated (see official docs).",
+            "A tested build-output folder with a top-level index.html.",
+        ),
+        "steps": (
+            {
+                "title": "Create the S3 bucket",
+                "body": "Open the S3 console or use the AWS CLI. Choose a globally unique bucket name, an AWS Region close to your audience, and block all public access—CloudFront will authenticate as a known origin, not as an anonymous visitor. Enable Static website hosting in Properties and note the endpoint URL.",
+                "commands": (
+                    {"label": "Create the bucket (CLI)", "text": "aws s3api create-bucket --bucket <BUCKET_NAME> --region <REGION> --create-bucket-configuration LocationConstraint=<REGION>", "replace": "Replace bucket name and region."},
+                ),
+            },
+            {
+                "title": "Upload the production build",
+                "body": "Sync your built output folder to the S3 bucket. The sync command only uploads changed files on subsequent runs, making updates fast.",
+                "commands": (
+                    {"label": "Upload to S3", "text": "aws s3 sync <BUILD_OUTPUT_DIRECTORY> s3://<BUCKET_NAME>/ --delete", "replace": "Replace build directory and bucket name."},
+                ),
+            },
+            {
+                "title": "Create a CloudFront distribution",
+                "body": "In the CloudFront console choose Create Distribution. For the Origin, select your S3 bucket. CloudFront can use Origin Access Control (OAC) so visitors reach S3 only through CloudFront—this keeps the bucket private. Leave the other defaults for now and create the distribution. It takes about 5–10 minutes to deploy.",
+            },
+            {
+                "title": "Attach a custom domain and HTTPS (recommended)",
+                "body": "In the CloudFront distribution Settings, add a custom domain and request or import a TLS certificate through AWS Certificate Manager in us-east-1. Update your DNS provider with the CloudFront distribution domain name (CNAME or ALIAS record). Wait for propagation.",
+            },
+            {
+                "title": "Test and iterate",
+                "body": "Open the CloudFront domain name in a private browser window. Test URLs, hard refreshes, error pages, and mobile layout. For updates, run the s3 sync command again—CloudFront caches the old files for a few minutes by default, so either wait for the TTL or create an invalidation for the changed paths.",
+                "commands": (
+                    {"label": "Invalidate paths (optional)", "text": "aws cloudfront create-invalidation --distribution-id <DISTRIBUTION_ID> --paths \"/*\"", "replace": "Replace distribution ID."},
+                ),
+
+            },
+        ),
+        "checklist": ("CloudFront distribution is deployed and returns 200", "Custom domain resolves over HTTPS if configured", "S3 bucket stays private (public access blocked)", "File updates reach visitors after invalidation / TTL expiry"),
+        "sources": (
+            {"label": "AWS: Host a static site with S3 and CloudFront", "url": "https://docs.aws.amazon.com/AmazonS3/latest/userguide/WebsiteHosting.html"},
+            {"label": "AWS: Configuring CloudFront OAC", "url": "https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-s3.html"},
+            {"label": "AWS CLI: s3 sync", "url": "https://docs.aws.amazon.com/cli/latest/reference/s3/sync.html"},
+
+        ),
+    },
+    {
+        "slug": "azure-static-web-apps",
+        "last_reviewed": "2026-08-20",
+        "category": "web",
+        "icon": "gallery/icons/launch/brands/azure.svg",
+        "name": "Azure Static Web Apps",
+        "pace": "Fast",
+        "eyebrow": "Static + serverless on Azure",
+        "title": "Deploy a web application on Azure Static Web Apps",
+        "summary": "For a frontend app with an optional serverless API (Azure Functions) that is built from a Git repository and deployed automatically.",
+        "result": "A public HTTPS Azure Static Web Apps URL, with an optional custom domain and integrated API",
+        "artifact": "A Git repository with a framework configuration (or a prebuilt output folder) and an optional api/ directory.",
+        "time": "Fast when your framework is supported by Azure's build configuration",
+        "good_for": ("Static sites", "SPA frontends with a serverless API", "React/Vue/Angular apps", "Documentation sites"),
+        "not_for": "An always-on running worker or backend process that cannot be expressed in a serverless function. Use Azure App Service for that.",
+        "prerequisites": (
+            "An Azure subscription and a GitHub account to link.",
+            "A Git repository containing the source (or build output for framework-less sites).",
+            "Your project's real build commands (npm run build, etc.).",
+        ),
+        "steps": (
+            {
+                "title": "Push a ready repository",
+                "body": "Commit your source, lock files, and build configuration. If your framework needs a build step, make sure it is detectable (Azure recognises package.json, angular.json, etc.). Without a framework, commit the built output in a folder such as /dist.",
+            },
+            {
+                "title": "Create the Static Web App in Azure",
+                "body": "In the Azure portal, choose Create a resource → Static Web App. Fill in the subscription, resource group, name, and region. Select your Git provider, authenticate, and choose the repository and branch. Set the Build Presets to your framework (or 'Custom' for manual configuration). Enter the App location (folder with source code—usually /), API location (folder with serverless functions—optional), and Output location (the build output folder—e.g., /dist). Review and create.",
+            },
+            {
+                "title": "Wait for the initial build and deploy",
+                "body": "Azure clones the repository and runs the configured build on every push to the chosen branch. The first deployment takes a few minutes. Open the generated URL from the Azure portal—it begins with a random suffix and ends with .azurestaticapps.net.",
+            },
+            {
+                "title": "Add environment variables and API configuration",
+                "body": "In the portal, go to Configuration and add environment variables needed by your app or serverless API. These are injected at build time and runtime—do not commit them to the repository.",
+            },
+            {
+                "title": "Add a custom domain and production-ready steps",
+                "body": "In the portal, choose Custom domains and add a verified domain. Set up 404 and routing rules via the staticwebapps.config.json file in the front of your app. Enable authentication providers by choosing Authentication in the portal. Monitor deploys and staging environments in the portal's Environments tabs.",
+            },
+        ),
+        "checklist": ("Azure portal reports successful deployment", "Default URL returns 200 and loads correctly", "Custom domain resolves over HTTPS if configured", "API endpoints (if any) respond from the /api/ route", "Environment variables are configured in the portal, never in source"),
+        "sources": (
+            {"label": "Azure Static Web Apps: overview", "url": "https://learn.microsoft.com/en-us/azure/static-web-apps/overview"},
+            {"label": "Azure Static Web Apps: build configuration", "url": "https://learn.microsoft.com/en-us/azure/static-web-apps/build-configuration"},
+            {"label": "Azure Static Web Apps: custom domain", "url": "https://learn.microsoft.com/en-us/azure/static-web-apps/custom-domain"},
+        ),
+    },
+    {
+        "slug": "pythonanywhere",
+        "last_reviewed": "2026-08-20",
+        "category": "web",
+        "icon": "gallery/icons/launch/brands/pythonanywhere.svg",
+        "name": "PythonAnywhere",
+        "pace": "More setup",
+        "eyebrow": "Python web apps",
+        "title": "Host Django, Flask, or other Python web apps on PythonAnywhere",
+        "summary": "For a Python web application (Django, Flask, FastAPI, etc.) that needs a persistent WSGI runtime, a MySQL or PostgreSQL database, and scheduled tasks.",
+        "result": "A publicly accessible HTTPS URL (your-username.pythonanywhere.com) with a working Python application",
+        "artifact": "A Git repository or a project folder with a WSGI configuration file",
+        "time": "Clone the repository, configure the web app, set up the database, and test—usually under an hour for a ready project.",
+        "good_for": ("Django", "Flask", "FastAPI", "Python CLI tools exposed as web apps", "APIs", "Python data dashboards"),
+        "not_for": "Static HTML sites (cheaper on Cloudflare Pages or AWS S3), non-Python apps, or applications that need custom system packages requiring root access.",
+        "prerequisites": (
+            "A PythonAnywhere account (free tier for testing, paid for custom domain and more resources).",
+            "A Python project with a list of dependencies (requirements.txt for pip).",
+            "Your real WSGI application callable (wsgi.py for Django, app for Flask, etc.).",
+        ),
+        "steps": (
+            {
+                "title": "Upload the project",
+                "body": "The simplest path is to push your code to a public Git repository (GitHub, GitLab) and clone it from the PythonAnywhere Bash console. Alternatively, you can use the Files tab to upload your project directory via the browser. Create a virtual environment: mkvirtualenv --python=python3.12 myenv, then pip install -r requirements.txt.",
+                "commands": (
+                    {"label": "Clone from GitHub", "text": "git clone https://github.com/<USER>/<PROJECT>.git", "replace": "Replace user and project."},
+                    {"label": "Create virtualenv", "text": "mkvirtualenv --python=/usr/bin/python3.12 <ENV_NAME>", "replace": "Replace environment name."},
+                    {"label": "Install dependencies", "text": "pip install -r requirements.txt"},
+                ),
+            },
+            {
+                "title": "Create or update the database",
+                "body": "In the Databases tab, create a MySQL or PostgreSQL database and note the connection details. Run your migrations from the Bash console: python manage.py migrate (for Django) or whatever your framework uses. Set the DATABASE_URL or individual credentials in the Web tab's Environment variables section—never in source.",
+                "commands": (
+                    {"label": "Run Django migrations", "text": "python manage.py migrate"},
+                ),
+            },
+            {
+                "title": "Configure the web app in the dashboard",
+                "body": "In the Web tab, choose Add a new web app, enter your domain name (username.pythonanywhere.com by default), select the Python version that matches your virtualenv, and confirm. Then set the path to your project's source code (e.g., /home/<username>/<project>), the virtualenv path, and the WSGI configuration file path—the dashboard provides a starter template for each framework.",
+            },
+            {
+                "title": "Set static files and environment variables",
+                "body": "In the Web tab, under Static files, add entries for your static and media directories. In the Environment variables section, add every secret (secret key, API keys, database credentials) the app needs at runtime. Never put these in .env or source code.",
+            },
+            {
+                "title": "Reload and test",
+                "body": "Click the green Reload button. PythonAnywhere restarts the WSGI process with the new configuration. Open your site domain in a browser. If it returns a 500, look at the Error log link on the same Web tab—every Python traceback appears there. Fix the error, reload, and test again.",
+            },
+        ),
+        "checklist": ("Web app reloads without 500", "Static files (CSS, JS, images) load on the public URL", "Database migrations are up to date", "Environment variables are set only in the dashboard, not in source"),
+        "sources": (
+            {"label": "PythonAnywhere: create a web app", "url": "https://help.pythonanywhere.com/pages/WebAppBasics"},
+            {"label": "PythonAnywhere: uploading and downloading files", "url": "https://help.pythonanywhere.com/pages/UploadingAndDownloadingFiles"},
+            {"label": "PythonAnywhere: deploy existing Django project", "url": "https://help.pythonanywhere.com/pages/DeployExistingDjangoProject"},
+        ),
+    },
+    {
+        "slug": "netlify",
+        "last_reviewed": "2026-08-20",
+        "category": "web",
+        "icon": "gallery/icons/launch/brands/netlify.svg",
+        "name": "Netlify",
+        "pace": "Fast",
+        "eyebrow": "Static sites & JAMstack",
+        "title": "Deploy a static site or JAMstack app on Netlify",
+        "summary": "For an HTML/CSS/JavaScript site or a framework build (React, Vue, Svelte, Eleventy) with Git-based continuous deploys, optional serverless functions, and forms.",
+        "result": "A public HTTPS Netlify URL (site-name.netlify.app) with automatic deploys from Git",
+        "artifact": "A Git repository, or a prebuilt folder for drag-and-drop deploys",
+        "time": "Fast for static sites; a little longer when functions or a build step are involved",
+        "good_for": ("Static sites", "JAMstack apps", "React/Vue/Svelte builds", "Serverless functions", "Netlify Forms"),
+        "not_for": "An always-running server process or an app that needs persistent local state — use a server host instead.",
+        "prerequisites": (
+            "A Netlify account.",
+            "Project source in a Git repository (GitHub, GitLab, Bitbucket), or a tested build-output folder.",
+            "Your project's real build command and publish directory, if it has a build step.",
+        ),
+        "steps": (
+            {
+                "title": "Build and test the deployable output locally",
+                "body": "Run the documented production build and fix errors. Note the output folder (for example dist/ or build/) and confirm index.html is at its top level before touching the dashboard.",
+            },
+            {
+                "title": "Import from Git or drag-and-drop",
+                "body": "Choose Add new site → Import an existing project to connect a Git repository — every push to the selected branch then deploys automatically. Alternatively drag a tested build-output folder onto the dashboard for a one-off deploy.",
+            },
+            {
+                "title": "Configure build settings and environment variables",
+                "body": "In Site configuration → Build & deploy, set the build command, publish directory, and Node version if your framework needs one. Add secrets as environment variables in Site settings — never in source files.",
+            },
+            {
+                "title": "Deploy manually with the Netlify CLI (optional)",
+                "body": "The CLI is useful for testing a deploy before pushing to the branch. The first command logs in; the second creates a draft URL you can share privately; the third promotes that deploy to production.",
+                "commands": (
+                    {"label": "Log in to Netlify", "text": "netlify login"},
+                    {"label": "Create a draft deploy", "text": "netlify deploy"},
+                    {"label": "Deploy to production", "text": "netlify deploy --prod"},
+                ),
+            },
+            {
+                "title": "Verify, add a domain, and wire redirects",
+                "body": "Open the generated netlify.app URL in a private browser window and test navigation, forms, and mobile layout. Add a custom domain under Domain management, and place redirects and headers in netlify.toml or a _redirects file in the publish directory. If you use serverless functions, test them under the /.netlify/functions/ or /api/ path.",
+            },
+        ),
+        "checklist": ("Site loads over HTTPS on the generated URL", "Build succeeds in the dashboard after a push", "Secrets live only in Site settings", "Redirects and headers behave in production", "Custom domain resolves over HTTPS, if configured"),
+        "sources": (
+            {"label": "Netlify Docs: Get started", "url": "https://docs.netlify.com/start/choose-your-path/"},
+            {"label": "Netlify Docs: Create deploys", "url": "https://docs.netlify.com/deploy/create-deploys/"},
+            {"label": "Netlify CLI: get started", "url": "https://docs.netlify.com/api-and-cli-guides/cli-guides/get-started-with-cli/"},
+        ),
+    },
+    {
+        "slug": "supabase",
+        "last_reviewed": "2026-08-20",
+        "category": "web",
+        "icon": "gallery/icons/launch/brands/supabase.svg",
+        "name": "Supabase",
+        "pace": "More setup",
+        "eyebrow": "Backend as a service",
+        "title": "Build and ship a full-stack app on Supabase",
+        "summary": "For an app that needs a Postgres database, authentication, storage, realtime, and edge functions without running your own servers.",
+        "result": "A managed Postgres database with an auto-generated REST API, Auth, Storage, Realtime, and deployed Edge Functions",
+        "artifact": "A project with SQL migrations, auth configuration, and optionally edge functions",
+        "time": "The managed backend is quick to stand up; the CLI migration workflow takes a bit longer",
+        "good_for": ("Postgres-backed apps", "Email/OTP/OAuth authentication", "File storage", "Realtime subscriptions", "Edge functions"),
+        "not_for": "Long-running custom server processes or heavy background workers — use a server host or worker platform for those.",
+        "prerequisites": (
+            "A Supabase account and a new project (you get a project URL and anon key).",
+            "The Supabase CLI installed (see the official CLI docs).",
+            "A database schema you can express as SQL migrations, or the willingness to author them.",
+        ),
+        "steps": (
+            {
+                "title": "Create the project in the Supabase dashboard",
+                "body": "Create a new project and copy the project URL and anon (public) key from Settings → API. The service_role key stays secret and belongs only in server-side code — never in a browser bundle.",
+            },
+            {
+                "title": "Install and link the Supabase CLI",
+                "body": "Initialise a supabase/ folder in the repository, then link it to the remote project. The project ref appears in the dashboard URL (supabase.com/dashboard/project/<ref>).",
+                "commands": (
+                    {"label": "Initialise the project", "text": "supabase init"},
+                    {"label": "Link to your remote project", "text": "supabase link --project-ref <PROJECT_REF>", "replace": "Replace <PROJECT_REF> with the ref from the dashboard URL."},
+                ),
+            },
+            {
+                "title": "Push your schema as migrations",
+                "body": "Author or capture schema changes as SQL files in supabase/migrations, then push them to the remote database. Migrations make the schema reviewable and rollback-able, unlike hand-editing the dashboard.",
+                "commands": (
+                    {"label": "Push migrations to the remote database", "text": "supabase db push"},
+                ),
+            },
+            {
+                "title": "Configure Auth, Storage, and Row Level Security",
+                "body": "Enable providers under Authentication (email, OTP, OAuth). Set storage buckets and their policies. Turn on RLS on every table so the anon key cannot read rows it should not — RLS is the difference between 'hosted Postgres' and 'leaked database'.",
+            },
+            {
+                "title": "Deploy Edge Functions and wire the frontend",
+                "body": "Write functions under supabase/functions, deploy them, and put the project URL plus anon key in the frontend's environment variables. Test sign-up, login, reads, and writes end-to-end with the anon key only.",
+                "commands": (
+                    {"label": "Deploy an edge function", "text": "supabase functions deploy <FUNCTION_NAME>", "replace": "Replace <FUNCTION_NAME>."},
+                ),
+            },
+        ),
+        "checklist": ("Project URL and anon key are in env vars, never in source", "Migrations are pushed and idempotent", "RLS is enabled on every table", "Auth providers work end-to-end", "Edge functions deploy cleanly and use only the anon key"),
+        "sources": (
+            {"label": "Supabase Docs: Getting started", "url": "https://supabase.com/docs/guides/getting-started"},
+            {"label": "Supabase Docs: Database", "url": "https://supabase.com/docs/guides/database/overview"},
+            {"label": "Supabase Docs: Edge Functions", "url": "https://supabase.com/docs/guides/functions"},
+            {"label": "Supabase CLI reference", "url": "https://supabase.com/docs/guides/local-development"},
+        ),
+    },
+    {
+        "slug": "digitalocean-app-platform",
+        "last_reviewed": "2026-08-20",
+        "category": "web",
+        "icon": "gallery/icons/launch/brands/digitalocean.svg",
+        "name": "DigitalOcean App Platform",
+        "pace": "More setup",
+        "eyebrow": "Managed app hosting",
+        "title": "Deploy a web app on DigitalOcean App Platform",
+        "summary": "For a web app or API deployed from a Git branch with managed HTTPS, autoscaling, and optional managed databases.",
+        "result": "A public HTTPS app URL (app-name.ondigitalocean.app), or a custom domain",
+        "artifact": "A Git repository (GitHub or GitLab) or a container image",
+        "time": "Moderate — connect a repo, define the build/run command, and deploy",
+        "good_for": ("Django/Rails/Node/PHP apps", "APIs", "Static frontends with serverless functions", "Managed Postgres/Redis"),
+        "not_for": "Workloads that need persistent local disk beyond the ephemeral filesystem — use Droplets with Volumes for that.",
+        "prerequisites": (
+            "A DigitalOcean account with a payment method on file.",
+            "App source in a Git repository, or a container image on a registry.",
+            "A production start command that binds to 0.0.0.0 and reads the PORT environment variable.",
+        ),
+        "steps": (
+            {
+                "title": "Prove the production start path locally",
+                "body": "Run the server the way the platform will: bind to 0.0.0.0, read PORT from the environment, and confirm a fresh checkout builds and starts. This catches the most common deploy failures before you ever open the dashboard.",
+            },
+            {
+                "title": "Create the app from source",
+                "body": "In App Platform choose Create App, connect your GitHub or GitLab account, and select the repository and branch. App Platform detects common runtimes (Django, Rails, Node, PHP) and proposes a configuration.",
+            },
+            {
+                "title": "Configure the service",
+                "body": "Set the build command, the run command, and the HTTP port your server listens on. Choose the instance size and autoscaling policy. Leave the deploy policy on automatic so every push to the branch deploys.",
+            },
+            {
+                "title": "Add environment variables and a managed database",
+                "body": "Put secrets in the app's Environment Variables section — never in source. Create a managed Postgres or Redis from the dashboard and connect it; App Platform injects the connection string into the environment.",
+            },
+            {
+                "title": "Deploy, verify, and attach a custom domain",
+                "body": "Trigger a deploy and open the generated ondigitalocean.app URL in a private window. Test sign-up, database writes, restarts, and error pages. Then add a custom domain under Settings → Domains; certificates are provisioned automatically.",
+            },
+        ),
+        "checklist": ("App deploys and returns 200 on the generated URL", "Server binds to 0.0.0.0 and PORT", "Secrets exist only in environment variables", "Database survives a redeploy", "Custom domain serves over HTTPS, if configured"),
+        "sources": (
+            {"label": "DigitalOcean Docs: App Platform", "url": "https://docs.digitalocean.com/products/app-platform/"},
+            {"label": "DigitalOcean Docs: App Platform getting started", "url": "https://docs.digitalocean.com/products/app-platform/getting-started/"},
+            {"label": "DigitalOcean Docs: App Platform concepts", "url": "https://docs.digitalocean.com/products/app-platform/concepts/"},
+        ),
+    },
+    {
+        "slug": "railway",
+        "last_reviewed": "2026-08-20",
+        "category": "web",
+        "icon": "gallery/icons/launch/brands/railway.svg",
+        "name": "Railway",
+        "pace": "Fast",
+        "eyebrow": "Full-stack from Git",
+        "title": "Deploy a web app on Railway",
+        "summary": "For a backend or full-stack app deployed straight from a GitHub repo with auto-deploys, managed databases, and simple scaling.",
+        "result": "A public HTTPS Railway URL (railway.app domain or a custom domain)",
+        "artifact": "A Git repository; Railway builds with Nixpacks or a Dockerfile",
+        "time": "Fast — link a repo, let Railway detect the build, deploy",
+        "good_for": ("Node/Python/Ruby/Go backends", "Django and full-stack apps", "Managed Postgres/Redis", "CRON jobs"),
+        "not_for": "Static frontends only (cheaper on a static host) or GPU-heavy workloads.",
+        "prerequisites": (
+            "A Railway account.",
+            "A project in a Git repository with a start command (or a Dockerfile).",
+            "Confirmation that the app reads the PORT environment variable.",
+        ),
+        "steps": (
+            {
+                "title": "Prove the app starts locally with PORT",
+                "body": "Run the production server locally with PORT set. Fix anything that hardcodes a port or binds only to 127.0.0.1 — Railway injects PORT and expects the app to listen on 0.0.0.0.",
+            },
+            {
+                "title": "Create a project and deploy from GitHub",
+                "body": "Choose New Project → Deploy from GitHub repo and select the repository. Railway detects the runtime with Nixpacks or uses your Dockerfile, then builds and deploys automatically on pushes.",
+            },
+            {
+                "title": "Set the start command and environment variables",
+                "body": "In the service's Variables tab add every secret and any non-default start command. Save, and Railway redeploys with the new environment. Keep secrets out of the repository.",
+            },
+            {
+                "title": "Add a database",
+                "body": "Choose New → Database → Postgres or Redis. Railway injects the connection URL into your app's environment automatically, so no manual host/port configuration is needed.",
+            },
+            {
+                "title": "Test, attach a domain, and watch logs",
+                "body": "Open the generated URL in a private window and test database-backed flows, restarts, and error pages. Add a custom domain under the service's Settings tab. Use the Deployments and Logs tabs to diagnose failures.",
+            },
+        ),
+        "checklist": ("App responds on the generated URL over HTTPS", "Start command is explicit in the service config", "Secrets live in service variables, not source", "Database connection survives a redeploy", "Custom domain resolves, if configured"),
+        "sources": (
+            {"label": "Railway Docs", "url": "https://docs.railway.com/"},
+            {"label": "Railway: deploy a Django app", "url": "https://docs.railway.com/guides/django"},
+            {"label": "Railway CLI reference", "url": "https://docs.railway.com/cli"},
+            {"label": "Railway: deployments", "url": "https://docs.railway.com/quick-start"},
+        ),
+    },
+    {
+        "slug": "fly-io",
+        "last_reviewed": "2026-08-20",
+        "category": "web",
+        "icon": "gallery/icons/launch/brands/fly-io.svg",
+        "name": "Fly.io",
+        "pace": "More setup",
+        "eyebrow": "Containers near users",
+        "title": "Run a containerized app on Fly.io",
+        "summary": "For a Dockerized backend or full-stack app that runs as containers in regions close to its users, with TLS and scaling built in.",
+        "result": "A public HTTPS Fly.io app URL (app-name.fly.dev)",
+        "artifact": "A Dockerfile, or a project Fly.io can build (fly launch generates what is missing)",
+        "time": "Moderate — fly launch generates the config, fly deploy ships it",
+        "good_for": ("Dockerized apps", "Realtime/WebSocket apps", "Multi-region deploys", "Postgres/Redis sidecars"),
+        "not_for": "Static sites without a server process (use a static host) or apps needing persistent disk beyond Fly Volumes.",
+        "prerequisites": (
+            "A Fly.io account.",
+            "A project Fly.io can build — ideally a Dockerfile — and the flyctl CLI installed.",
+            "A plan for state: Fly Volumes or a managed database, since instance filesystems are ephemeral.",
+        ),
+        "steps": (
+            {
+                "title": "Install the fly CLI and authenticate",
+                "body": "Install flyctl (the fly command) using the official instructions, then authenticate. The CLI handles everything else in this guide.",
+                "commands": (
+                    {"label": "Sign in to Fly.io", "text": "fly auth login"},
+                ),
+            },
+            {
+                "title": "Launch the app",
+                "body": "Run fly launch in the project directory. It asks for an app name and primary region, detects the runtime, writes a fly.toml, and may generate a Dockerfile. Choose whether to create a Postgres or Redis database now or later.",
+                "commands": (
+                    {"label": "Generate fly.toml and deploy scaffold", "text": "fly launch"},
+                ),
+            },
+            {
+                "title": "Configure secrets and the start command",
+                "body": "Review fly.toml: the internal port, [env] section, and the app's start command. Put every secret in fly secrets — never in the image or repository — and redeploy.",
+                "commands": (
+                    {"label": "Set a secret", "text": "fly secrets set <KEY>=<VALUE>", "replace": "Replace <KEY> and <VALUE>."},
+                ),
+            },
+            {
+                "title": "Deploy",
+                "body": "Run fly deploy to build and ship the image. Watch the console for build and health-check output; a failed health check rolls the deploy back instead of serving a broken app.",
+                "commands": (
+                    {"label": "Deploy the app", "text": "fly deploy"},
+                ),
+            },
+            {
+                "title": "Verify, scale, and attach a custom domain",
+                "body": "Open the app-name.fly.dev URL in a private window. Test restart behavior and that data survives a redeploy (via a volume or managed database). Scale with fly scale count or fly scale vm, and map a custom domain with a TLS certificate.",
+                "commands": (
+                    {"label": "Add a custom domain", "text": "fly certs add <DOMAIN>", "replace": "Replace <DOMAIN>."},
+                ),
+            },
+        ),
+        "checklist": ("fly deploy completes and the app responds on the .fly.dev URL", "Secrets are set with fly secrets, never in the image", "State survives a redeploy (volume or managed DB)", "Health checks pass", "Custom domain has a valid certificate, if configured"),
+        "sources": (
+            {"label": "Fly.io Docs", "url": "https://fly.io/docs/"},
+            {"label": "Fly.io: getting started", "url": "https://fly.io/docs/getting-started/"},
+            {"label": "Fly.io: secrets", "url": "https://fly.io/docs/apps/secrets/"},
+        ),
+    },
+    {
+        "slug": "google-cloud-run",
+        "last_reviewed": "2026-08-20",
+        "category": "web",
+        "icon": "gallery/icons/launch/brands/cloud-run.svg",
+        "name": "Google Cloud Run",
+        "pace": "More setup",
+        "eyebrow": "Serverless containers",
+        "title": "Deploy a containerized app on Google Cloud Run",
+        "summary": "For a stateless container that autoscales — even to zero — with pay-per-use billing. Good for APIs and web services.",
+        "result": "A public HTTPS Cloud Run service URL (service-name-hash.run.app)",
+        "artifact": "A Dockerfile, or source that Cloud Run's buildpacks can build",
+        "time": "Moderate — enable the API, deploy, configure scaling and secrets",
+        "good_for": ("Stateless APIs", "Web backends", "Event-driven services", "Autoscaling workloads"),
+        "not_for": "Long-running stateful processes or apps that need persistent local disk — use Compute Engine or GKE for those.",
+        "prerequisites": (
+            "A Google Cloud project with billing enabled.",
+            "The gcloud CLI installed, authenticated, and set to your project.",
+            "A stateless app that binds to the PORT provided and starts within the startup timeout.",
+        ),
+        "steps": (
+            {
+                "title": "Enable the Cloud Run API and set the project",
+                "body": "Point gcloud at the project that owns the service, then enable the Cloud Run API. Billing must be enabled on the project before the API accepts traffic.",
+                "commands": (
+                    {"label": "Set the active project", "text": "gcloud config set project <PROJECT_ID>", "replace": "Replace <PROJECT_ID>."},
+                    {"label": "Enable the Cloud Run API", "text": "gcloud services enable run.googleapis.com"},
+                ),
+            },
+            {
+                "title": "Deploy from source (buildpacks) or a Dockerfile",
+                "body": "The quickest path builds the container for you from source. gcloud prompts for a region and asks whether to allow unauthenticated invocations — choose 'y' for a public site, 'n' for a private API.",
+                "commands": (
+                    {"label": "Deploy a service from source", "text": "gcloud run deploy <SERVICE_NAME> --source .", "replace": "Replace <SERVICE_NAME>."},
+                ),
+            },
+            {
+                "title": "Set environment variables and secrets",
+                "body": "Update the service with its environment variables. Anything sensitive belongs in Secret Manager, referenced from the service config — never baked into the image or committed.",
+                "commands": (
+                    {"label": "Update environment variables", "text": "gcloud run services update <SERVICE_NAME> --set-env-vars KEY=VALUE", "replace": "Replace service name and KEY=VALUE pairs."},
+                ),
+            },
+            {
+                "title": "Configure scaling, CPU, and concurrency",
+                "body": "Set min and max instances, CPU allocation, and concurrency to match the workload. A deliberate max-instances cap is the cheapest insurance against a traffic spike turning into a large bill.",
+            },
+            {
+                "title": "Verify, attach a domain, and monitor",
+                "body": "Open the generated run.app URL in a private window and test cold starts and autoscaling. Map a custom domain under the service's Domain mappings, then watch Logs and Error Reporting for runtime failures.",
+            },
+        ),
+        "checklist": ("Service deploys and returns 200 on the run.app URL", "App binds to PORT and starts within the timeout", "Secrets come from Secret Manager, not the image", "Min/max instances are set deliberately", "Custom domain serves over HTTPS, if configured"),
+        "sources": (
+            {"label": "Cloud Run overview", "url": "https://cloud.google.com/run/docs/overview/what-is-cloud-run"},
+            {"label": "Cloud Run quickstart (build and deploy)", "url": "https://cloud.google.com/run/docs/quickstarts/build-and-deploy/python"},
+            {"label": "gcloud run deploy reference", "url": "https://cloud.google.com/sdk/gcloud/reference/run/deploy"},
+        ),
+    },
 )
 
 GUIDES_BY_SLUG = {guide["slug"]: guide for guide in LAUNCH_GUIDES}
@@ -743,11 +1258,11 @@ ARTIFACT_GROUPS = (
 )
 
 ARTIFACT_ROUTES = (
-    {"value": "static", "name": "Static site", "icon": "gallery/icons/launch/artifacts/static-site.svg", "group": "web", "label": "A folder with index.html", "guides": ("cloudflare-pages",), "note": "Static site or browser export"},
-    {"value": "frontend", "name": "Frontend app", "icon": "gallery/icons/launch/artifacts/frontend.svg", "group": "web", "label": "A frontend/framework repository", "guides": ("vercel-web", "cloudflare-pages"), "note": "Build on a web platform"},
-    {"value": "server", "name": "API / server", "icon": "gallery/icons/launch/artifacts/server.svg", "group": "web", "label": "An API/server app or app with a database", "guides": ("render-web-service", "docker-hub"), "note": "Needs a running service", "hint": "Docker Hub is a registry, not a host. Pair the image with a runtime such as Render."},
+    {"value": "static", "name": "Static site", "icon": "gallery/icons/launch/artifacts/static-site.svg", "group": "web", "label": "A folder with index.html", "guides": ("cloudflare-pages", "aws-s3-cloudfront", "netlify"), "note": "Static site or browser export"},
+    {"value": "frontend", "name": "Frontend app", "icon": "gallery/icons/launch/artifacts/frontend.svg", "group": "web", "label": "A frontend/framework repository", "guides": ("vercel-web", "cloudflare-pages", "azure-static-web-apps", "netlify"), "note": "Build on a web platform"},
+    {"value": "server", "name": "API / server", "icon": "gallery/icons/launch/artifacts/server.svg", "group": "web", "label": "An API/server app or app with a database", "guides": ("render-web-service", "pythonanywhere", "digitalocean-app-platform", "railway", "supabase", "docker-hub"), "note": "Needs a running service", "hint": "Docker Hub is a registry, not a host. Pair the image with a runtime such as Render."},
     {"value": "pwa", "name": "Installable PWA", "icon": "gallery/icons/launch/brands/pwa.svg", "group": "web", "label": "A hosted site plus web manifest", "guides": ("installable-pwa",), "note": "Add installability after hosting"},
-    {"value": "container", "name": "Container", "icon": "gallery/icons/launch/brands/docker.svg", "group": "web", "label": "A Dockerfile or container image", "guides": ("docker-hub", "render-web-service"), "note": "Registry plus a runtime host", "hint": "A registry stores images. Choose a separate runtime host to keep the app running."},
+    {"value": "container", "name": "Container", "icon": "gallery/icons/launch/brands/docker.svg", "group": "web", "label": "A Dockerfile or container image", "guides": ("docker-hub", "render-web-service", "railway", "fly-io", "google-cloud-run"), "note": "Registry plus a runtime host", "hint": "A registry stores images. Choose a separate runtime host to keep the app running."},
     {"value": "aab", "name": "Android app", "icon": "gallery/icons/launch/brands/android.svg", "group": "mobile", "label": "A signed Android .aab", "guides": ("google-play",), "note": "Google Play"},
     {"value": "apple", "name": "Apple app", "icon": "gallery/icons/launch/brands/apple.svg", "group": "mobile", "label": "An Xcode archive / Apple build", "guides": ("apple-app-store", "macos-direct"), "note": "Choose store or direct Mac distribution"},
     {"value": "webgame", "name": "Browser game", "icon": "gallery/icons/launch/artifacts/browser-game.svg", "group": "games", "label": "A browser game export", "guides": ("itchio", "cloudflare-pages"), "note": "Playable page or game storefront"},

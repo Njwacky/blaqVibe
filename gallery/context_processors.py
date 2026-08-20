@@ -23,9 +23,18 @@ def extras(request):
         nolo_backend = configured_ai_backend()
     except Exception:
         nolo_backend = 'heuristic'
+    # Site-level toggles that every template needs (pwa_enabled for the
+    # SW registration, etc.). Read once, available everywhere.
+    pwa_enabled = True
+    try:
+        from users.models import SiteSettings
+        pwa_enabled = SiteSettings.get().pwa_enabled
+    except Exception:
+        pass
     return {
         'unread_notifications': unread,
         'social_providers': social_providers,
         'paystack_enabled': paystack_enabled,
         'nolo_backend': nolo_backend,
+        'pwa_enabled': pwa_enabled,
     }
