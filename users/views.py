@@ -1,4 +1,5 @@
 from django.shortcuts import render, get_object_or_404, redirect
+from django.http import Http404
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
@@ -13,9 +14,20 @@ from django.utils.encoding import force_bytes, force_str
 from django.utils import timezone
 from datetime import datetime, timedelta
 from django_ratelimit.decorators import ratelimit
-from .models import MAX_PAYOUT_STARS, MIN_PAYOUT_STARS, Payout, Profile, Follow, SiteSettings, Tip
-from .forms import ProfileForm, TipForm
+from .models import MAX_PAYOUT_STARS, MIN_PAYOUT_STARS, Payout, Profile, Follow, SiteSettings, Tip, UsernameHistory
+from .forms import NameStyleForm, ProfileForm, RenameForm, TipForm
 from .payouts import PayoutError, payout_rate_label, request_payout as request_payout_hold
+from .rename import (
+    RENAME_COOLDOWN_DAYS,
+    RENAME_COST_STARS,
+    RENAME_RESERVE_DAYS,
+    STYLE_COST_STARS,
+    RenameError,
+    cooldown_remaining,
+    redirect_target_for_old_username,
+    rename_user,
+    set_name_style,
+)
 from gallery.models import AppProject
 from gallery.notify import notify
 
@@ -27,7 +39,18 @@ from gallery.notify import notify
 # indexed status column. Public pages are read hot — pay for them once.
 
 def profile_view(request, username):
-    user = get_object_or_404(User, username=username)
+    user = User.objects.filter(username=username).first()
+    if user is None:
+        # 5 Whys: why redirect instead of 404 for an old username? Every
+        # notification, comment mention and shared link embeds /u/<name>/.
+        # A rename must not vaporise months of inbound links; UsernameHistory
+        # is already the map, so this is one indexed lookup. Resolves to the
+        # LIVE username (not the stored new_username) so chained renames
+        # A→B→C land on C for free.
+        target = redirect_target_for_old_username(username)
+        if target is not None:
+            return redirect('profile_view', username=target.username)
+        raise Http404('No member with that username.')
     profile, _ = Profile.objects.get_or_create(user=user)
     is_own = request.user.is_authenticated and request.user == user
 
@@ -338,7 +361,126 @@ def activate_pro_trial(request):
 def settings_view(request):
     profile, _ = Profile.objects.get_or_create(user=request.user)
     site = SiteSettings.get() if profile.is_superadmin() else None
-    return render(request, 'users/settings.html', {'profile': profile, 'site': site})
+    # Identity panel: everything the PUBG-rule cards need to explain
+    # themselves. cooldown_days is None when a rename card is usable.
+    cooldown = cooldown_remaining(profile)
+    style_form = NameStyleForm(initial={
+        'name_font': profile.name_font,
+        'name_color': profile.name_color,
+        'name_size': profile.name_size,
+        'name_fx': profile.name_fx,
+    })
+    # The preview JS needs the same whitelists the renderer uses — passed as
+    # data, not code: no secrets, no user input, and json_script escapes it.
+    from .models import NAME_COLORS, NAME_FONTS, NAME_FX, NAME_SIZES
+    name_style_maps = {
+        'fonts': NAME_FONTS,
+        'colors': NAME_COLORS,
+        'sizes': NAME_SIZES,
+        'fx': NAME_FX,
+    }
+    return render(request, 'users/settings.html', {
+        'profile': profile,
+        'site': site,
+        'style_form': style_form,
+        'name_style_maps': name_style_maps,
+        'rename_cost': RENAME_COST_STARS,
+        'style_cost': STYLE_COST_STARS,
+        'cooldown_days': cooldown.days if cooldown else None,
+        'cooldown_hours': (cooldown.seconds // 3600) if cooldown else None,
+        'rename_cooldown_days': RENAME_COOLDOWN_DAYS,
+        'rename_reserve_days': RENAME_RESERVE_DAYS,
+        'rename_count': UsernameHistory.objects.filter(user=request.user).count(),
+    })
+
+
+@login_required
+@require_POST
+@ratelimit(key='user', rate='5/h', method='POST')
+def rename_username(request):
+    """Spend a rename card (Pro) or burn stars — users.rename is the only
+    writer of User.username after signup.
+
+    5 Whys: why 5/h when the 30-day cooldown already throttles? The ratelimit
+    guards the FAILURE path — a bot (or a bug) hammering the endpoint with
+    rejected candidates must not get 100 free validation oracle calls a
+    second (which usernames are taken? which are reserved?). Same shape as
+    git-token rotation: the cooldown limits success, the ratelimit limits
+    attempts.
+    """
+    form = RenameForm(request.POST)
+    if not form.is_valid():
+        for errors in form.errors.values():
+            for error in errors:
+                messages.error(request, error)
+        return redirect('settings')
+    try:
+        history = rename_user(request.user, form.cleaned_data['new_username'])
+    except RenameError as e:
+        messages.error(request, e.message)
+        return redirect('settings')
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('rename view crush')
+        messages.error(request, 'Rename failed — nothing was charged. Try again.')
+        return redirect('settings')
+    if history.method == 'pro':
+        messages.success(
+            request,
+            f'✓ Renamed to @{history.new_username} — Pro rename card, 0 ★ '
+            f'charged. Your old name @{history.old_username} stays reserved '
+            f'for {RENAME_RESERVE_DAYS} days and old links redirect here.',
+        )
+    else:
+        messages.success(
+            request,
+            f'✓ Renamed to @{history.new_username} — {history.cost_stars} ★ '
+            f'burned for the rename card. Your old name @{history.old_username} '
+            f'stays reserved for {RENAME_RESERVE_DAYS} days and old links '
+            f'redirect here.',
+        )
+    return redirect('settings')
+
+
+@login_required
+@require_POST
+@ratelimit(key='user', rate='10/h', method='POST')
+def set_name_style_view(request):
+    """Style the display name — free while Pro, else STYLE_COST_STARS ★
+    burned per change (users/rename.py holds the rules). 10/h: styling is
+    cheaper than renaming, so attempts are cheaper to probe; both stay far
+    below the wallet-moving endpoints (tip 20/h)."""
+    form = NameStyleForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, 'Pick a font, color, size and effect from the list.')
+        return redirect('settings')
+    try:
+        profile, changed = set_name_style(
+            request.user,
+            form.cleaned_data['name_font'],
+            form.cleaned_data['name_color'],
+            form.cleaned_data['name_size'],
+            form.cleaned_data['name_fx'],
+        )
+    except RenameError as e:
+        messages.error(request, e.message)
+        return redirect('settings')
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('name style view crush')
+        messages.error(request, 'Style change failed — nothing was charged. Try again.')
+        return redirect('settings')
+    if not changed:
+        messages.info(request, 'That is already your name style — nothing charged.')
+    elif profile.is_pro_active:
+        messages.success(request, '✓ Name styled — Pro perk, 0 ★ charged. Flex it.')
+    else:
+        messages.success(
+            request,
+            f'✓ Name styled — {STYLE_COST_STARS} ★ burned. It shows on your '
+            'profile, follower lists and tips.',
+        )
+    return redirect('settings')
 
 @login_required
 @require_POST

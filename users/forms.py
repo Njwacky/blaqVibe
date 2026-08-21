@@ -1,7 +1,19 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm, PasswordResetForm, SetPasswordForm
 from django.contrib.auth.models import User
-from .models import Profile
+from django.contrib.auth.validators import UnicodeUsernameValidator
+from .models import (
+    NAME_COLORS,
+    NAME_FONTS,
+    NAME_FX,
+    NAME_FX_LABELS,
+    NAME_FONT_LABELS,
+    NAME_SIZES,
+    NAME_SIZE_LABELS,
+    NAME_COLOR_LABELS,
+    Profile,
+)
+from .rename import RESERVED_USERNAMES
 from gallery.profanity import validate_public_text
 import bleach
 
@@ -128,6 +140,12 @@ class SignUpForm(UserCreationForm):
         username = (self.cleaned_data.get('username') or '').strip()
         if not username:
             raise forms.ValidationError("Username is required.")
+        if username.lower() in RESERVED_USERNAMES:
+            # 5 Whys: why here too, not just at rename? "admin"/"support" /
+            # "nolo" phishing works wherever the handle can appear, and
+            # signup is the FIRST place it can appear. One shared list
+            # (users/rename.py) gates both doors — no drift.
+            raise forms.ValidationError("That username is reserved.")
         return validate_public_text(username, allow_blank=False)
 
     def save(self, commit=True):
@@ -171,3 +189,68 @@ class StyledSetPasswordForm(SetPasswordForm):
         'autocomplete': 'new-password',
         'class': 'field-input',
     }))
+
+
+class RenameForm(forms.Form):
+    """The rename-card form. Format rules live here; money, cooldown and
+    reservation rules live in users.rename (the form cannot be tricked
+    into charging nobody, because it never charges — rename_user does).
+
+    5 Whys: why does the form NOT check uniqueness/reservation? Those
+    answers expire between render and POST. The form checks what cannot
+    drift (charset, length, language); rename_user re-checks everything
+    under the lock. One gate that matters, zero dead duplication.
+    """
+    new_username = forms.CharField(
+        max_length=150,
+        min_length=3,
+        widget=forms.TextInput(attrs={
+            'placeholder': 'new-username',
+            'autocomplete': 'off',
+            'class': 'field-input',
+        }),
+    )
+
+    def clean_new_username(self):
+        new = (self.cleaned_data.get('new_username') or '').strip()
+        if not new:
+            raise forms.ValidationError("Type the username you want.")
+        try:
+            UnicodeUsernameValidator()(new)
+        except Exception:
+            raise forms.ValidationError(
+                "Letters, numbers and @/./+/-/_ only — no spaces or symbols."
+            )
+        return validate_public_text(new, allow_blank=False)
+
+
+class NameStyleForm(forms.Form):
+    """Whitelist-only style picker. Choices are built FROM the models.NAME_*
+    dicts — the form can never offer, or accept, a slug the renderer does
+    not know. Anything else dies as a form error before the wallet moves."""
+
+    name_font = forms.ChoiceField(
+        widget=forms.Select(attrs={'class': 'field-input', 'data-style': 'font'}),
+        choices=lambda: [
+            (slug, NAME_FONT_LABELS.get(slug, slug)) for slug in NAME_FONTS
+        ],
+    )
+    name_color = forms.ChoiceField(
+        widget=forms.Select(attrs={'class': 'field-input', 'data-style': 'color'}),
+        choices=lambda: [
+            (slug, NAME_COLOR_LABELS.get(slug, slug)) for slug in NAME_COLORS
+        ],
+    )
+    name_size = forms.ChoiceField(
+        widget=forms.Select(attrs={'class': 'field-input', 'data-style': 'size'}),
+        choices=lambda: [
+            (slug, NAME_SIZE_LABELS.get(slug, slug)) for slug in NAME_SIZES
+        ],
+    )
+    name_fx = forms.ChoiceField(
+        widget=forms.Select(attrs={'class': 'field-input', 'data-style': 'fx'}),
+        choices=lambda: [
+            (slug, NAME_FX_LABELS.get(slug, slug)) for slug in NAME_FX
+        ],
+    )
+

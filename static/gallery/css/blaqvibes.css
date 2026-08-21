@@ -454,3 +454,40 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   .nav { padding: 10px 14px; }
 }
 @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.8)} }
+
+/* --- Styled display names (users/models.NAME_* whitelists) ----------------
+   5 Whys: why classes here and not inline styles? Animation needs
+   @keyframes, which an inline style attribute cannot carry; and classes are
+   versioned with the theme, respect prefers-reduced-motion, and work in
+   every context (header, follower lists, tips) with em-based scaling. */
+.styled-name { font-weight: 800; }
+.name-size-lg { font-size: 1.22em; }
+.name-size-xl { font-size: 1.5em; }
+.namefx-glow { text-shadow: 0 0 10px currentColor, 0 0 26px currentColor; }
+/* Anime shine: a light band sweeping across the letters. currentColor keeps
+   the chosen color while the band reads white — one class, any color. */
+.namefx-shine {
+  background: linear-gradient(100deg, currentColor 30%, #fff 50%, currentColor 70%);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: inherit;
+  animation: bv-name-shine 2.6s linear infinite;
+}
+@keyframes bv-name-shine { to { background-position: -200% 0; } }
+.namefx-chroma { animation: bv-name-chroma 6s linear infinite; }
+@keyframes bv-name-chroma { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
+/* Rainbow: animated gradient text — the loudest flex, same gate as the rest. */
+.namefx-rainbow {
+  background: linear-gradient(90deg, #f5c518, #ef4444, #7C3AED, #22d3ee, #34d399, #f5c518);
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: bv-name-rainbow 4s linear infinite;
+}
+@keyframes bv-name-rainbow { to { background-position: 300% 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .namefx-shine, .namefx-chroma, .namefx-rainbow { animation: none; }
+}
