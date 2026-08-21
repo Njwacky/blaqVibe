@@ -16,7 +16,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&amp;family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
 {# Version the layout styles explicitly as well as using Django's static tag. #}
 {# This prevents an older service worker cache from briefly restoring the old top navbar on reload. #}
-<link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=theme-colors-20260815">
+<link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=nav-icons-20260821">
 <link rel="stylesheet" href="{% static 'gallery/css/footer.css' %}?v=theme-colors-20260815">
 <script>
 /* Apply saved appearance and sidebar geometry before first paint. */
@@ -31,16 +31,35 @@ try{
 </script>
 <script src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
-<script src="{% static 'gallery/js/blaqvibes.js' %}?v=theme-colors-20260815" defer></script>
+<script src="{% static 'gallery/js/blaqvibes.js' %}?v=nav-icons-20260821" defer></script>
 {% block head %}{% endblock %}
 </head>
 <body>
+<svg aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden">
+  <symbol id="bv-ico-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4 12H2m20 0h-2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></symbol>
+  <symbol id="bv-ico-moon" viewBox="0 0 24 24"><path d="M20 14.5A7.8 7.8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z"/></symbol>
+  <symbol id="bv-ico-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="bv-ico-launch" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/><path d="M6 7H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1"/></symbol>
+  <symbol id="bv-ico-profile" viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="bv-ico-inbox" viewBox="0 0 24 24"><path d="M4 5h16l-1.5 14h-13L4 5Z"/><path d="M4.6 13h4.2l1.4 2h3.6l1.4-2h4.2"/><path d="M12 4v6m0 0-2-2m2 2 2-2"/></symbol>
+  <symbol id="bv-ico-vibes" viewBox="0 0 24 24"><path d="M4 7.5 12 3l8 4.5-8 4.5L4 7.5Z"/><path d="m4 12 8 4.5L20 12"/><path d="m4 16.5 8 4.5 8-4.5"/></symbol>
+  <symbol id="bv-ico-saved" viewBox="0 0 24 24"><path d="M6 4h12v17l-6-3.5L6 21V4Z"/><path d="M9 8h6"/></symbol>
+  <symbol id="bv-ico-battle" viewBox="0 0 24 24"><path d="m5 19 14-14"/><path d="m14 5 5 5"/><path d="m10 19-5-5"/><path d="M4 20h6"/><path d="M14 4h6"/></symbol>
+  <symbol id="bv-ico-challenges" viewBox="0 0 24 24"><path d="M8 4h8v3a4 4 0 0 1-8 0V4Z"/><path d="M8 6H5a2 2 0 0 0 2 4"/><path d="M16 6h3a2 2 0 0 1-2 4"/><path d="M12 11v5"/><path d="M8 20h8"/><path d="M10 16h4v4h-4z"/></symbol>
+  <symbol id="bv-ico-chat" viewBox="0 0 24 24"><path d="M5 6h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-8l-5 3v-3H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"/><path d="M8 10h8M8 14h5"/></symbol>
+  <symbol id="bv-ico-trades" viewBox="0 0 24 24"><path d="M7 7h12m0 0-3-3m3 3-3 3"/><path d="M17 17H5m0 0 3-3m-3 3 3 3"/></symbol>
+  <symbol id="bv-ico-earnings" viewBox="0 0 24 24"><path d="M12 3 14.7 8.6 21 9.4 16.4 13.8 17.6 20 12 17 6.4 20 7.6 13.8 3 9.4 9.3 8.6 12 3Z"/></symbol>
+  <symbol id="bv-ico-settings" viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/><path d="M4 12h2m12 0h2M12 4v2m0 12v2M6.6 6.6 8 8m8 8 1.4 1.4M17.4 6.6 16 8m-8 8-1.4 1.4"/></symbol>
+  <symbol id="bv-ico-shield" viewBox="0 0 24 24"><path d="M12 3 20 6v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3Z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></symbol>
+  <symbol id="bv-ico-admin" viewBox="0 0 24 24"><path d="M8 11a4 4 0 1 1 3.5 3.97"/><path d="M11.5 15H21v3h-3v3h-3v-3h-3.5"/><path d="M8 11h.01"/></symbol>
+  <symbol id="bv-ico-logout" viewBox="0 0 24 24"><path d="M10 5H5v14h5"/><path d="M13 17l5-5-5-5"/><path d="M18 12H9"/></symbol>
+</svg>
 <a href="#main" class="skip-link">Skip to content</a>
 <nav class="nav" aria-label="Primary">
   <a href="{% url 'feed' %}" class="logo"><img src="/static/branding/ai_assistance.jpeg" alt="" style="width:32px;height:32px;border-radius:8px;box-shadow:0 0 12px rgba(124,58,237,.5)"> BlaqVibes</a>
   <div class="nav-actions">
-    <button type="button" id="theme-toggle" class="icon-btn" aria-label="Toggle theme">☀️</button>
-    <button type="button" id="nav-toggle" class="icon-btn nav-burger" aria-label="Open menu" aria-expanded="false" aria-controls="nav-links">☰</button>
+    <button type="button" id="theme-toggle" class="icon-btn" aria-label="Toggle theme"><svg class="bv-icon"><use href="#bv-ico-sun"></use></svg></button>
+    <button type="button" id="nav-toggle" class="icon-btn nav-burger" aria-label="Open menu" aria-expanded="false" aria-controls="nav-links"><svg class="bv-icon"><use href="#bv-ico-menu"></use></svg></button>
   </div>
   {# Nav collapsed to what a NEW user needs: Vibes / Launch / Publish. #}
   {# Everything else lives in the avatar menu. 5 Whys: Why three links? #}
@@ -48,7 +67,7 @@ try{
   {# publish ARE the product; inbox/trades/settings are account chrome. #}
   <div class="nav-links" id="nav-links">
     <a href="{% url 'feed' %}"{% if request.path == '/' %} aria-current="page"{% endif %}>Vibes</a>
-    <a href="{% url 'launch_hub' %}" style="color:var(--launch-text);font-weight:700"{% if '/launch/' in request.path %} aria-current="page"{% endif %}>↗ Launch</a>
+    <a href="{% url 'launch_hub' %}" style="color:var(--launch-text);font-weight:700"{% if '/launch/' in request.path %} aria-current="page"{% endif %}><svg class="bv-icon"><use href="#bv-ico-launch"></use></svg> Launch</a>
     {% if user.is_authenticated %}
       <a href="{% url 'publish' %}" class="btn-violet">+ Publish</a>
       <div class="nav-user" id="nav-user">
@@ -59,28 +78,28 @@ try{
           <span aria-hidden="true" style="font-size:10px">▾</span>
         </button>
         <div class="nav-menu" id="nav-menu" role="menu">
-          <a role="menuitem" href="{% url 'profile_view' user.username %}">👤 My profile</a>
-          <a role="menuitem" href="{% url 'notifications' %}">📥 Inbox{% if unread_notifications %} <span class="nav-badge">{{ unread_notifications }}</span>{% endif %}</a>
-          <a role="menuitem" href="{% url 'my_vibes' %}">📦 My Vibes</a>
-          <a role="menuitem" href="{% url 'saved_vibes' %}">🔖 Saved</a>
+          <a role="menuitem" href="{% url 'profile_view' user.username %}"><svg class="bv-icon"><use href="#bv-ico-profile"></use></svg> My profile</a>
+          <a role="menuitem" href="{% url 'notifications' %}"><svg class="bv-icon"><use href="#bv-ico-inbox"></use></svg> Inbox{% if unread_notifications %} <span class="nav-badge">{{ unread_notifications }}</span>{% endif %}</a>
+          <a role="menuitem" href="{% url 'my_vibes' %}"><svg class="bv-icon"><use href="#bv-ico-vibes"></use></svg> My Vibes</a>
+          <a role="menuitem" href="{% url 'saved_vibes' %}"><svg class="bv-icon"><use href="#bv-ico-saved"></use></svg> Saved</a>
           <div class="nav-menu-sep"></div>
-          <a role="menuitem" href="{% url 'battle' %}">⚔️ Battle</a>
-          <a role="menuitem" href="{% url 'challenge_list' %}">🏆 Challenges</a>
-          <a role="menuitem" href="{% url 'nolo_chat' %}">💬 Nolo chat</a>
+          <a role="menuitem" href="{% url 'battle' %}"><svg class="bv-icon"><use href="#bv-ico-battle"></use></svg> Battle</a>
+          <a role="menuitem" href="{% url 'challenge_list' %}"><svg class="bv-icon"><use href="#bv-ico-challenges"></use></svg> Challenges</a>
+          <a role="menuitem" href="{% url 'nolo_chat' %}"><svg class="bv-icon"><use href="#bv-ico-chat"></use></svg> Nolo chat</a>
           <div class="nav-menu-sep"></div>
-          <a role="menuitem" href="{% url 'trading_history' %}">💱 Trades</a>
-          <a role="menuitem" href="{% url 'payout_dashboard' %}">⭐ Earnings</a>
-          <a role="menuitem" href="{% url 'settings' %}">⚙️ Settings</a>
-          {% if user.profile.is_moderator %}<div class="nav-menu-sep"></div><a role="menuitem" href="{% url 'moderation_queue' %}">🛡️ Moderation queue</a>{% endif %}
-          {% if user.profile.is_admin %}<a role="menuitem" href="{% url 'admin_dashboard' %}">🗝️ Admin</a>{% endif %}
+          <a role="menuitem" href="{% url 'trading_history' %}"><svg class="bv-icon"><use href="#bv-ico-trades"></use></svg> Trades</a>
+          <a role="menuitem" href="{% url 'payout_dashboard' %}"><svg class="bv-icon"><use href="#bv-ico-earnings"></use></svg> Earnings</a>
+          <a role="menuitem" href="{% url 'settings' %}"><svg class="bv-icon"><use href="#bv-ico-settings"></use></svg> Settings</a>
+          {% if user.profile.is_moderator %}<div class="nav-menu-sep"></div><a role="menuitem" href="{% url 'moderation_queue' %}"><svg class="bv-icon"><use href="#bv-ico-shield"></use></svg> Moderation queue</a>{% endif %}
+          {% if user.profile.is_admin %}<a role="menuitem" href="{% url 'admin_dashboard' %}"><svg class="bv-icon"><use href="#bv-ico-admin"></use></svg> Admin</a>{% endif %}
           <div class="nav-menu-sep"></div>
-          <a role="menuitem" href="#" class="js-logout">↪ Logout</a>
+          <a role="menuitem" href="#" class="js-logout"><svg class="bv-icon"><use href="#bv-ico-logout"></use></svg> Logout</a>
         </div>
       </div>
       <form id="logout-form" method="post" action="{% url 'logout' %}" style="display:none">{% csrf_token %}</form>
     {% else %}
-      <a href="{% url 'battle' %}"{% if '/battle/' in request.path %} aria-current="page"{% endif %}>⚔️ Battle</a>
-      <a href="{% url 'challenge_list' %}"{% if '/challenges/' in request.path %} aria-current="page"{% endif %}>🏆 Challenges</a>
+      <a href="{% url 'battle' %}"{% if '/battle/' in request.path %} aria-current="page"{% endif %}><svg class="bv-icon"><use href="#bv-ico-battle"></use></svg> Battle</a>
+      <a href="{% url 'challenge_list' %}"{% if '/challenges/' in request.path %} aria-current="page"{% endif %}><svg class="bv-icon"><use href="#bv-ico-challenges"></use></svg> Challenges</a>
       <a href="{% url 'login' %}" class="btn-ghost">Sign in</a>
       <a href="{% url 'signup' %}" class="btn-white">Sign up</a>
     {% endif %}

@@ -12,7 +12,7 @@ ALLOWED_BIO_TAGS = []
 class ProfileForm(forms.ModelForm):
     class Meta:
         model = Profile
-        fields = ['bio', 'location', 'website', 'github', 'twitter', 'avatar']
+        fields = ['bio', 'location', 'website', 'github', 'twitter', 'canvas_url', 'avatar']
         widgets = {
             'bio': forms.TextInput(attrs={
                 'placeholder': 'AI builder • Stock tools • Durban, ZA',
@@ -23,6 +23,10 @@ class ProfileForm(forms.ModelForm):
             'website': forms.URLInput(attrs={'placeholder': 'https://your.site', 'class': 'field-input'}),
             'github': forms.TextInput(attrs={'placeholder': 'nolo-ai', 'class': 'field-input'}),
             'twitter': forms.TextInput(attrs={'placeholder': 'nol0ai', 'class': 'field-input'}),
+            'canvas_url': forms.URLInput(attrs={
+                'placeholder': 'https://koboyo.com/s/your-canvas',
+                'class': 'field-input',
+            }),
         }
 
     def clean_bio(self):
@@ -40,6 +44,11 @@ class ProfileForm(forms.ModelForm):
     def clean_twitter(self):
         twitter = (self.cleaned_data.get('twitter') or '').strip().lstrip('@')[:80]
         return validate_public_text(twitter)
+
+    def clean_canvas_url(self):
+        # URLField already validates http(s) shape; trimming here keeps the
+        # profile chip neat and avoids persisting accidental whitespace.
+        return (self.cleaned_data.get('canvas_url') or '').strip()
 
     def clean_avatar(self):
         f = self.cleaned_data.get('avatar')

@@ -18,11 +18,20 @@
         {% if profile.location %}<span style="font-size:11px;background:var(--bg);border:1px solid var(--line);padding:4px 8px;border-radius:8px">{{ profile.location }}</span>{% endif %}
       </div>
       <div style="font-size:13px;color:var(--text);margin:6px 0">{{ profile.bio|default:"No bio yet — what do you build?" }}</div>
-      <div style="display:flex;gap:12px;font-size:12px;color:var(--muted);flex-wrap:wrap">
-        {% if profile.website %}<a href="{{ profile.website }}" target="_blank" rel="noopener nofollow" style="color:var(--link)">↗ {{ profile.website|slice:":28" }}</a>{% endif %}
-        {% if profile.github %}<a href="https://github.com/{{ profile.github }}" target="_blank" rel="noopener nofollow" style="color:var(--muted)">GitHub @{{ profile.github }}</a>{% endif %}
-        {% if profile.twitter %}<a href="https://x.com/{{ profile.twitter }}" target="_blank" rel="noopener nofollow" style="color:var(--muted)">𝕏 @{{ profile.twitter }}</a>{% endif %}
-        <span>Joined {{ profile_user.date_joined|date:"M Y" }}</span>
+      <div class="profile-socials" aria-label="Profile links and signals">
+        {% if profile.website %}
+          <a class="profile-social-chip profile-social-chip--accent" href="{{ profile.website }}" target="_blank" rel="noopener nofollow" title="Website: {{ profile.website }}"><span aria-hidden="true">↗</span><span>{{ profile.website|slice:":28" }}</span></a>
+        {% endif %}
+        {% if profile.github %}
+          <a class="profile-social-chip" href="https://github.com/{{ profile.github }}" target="_blank" rel="noopener nofollow" title="GitHub @{{ profile.github }}"><span aria-hidden="true">⌘</span><span>GitHub @{{ profile.github }}</span></a>
+        {% endif %}
+        {% if profile.twitter %}
+          <a class="profile-social-chip" href="https://x.com/{{ profile.twitter }}" target="_blank" rel="noopener nofollow" title="X @{{ profile.twitter }}"><span aria-hidden="true">𝕏</span><span>@{{ profile.twitter }}</span></a>
+        {% endif %}
+        {% if profile.canvas_url %}
+          <a class="profile-social-chip profile-social-chip--canvas" href="{{ profile.canvas_url }}" target="_blank" rel="noopener nofollow" title="Canvas / portfolio board"><span aria-hidden="true">◫</span><span>Canvas</span></a>
+        {% endif %}
+        <span class="profile-social-chip" title='Joined {{ profile_user.date_joined|date:"F Y" }}'><span aria-hidden="true">◷</span><span>Joined {{ profile_user.date_joined|date:"M Y" }}</span></span>
       </div>
     </div>
     <div style="display:flex;gap:16px;text-align:center;align-items:center">
@@ -134,7 +143,7 @@
           {% if p.status == 'published' %}<span style="background:var(--success-bg);color:var(--success-text);padding:3px 7px;border-radius:8px;font-size:11px;font-weight:700">● Live</span>
           {% elif p.status == 'pending' %}<span style="background:var(--warning-bg);color:var(--warning-text);padding:3px 7px;border-radius:8px;font-size:11px;font-weight:700">⏳ Queued</span>
           {% else %}<span style="background:var(--danger-bg);color:var(--danger-text);padding:3px 7px;border-radius:8px;font-size:11px;font-weight:700">🚨 Quarantined</span>{% endif %}
-          {% if p.ai_generated %}<span style="border:1px solid var(--warning-border);color:var(--warning-text);padding:3px 7px;border-radius:8px;font-size:11px">🤖</span>{% endif %}
+          {% if p.ai_generated %}<span style="border:1px solid var(--warning-border);color:var(--warning-text);padding:3px 7px;border-radius:8px;font-size:11px" title="AI-assisted">✦ AI</span>{% endif %}
         </div>
         <div style="font-weight:700;font-size:14px">{{ p.title }}</div>
         <div style="font-size:12px;color:var(--muted)">{{ p.short_description|truncatechars:70 }}</div>

@@ -12,6 +12,7 @@ class Profile(models.Model):
     website = models.URLField(blank=True)
     github = models.CharField(max_length=80, blank=True, help_text="github username without @")
     twitter = models.CharField(max_length=80, blank=True)
+    canvas_url = models.URLField(blank=True, help_text="Public canvas/portfolio board URL (Koboyo, Figma, Miro, etc.)")
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
     # 0 by default. The 5 ★ welcome grant is paid once, when the email is
     # verified (users.wallet.grant_welcome_stars) — signup alone mints nothing.
