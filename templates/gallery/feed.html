@@ -318,34 +318,34 @@
     <select name="category">
       <option value="">All Categories</option>
       {% for c in categories %}
-      <option value="{{ c.slug }}" {% if cat="" ="c.slug" %}selected{% endif %}>
+      <option value="{{ c.slug }}" {% if cat == c.slug %}selected{% endif %}>
         {{ c.name }}
       </option>
       {% endfor %}
     </select>
     <select name="kind">
       <option value="">Snippets + Full Apps</option>
-      <option value="snippet" {% if kind="" ="snippet" %}selected{% endif %}>
+      <option value="snippet" {% if kind == "snippet" %}selected{% endif %}>
         Snippets only
       </option>
-      <option value="full_app" {% if kind="" ="full_app" %}selected{% endif %}>
+      <option value="full_app" {% if kind == "full_app" %}selected{% endif %}>
         Full Apps only
       </option>
     </select>
     <select name="sort">
-      <option value="foryou" {% if sort="" ="foryou" %}selected{% endif %}>
+      <option value="foryou" {% if sort == "foryou" %}selected{% endif %}>
         ✦ For you
       </option>
-      <option value="newest" {% if sort="" ="newest" %}selected{% endif %}>
+      <option value="newest" {% if sort == "newest" %}selected{% endif %}>
         Newest
       </option>
-      <option value="trending" {% if sort="" ="trending" %}selected{% endif %}>
+      <option value="trending" {% if sort == "trending" %}selected{% endif %}>
         Trending
       </option>
-      <option value="stars" {% if sort="" ="stars" %}selected{% endif %}>
+      <option value="stars" {% if sort == "stars" %}selected{% endif %}>
         Most Stars
       </option>
-      <option value="clones" {% if sort="" ="clones" %}selected{% endif %}>
+      <option value="clones" {% if sort == "clones" %}selected{% endif %}>
         Most Clones
       </option>
     </select>
