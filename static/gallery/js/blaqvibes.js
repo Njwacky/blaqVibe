@@ -22,7 +22,8 @@ function copyText(t){
     document.documentElement.setAttribute('data-theme', theme);
     const btn = document.getElementById('theme-toggle');
     if(btn){
-      btn.textContent = theme === 'light' ? '🌙' : '☀️';
+      const icon = theme === 'light' ? 'bv-ico-moon' : 'bv-ico-sun';
+      btn.innerHTML = '<svg class="bv-icon" aria-hidden="true"><use href="#' + icon + '"></use></svg>';
       btn.setAttribute('aria-label', theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme');
     }
     const themeMeta = document.getElementById('theme-color-meta');

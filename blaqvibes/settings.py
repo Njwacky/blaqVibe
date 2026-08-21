@@ -13,17 +13,15 @@ DEBUG = os.getenv('DEBUG', '0') == '1'
 # This avoids forcing production-only HTTPS handling when running locally.
 LOCAL_DEV = bool(os.getenv('VIRTUAL_ENV') or os.getenv('PYTHONENV') or os.getenv('DJANGO_LOCAL_DEV') or DEBUG)
 
-# Sentry — crush silently, backend only, no JS secrets
+# Sentry — backend only, no JS secrets. Do not dummy-init without a DSN:
+# the Django/WSGI integrations still wrap exception handling, and older
+# sentry-sdk builds crash on Python 3.13 FrameLocalsProxy while serializing
+# locals. init_sentry also disables local-variable capture when a DSN is set.
 try:
-    import sentry_sdk
-    from sentry_sdk.integrations.django import DjangoIntegration
-    _dsn = os.getenv('SENTRY_DSN', '')
-    if _dsn:
-        sentry_sdk.init(dsn=_dsn, integrations=[DjangoIntegration()], traces_sample_rate=0.2, send_default_pii=False)
-    else:
-        sentry_sdk.init(traces_sample_rate=0.0)  # no DSN → silent, no network
+    from .sentry import init_sentry
+    init_sentry()
 except Exception:
-    pass  # crush silently
+    pass  # observability must never block boot
 
 SECRET_KEY = os.getenv('SECRET_KEY', '')
 if not SECRET_KEY:
