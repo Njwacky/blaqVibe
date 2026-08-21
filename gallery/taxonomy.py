@@ -91,7 +91,7 @@ PROGRAM_KINDS = (
     {
         'value': 'bot',
         'label': 'Bot / automation',
-        'icon': '🤖',
+        'icon': '⚙️',
         'blurb': 'Chat bot, scraper, or scheduled automation.',
         'preview': 'files',
         'web_native': False,

@@ -7,7 +7,7 @@ from .models import AdminLog, Profile, StarEvent
 class ProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'role', 'stars_balance', 'is_pro', 'email_verified', 'created_at')
     list_filter = ('role', 'is_pro', 'email_verified')
-    search_fields = ('user__username', 'user__email')
+    search_fields = ('user__username', 'user__email', 'website', 'github', 'twitter', 'canvas_url')
     # The wallet is moved by ledgered code paths only. Editing the integer
     # here would desync it from StarEvent — use a StarEvent('admin_adjust')
     # via the ledger instead.
