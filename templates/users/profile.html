@@ -9,7 +9,7 @@
     </div>
     <div style="flex:1;min-width:240px">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <span style="font-weight:800;font-size:18px">@{{ profile_user.username }}</span>
+        {% include 'users/_styled_name.html' with u=profile_user p=profile %}
         {% if profile_user.is_staff %}<span style="font-size:11px;background:var(--warning-fill);color:var(--on-warning);padding:4px 8px;border-radius:8px;font-weight:700">STAFF</span>{% endif %}
         {# Rank pill — social proof computed by gallery.ranks, rendered here. #}
         <span aria-label="Rank: {{ rank.name }}" title="{{ rank.name }} creator — {{ rank.threshold }}+ stars" style="font-size:11px;padding:4px 8px;border-radius:8px;font-weight:700;{% if rank.name == 'Platinum' %}background:#e5e4e2;color:#222{% elif rank.name == 'Gold' %}background:#f5c518;color:#3a2e00{% elif rank.name == 'Silver' %}background:#c0c0c0;color:#1a1a1a{% else %}background:var(--warning-bg);color:var(--warning-text){% endif %}">
@@ -69,7 +69,7 @@
     <div id="recent-tips-list">
       {% for t in recent_tips %}
       <div style="display:flex;gap:8px;align-items:center;padding:6px 0;border-top:1px solid var(--line);font-size:12px;margin-top:6px">
-        <a href="{% url 'profile_view' t.sender.username %}" style="color:var(--link);font-weight:700">@{{ t.sender.username }}</a>
+        <a href="{% url 'profile_view' t.sender.username %}" style="color:var(--link);font-weight:700">{% include 'users/_styled_name.html' with u=t.sender p=t.sender.profile %}</a>
         <span style="font-weight:800;color:var(--warning-text)">+{{ t.amount }}★</span>
         {% if t.message %}<span style="color:var(--muted);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">“{{ t.message }}”</span>{% endif %}
         <span style="color:var(--muted);font-size:11px">{{ t.created_at|timesince }} ago</span>
@@ -105,7 +105,7 @@
           {% if f.follower.profile.avatar %}<img src="{{ f.follower.profile.avatar.url }}" style="width:100%;height:100%;object-fit:cover" alt="">{% else %}{{ f.follower.username|first|upper }}{% endif %}
         </div>
         <div style="flex:1;min-width:0">
-          <a href="{% url 'profile_view' f.follower.username %}" style="font-weight:700;font-size:14px;color:var(--link)">@{{ f.follower.username }}</a>
+          <a href="{% url 'profile_view' f.follower.username %}" style="font-weight:700;font-size:14px;color:var(--link)">{% include 'users/_styled_name.html' with u=f.follower p=f.follower.profile %}</a>
           <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ f.follower.profile.bio|default:"No bio yet"|truncatechars:60 }}</div>
         </div>
         {% if user.is_authenticated and f.follower.username != user.username %}
@@ -125,7 +125,7 @@
           {% if f.following.profile.avatar %}<img src="{{ f.following.profile.avatar.url }}" style="width:100%;height:100%;object-fit:cover" alt="">{% else %}{{ f.following.username|first|upper }}{% endif %}
         </div>
         <div style="flex:1;min-width:0">
-          <a href="{% url 'profile_view' f.following.username %}" style="font-weight:700;font-size:14px;color:var(--link)">@{{ f.following.username }}</a>
+          <a href="{% url 'profile_view' f.following.username %}" style="font-weight:700;font-size:14px;color:var(--link)">{% include 'users/_styled_name.html' with u=f.following p=f.following.profile %}</a>
           <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ f.following.profile.bio|default:"No bio yet"|truncatechars:60 }}</div>
         </div>
         {% if user.is_authenticated and f.following.username != user.username %}

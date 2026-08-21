@@ -44,6 +44,7 @@
 | 12 | **Mobile Polish + Light Mode in Django** | Demo has light/dark toggle, Django still dark-only. Need `localStorage` theme | 1 day |
 | 13 | **Rate Limit UI + Upload Progress Bar** | 100MB ZIP with no progress = user retries, double queue | 1 day |
 | 14 | **API v1 (`GET /api/vibes?q=&tech=`)** | Frontend, CLI, mobile need it | 2 days |
+| 15 | ✅ **Username rename (PUBG rule) + name style** — done 21 Aug 2026, see `BlaqVibes_Rename_5Whys.md`. Rename card: free while Pro or 100 ★ burned, 30-day cooldown, old name reserved 90 days, old `/u/<name>/` links 302-redirect, reserved-word list gates signup AND rename. Name style (font/color/size/anime fx): whitelisted slugs only, 20 ★ per change (free while Pro), rendered server-side — never user CSS. Fixed alongside: feed cards had lost the creator link + full title (two tests red on master). | done |
 
 ## 🟡 NICE-TO-HAVE — Later
 

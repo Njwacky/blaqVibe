@@ -4,6 +4,69 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
 
+# --- Name style whitelists (rendered by Profile.name_style_css) ------------
+# 5 Whys: Why slugs + a dict, never the user's raw CSS?
+# 1. Why not accept "font-family:..." from the user? style attributes are
+#    HTML — a crafted value can break out of the attribute or smuggle
+#    url()/expression() payloads. bleach cannot sanitize CSS reliably.
+# 2. Why render from OUR dict then? The template prints the OUTPUT of these
+#    dicts only; an unknown slug falls back to the default via .get().
+#    Nothing user-typed ever reaches the page as CSS.
+# 3. Why no external font URLs (Google Fonts per-user)? CSP stays strict,
+#    the PWA stays offline-friendly, and a request per user per pageview is
+#    a privacy leak for zero benefit — the stacks below ship with the OS
+#    or the site's own two font files.
+# 4. Why em-based size classes, not a px value? A styled name renders on the
+#    profile header (18px context) and in follower lists (14px context).
+#    A stored px would be wrong in one of them; em scales with context and
+#    xl is capped so nobody shrinks their name to invisible or fills a page.
+# 5. Why is "rainbow" a class, not a color? It is a gradient + animation —
+#    CSS classes in blaqvibes.css, versioned with the rest of the theme,
+#    respecting prefers-reduced-motion. An inline style cannot do that
+#    without smuggling keyframes, which is exactly what rule 1 bans.
+NAME_FONTS = {
+    'classic': '',                                    # inherit — free default
+    'grotesk': '"Space Grotesk","Inter",sans-serif',  # site display face
+    'mono': '"JetBrains Mono",ui-monospace,Menlo,monospace',
+    'serif': 'Georgia,"Times New Roman",serif',
+    'rounded': 'ui-rounded,"Segoe UI",Verdana,sans-serif',
+}
+NAME_COLORS = {
+    'default': '',          # inherit — free default
+    'violet': '#7C3AED',    # brand
+    'gold': '#f5c518',
+    'cyan': '#22d3ee',
+    'crimson': '#ef4444',
+    'emerald': '#34d399',
+    'rainbow': '',          # animated gradient class, not a hex
+}
+NAME_SIZES = {'md': '', 'lg': 'name-size-lg', 'xl': 'name-size-xl'}
+NAME_FX = {
+    'none': '',            # free default
+    'glow': 'namefx-glow',
+    'shine': 'namefx-shine',   # animated light sweep — the "anime" flex
+    'chroma': 'namefx-chroma', # slow hue rotation
+}
+# Pretty labels for the picker (users/forms.py). Choices are built FROM the
+# whitelists so the form can never offer — or accept — a slug the renderer
+# does not know. 5 Whys: why not hand-write <option>s in the template?
+# Hand-written options drift; a slug in the HTML the renderer drops silently
+# becomes a paid no-op and a support ticket.
+NAME_FONT_LABELS = {
+    'classic': 'Classic (default)', 'grotesk': 'Space Grotesk',
+    'mono': 'JetBrains Mono', 'serif': 'Serif', 'rounded': 'Rounded',
+}
+NAME_COLOR_LABELS = {
+    'default': 'Default (default)', 'violet': 'Violet', 'gold': 'Gold',
+    'cyan': 'Cyan', 'crimson': 'Crimson', 'emerald': 'Emerald',
+    'rainbow': 'Rainbow (animated)',
+}
+NAME_SIZE_LABELS = {'md': 'Normal', 'lg': 'Large', 'xl': 'Extra large'}
+NAME_FX_LABELS = {
+    'none': 'None (default)', 'glow': 'Glow',
+    'shine': 'Anime shine (animated)', 'chroma': 'Chroma shift (animated)',
+}
+
 class Profile(models.Model):
     ROLE_CHOICES = [('user','User'),('moderator','Moderator'),('admin','Admin'),('superadmin','Super Admin')]
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
@@ -33,6 +96,13 @@ class Profile(models.Model):
     allow_prs = models.BooleanField(default=True)
     allow_comments = models.BooleanField(default=True)
     allow_reviews = models.BooleanField(default=True)
+    # --- Name style (users/rename.py is the only writer) ------------------
+    # Stored as whitelisted slugs, rendered via NAME_* dicts — never raw CSS.
+    name_font = models.CharField(max_length=20, default='classic')
+    name_color = models.CharField(max_length=20, default='default')
+    name_size = models.CharField(max_length=4, default='md')
+    name_fx = models.CharField(max_length=20, default='none')
+    last_rename_at = models.DateTimeField(null=True, blank=True, help_text='Set by rename_user — the 30-day cooldown anchor')
     # Git daemon credential for social-login users (no password on file).
     # ONLY the SHA-256 lives here; the plaintext is shown once at rotate.
     # 5 Whys: Why a token at all? `git push` uses Basic auth — GitHub/Gmail
@@ -87,6 +157,35 @@ class Profile(models.Model):
     def rank(self):
         from gallery.ranks import contributor_bonus
         return contributor_bonus(self.user)
+
+    # --- Styled name rendering (read-side of the NAME_* whitelists) -------
+    def name_style_css(self) -> str:
+        """Inline CSS for the display name, built ONLY from NAME_* dicts.
+
+        .get() with a blank fallback means an unknown/legacy slug renders as
+        the plain default — a bad value can never leak into the page.
+        """
+        css = []
+        font = NAME_FONTS.get(self.name_font, '')
+        if font:
+            css.append(f'font-family:{font};')
+        color = NAME_COLORS.get(self.name_color, '')
+        if color:
+            css.append(f'color:{color};')
+        return ''.join(css)
+
+    def name_style_classes(self) -> str:
+        """Theme classes for the display name (size, fx, rainbow gradient)."""
+        classes = []
+        if self.name_color == 'rainbow':
+            classes.append('namefx-rainbow')
+        size = NAME_SIZES.get(self.name_size, '')
+        if size:
+            classes.append(size)
+        fx = NAME_FX.get(self.name_fx, '')
+        if fx:
+            classes.append(fx)
+        return ' '.join(classes)
 
 class SiteSettings(models.Model):
     """Global toggles — superadmin only, backend only"""
@@ -157,6 +256,8 @@ class StarEvent(models.Model):
         ('backfill', 'Ledger backfill'),
         ('payout_hold', 'Payout — stars held for cash-out'),
         ('payout_refund', 'Payout — rejected, stars returned'),
+        ('rename_spend', 'Rename — rename card burned'),
+        ('style_spend', 'Name style — cosmetic burned'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='star_events')
     delta = models.IntegerField()
@@ -217,6 +318,58 @@ class Tip(models.Model):
 STARS_PER_ZAR = 10          # 10 ★ = R1
 MIN_PAYOUT_STARS = 500      # R50 — below this a bank transfer fee eats the payout
 MAX_PAYOUT_STARS = 50000    # R5 000 per request — one human-sized EFT, not a whale exit
+
+# --- Identity money rules (users/rename.py is the only writer) -------------
+# PUBG rule: a name is not free to change. Pro accounts carry a rename card;
+# everyone else burns stars. These are money policy next to the ledger they
+# debit, same rule as the payout constants above.
+RENAME_COST_STARS = 100     # a rename card — 10× the welcome grant, not farmable
+STYLE_COST_STARS = 20       # restyle your display name — cosmetic sink
+RENAME_COOLDOWN_DAYS = 30   # PUBG-style cooldown: one rename per window, no exceptions
+RENAME_RESERVE_DAYS = 90    # your old name stays reserved (anti-impersonation)
+
+
+class UsernameHistory(models.Model):
+    """Every completed rename — the reservation list AND the redirect map.
+
+    5 Whys:
+    1. Why a row at all? "Can I change my username?" needs an answer that is
+       cheaper than "read every Notification URL". The row IS the answer:
+       who, from what, to what, when, and how it was paid.
+    2. Why reserve the OLD username for 90 days? Without a reservation, the
+       minute a known creator renames, a stranger grabs the freed handle and
+       impersonates them ("it's me, I renamed, send stars"). The reservation
+       window is the anti-phishing cooldown for everyone else's memory.
+    3. Why CASCADE on user delete, unlike Sale/Trade's SET_NULL? A deleted
+       account's name SHOULD become available again — there is no person
+       left to impersonate, and the deletion screen promises a clean exit.
+       Money records survive deletion; vanity does not.
+    4. Why is new_username stored when user.username has the truth? The row
+       is a timeline (A→B→C), not a lookup table. Redirects resolve through
+       user.username, the single source of truth; storing new_username keeps
+       each row self-describing for the audit log and support tickets.
+    5. Why db_index on old_username only? Two hot queries exist: "is this
+       name reserved?" (old_username__iexact) and "where did oldname go?"
+       (old_username__iexact). Both start at old_username; new_username is
+       only ever read on rows already found.
+    """
+    METHOD_CHOICES = [
+        ('pro', 'Pro rename card — 0 ★'),
+        ('stars', 'Stars — burned'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='username_history')
+    old_username = models.CharField(max_length=150, db_index=True)
+    new_username = models.CharField(max_length=150)
+    method = models.CharField(max_length=10, choices=METHOD_CHOICES)
+    cost_stars = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name_plural = 'username history'
+
+    def __str__(self):
+        return f'@{self.old_username} → @{self.new_username} ({self.method})'
 
 
 class Payout(models.Model):

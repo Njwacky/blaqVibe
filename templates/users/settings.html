@@ -5,6 +5,63 @@
   <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">⚙️ Settings — Toggles for Vibe Coders</h1>
   <p style="color:var(--muted);font-size:13px">Most is auto. Toggle off if you want simple.</p>
 
+  {# ── Identity: username (PUBG rule) ─────────────────────────────────── #}
+  <div style="margin-top:8px;padding:16px;border:1px solid var(--accent-border);background:var(--card);border-radius:12px">
+    <h2 style="font-size:14px;font-weight:700">🪪 Username — rename card</h2>
+    <p style="font-size:12px;color:var(--muted);margin:6px 0 10px">
+      Current: <b style="color:var(--text)">@{{ user.username }}</b> ·
+      {% if profile.is_pro_active %}
+        <b style="color:var(--success-text)">Pro — rename cards are free</b>
+      {% else %}
+        a rename card costs <b style="color:var(--warning-text)">{{ rename_cost }} ★</b> (Pro gets it free)
+      {% endif %}
+      · one rename per {{ rename_cooldown_days }} days, like PUBG.
+      Your old name stays reserved {{ rename_reserve_days }} days and old <code>/u/…</code> links redirect — nobody can impersonate you.
+    </p>
+    {% if cooldown_days is not None %}
+      <div style="background:var(--warning-bg);border:1px solid var(--warning-border);color:var(--warning-text);padding:10px 12px;border-radius:10px;font-size:12px;font-weight:700">
+        ⏳ Rename card on cooldown — usable again in {{ cooldown_days }} day{{ cooldown_days|pluralize }} ({{ cooldown_hours }}h). One rename per {{ rename_cooldown_days }} days, even on Pro.
+      </div>
+    {% else %}
+      <form method="post" action="{% url 'rename_username' %}" style="display:flex;gap:8px;flex-wrap:wrap">
+        {% csrf_token %}
+        <input name="new_username" placeholder="new-username" class="field-input" style="flex:1;min-width:180px" autocomplete="off" maxlength="150">
+        <button class="btn-violet">{% if profile.is_pro_active %}Use Pro rename card{% else %}Buy rename card — {{ rename_cost }} ★{% endif %}</button>
+      </form>
+      {% if rename_count %}
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">{{ rename_count }} rename{{ rename_count|pluralize }} so far — full history is in your star ledger.</div>
+      {% endif %}
+    {% endif %}
+  </div>
+
+  {# ── Identity: name style (the flex) ────────────────────────────────── #}
+  <div style="margin-top:12px;padding:16px;border:1px solid var(--line);background:var(--card);border-radius:12px">
+    <h2 style="font-size:14px;font-weight:700">✨ Name style — flex on other people</h2>
+    <p style="font-size:12px;color:var(--muted);margin:6px 0 10px">
+      Style the name others see on your profile, follower lists and tips.
+      {% if profile.is_pro_active %}
+        <b style="color:var(--success-text)">Pro — restyling is free.</b>
+      {% else %}
+        A restyle costs <b style="color:var(--warning-text)">{{ style_cost }} ★</b> per change (free while Pro). Back to defaults is always free.
+      {% endif %}
+    </p>
+    <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;display:flex;gap:10px;align-items:center">
+      <span style="font-size:11px;color:var(--muted);flex-shrink:0">Preview</span>
+      <span id="name-style-preview" class="styled-name {{ profile.name_style_classes }}" style="font-size:18px;{{ profile.name_style_css }}">@{{ user.username }}</span>
+    </div>
+    <form method="post" action="{% url 'set_name_style' %}" style="display:grid;gap:10px">
+      {% csrf_token %}
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+        <div><label style="font-size:12px;color:var(--muted)">Font</label>{{ style_form.name_font }}</div>
+        <div><label style="font-size:12px;color:var(--muted)">Color</label>{{ style_form.name_color }}</div>
+        <div><label style="font-size:12px;color:var(--muted)">Size</label>{{ style_form.name_size }}</div>
+        <div><label style="font-size:12px;color:var(--muted)">Effect</label>{{ style_form.name_fx }}</div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn-ghost">Save name style</button></div>
+    </form>
+    {{ name_style_maps|json_script:'name-style-maps' }}
+  </div>
+
   <h2 style="margin-top:16px;font-size:14px;font-weight:700">Your Vibes — 1 tap, no form</h2>
   <div style="margin-top:8px;display:flex;flex-direction:column;gap:12px">
 
@@ -240,5 +297,26 @@ document.querySelectorAll('.switch input').forEach(el=>{
     }).catch(()=>{ el.checked=!value; });
   });
 });
+
+// Live name-style preview. The maps come from the SERVER whitelists via
+// json_script — the preview can therefore never show a style the renderer
+// would refuse. 5 Whys: why preview with the real maps? A preview that lies
+// (hand-written JS mirrors) sells a 20★ style that saves differently.
+(function(){
+  const maps = JSON.parse(document.getElementById('name-style-maps').textContent);
+  const preview = document.getElementById('name-style-preview');
+  if(!preview || !maps) return;
+  const pick = sel => document.querySelector(sel);
+  const refresh = () => {
+    const font = maps.fonts[pick('[data-style="font"]').value] || '';
+    const color = maps.colors[pick('[data-style="color"]').value] || '';
+    const size = maps.sizes[pick('[data-style="size"]').value] || '';
+    const fx = maps.fx[pick('[data-style="fx"]').value] || '';
+    const rainbow = pick('[data-style="color"]').value === 'rainbow';
+    preview.setAttribute('style', 'font-size:18px;' + (font ? 'font-family:'+font+';' : '') + (color ? 'color:'+color+';' : ''));
+    preview.className = 'styled-name ' + [rainbow ? 'namefx-rainbow' : '', size, fx].filter(Boolean).join(' ');
+  };
+  document.querySelectorAll('[data-style]').forEach(el => el.addEventListener('change', refresh));
+})();
 </script>
 {% endblock %}
