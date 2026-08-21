@@ -1,49 +1,170 @@
-{% extends 'gallery/base.html' %}
-{% block title %}Pull Requests — {{ target.title }} — BlaqVibes{% endblock %}
-{% block content %}
-<div style="max-width:900px;margin:0 auto;padding:20px">
-  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">⑂ Pull Requests — {{ target.title }}</h1>
-  <p style="color:var(--muted);font-size:13px">Fork → Edit → PR to original. Original owner merges. Backend checks <code>forked_from == target</code>, rate limit 5/h, crush silently.</p>
-  <div style="margin-top:12px;display:flex;gap:8px">
+{% extends 'gallery/base.html' %} {% block title %}Pull Requests — {{
+target.title }} — BlaqVibes{% endblock %} {% block content %}
+<div style="max-width: 900px; margin: 0 auto; padding: 20px">
+  <h1
+    style="
+      font-family:
+        Space Grotesk,
+        sans-serif;
+      font-size: 22px;
+    "
+  >
+    ⑂ Pull Requests — {{ target.title }}
+  </h1>
+  <p style="color: var(--muted); font-size: 13px">
+    Fork → Edit → PR to original. Original owner merges. Backend checks
+    <code>forked_from == target</code>, rate limit 5/h, crush silently.
+  </p>
+  <div style="margin-top: 12px; display: flex; gap: 8px">
     <a href="{{ target.get_absolute_url }}" class="btnG">← Back to Vibe</a>
-    <a href="{% url 'fork_network' target.slug %}" class="btnG">View Fork Network</a>
+    <a href="{% url 'fork_network' target.slug %}" class="btnG"
+      >View Fork Network</a
+    >
   </div>
 
   <!-- Create PR if user has a fork -->
-  {% if user.is_authenticated %}
-    {% for fork in user.projects.all %}
-      {% if fork.forked_from_id == target.id and fork.status == 'published' %}
-        <div style="margin-top:12px;background:var(--card);border:1px solid var(--accent-border);border-radius:12px;padding:12px">
-          <div style="font-weight:700">Create PR from your fork: {{ fork.title }}</div>
-          <form method="post" action="{% url 'create_pr' fork.slug %}" style="margin-top:8px;display:grid;gap:8px">{% csrf_token %}
-            <input name="title" placeholder="PR title — e.g., Fix chart bug" required style="background:var(--input);border:1px solid var(--line);border-radius:8px;padding:8px;color:var(--text);font-size:12px">
-            <textarea name="description" placeholder="What changed? (sanitized, 2000 max)" style="background:var(--input);border:1px solid var(--line);border-radius:8px;padding:8px;color:var(--text);font-size:12px;min-height:60px"></textarea>
-            <button class="btnV" style="width:fit-content">Create Pull Request → {{ target.slug }}</button>
-          </form>
-        </div>
-      {% endif %}
-    {% endfor %}
-  {% endif %}
+  {% if user.is_authenticated %} {% for fork in user.projects.all %} {% if
+  fork.forked_from_id == target.id and fork.status == 'published' %}
+  <div
+    style="
+      margin-top: 12px;
+      background: var(--card);
+      border: 1px solid var(--accent-border);
+      border-radius: 12px;
+      padding: 12px;
+    "
+  >
+    <div style="font-weight: 700">
+      Create PR from your fork: {{ fork.title }}
+    </div>
+    <form
+      method="post"
+      action="{% url 'create_pr' fork.slug %}"
+      style="margin-top: 8px; display: grid; gap: 8px"
+    >
+      {% csrf_token %}
+      <input
+        name="title"
+        placeholder="PR title — e.g., Fix chart bug"
+        required
+        style="
+          background: var(--input);
+          border: 1px solid var(--line);
+          border-radius: 8px;
+          padding: 8px;
+          color: var(--text);
+          font-size: 12px;
+        "
+      />
+      <textarea
+        name="description"
+        placeholder="What changed? (sanitized, 2000 max)"
+        style="
+          background: var(--input);
+          border: 1px solid var(--line);
+          border-radius: 8px;
+          padding: 8px;
+          color: var(--text);
+          font-size: 12px;
+          min-height: 60px;
+        "
+      ></textarea>
+      <button class="btnV" style="width: fit-content">
+        Create Pull Request → {{ target.slug }}
+      </button>
+    </form>
+  </div>
+  {% endif %} {% endfor %} {% endif %}
 
-  <h2 style="margin-top:16px;font-size:14px;font-weight:700">PRs for {{ target.slug }} — {{ prs.count }}</h2>
+  <h2 style="margin-top: 16px; font-size: 14px; font-weight: 700">
+    PRs for {{ target.slug }} — {{ prs.count }}
+  </h2>
   {% for pr in prs %}
-  <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:8px;display:flex;gap:12px;align-items:center">
-    <div style="width:36px;height:36px;border-radius:8px;background:{% if pr.status == 'open' %}var(--warning-bg){% elif pr.status == 'merged' %}var(--success-bg){% else %}var(--line){% endif %};display:grid;place-items:center;font-size:12px;font-weight:800;color:{% if pr.status == 'open' %}var(--warning-text){% elif pr.status == 'merged' %}var(--success-text){% else %}var(--muted){% endif %}">#{{ pr.id }}</div>
-    <div style="flex:1">
-      <div style="font-weight:700"><a href="{% url 'pr_detail' pr.target.slug pr.id %}" style="color:var(--text);text-decoration:none">{{ pr.title }}</a> <span style="font-size:11px;padding:3px 7px;border-radius:8px;background:{% if pr.status == 'open' %}var(--warning-bg);color:var(--warning-text){% elif pr.status == 'merged' %}var(--success-bg);color:var(--success-text){% else %}var(--line);color:var(--muted){% endif %}">{{ pr.status }}</span></div>
-      <div style="font-size:12px;color:var(--muted)">{{ pr.source.title }} (@{{ pr.author.username }}) → {{ pr.target.title }} • {{ pr.created_at|timesince }} ago</div>
-      {% if pr.description %}<div style="font-size:12px;margin-top:4px;color:var(--text)">{{ pr.description }}</div>{% endif %}
-      <div style="margin-top:6px"><a href="{% url 'pr_detail' pr.target.slug pr.id %}" style="font-size:11px;color:var(--link)">View diff →</a></div>
+  <div
+    style="
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 8px;
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    "
+  >
+    <div
+      style="width:36px;height:36px;border-radius:8px;background:{% if pr.status == 'open' %}var(--warning-bg){% elif pr.status == 'merged' %}var(--success-bg){% else %}var(--line){% endif %};display:grid;place-items:center;font-size:12px;font-weight:800;color:{% if pr.status == 'open' %}var(--warning-text){% elif pr.status == 'merged' %}var(--success-text){% else %}var(--muted){% endif %}"
+    >
+      #{{ pr.id }}
+    </div>
+    <div style="flex: 1">
+      <div style="font-weight: 700">
+        <a
+          href="{% url 'pr_detail' pr.target.slug pr.id %}"
+          style="color: var(--text); text-decoration: none"
+          >{{ pr.title }}</a
+        >
+        <span
+          style="font-size:11px;padding:3px 7px;border-radius:8px;background:{% if pr.status == 'open' %}var(--warning-bg);color:var(--warning-text){% elif pr.status == 'merged' %}var(--success-bg);color:var(--success-text){% else %}var(--line);color:var(--muted){% endif %}"
+          >{{ pr.status }}</span
+        >
+      </div>
+      <div style="font-size: 12px; color: var(--muted)">
+        {{ pr.source.title }} (@{{ pr.author.username }}) → {{ pr.target.title
+        }} • {{ pr.created_at|timesince }} ago
+      </div>
+      {% if pr.description %}
+      <div style="font-size: 12px; margin-top: 4px; color: var(--text)">
+        {{ pr.description }}
+      </div>
+      {% endif %}
+      <div style="margin-top: 6px">
+        <a
+          href="{% url 'pr_detail' pr.target.slug pr.id %}"
+          style="font-size: 11px; color: var(--link)"
+          >View diff →</a
+        >
+      </div>
     </div>
     {% if user == target.owner and pr.status == 'open' %}
-    <form method="post" action="{% url 'pr_action' target.slug pr.id %}" style="display:flex;gap:6px">{% csrf_token %}
-      <button name="action" value="merge" class="btnV" style="padding:6px 10px;font-size:11px">Merge</button>
-      <button name="action" value="close" class="btnG" style="padding:6px 10px;font-size:11px">Close</button>
+    <form
+      method="post"
+      action="{% url 'pr_action' target.slug pr.id %}"
+      style="display: flex; gap: 6px"
+    >
+      {% csrf_token %}
+      <button
+        name="action"
+        value="merge"
+        class="btnV"
+        style="padding: 6px 10px; font-size: 11px"
+      >
+        Merge
+      </button>
+      <button
+        name="action"
+        value="close"
+        class="btnG"
+        style="padding: 6px 10px; font-size: 11px"
+      >
+        Close
+      </button>
     </form>
     {% endif %}
   </div>
   {% empty %}
-  <div style="color:var(--muted);font-size:13px;padding:12px;border:1px dashed var(--line);border-radius:10px;margin-top:8px">No PRs yet. Fork this vibe, edit, then create a PR.</div>
+  <div
+    style="
+      color: var(--muted);
+      font-size: 13px;
+      padding: 12px;
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      margin-top: 8px;
+    "
+  >
+    No PRs yet. Fork this vibe, edit, then create a PR.
+  </div>
   {% endfor %}
 </div>
 {% endblock %}
