@@ -1,322 +1,1066 @@
-{% extends 'gallery/base.html' %}
-{% block title %}Settings — BlaqVibes{% endblock %}
-{% block content %}
-<div style="max-width:800px;margin:0 auto;padding:20px">
-  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">⚙️ Settings — Toggles for Vibe Coders</h1>
-  <p style="color:var(--muted);font-size:13px">Most is auto. Toggle off if you want simple.</p>
+{% extends 'gallery/base.html' %} {% block title %}Settings — BlaqVibes{%
+endblock %} {% block content %}
+<div style="max-width: 800px; margin: 0 auto; padding: 20px">
+  <h1
+    style="
+      font-family:
+        Space Grotesk,
+        sans-serif;
+      font-size: 22px;
+    "
+  >
+    ⚙️ Settings — Toggles for Vibe Coders
+  </h1>
+  <p style="color: var(--muted); font-size: 13px">
+    Most is auto. Toggle off if you want simple.
+  </p>
 
   {# ── Identity: username (PUBG rule) ─────────────────────────────────── #}
-  <div style="margin-top:8px;padding:16px;border:1px solid var(--accent-border);background:var(--card);border-radius:12px">
-    <h2 style="font-size:14px;font-weight:700">🪪 Username — rename card</h2>
-    <p style="font-size:12px;color:var(--muted);margin:6px 0 10px">
-      Current: <b style="color:var(--text)">@{{ user.username }}</b> ·
-      {% if profile.is_pro_active %}
-        <b style="color:var(--success-text)">Pro — rename cards are free</b>
-      {% else %}
-        a rename card costs <b style="color:var(--warning-text)">{{ rename_cost }} ★</b> (Pro gets it free)
-      {% endif %}
-      · one rename per {{ rename_cooldown_days }} days, like PUBG.
-      Your old name stays reserved {{ rename_reserve_days }} days and old <code>/u/…</code> links redirect — nobody can impersonate you.
+  <div
+    style="
+      margin-top: 8px;
+      padding: 16px;
+      border: 1px solid var(--accent-border);
+      background: var(--card);
+      border-radius: 12px;
+    "
+  >
+    <h2 style="font-size: 14px; font-weight: 700">🪪 Username — rename card</h2>
+    <p style="font-size: 12px; color: var(--muted); margin: 6px 0 10px">
+      Current: <b style="color: var(--text)">@{{ user.username }}</b> · {% if profile.is_pro_active %}
+      <b style="color: var(--success-text)">Pro — rename cards are free</b>
+      {% else %} a rename card costs
+      <b style="color: var(--warning-text)">{{ rename_cost }} ★</b> (Pro gets it
+      free) {% endif %} · one rename per {{ rename_cooldown_days }} days, . Your old name stays reserved {{ rename_reserve_days }} days and old
+      <code>/u/…</code> links redirect — nobody can impersonate you.
     </p>
     {% if cooldown_days is not None %}
-      <div style="background:var(--warning-bg);border:1px solid var(--warning-border);color:var(--warning-text);padding:10px 12px;border-radius:10px;font-size:12px;font-weight:700">
-        ⏳ Rename card on cooldown — usable again in {{ cooldown_days }} day{{ cooldown_days|pluralize }} ({{ cooldown_hours }}h). One rename per {{ rename_cooldown_days }} days, even on Pro.
-      </div>
+    <div
+      style="
+        background: var(--warning-bg);
+        border: 1px solid var(--warning-border);
+        color: var(--warning-text);
+        padding: 10px 12px;
+        border-radius: 10px;
+        font-size: 12px;
+        font-weight: 700;
+      "
+    >
+      ⏳ Rename card on cooldown — usable again in {{ cooldown_days }} day{{
+      cooldown_days|pluralize }} ({{ cooldown_hours }}h). One rename per {{
+      rename_cooldown_days }} days, even on Pro.
+    </div>
     {% else %}
-      <form method="post" action="{% url 'rename_username' %}" style="display:flex;gap:8px;flex-wrap:wrap">
-        {% csrf_token %}
-        <input name="new_username" placeholder="new-username" class="field-input" style="flex:1;min-width:180px" autocomplete="off" maxlength="150">
-        <button class="btn-violet">{% if profile.is_pro_active %}Use Pro rename card{% else %}Buy rename card — {{ rename_cost }} ★{% endif %}</button>
-      </form>
-      {% if rename_count %}
-      <div style="font-size:11px;color:var(--muted);margin-top:6px">{{ rename_count }} rename{{ rename_count|pluralize }} so far — full history is in your star ledger.</div>
-      {% endif %}
-    {% endif %}
+    <form
+      method="post"
+      action="{% url 'rename_username' %}"
+      style="display: flex; gap: 8px; flex-wrap: wrap"
+    >
+      {% csrf_token %}
+      <input
+        name="new_username"
+        placeholder="new-username"
+        class="field-input"
+        style="flex: 1; min-width: 180px"
+        autocomplete="off"
+        maxlength="150"
+      />
+      <button class="btn-violet">
+        {% if profile.is_pro_active %}Use Pro rename card{% else %}Buy rename
+        card — {{ rename_cost }} ★{% endif %}
+      </button>
+    </form>
+    {% if rename_count %}
+    <div style="font-size: 11px; color: var(--muted); margin-top: 6px">
+      {{ rename_count }} rename{{ rename_count|pluralize }} so far — full
+      history is in your star ledger.
+    </div>
+    {% endif %} {% endif %}
   </div>
 
   {# ── Identity: name style (the flex) ────────────────────────────────── #}
-  <div style="margin-top:12px;padding:16px;border:1px solid var(--line);background:var(--card);border-radius:12px">
-    <h2 style="font-size:14px;font-weight:700">✨ Name style — flex on other people</h2>
-    <p style="font-size:12px;color:var(--muted);margin:6px 0 10px">
-      Style the name others see on your profile, follower lists and tips.
-      {% if profile.is_pro_active %}
-        <b style="color:var(--success-text)">Pro — restyling is free.</b>
-      {% else %}
-        A restyle costs <b style="color:var(--warning-text)">{{ style_cost }} ★</b> per change (free while Pro). Back to defaults is always free.
-      {% endif %}
+  <div
+    style="
+      margin-top: 12px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      border-radius: 12px;
+    "
+  >
+    <h2 style="font-size: 14px; font-weight: 700">
+      ✨ Name style — flex on other people
+    </h2>
+    <p style="font-size: 12px; color: var(--muted); margin: 6px 0 10px">
+      Style the name others see on your profile, follower lists and tips. {% if
+      profile.is_pro_active %}
+      <b style="color: var(--success-text)">Pro — restyling is free.</b>
+      {% else %} A restyle costs
+      <b style="color: var(--warning-text)">{{ style_cost }} ★</b> per change
+      (free while Pro). Back to defaults is always free. {% endif %}
     </p>
-    <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:10px;display:flex;gap:10px;align-items:center">
-      <span style="font-size:11px;color:var(--muted);flex-shrink:0">Preview</span>
-      <span id="name-style-preview" class="styled-name {{ profile.name_style_classes }}" style="font-size:18px;{{ profile.name_style_css }}">@{{ user.username }}</span>
+    <div
+      style="
+        background: var(--surface-subtle);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px;
+        margin-bottom: 10px;
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      "
+    >
+      <span style="font-size: 11px; color: var(--muted); flex-shrink: 0"
+        >Preview</span
+      >
+      <span
+        id="name-style-preview"
+        class="styled-name {{ profile.name_style_classes }}"
+        style="font-size:18px;{{ profile.name_style_css }}"
+        >@{{ user.username }}</span
+      >
     </div>
-    <form method="post" action="{% url 'set_name_style' %}" style="display:grid;gap:10px">
+    <form
+      method="post"
+      action="{% url 'set_name_style' %}"
+      style="display: grid; gap: 10px"
+    >
       {% csrf_token %}
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
-        <div><label style="font-size:12px;color:var(--muted)">Font</label>{{ style_form.name_font }}</div>
-        <div><label style="font-size:12px;color:var(--muted)">Color</label>{{ style_form.name_color }}</div>
-        <div><label style="font-size:12px;color:var(--muted)">Size</label>{{ style_form.name_size }}</div>
-        <div><label style="font-size:12px;color:var(--muted)">Effect</label>{{ style_form.name_fx }}</div>
+      <div
+        style="
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+          gap: 10px;
+        "
+      >
+        <div>
+          <label style="font-size: 12px; color: var(--muted)">Font</label>{{
+          style_form.name_font }}
+        </div>
+        <div>
+          <label style="font-size: 12px; color: var(--muted)">Color</label>{{
+          style_form.name_color }}
+        </div>
+        <div>
+          <label style="font-size: 12px; color: var(--muted)">Size</label>{{
+          style_form.name_size }}
+        </div>
+        <div>
+          <label style="font-size: 12px; color: var(--muted)">Effect</label>{{
+          style_form.name_fx }}
+        </div>
       </div>
-      <div style="display:flex;gap:8px;justify-content:flex-end"><button class="btn-ghost">Save name style</button></div>
+      <div style="display: flex; gap: 8px; justify-content: flex-end">
+        <button class="btn-ghost">Save name style</button>
+      </div>
     </form>
     {{ name_style_maps|json_script:'name-style-maps' }}
   </div>
 
-  <h2 style="margin-top:16px;font-size:14px;font-weight:700">Your Vibes — 1 tap, no form</h2>
-  <div style="margin-top:8px;display:flex;flex-direction:column;gap:12px">
-
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
-        <div style="flex:1"><div style="font-weight:700;font-size:13px">Auto language detect</div></div>
-        <label class="switch"><input type="checkbox" data-key="auto_language" {% if profile.auto_language %}checked{% endif %}><span class="slider"></span></label>
+  <h2 style="margin-top: 16px; font-size: 14px; font-weight: 700">
+    Your Vibes — 1 tap, no form
+  </h2>
+  <div
+    style="margin-top: 8px; display: flex; flex-direction: column; gap: 12px"
+  >
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <div
+        style="
+          background: var(--card);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        "
+      >
+        <div style="flex: 1">
+          <div style="font-weight: 700; font-size: 13px">
+            Auto language detect
+          </div>
+        </div>
+        <label class="switch"
+          ><input
+            type="checkbox"
+            data-key="auto_language"
+            {%
+            if
+            profile.auto_language
+            %}checked{%
+            endif
+            %} /><span class="slider"></span
+        ></label>
       </div>
-      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
-        <div style="font-size:11px;color:var(--muted)">Detect Python/JS % from ZIP — size-weighted. If off, we use your manual tech stack only.</div>
-      </div>
-    </div>
-
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
-        <div style="flex:1"><div style="font-weight:700;font-size:13px">Nolo auto-review</div></div>
-        <label class="switch"><input type="checkbox" data-key="nolo_enabled" {% if profile.nolo_enabled %}checked{% endif %}><span class="slider"></span></label>
-      </div>
-      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
-        <div style="font-size:11px;color:var(--muted)">Score 0-10 + fixes on every upload. If off, no review, no fixes. Recommended On.</div>
-      </div>
-    </div>
-
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
-        <div style="flex:1"><div style="font-weight:700;font-size:13px">Auto thumbnail</div></div>
-        <label class="switch"><input type="checkbox" data-key="auto_thumbnail" {% if profile.auto_thumbnail %}checked{% endif %}><span class="slider"></span></label>
-      </div>
-      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
-        <div style="font-size:11px;color:var(--muted)">Screenshot preview for feed. If off, generic thumbnail.</div>
-      </div>
-    </div>
-
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
-        <div style="flex:1"><div style="font-weight:700;font-size:13px">Allow trading (charge stars)</div></div>
-        <label class="switch"><input type="checkbox" data-key="allow_trading" {% if profile.allow_trading %}checked{% endif %}><span class="slider"></span></label>
-      </div>
-      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
-        <div style="font-size:11px;color:var(--warning-text)">If off, your vibes are free (0 ★) — you lose stars income. Trading is economy: earn when others download.</div>
-      </div>
-    </div>
-
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
-        <div style="flex:1"><div style="font-weight:700;font-size:13px">Email on trade</div></div>
-        <label class="switch"><input type="checkbox" data-key="email_on_trade" {% if profile.email_on_trade %}checked{% endif %}><span class="slider"></span></label>
-      </div>
-      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
-        <div style="font-size:11px;color:var(--muted)">We’ll tell you when someone trades your vibe. If off, only Trades page shows.</div>
+      <div
+        style="
+          background: var(--surface-subtle);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          margin-left: 12px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--muted)">
+          Detect Python/JS % from ZIP — size-weighted. If off, we use your
+          manual tech stack only.
+        </div>
       </div>
     </div>
 
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
-        <div style="flex:1"><div style="font-weight:700;font-size:13px">Show language % to others</div></div>
-        <label class="switch"><input type="checkbox" data-key="show_language" {% if profile.show_language %}checked{% endif %}><span class="slider"></span></label>
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <div
+        style="
+          background: var(--card);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        "
+      >
+        <div style="flex: 1">
+          <div style="font-weight: 700; font-size: 13px">Nolo auto-review</div>
+        </div>
+        <label class="switch"
+          ><input
+            type="checkbox"
+            data-key="nolo_enabled"
+            {%
+            if
+            profile.nolo_enabled
+            %}checked{%
+            endif
+            %} /><span class="slider"></span
+        ></label>
       </div>
-      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
-        <div style="font-size:11px;color:var(--muted)">If off, language donut hidden to others. Keep On — buyers judge stack before trade.</div>
-      </div>
-    </div>
-
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
-        <div style="flex:1"><div style="font-weight:700;font-size:13px">Allow forks</div></div>
-        <label class="switch"><input type="checkbox" data-key="allow_forks" {% if profile.allow_forks %}checked{% endif %}><span class="slider"></span></label>
-      </div>
-      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
-        <div style="font-size:11px;color:var(--muted)">Others can fork your vibes. If off, Fork button hidden, POST 403 fork page.</div>
-      </div>
-    </div>
-
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
-        <div style="flex:1"><div style="font-weight:700;font-size:13px">Allow PRs</div></div>
-        <label class="switch"><input type="checkbox" data-key="allow_prs" {% if profile.allow_prs %}checked{% endif %}><span class="slider"></span></label>
-      </div>
-      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
-        <div style="font-size:11px;color:var(--muted)">Others can PR to your vibes. If off, PR create blocked.</div>
-      </div>
-    </div>
-
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
-        <div style="flex:1"><div style="font-weight:700;font-size:13px">Comments</div></div>
-        <label class="switch"><input type="checkbox" data-key="allow_comments" {% if profile.allow_comments %}checked{% endif %}><span class="slider"></span></label>
-      </div>
-      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
-        <div style="font-size:11px;color:var(--muted)">Allow comments on your vibes. If off, comments hidden.</div>
-      </div>
-    </div>
-
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
-        <div style="flex:1"><div style="font-weight:700;font-size:13px">Reviews (1-5 ★)</div></div>
-        <label class="switch"><input type="checkbox" data-key="allow_reviews" {% if profile.allow_reviews %}checked{% endif %}><span class="slider"></span></label>
-      </div>
-      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
-        <div style="font-size:11px;color:var(--muted)">Allow human reviews. If off, 4.5 ★ avg hidden, review form blocked.</div>
+      <div
+        style="
+          background: var(--surface-subtle);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          margin-left: 12px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--muted)">
+          Score 0-10 + fixes on every upload. If off, no review, no fixes.
+          Recommended On.
+        </div>
       </div>
     </div>
 
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <div
+        style="
+          background: var(--card);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        "
+      >
+        <div style="flex: 1">
+          <div style="font-weight: 700; font-size: 13px">Auto thumbnail</div>
+        </div>
+        <label class="switch"
+          ><input
+            type="checkbox"
+            data-key="auto_thumbnail"
+            {%
+            if
+            profile.auto_thumbnail
+            %}checked{%
+            endif
+            %} /><span class="slider"></span
+        ></label>
+      </div>
+      <div
+        style="
+          background: var(--surface-subtle);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          margin-left: 12px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--muted)">
+          Screenshot preview for feed. If off, generic thumbnail.
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <div
+        style="
+          background: var(--card);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        "
+      >
+        <div style="flex: 1">
+          <div style="font-weight: 700; font-size: 13px">
+            Allow trading (charge stars)
+          </div>
+        </div>
+        <label class="switch"
+          ><input
+            type="checkbox"
+            data-key="allow_trading"
+            {%
+            if
+            profile.allow_trading
+            %}checked{%
+            endif
+            %} /><span class="slider"></span
+        ></label>
+      </div>
+      <div
+        style="
+          background: var(--surface-subtle);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          margin-left: 12px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--warning-text)">
+          If off, your vibes are free (0 ★) — you lose stars income. Trading is
+          economy: earn when others download.
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <div
+        style="
+          background: var(--card);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        "
+      >
+        <div style="flex: 1">
+          <div style="font-weight: 700; font-size: 13px">Email on trade</div>
+        </div>
+        <label class="switch"
+          ><input
+            type="checkbox"
+            data-key="email_on_trade"
+            {%
+            if
+            profile.email_on_trade
+            %}checked{%
+            endif
+            %} /><span class="slider"></span
+        ></label>
+      </div>
+      <div
+        style="
+          background: var(--surface-subtle);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          margin-left: 12px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--muted)">
+          We’ll tell you when someone trades your vibe. If off, only Trades page
+          shows.
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <div
+        style="
+          background: var(--card);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        "
+      >
+        <div style="flex: 1">
+          <div style="font-weight: 700; font-size: 13px">
+            Show language % to others
+          </div>
+        </div>
+        <label class="switch"
+          ><input
+            type="checkbox"
+            data-key="show_language"
+            {%
+            if
+            profile.show_language
+            %}checked{%
+            endif
+            %} /><span class="slider"></span
+        ></label>
+      </div>
+      <div
+        style="
+          background: var(--surface-subtle);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          margin-left: 12px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--muted)">
+          If off, language donut hidden to others. Keep On — buyers judge stack
+          before trade.
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <div
+        style="
+          background: var(--card);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        "
+      >
+        <div style="flex: 1">
+          <div style="font-weight: 700; font-size: 13px">Allow forks</div>
+        </div>
+        <label class="switch"
+          ><input
+            type="checkbox"
+            data-key="allow_forks"
+            {%
+            if
+            profile.allow_forks
+            %}checked{%
+            endif
+            %} /><span class="slider"></span
+        ></label>
+      </div>
+      <div
+        style="
+          background: var(--surface-subtle);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          margin-left: 12px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--muted)">
+          Others can fork your vibes. If off, Fork button hidden, POST 403 fork
+          page.
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <div
+        style="
+          background: var(--card);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        "
+      >
+        <div style="flex: 1">
+          <div style="font-weight: 700; font-size: 13px">Allow PRs</div>
+        </div>
+        <label class="switch"
+          ><input
+            type="checkbox"
+            data-key="allow_prs"
+            {%
+            if
+            profile.allow_prs
+            %}checked{%
+            endif
+            %} /><span class="slider"></span
+        ></label>
+      </div>
+      <div
+        style="
+          background: var(--surface-subtle);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          margin-left: 12px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--muted)">
+          Others can PR to your vibes. If off, PR create blocked.
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <div
+        style="
+          background: var(--card);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        "
+      >
+        <div style="flex: 1">
+          <div style="font-weight: 700; font-size: 13px">Comments</div>
+        </div>
+        <label class="switch"
+          ><input
+            type="checkbox"
+            data-key="allow_comments"
+            {%
+            if
+            profile.allow_comments
+            %}checked{%
+            endif
+            %} /><span class="slider"></span
+        ></label>
+      </div>
+      <div
+        style="
+          background: var(--surface-subtle);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          margin-left: 12px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--muted)">
+          Allow comments on your vibes. If off, comments hidden.
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <div
+        style="
+          background: var(--card);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        "
+      >
+        <div style="flex: 1">
+          <div style="font-weight: 700; font-size: 13px">Reviews (1-5 ★)</div>
+        </div>
+        <label class="switch"
+          ><input
+            type="checkbox"
+            data-key="allow_reviews"
+            {%
+            if
+            profile.allow_reviews
+            %}checked{%
+            endif
+            %} /><span class="slider"></span
+        ></label>
+      </div>
+      <div
+        style="
+          background: var(--surface-subtle);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          margin-left: 12px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--muted)">
+          Allow human reviews. If off, 4.5 ★ avg hidden, review form blocked.
+        </div>
+      </div>
+    </div>
   </div>
 
   {% if site %}
-  <h2 style="margin-top:16px;font-size:14px;font-weight:700">Global — Super Admin Only</h2>
-  <div style="margin-top:8px;display:flex;flex-direction:column;gap:12px">
-
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <div style="background:var(--accent-soft-bg);border:1px solid var(--accent-border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
-        <div style="flex:1"><div style="font-weight:700;font-size:13px">Maintenance mode</div></div>
-        <label class="switch"><input type="checkbox" data-key="maintenance" {% if site.maintenance %}checked{% endif %}><span class="slider"></span></label>
+  <h2 style="margin-top: 16px; font-size: 14px; font-weight: 700">
+    Global — Super Admin Only
+  </h2>
+  <div
+    style="margin-top: 8px; display: flex; flex-direction: column; gap: 12px"
+  >
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <div
+        style="
+          background: var(--accent-soft-bg);
+          border: 1px solid var(--accent-border);
+          border-radius: 12px;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        "
+      >
+        <div style="flex: 1">
+          <div style="font-weight: 700; font-size: 13px">Maintenance mode</div>
+        </div>
+        <label class="switch"
+          ><input
+            type="checkbox"
+            data-key="maintenance"
+            {%
+            if
+            site.maintenance
+            %}checked{%
+            endif
+            %} /><span class="slider"></span
+        ></label>
       </div>
-      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
-        <div style="font-size:11px;color:var(--muted)">Site shows safe fork page for all. Critical toggle — superadmin only.</div>
-      </div>
-    </div>
-
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <div style="background:var(--input);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px;opacity:.7">
-        <div style="flex:1"><div style="font-weight:700;font-size:13px">🔒 ClamAV — Always On (Critical)</div></div>
-        <span style="font-size:11px;background:var(--success-action);color:var(--on-accent);padding:4px 8px;border-radius:8px;font-weight:700">Locked On</span>
-      </div>
-      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
-        <div style="font-size:11px;color:var(--muted)">Virus scan every upload — cannot be toggled. Very critical, always on. Attempt → 400 error.</div>
-      </div>
-    </div>
-
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <div style="background:var(--input);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px;opacity:.7">
-        <div style="flex:1"><div style="font-weight:700;font-size:13px">🔒 R2 Storage — Always On (Critical)</div></div>
-        <span style="font-size:11px;background:var(--success-action);color:var(--on-accent);padding:4px 8px;border-radius:8px;font-weight:700">Locked On</span>
-      </div>
-      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
-        <div style="font-size:11px;color:var(--muted)">Signed URLs for ZIPs — cannot be toggled. Very critical, always on.</div>
-      </div>
-    </div>
-
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <div style="background:var(--accent-soft-bg);border:1px solid var(--accent-border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
-        <div style="flex:1"><div style="font-weight:700;font-size:13px">Search</div></div>
-        <label class="switch"><input type="checkbox" data-key="search_enabled" {% if site.search_enabled %}checked{% endif %}><span class="slider"></span></label>
-      </div>
-      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
-        <div style="font-size:11px;color:var(--muted)">Full-text + typo. If off, feed shows all without ranking. Superadmin only.</div>
-      </div>
-    </div>
-
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <div style="background:var(--accent-soft-bg);border:1px solid var(--accent-border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
-        <div style="flex:1"><div style="font-weight:700;font-size:13px">PWA</div></div>
-        <label class="switch"><input type="checkbox" data-key="pwa_enabled" {% if site.pwa_enabled %}checked{% endif %}><span class="slider"></span></label>
-      </div>
-      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
-        <div style="font-size:11px;color:var(--muted)">Install prompt + offline. If off, no PWA banner, no SW.</div>
+      <div
+        style="
+          background: var(--surface-subtle);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          margin-left: 12px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--muted)">
+          Site shows safe fork page for all. Critical toggle — superadmin only.
+        </div>
       </div>
     </div>
 
-    <div style="display:flex;flex-direction:column;gap:4px">
-      <div style="background:var(--accent-soft-bg);border:1px solid var(--accent-border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px">
-        <div style="flex:1"><div style="font-weight:700;font-size:13px">Open file preview after publish</div></div>
-        <label class="switch"><input type="checkbox" data-key="auto_run_enabled" {% if site.auto_run_enabled %}checked{% endif %}><span class="slider"></span></label>
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <div
+        style="
+          background: var(--input);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          opacity: 0.7;
+        "
+      >
+        <div style="flex: 1">
+          <div style="font-weight: 700; font-size: 13px">
+            🔒 ClamAV — Always On (Critical)
+          </div>
+        </div>
+        <span
+          style="
+            font-size: 11px;
+            background: var(--success-action);
+            color: var(--on-accent);
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-weight: 700;
+          "
+          >Locked On</span
+        >
       </div>
-      <div style="background:var(--surface-subtle);border:1px solid var(--line);border-radius:10px;padding:10px;margin-left:12px">
-        <div style="font-size:11px;color:var(--muted)">If On, we remind you that file preview is on the vibe page. This does not start Docker or a live URL.</div>
+      <div
+        style="
+          background: var(--surface-subtle);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          margin-left: 12px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--muted)">
+          Virus scan every upload — cannot be toggled. Very critical, always on.
+          Attempt → 400 error.
+        </div>
       </div>
     </div>
 
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <div
+        style="
+          background: var(--input);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          opacity: 0.7;
+        "
+      >
+        <div style="flex: 1">
+          <div style="font-weight: 700; font-size: 13px">
+            🔒 R2 Storage — Always On (Critical)
+          </div>
+        </div>
+        <span
+          style="
+            font-size: 11px;
+            background: var(--success-action);
+            color: var(--on-accent);
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-weight: 700;
+          "
+          >Locked On</span
+        >
+      </div>
+      <div
+        style="
+          background: var(--surface-subtle);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          margin-left: 12px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--muted)">
+          Signed URLs for ZIPs — cannot be toggled. Very critical, always on.
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <div
+        style="
+          background: var(--accent-soft-bg);
+          border: 1px solid var(--accent-border);
+          border-radius: 12px;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        "
+      >
+        <div style="flex: 1">
+          <div style="font-weight: 700; font-size: 13px">Search</div>
+        </div>
+        <label class="switch"
+          ><input
+            type="checkbox"
+            data-key="search_enabled"
+            {%
+            if
+            site.search_enabled
+            %}checked{%
+            endif
+            %} /><span class="slider"></span
+        ></label>
+      </div>
+      <div
+        style="
+          background: var(--surface-subtle);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          margin-left: 12px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--muted)">
+          Full-text + typo. If off, feed shows all without ranking. Superadmin
+          only.
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <div
+        style="
+          background: var(--accent-soft-bg);
+          border: 1px solid var(--accent-border);
+          border-radius: 12px;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        "
+      >
+        <div style="flex: 1">
+          <div style="font-weight: 700; font-size: 13px">PWA</div>
+        </div>
+        <label class="switch"
+          ><input
+            type="checkbox"
+            data-key="pwa_enabled"
+            {%
+            if
+            site.pwa_enabled
+            %}checked{%
+            endif
+            %} /><span class="slider"></span
+        ></label>
+      </div>
+      <div
+        style="
+          background: var(--surface-subtle);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          margin-left: 12px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--muted)">
+          Install prompt + offline. If off, no PWA banner, no SW.
+        </div>
+      </div>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <div
+        style="
+          background: var(--accent-soft-bg);
+          border: 1px solid var(--accent-border);
+          border-radius: 12px;
+          padding: 12px;
+          display: flex;
+          align-items: center;
+          gap: 12px;
+        "
+      >
+        <div style="flex: 1">
+          <div style="font-weight: 700; font-size: 13px">
+            Open file preview after publish
+          </div>
+        </div>
+        <label class="switch"
+          ><input
+            type="checkbox"
+            data-key="auto_run_enabled"
+            {%
+            if
+            site.auto_run_enabled
+            %}checked{%
+            endif
+            %} /><span class="slider"></span
+        ></label>
+      </div>
+      <div
+        style="
+          background: var(--surface-subtle);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          margin-left: 12px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--muted)">
+          If On, we remind you that file preview is on the vibe page. This does
+          not start Docker or a live URL.
+        </div>
+      </div>
+    </div>
   </div>
   {% endif %}
 
-  <div id="git-token" style="margin-top:28px;padding:16px;border:1px solid var(--line);background:var(--card);border-radius:12px">
-    <h2 style="font-size:14px;font-weight:700">🔑 Git access</h2>
-    <p style="font-size:12px;color:var(--muted);margin:6px 0 12px">
-      Your vibes are real git repos at <code>/git/&lt;you&gt;/&lt;vibe&gt;.git</code> — clone with your
-      username and password, or use a git token if you signed in with Google/GitHub (no password on file).
-      {% if profile.git_token_hash %}
-      Status: <b style="color:var(--success-text)">token set</b>. Rotate to invalidate the old one.
-      {% else %}
-      Status: <b style="color:var(--warning-text)">no token yet</b> — generate one to push from your terminal.
-      {% endif %}
+  <div
+    id="git-token"
+    style="
+      margin-top: 28px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      border-radius: 12px;
+    "
+  >
+    <h2 style="font-size: 14px; font-weight: 700">🔑 Git access</h2>
+    <p style="font-size: 12px; color: var(--muted); margin: 6px 0 12px">
+      Your vibes are real git repos at
+      <code>/git/&lt;you&gt;/&lt;vibe&gt;.git</code> — clone with your username
+      and password, or use a git token if you signed in with Google/GitHub (no
+      password on file). {% if profile.git_token_hash %} Status:
+      <b style="color: var(--success-text)">token set</b>. Rotate to invalidate
+      the old one. {% else %} Status:
+      <b style="color: var(--warning-text)">no token yet</b> — generate one to
+      push from your terminal. {% endif %}
     </p>
     <form method="post" action="{% url 'regenerate_git_token' %}">
       {% csrf_token %}
-      <button class="btn-ghost">{% if profile.git_token_hash %}Rotate token (revokes the old one){% else %}Generate git token{% endif %}</button>
+      <button class="btn-ghost">
+        {% if profile.git_token_hash %}Rotate token (revokes the old one){% else
+        %}Generate git token{% endif %}
+      </button>
     </form>
   </div>
 
-  <div style="margin-top:28px;padding:16px;border:1px solid var(--line);background:var(--card);border-radius:12px">
-    <h2 style="font-size:14px;font-weight:700">Email</h2>
-    <p class="help" style="margin:6px 0 10px">
-      {% if profile.email_verified %}Confirmed: {{ user.email }}
-      {% else %}{{ user.email|default:"No email on this account" }} — not confirmed yet.{% endif %}
+  <div
+    style="
+      margin-top: 28px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      border-radius: 12px;
+    "
+  >
+    <h2 style="font-size: 14px; font-weight: 700">Email</h2>
+    <p class="help" style="margin: 6px 0 10px">
+      {% if profile.email_verified %}Confirmed: {{ user.email }} {% else %}{{
+      user.email|default:"No email on this account" }} — not confirmed yet.{%
+      endif %}
     </p>
     {% if not profile.email_verified and user.email %}
-    <form method="post" action="{% url 'resend_verify_email' %}">{% csrf_token %}<button class="btn-ghost">Resend confirmation</button></form>
+    <form method="post" action="{% url 'resend_verify_email' %}">
+      {% csrf_token %}<button class="btn-ghost">Resend confirmation</button>
+    </form>
     {% endif %}
   </div>
 
-  <div style="margin-top:28px;padding:16px;border:1px solid var(--danger-border);background:var(--danger-bg);border-radius:12px">
-    <h2 style="font-size:14px;font-weight:700;color:var(--danger-text)">Danger zone — POPIA</h2>
-    <p style="font-size:12px;color:var(--muted);margin:6px 0 12px">Delete your account, vibes, comments, and stars. This cannot be undone.</p>
-    <form method="post" action="{% url 'delete_account' %}" class="js-confirm-delete" style="display:flex;gap:8px;flex-wrap:wrap">
+  <div
+    style="
+      margin-top: 28px;
+      padding: 16px;
+      border: 1px solid var(--danger-border);
+      background: var(--danger-bg);
+      border-radius: 12px;
+    "
+  >
+    <h2 style="font-size: 14px; font-weight: 700; color: var(--danger-text)">
+      Danger zone — POPIA
+    </h2>
+    <p style="font-size: 12px; color: var(--muted); margin: 6px 0 12px">
+      Delete your account, vibes, comments, and stars. This cannot be undone.
+    </p>
+    <form
+      method="post"
+      action="{% url 'delete_account' %}"
+      class="js-confirm-delete"
+      style="display: flex; gap: 8px; flex-wrap: wrap"
+    >
       {% csrf_token %}
-      <input name="confirm" placeholder="Type {{ user.username }} to confirm" class="field-input" style="flex:1;min-width:180px">
-      <button class="btn-ghost" style="color:var(--danger-text);border-color:var(--danger-border)">Delete my account</button>
+      <input
+        name="confirm"
+        placeholder="Type {{ user.username }} to confirm"
+        class="field-input"
+        style="flex: 1; min-width: 180px"
+      />
+      <button
+        class="btn-ghost"
+        style="color: var(--danger-text); border-color: var(--danger-border)"
+      >
+        Delete my account
+      </button>
     </form>
   </div>
 </div>
 
 <style>
-.switch{position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0}
-.switch input{opacity:0;width:0;height:0}
-.slider{position:absolute;cursor:pointer;inset:0;background:var(--line);border-radius:100px;transition:.2s}
-.slider:before{content:"";position:absolute;height:18px;width:18px;left:3px;bottom:3px;background:#fff;border-radius:50%;transition:.2s}
-input:checked + .slider{background:#7C3AED}
-input:checked + .slider:before{transform:translateX(20px)}
+  .switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+  .switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: var(--line);
+    border-radius: 100px;
+    transition: 0.2s;
+  }
+  .slider:before {
+    content: "";
+    position: absolute;
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background: #fff;
+    border-radius: 50%;
+    transition: 0.2s;
+  }
+  input:checked + .slider {
+    background: #7c3aed;
+  }
+  input:checked + .slider:before {
+    transform: translateX(20px);
+  }
 </style>
 
 <script>
-document.querySelectorAll('.switch input').forEach(el=>{
-  el.addEventListener('change', ()=>{
-    const key=el.dataset.key;
-    const value=el.checked;
-    fetch("{% url 'toggle_setting' %}", {
-      method:'POST',
-      headers:{'X-CSRFToken':'{{ csrf_token }}','Content-Type':'application/x-www-form-urlencoded'},
-      body: `key=${encodeURIComponent(key)}&value=${value}`
-    }).then(r=>r.json()).then(d=>{
-      if(d.ok){ try{toast((value?'Enabled ':'Disabled ')+key)}catch(e){} }
-      else{ el.checked=!value; try{toast('Failed: '+d.error)}catch(e){} }
-    }).catch(()=>{ el.checked=!value; });
+  document.querySelectorAll(".switch input").forEach((el) => {
+    el.addEventListener("change", () => {
+      const key = el.dataset.key;
+      const value = el.checked;
+      fetch("{% url 'toggle_setting' %}", {
+        method: "POST",
+        headers: {
+          "X-CSRFToken": "{{ csrf_token }}",
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: `key=${encodeURIComponent(key)}&value=${value}`,
+      })
+        .then((r) => r.json())
+        .then((d) => {
+          if (d.ok) {
+            try {
+              toast((value ? "Enabled " : "Disabled ") + key);
+            } catch (e) {}
+          } else {
+            el.checked = !value;
+            try {
+              toast("Failed: " + d.error);
+            } catch (e) {}
+          }
+        })
+        .catch(() => {
+          el.checked = !value;
+        });
+    });
   });
-});
 
-// Live name-style preview. The maps come from the SERVER whitelists via
-// json_script — the preview can therefore never show a style the renderer
-// would refuse. 5 Whys: why preview with the real maps? A preview that lies
-// (hand-written JS mirrors) sells a 20★ style that saves differently.
-(function(){
-  const maps = JSON.parse(document.getElementById('name-style-maps').textContent);
-  const preview = document.getElementById('name-style-preview');
-  if(!preview || !maps) return;
-  const pick = sel => document.querySelector(sel);
-  const refresh = () => {
-    const font = maps.fonts[pick('[data-style="font"]').value] || '';
-    const color = maps.colors[pick('[data-style="color"]').value] || '';
-    const size = maps.sizes[pick('[data-style="size"]').value] || '';
-    const fx = maps.fx[pick('[data-style="fx"]').value] || '';
-    const rainbow = pick('[data-style="color"]').value === 'rainbow';
-    preview.setAttribute('style', 'font-size:18px;' + (font ? 'font-family:'+font+';' : '') + (color ? 'color:'+color+';' : ''));
-    preview.className = 'styled-name ' + [rainbow ? 'namefx-rainbow' : '', size, fx].filter(Boolean).join(' ');
-  };
-  document.querySelectorAll('[data-style]').forEach(el => el.addEventListener('change', refresh));
-})();
+  // Live name-style preview. The maps come from the SERVER whitelists via
+  // json_script — the preview can therefore never show a style the renderer
+  // would refuse. 5 Whys: why preview with the real maps? A preview that lies
+  // (hand-written JS mirrors) sells a 20★ style that saves differently.
+  (function () {
+    const maps = JSON.parse(
+      document.getElementById("name-style-maps").textContent,
+    );
+    const preview = document.getElementById("name-style-preview");
+    if (!preview || !maps) return;
+    const pick = (sel) => document.querySelector(sel);
+    const refresh = () => {
+      const font = maps.fonts[pick('[data-style="font"]').value] || "";
+      const color = maps.colors[pick('[data-style="color"]').value] || "";
+      const size = maps.sizes[pick('[data-style="size"]').value] || "";
+      const fx = maps.fx[pick('[data-style="fx"]').value] || "";
+      const rainbow = pick('[data-style="color"]').value === "rainbow";
+      preview.setAttribute(
+        "style",
+        "font-size:18px;" +
+          (font ? "font-family:" + font + ";" : "") +
+          (color ? "color:" + color + ";" : ""),
+      );
+      preview.className =
+        "styled-name " +
+        [rainbow ? "namefx-rainbow" : "", size, fx].filter(Boolean).join(" ");
+    };
+    document
+      .querySelectorAll("[data-style]")
+      .forEach((el) => el.addEventListener("change", refresh));
+  })();
 </script>
 {% endblock %}

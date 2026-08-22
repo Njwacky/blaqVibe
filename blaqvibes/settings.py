@@ -36,7 +36,7 @@ ALLOWED_HOSTS = [h.strip() for h in _raw_hosts.split(',') if h.strip()]
 if '*' in ALLOWED_HOSTS and not (DEBUG or LOCAL_DEV):
     ALLOWED_HOSTS = ['blaqvibes.co.za', 'www.blaqvibes.co.za']
 if DEBUG or LOCAL_DEV:
-    for extra in ('localhost', '127.0.0.1', '0.0.0.0', '.e2b.app', '.localhost'):
+    for extra in ('localhost', '127.0.0.1', '0.0.0.0', '.e2b.app', '.localhost', 'testserver'):
         if extra not in ALLOWED_HOSTS:
             ALLOWED_HOSTS.append(extra)
 
@@ -141,7 +141,7 @@ SOCIALACCOUNT_PROVIDERS = _social_providers
 # 5. Why eager fallback? Dev has no Redis, but .delay() must still work (eager sync).
 CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
-CELERY_TASK_ALWAYS_EAGER = os.getenv('CELERY_EAGER', '1') == '1'
+CELERY_TASK_ALWAYS_EAGER = os.getenv('CELERY_EAGER', '1' if LOCAL_DEV else '0') == '1'
 CELERY_TASK_EAGER_PROPAGATES = True
 CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
@@ -280,7 +280,7 @@ else:
     DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'db.sqlite3'}}
 
 REDIS_URL = os.getenv('REDIS_URL', '')
-if REDIS_URL:
+if REDIS_URL and (not LOCAL_DEV or os.getenv('USE_REDIS', '0') == '1'):
     # Shared Redis-backed rate-limit cache so limits hold across gunicorn workers.
     RATELIMIT_CACHE = {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',

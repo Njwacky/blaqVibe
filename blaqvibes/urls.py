@@ -39,6 +39,8 @@ urlpatterns = [
     path('', include('gallery.urls')),
     path('', include('users.urls')),
     path('accounts/social/', include('allauth.socialaccount.urls')),
+    path('accounts/social/', include('allauth.socialaccount.providers.github.urls')),
+    path('accounts/social/', include('allauth.socialaccount.providers.facebook.urls')),
     path('accounts/login/', auth_views.LoginView.as_view(
         template_name='registration/login.html',
         authentication_form=StyledAuthenticationForm,

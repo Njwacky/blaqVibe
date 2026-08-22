@@ -35,7 +35,14 @@ Honest limits, documented:
   it is per-instance disk, not object storage.
 """
 import base64
-import fcntl
+try:
+    import fcntl
+except ImportError:
+    fcntl = None
+try:
+    import msvcrt
+except ImportError:
+    msvcrt = None
 import hashlib
 import hmac
 import io
@@ -165,16 +172,19 @@ class _RepoLock:
         self._fd = None
 
     def __enter__(self):
-        self.lock_dir.mkdir(parents=True, exist_ok=True)
-        self._fd = os.open(self.path, os.O_CREAT | os.O_RDWR, 0o644)
-        fcntl.flock(self._fd, fcntl.LOCK_EX)
+        if fcntl:
+            self.lock_dir.mkdir(parents=True, exist_ok=True)
+            self._fd = os.open(self.path, os.O_CREAT | os.O_RDWR, 0o644)
+            fcntl.flock(self._fd, fcntl.LOCK_EX)
         return self
 
     def __exit__(self, *exc):
-        if self._fd is not None:
-            fcntl.flock(self._fd, fcntl.LOCK_UN)
-            os.close(self._fd)
-            self._fd = None
+        if fcntl and self._fd is not None:
+            try:
+                fcntl.flock(self._fd, fcntl.LOCK_UN)
+            finally:
+                os.close(self._fd)
+                self._fd = None
 
 
 def _tree_from_dir(repo, dirpath):

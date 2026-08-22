@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
                 ('user', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='co_owned_projects', to=settings.AUTH_USER_MODEL)),
             ],
             options={
-                'constraints': [models.CheckConstraint(condition=models.Q(('share_percent__gte', 1), ('share_percent__lte', 100)), name='co_owner_share_between_1_and_100')],
+                'constraints': [models.CheckConstraint(check=models.Q(('share_percent__gte', 1), ('share_percent__lte', 100)), name='co_owner_share_between_1_and_100')],
                 'unique_together': {('project', 'user')},
             },
         ),
