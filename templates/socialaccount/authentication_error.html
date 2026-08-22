@@ -1,9 +1,27 @@
 {% extends 'gallery/base.html' %}
-{% block title %}Social login failed{% endblock %}
+{% block title %}Sign-in failed — BlaqVibes{% endblock %}
 {% block content %}
+{# Rendered with HTTP 401 by allauth. The provider name is safe to show; the
+   exception text is not — it can carry the client id or the token response. #}
 <div class="auth-wrap card" style="padding:24px">
-  <h2>Social login failed</h2>
-  <p class="help">The provider rejected the login. Check the callback URL and client secret, then try again.</p>
-  <p><a href="{% url 'login' %}" class="btn-violet">Back to sign in</a></p>
+  <h2 style="font-weight:700">Couldn't finish that sign-in</h2>
+  {% if auth_error.code == 'denied' %}
+  <p class="help" style="margin:8px 0 16px">
+    {{ auth_error.provider.name|default:"The provider" }} refused the sign-in. If you
+    declined the permissions prompt, try again and accept it — BlaqVibes only asks
+    for your name and email address.
+  </p>
+  {% else %}
+  <p class="help" style="margin:8px 0 16px">
+    Something went wrong between BlaqVibes and
+    {{ auth_error.provider.name|default:"the provider" }}. Nothing was changed on your
+    account. Try again, or sign in with your password instead.
+  </p>
+  {% endif %}
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
+    <a href="{% url 'login' %}" class="btn-violet">Back to sign in</a>
+    <a href="{% url 'password_reset' %}" class="btn-ghost">Forgot password?</a>
+  </div>
 </div>
+<link rel="stylesheet" href="/static/gallery/css/forms.css?v=theme-colors-20260815">
 {% endblock %}

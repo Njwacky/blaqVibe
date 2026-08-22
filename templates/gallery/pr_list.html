@@ -1,5 +1,4 @@
-{% extends 'gallery/base.html' %} {% block title %}Pull Requests — {{
-target.title }} — BlaqVibes{% endblock %} {% block content %}
+{% extends 'gallery/base.html' %} {% block title %}Pull Requests — {{ target.title }} — BlaqVibes{% endblock %} {% block content %}
 <div style="max-width: 900px; margin: 0 auto; padding: 20px">
   <h1
     style="
@@ -23,8 +22,7 @@ target.title }} — BlaqVibes{% endblock %} {% block content %}
   </div>
 
   <!-- Create PR if user has a fork -->
-  {% if user.is_authenticated %} {% for fork in user.projects.all %} {% if
-  fork.forked_from_id == target.id and fork.status == 'published' %}
+  {% if user.is_authenticated %} {% for fork in user.projects.all %} {% if fork.forked_from_id == target.id and fork.status == 'published' %}
   <div
     style="
       margin-top: 12px;
@@ -110,8 +108,7 @@ target.title }} — BlaqVibes{% endblock %} {% block content %}
         >
       </div>
       <div style="font-size: 12px; color: var(--muted)">
-        {{ pr.source.title }} (@{{ pr.author.username }}) → {{ pr.target.title
-        }} • {{ pr.created_at|timesince }} ago
+        {{ pr.source.title }} (@{{ pr.author.username }}) → {{ pr.target.title }} • {{ pr.created_at|timesince }} ago
       </div>
       {% if pr.description %}
       <div style="font-size: 12px; margin-top: 4px; color: var(--text)">

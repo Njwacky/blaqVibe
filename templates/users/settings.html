@@ -1,5 +1,4 @@
-{% extends 'gallery/base.html' %} {% block title %}Settings — BlaqVibes{%
-endblock %} {% block content %}
+{% extends 'gallery/base.html' %} {% block title %}Settings — BlaqVibes{% endblock %} {% block content %}
 <div style="max-width: 800px; margin: 0 auto; padding: 20px">
   <h1
     style="
@@ -46,9 +45,7 @@ endblock %} {% block content %}
         font-weight: 700;
       "
     >
-      ⏳ Rename card on cooldown — usable again in {{ cooldown_days }} day{{
-      cooldown_days|pluralize }} ({{ cooldown_hours }}h). One rename per {{
-      rename_cooldown_days }} days, even on Pro.
+      ⏳ Rename card on cooldown — usable again in {{ cooldown_days }} day{{ cooldown_days|pluralize }} ({{ cooldown_hours }}h). One rename per {{ rename_cooldown_days }} days, even on Pro.
     </div>
     {% else %}
     <form
@@ -92,8 +89,7 @@ endblock %} {% block content %}
       ✨ Name style — flex on other people
     </h2>
     <p style="font-size: 12px; color: var(--muted); margin: 6px 0 10px">
-      Style the name others see on your profile, follower lists and tips. {% if
-      profile.is_pro_active %}
+      Style the name others see on your profile, follower lists and tips. {% if profile.is_pro_active %}
       <b style="color: var(--success-text)">Pro — restyling is free.</b>
       {% else %} A restyle costs
       <b style="color: var(--warning-text)">{{ style_cost }} ★</b> per change
@@ -135,20 +131,16 @@ endblock %} {% block content %}
         "
       >
         <div>
-          <label style="font-size: 12px; color: var(--muted)">Font</label>{{
-          style_form.name_font }}
+          <label style="font-size: 12px; color: var(--muted)">Font</label>{{ style_form.name_font }}
         </div>
         <div>
-          <label style="font-size: 12px; color: var(--muted)">Color</label>{{
-          style_form.name_color }}
+          <label style="font-size: 12px; color: var(--muted)">Color</label>{{ style_form.name_color }}
         </div>
         <div>
-          <label style="font-size: 12px; color: var(--muted)">Size</label>{{
-          style_form.name_size }}
+          <label style="font-size: 12px; color: var(--muted)">Size</label>{{ style_form.name_size }}
         </div>
         <div>
-          <label style="font-size: 12px; color: var(--muted)">Effect</label>{{
-          style_form.name_fx }}
+          <label style="font-size: 12px; color: var(--muted)">Effect</label>{{ style_form.name_fx }}
         </div>
       </div>
       <div style="display: flex; gap: 8px; justify-content: flex-end">
@@ -185,12 +177,7 @@ endblock %} {% block content %}
           ><input
             type="checkbox"
             data-key="auto_language"
-            {%
-            if
-            profile.auto_language
-            %}checked{%
-            endif
-            %} /><span class="slider"></span
+            {% if profile.auto_language %}checked{% endif %} /><span class="slider"></span
         ></label>
       </div>
       <div
@@ -228,12 +215,7 @@ endblock %} {% block content %}
           ><input
             type="checkbox"
             data-key="nolo_enabled"
-            {%
-            if
-            profile.nolo_enabled
-            %}checked{%
-            endif
-            %} /><span class="slider"></span
+            {% if profile.nolo_enabled %}checked{% endif %} /><span class="slider"></span
         ></label>
       </div>
       <div
@@ -271,12 +253,7 @@ endblock %} {% block content %}
           ><input
             type="checkbox"
             data-key="auto_thumbnail"
-            {%
-            if
-            profile.auto_thumbnail
-            %}checked{%
-            endif
-            %} /><span class="slider"></span
+            {% if profile.auto_thumbnail %}checked{% endif %} /><span class="slider"></span
         ></label>
       </div>
       <div
@@ -315,12 +292,7 @@ endblock %} {% block content %}
           ><input
             type="checkbox"
             data-key="allow_trading"
-            {%
-            if
-            profile.allow_trading
-            %}checked{%
-            endif
-            %} /><span class="slider"></span
+            {% if profile.allow_trading %}checked{% endif %} /><span class="slider"></span
         ></label>
       </div>
       <div
@@ -358,12 +330,7 @@ endblock %} {% block content %}
           ><input
             type="checkbox"
             data-key="email_on_trade"
-            {%
-            if
-            profile.email_on_trade
-            %}checked{%
-            endif
-            %} /><span class="slider"></span
+            {% if profile.email_on_trade %}checked{% endif %} /><span class="slider"></span
         ></label>
       </div>
       <div
@@ -403,12 +370,7 @@ endblock %} {% block content %}
           ><input
             type="checkbox"
             data-key="show_language"
-            {%
-            if
-            profile.show_language
-            %}checked{%
-            endif
-            %} /><span class="slider"></span
+            {% if profile.show_language %}checked{% endif %} /><span class="slider"></span
         ></label>
       </div>
       <div
@@ -446,12 +408,7 @@ endblock %} {% block content %}
           ><input
             type="checkbox"
             data-key="allow_forks"
-            {%
-            if
-            profile.allow_forks
-            %}checked{%
-            endif
-            %} /><span class="slider"></span
+            {% if profile.allow_forks %}checked{% endif %} /><span class="slider"></span
         ></label>
       </div>
       <div
@@ -489,12 +446,7 @@ endblock %} {% block content %}
           ><input
             type="checkbox"
             data-key="allow_prs"
-            {%
-            if
-            profile.allow_prs
-            %}checked{%
-            endif
-            %} /><span class="slider"></span
+            {% if profile.allow_prs %}checked{% endif %} /><span class="slider"></span
         ></label>
       </div>
       <div
@@ -531,12 +483,7 @@ endblock %} {% block content %}
           ><input
             type="checkbox"
             data-key="allow_comments"
-            {%
-            if
-            profile.allow_comments
-            %}checked{%
-            endif
-            %} /><span class="slider"></span
+            {% if profile.allow_comments %}checked{% endif %} /><span class="slider"></span
         ></label>
       </div>
       <div
@@ -573,12 +520,7 @@ endblock %} {% block content %}
           ><input
             type="checkbox"
             data-key="allow_reviews"
-            {%
-            if
-            profile.allow_reviews
-            %}checked{%
-            endif
-            %} /><span class="slider"></span
+            {% if profile.allow_reviews %}checked{% endif %} /><span class="slider"></span
         ></label>
       </div>
       <div
@@ -623,12 +565,7 @@ endblock %} {% block content %}
           ><input
             type="checkbox"
             data-key="maintenance"
-            {%
-            if
-            site.maintenance
-            %}checked{%
-            endif
-            %} /><span class="slider"></span
+            {% if site.maintenance %}checked{% endif %} /><span class="slider"></span
         ></label>
       </div>
       <div
@@ -756,12 +693,7 @@ endblock %} {% block content %}
           ><input
             type="checkbox"
             data-key="search_enabled"
-            {%
-            if
-            site.search_enabled
-            %}checked{%
-            endif
-            %} /><span class="slider"></span
+            {% if site.search_enabled %}checked{% endif %} /><span class="slider"></span
         ></label>
       </div>
       <div
@@ -799,12 +731,7 @@ endblock %} {% block content %}
           ><input
             type="checkbox"
             data-key="pwa_enabled"
-            {%
-            if
-            site.pwa_enabled
-            %}checked{%
-            endif
-            %} /><span class="slider"></span
+            {% if site.pwa_enabled %}checked{% endif %} /><span class="slider"></span
         ></label>
       </div>
       <div
@@ -843,12 +770,7 @@ endblock %} {% block content %}
           ><input
             type="checkbox"
             data-key="auto_run_enabled"
-            {%
-            if
-            site.auto_run_enabled
-            %}checked{%
-            endif
-            %} /><span class="slider"></span
+            {% if site.auto_run_enabled %}checked{% endif %} /><span class="slider"></span
         ></label>
       </div>
       <div
@@ -893,8 +815,7 @@ endblock %} {% block content %}
     <form method="post" action="{% url 'regenerate_git_token' %}">
       {% csrf_token %}
       <button class="btn-ghost">
-        {% if profile.git_token_hash %}Rotate token (revokes the old one){% else
-        %}Generate git token{% endif %}
+        {% if profile.git_token_hash %}Rotate token (revokes the old one){% else %}Generate git token{% endif %}
       </button>
     </form>
   </div>
@@ -910,14 +831,73 @@ endblock %} {% block content %}
   >
     <h2 style="font-size: 14px; font-weight: 700">Email</h2>
     <p class="help" style="margin: 6px 0 10px">
-      {% if profile.email_verified %}Confirmed: {{ user.email }} {% else %}{{
-      user.email|default:"No email on this account" }} — not confirmed yet.{%
-      endif %}
+      {% if profile.email_verified %}Confirmed: {{ user.email }} {% else %}{{ user.email|default:"No email on this account" }} — not confirmed yet.{% endif %}
     </p>
     {% if not profile.email_verified and user.email %}
     <form method="post" action="{% url 'resend_verify_email' %}">
       {% csrf_token %}<button class="btn-ghost">Resend confirmation</button>
     </form>
+    {% endif %}
+  </div>
+
+  {# ── Connected accounts (OAuth sign-in) ─────────────────────────────── #}
+  <div
+    style="
+      margin-top: 28px;
+      padding: 16px;
+      border: 1px solid var(--line);
+      background: var(--card);
+      border-radius: 12px;
+    "
+  >
+    <h2 style="font-size: 14px; font-weight: 700">Connected accounts</h2>
+    <p class="help" style="margin: 6px 0 10px">
+      Sign in with one tap instead of a password. Connecting does not post
+      anything — BlaqVibes only reads your name and email address.
+    </p>
+    {% if social_accounts %}
+    <ul style="list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 6px">
+      {% for account in social_accounts %}
+      <li
+        style="
+          display: flex;
+          justify-content: space-between;
+          gap: 8px;
+          flex-wrap: wrap;
+          font-size: 12px;
+          padding: 8px 10px;
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          background: var(--surface-subtle);
+        "
+      >
+        <b>{{ account.name }}</b>
+        <span style="color: var(--muted)">
+          {% if account.last_login %}last used {{ account.last_login|date:"j M Y" }}{% else %}connected{% endif %}
+        </span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% if not can_disconnect_social %}
+    <div
+      style="
+        background: var(--warning-bg);
+        border: 1px solid var(--warning-border);
+        color: var(--warning-text);
+        padding: 10px 12px;
+        border-radius: 10px;
+        font-size: 12px;
+      "
+    >
+      This is the only way into your account — it has no password. Set a password
+      first if you want to disconnect it.
+    </div>
+    {% endif %}
+    {% else %}
+    <p class="help" style="margin: 0 0 12px">No accounts connected yet.</p>
+    {% endif %}
+    {% if social_providers %}
+    <a class="btn-ghost" href="/accounts/social/">Manage connections</a>
     {% endif %}
   </div>
 

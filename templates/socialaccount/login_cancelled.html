@@ -1,9 +1,16 @@
 {% extends 'gallery/base.html' %}
-{% block title %}Login cancelled{% endblock %}
+{% block title %}Sign-in cancelled — BlaqVibes{% endblock %}
 {% block content %}
 <div class="auth-wrap card" style="padding:24px">
-  <h2>Sign-in cancelled</h2>
-  <p class="help">You closed the social login window. Nothing was changed.</p>
-  <p><a href="{% url 'login' %}" class="btn-violet">Back to sign in</a></p>
+  <h2 style="font-weight:700">Sign-in cancelled</h2>
+  <p class="help" style="margin:8px 0 16px">
+    You backed out of the provider's sign-in window. Nothing was created and
+    nothing was changed.
+  </p>
+  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
+    <a href="{% url 'login' %}" class="btn-violet">Back to sign in</a>
+    <a href="{% url 'signup' %}" class="btn-ghost">Create an account</a>
+  </div>
 </div>
+<link rel="stylesheet" href="/static/gallery/css/forms.css?v=theme-colors-20260815">
 {% endblock %}

@@ -361,13 +361,7 @@
         type="checkbox"
         name="ai"
         value="1"
-        {%
-        if
-        request.GET.ai=""
-        ="1"
-        %}checked{%
-        endif
-        %}
+        {% if request.GET.ai == "1" %}checked{% endif %}
       />
       🤖 AI</label
     >
