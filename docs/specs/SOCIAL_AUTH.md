@@ -1,8 +1,11 @@
-# Social login — what you must do
+# Social login (OAuth) — what you must do
 
-Code is wired (Google, GitHub, Facebook). **Buttons stay hidden until you put real client IDs in `.env`.** Password login still works.
+Google, GitHub and Facebook sign-in are wired end to end. **A provider's button
+stays hidden until BOTH its client id and its secret are in `.env`.** Password
+login always keeps working.
 
-Redirect URIs must match the host people actually use (`SITE_URL`), including `https`.
+Redirect URIs must match the host people actually use (`SITE_URL`), including
+the `https`.
 
 | Provider | Callback path |
 |----------|----------------|
@@ -48,19 +51,39 @@ GITHUB_CLIENT_ID=
 GITHUB_CLIENT_SECRET=
 ```
 
-## 4. Facebook (optional)
+We request `read:user` and `user:email`. The second one matters: a GitHub user
+can keep every address private, in which case `/user` returns `email: null` and
+we read the verified primary from `/user/emails` instead.
 
-1. [Meta for Developers](https://developers.facebook.com/apps/) → Create app → Consumer / Authenticate.
-2. Add Facebook Login → Settings → Valid OAuth Redirect URIs = Facebook callback.
-3. App Dashboard → Settings → Basic → App ID + App Secret.
-4. Switch the app **Live** only after you add a privacy policy URL.
+## 4. Facebook
+
+1. [Meta for Developers](https://developers.facebook.com/apps/) → Create app → **Authenticate and request data from users with Facebook Login**.
+2. Add Facebook Login → Settings → Valid OAuth Redirect URIs = the Facebook callback above.
+3. App Dashboard → App settings → Basic → App ID + App Secret.
+4. Permissions: `email` and `public_profile` only. Both are granted without App
+   Review, so you do **not** need review for sign-in.
+5. Switch the app **Live** (App settings → Basic) once you have a privacy policy
+   URL. While it is in Development mode only app admins/testers can sign in.
 
 ```
 FACEBOOK_CLIENT_ID=
 FACEBOOK_CLIENT_SECRET=
 ```
 
-Facebook will refuse `localhost` unless you add it under the app’s settings.
+Facebook refuses plain `localhost` redirects on a Live app. Test locally while
+the app is in Development mode, or use a tunnelled https URL.
+
+### Graph API version
+
+The Graph API version is pinned in `settings.SOCIAL_PROVIDER_CREDENTIALS`
+(currently `v25.0`, supported until 2028-07-29). Meta retires each version about
+two years after release — `v19.0`, which django-allauth still defaults to, was
+retired on 2026-05-21 and returns errors today.
+
+**When you bump it:** change `VERSION` in that one dict and update the assertion
+in `users/test_social_auth.py::test_authorize_url_uses_the_pinned_version`.
+Check the [Graph API changelog](https://developers.facebook.com/docs/graph-api/changelog/)
+for the current version and its expiry.
 
 ## 5. Restart and migrate
 
@@ -75,17 +98,36 @@ Open `/accounts/login/` — configured providers show as buttons.
 
 ## Behaviour
 
-- Same email as an existing account **connects** (no second user).
-- New Google/GitHub users get a Profile; GitHub `login` is copied to `profile.github`.
-- Provider-verified email sets `profile.email_verified`.
-- Secrets stay in env. Templates only get provider slugs that have a client id.
+- **Same email connects, it does not duplicate.** A provider address that is
+  verified and already belongs to a BlaqVibes account signs into that account
+  and links the provider to it.
+- **New users get a Profile**, and the GitHub `login` handle is copied to
+  `profile.github` (an existing hand-typed handle is never overwritten).
+- **A provider-verified email sets `profile.email_verified`** and therefore pays
+  the one-time welcome star grant. This is ledger-idempotent: signing in again,
+  or later clicking the email link, pays nothing more.
+- **Reserved and profane handles are blocked on this path too.** A GitHub user
+  called `admin` does not become `@admin` here; allauth falls through to a
+  suffixed candidate.
+- **No access tokens are stored** (`SOCIALACCOUNT_STORE_TOKENS = False`). We
+  authenticate the person and forget the credential.
+- **The handshake needs a POST.** `SOCIALACCOUNT_LOGIN_ON_GET` is off, so a
+  third-party page cannot start a sign-in by embedding our URL.
+- **Users manage links** at Settings → Connected accounts (`/accounts/social/`).
+  The last sign-in method cannot be disconnected from an account with no
+  password — that would lock the owner out.
+- Secrets stay in env. Templates only ever receive provider slugs and labels.
 
 ## Common failures
 
 | Symptom | Fix |
 |---------|-----|
-| No buttons | Empty `GOOGLE_CLIENT_ID` etc. Restart after editing `.env`. |
-| `redirect_uri_mismatch` | Callback URL in the console ≠ exact host/path/scheme. |
-| `SocialApp matching query does not exist` | Both `CLIENT_ID` and `SECRET` must be set so `SOCIALACCOUNT_PROVIDERS['google']['APP']` is filled. |
-| Wrong callback host | Update Site.domain and `SITE_URL`. |
-| HTTPS required | Google/Facebook production apps need https. |
+| No buttons | A client id or its secret is blank. Both halves are required. Restart after editing `.env`. |
+| Button 404s | That provider has no credentials, so its route is not served. Same fix as above. |
+| `redirect_uri_mismatch` | The callback URL in the provider console differs from the generated one — check scheme, host, and the trailing slash. |
+| Callback lands on `http://` behind a proxy | Set `SITE_URL` to the `https://` origin; `ACCOUNT_DEFAULT_HTTP_PROTOCOL` follows it. |
+| `SocialApp matching query does not exist` | Credentials went missing after boot. Both `CLIENT_ID` and `SECRET` must be set. |
+| Facebook: "URL blocked" | The callback is not in Valid OAuth Redirect URIs. |
+| Facebook: only you can sign in | The app is still in Development mode. Switch it Live. |
+| Facebook: unsupported version | `VERSION` in `SOCIAL_PROVIDER_CREDENTIALS` has been retired — bump it. |
+| GitHub user has no email | Expected when their addresses are private and `user:email` was not granted; they get the "finish signing up" form. |

@@ -104,34 +104,98 @@ SOCIALACCOUNT_ADAPTER = 'users.adapters.BlaqSocialAccountAdapter'
 # allauth >= 65 names: SIGNUP_FIELDS (email* = required) and LOGIN_METHODS.
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
 ACCOUNT_LOGIN_METHODS = {'username', 'email'}
-ACCOUNT_EMAIL_VERIFICATION = 'optional'
+# BlaqVibes owns email confirmation: users.views.send_verify_email sends it and
+# /accounts/verify/<uid>/<token>/ consumes it, because confirming is what pays
+# the welcome grant. allauth's own confirm view is NOT mounted, so letting
+# allauth send its mail would build a link to a route that does not exist —
+# reverse('account_confirm_email') raises and the OAuth callback 500s on an
+# otherwise successful sign-in. 'none' keeps allauth out of a flow we own.
+ACCOUNT_EMAIL_VERIFICATION = 'none'
 ACCOUNT_UNIQUE_EMAIL = True
 SOCIALACCOUNT_AUTO_SIGNUP = True
 SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
 SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
+# POST-only handshake start: a GET on /accounts/social/<p>/login/ would let a
+# third-party <img> tag start an OAuth round-trip. The button posts a CSRF token.
 SOCIALACCOUNT_LOGIN_ON_GET = False
 SOCIALACCOUNT_QUERY_EMAIL = True
+# Access tokens are a bearer credential for someone's GitHub/Facebook account.
+# We only need identity at sign-in, so nothing is persisted. Explicit, not implied.
+SOCIALACCOUNT_STORE_TOKENS = False
 
-_social_providers = {}
-if GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET:
-    _social_providers['google'] = {
-        'APP': {'client_id': GOOGLE_CLIENT_ID, 'secret': GOOGLE_CLIENT_SECRET, 'key': ''},
-        'SCOPE': ['profile', 'email'],
-        'AUTH_PARAMS': {'access_type': 'online'},
+# The callback URL the provider is told to return to is built from the request.
+# Behind a TLS-terminating proxy the request looks like plain http, so the
+# generated redirect_uri would be http:// and the provider would reject it as a
+# mismatch. Force the scheme of the canonical origin instead.
+ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'https' if SITE_URL.startswith('https://') else 'http'
+
+# One row per provider: slug, button label, the two settings that hold its
+# credentials, and the allauth provider config. users.social reads this to
+# decide which buttons to render, so a button can never point at a provider
+# allauth has no SocialApp for. The credentials are named rather than inlined
+# so the check stays live (tests override GOOGLE_CLIENT_ID; the button follows).
+SOCIAL_PROVIDER_CREDENTIALS = {
+    'google': {
+        'label': 'Continue with Google',
+        'id_setting': 'GOOGLE_CLIENT_ID',
+        'secret_setting': 'GOOGLE_CLIENT_SECRET',
+        'settings': {
+            'SCOPE': ['profile', 'email'],
+            'AUTH_PARAMS': {'access_type': 'online'},
+        },
+    },
+    'github': {
+        'label': 'Continue with GitHub',
+        'id_setting': 'GITHUB_CLIENT_ID',
+        'secret_setting': 'GITHUB_CLIENT_SECRET',
+        'settings': {
+            # read:user for the profile, user:email because a GitHub account
+            # can keep every address private — /user returns email: null and
+            # allauth then reads /user/emails to find the verified primary.
+            'SCOPE': ['read:user', 'user:email'],
+        },
+    },
+    'facebook': {
+        'label': 'Continue with Facebook',
+        'id_setting': 'FACEBOOK_CLIENT_ID',
+        'secret_setting': 'FACEBOOK_CLIENT_SECRET',
+        'settings': {
+            'METHOD': 'oauth2',
+            'SCOPE': ['email', 'public_profile'],
+            # Pin the Graph API version. allauth defaults to v19.0, which Meta
+            # retired on 2026-05-21 — unpinned, every Facebook login fails.
+            # v25.0 is supported until 2028-07-29.
+            'VERSION': 'v25.0',
+            # Only what we use. The upstream default asks for `verified`,
+            # `locale`, `timezone` and `gender`, which need extra review and
+            # make the /me call fail on current Graph versions.
+            'FIELDS': ['id', 'name', 'first_name', 'last_name', 'email'],
+            # Meta confirms an address before it can be added to an account, so
+            # a Facebook email is treated as verified — this is what lets a
+            # Facebook login land on the existing BlaqVibes account with the
+            # same address instead of creating a duplicate.
+            'VERIFIED_EMAIL': True,
+        },
+    },
+}
+
+# Only providers with BOTH halves of their credentials are handed to allauth.
+# Declaring a provider with a blank client_id is worse than omitting it: allauth
+# happily redirects to `github.com/login/oauth/authorize?client_id=` and the
+# user meets the provider's own error page. Omitted -> no button (users.social),
+# and its callback route 404s through our own safe_404.
+SOCIALACCOUNT_PROVIDERS = {
+    slug: {
+        'APP': {
+            'client_id': globals()[cfg['id_setting']],
+            'secret': globals()[cfg['secret_setting']],
+            'key': '',
+        },
+        **cfg['settings'],
     }
-if GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET:
-    _social_providers['github'] = {
-        'APP': {'client_id': GITHUB_CLIENT_ID, 'secret': GITHUB_CLIENT_SECRET, 'key': ''},
-        'SCOPE': ['read:user', 'user:email'],
-    }
-if FACEBOOK_CLIENT_ID and FACEBOOK_CLIENT_SECRET:
-    _social_providers['facebook'] = {
-        'APP': {'client_id': FACEBOOK_CLIENT_ID, 'secret': FACEBOOK_CLIENT_SECRET, 'key': ''},
-        'METHOD': 'oauth2',
-        'SCOPE': ['email', 'public_profile'],
-        'VERIFIED_EMAIL': True,
-    }
-SOCIALACCOUNT_PROVIDERS = _social_providers
+    for slug, cfg in SOCIAL_PROVIDER_CREDENTIALS.items()
+    if globals()[cfg['id_setting']] and globals()[cfg['secret_setting']]
+}
 
 # --- QUEUE: Celery + Redis — 5 Whys: Why queue not sync? ---
 # 1. 10 users upload at same second → sync would timeout workers, drop scans. Queue serializes.

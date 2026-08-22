@@ -1,13 +1,36 @@
 {% extends 'gallery/base.html' %}
-{% block title %}Finish social signup — BlaqVibes{% endblock %}
+{% block title %}Finish signing up — BlaqVibes{% endblock %}
 {% block content %}
+{# Shown when auto-signup could not complete: the provider gave us no email
+   address, or the address/handle it gave collides with an existing account. #}
 <div class="auth-wrap card" style="padding:24px">
   <h2 style="font-weight:700">Almost there</h2>
-  <p class="help" style="margin:8px 0 16px">Pick a BlaqVibes username to finish signing in with {{ account.get_provider.name }}.</p>
-  <form method="post" style="display:grid;gap:12px">{% csrf_token %}
-    {{ form.as_p }}
-    <button class="btn-violet" type="submit" style="width:100%;justify-content:center">Create account</button>
+  <p class="help" style="margin:8px 0 16px">
+    {% if account %}
+    Pick a BlaqVibes username to finish signing in with {{ account.get_provider.name }}.
+    {% else %}
+    Pick a BlaqVibes username to finish signing in.
+    {% endif %}
+    We couldn't take everything we needed from your provider — confirm the details below.
+  </p>
+  <form method="post" style="display:grid;gap:12px">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="errorlist">{{ form.non_field_errors }}</div>{% endif %}
+    {% for field in form %}
+    <div>
+      <label class="field-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+      {{ field }}
+      {% if field.help_text %}<div class="help" style="font-size:11px">{{ field.help_text }}</div>{% endif %}
+      {{ field.errors }}
+    </div>
+    {% endfor %}
+    <button class="btn-violet" type="submit" style="width:100%;justify-content:center">
+      Create account
+    </button>
   </form>
+  <div class="help" style="margin-top:14px">
+    <a href="{% url 'login' %}" style="color:var(--link)">Cancel and sign in another way</a>
+  </div>
 </div>
 <link rel="stylesheet" href="/static/gallery/css/forms.css?v=theme-colors-20260815">
 {% endblock %}

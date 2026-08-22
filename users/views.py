@@ -17,6 +17,7 @@ from django_ratelimit.decorators import ratelimit
 from .models import MAX_PAYOUT_STARS, MIN_PAYOUT_STARS, Payout, Profile, Follow, SiteSettings, Tip, UsernameHistory
 from .forms import NameStyleForm, ProfileForm, RenameForm, TipForm
 from .payouts import PayoutError, payout_rate_label, request_payout as request_payout_hold
+from .social import social_connection_context
 from .rename import (
     RENAME_COOLDOWN_DAYS,
     RENAME_COST_STARS,
@@ -384,6 +385,7 @@ def settings_view(request):
         'site': site,
         'style_form': style_form,
         'name_style_maps': name_style_maps,
+        **social_connection_context(request.user),
         'rename_cost': RENAME_COST_STARS,
         'style_cost': STYLE_COST_STARS,
         'cooldown_days': cooldown.days if cooldown else None,

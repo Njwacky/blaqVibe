@@ -1,0 +1,57 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Connected accounts — BlaqVibes{% endblock %}
+{% block content %}
+{# allauth's ConnectionsView. The POST target is this same URL and it validates
+   the disconnect itself (it refuses to remove the last way into an account
+   with no password), so we render its form rather than rolling our own. #}
+<div class="auth-wrap card" style="padding:24px">
+  <h2 style="font-weight:700">Connected accounts</h2>
+  <p class="help" style="margin:8px 0 16px">
+    Providers you can sign in with. BlaqVibes only reads your name and email
+    address — it never posts anywhere on your behalf.
+  </p>
+
+  {% if form.accounts %}
+  <form method="post" action="{% url 'socialaccount_connections' %}" style="display:grid;gap:12px">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="errorlist">{{ form.non_field_errors }}</div>{% endif %}
+    <div style="display:grid;gap:8px">
+      {% for field in form.account %}
+      <label
+        style="
+          display:flex;
+          align-items:center;
+          gap:10px;
+          font-size:13px;
+          padding:10px 12px;
+          border:1px solid var(--line);
+          border-radius:10px;
+          background:var(--surface-subtle);
+          cursor:pointer;
+        "
+      >
+        {{ field.tag }}
+        <span>{{ field.choice_label }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    <button
+      type="submit"
+      class="btn-ghost"
+      style="color:var(--danger-text);border-color:var(--danger-border);justify-self:start"
+    >
+      Disconnect selected
+    </button>
+  </form>
+  {% else %}
+  <p class="help">You have no connected accounts yet.</p>
+  {% endif %}
+
+  {% include 'gallery/_social_auth.html' with social_connect=1 %}
+
+  <div class="help" style="margin-top:14px">
+    <a href="{% url 'settings' %}" style="color:var(--link)">Back to settings</a>
+  </div>
+</div>
+<link rel="stylesheet" href="/static/gallery/css/forms.css?v=theme-colors-20260815">
+{% endblock %}

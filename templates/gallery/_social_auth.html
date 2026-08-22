@@ -1,15 +1,34 @@
+{% comment %}
+Social sign-in buttons. Rendered only for providers that have BOTH a client id
+and a secret (gallery.context_processors -> users.social), so a button never
+starts a handshake this deployment cannot finish.
+
+POST, not a link: SOCIALACCOUNT_LOGIN_ON_GET is off, so the handshake needs a
+CSRF token. That also means a third-party page cannot start an OAuth round-trip
+by embedding our URL.
+
+The action is written out rather than reversed from `<slug>_login` because that
+route 404s for a provider without credentials, and {% url %} would then be a
+hard error on the whole page instead. A test reverses the real route to keep
+this path honest.
+
+Include with `social_connect=1` from an authenticated page to link a provider to
+the account already signed in (process=connect) instead of signing in with it.
+{% endcomment %}
 {% if social_providers %}
 <div class="social-auth">
-  <div class="social-auth-divider"><span>or continue with</span></div>
+  <div class="social-auth-divider">
+    <span>{% if social_connect %}connect an account{% else %}or continue with{% endif %}</span>
+  </div>
   {% for p in social_providers %}
-  <form method="post" action="/accounts/social/{{ p.id }}/login/?process=login">
-    {% csrf_token %} {% if request.GET.next %}<input
-      type="hidden"
-      name="next"
-      value="{{ request.GET.next }}"
-    />{% endif %}
+  <form
+    method="post"
+    action="/accounts/social/{{ p.id }}/login/?process={% if social_connect %}connect{% else %}login{% endif %}"
+  >
+    {% csrf_token %}
+    {% if request.GET.next %}<input type="hidden" name="next" value="{{ request.GET.next }}" />{% endif %}
     <button type="submit" class="btn-social btn-social-{{ p.id }}">
-      {{ p.label }}
+      {% if social_connect %}Connect {{ p.label|cut:"Continue with " }}{% else %}{{ p.label }}{% endif %}
     </button>
   </form>
   {% endfor %}
