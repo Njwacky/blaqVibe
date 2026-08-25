@@ -158,7 +158,7 @@ class SignUpForm(UserCreationForm):
 
 class StyledAuthenticationForm(AuthenticationForm):
     username = forms.CharField(widget=forms.TextInput(attrs={
-        'placeholder': 'Username',
+        'placeholder': 'Username or email',
         'autocomplete': 'username',
         'class': 'field-input',
         'autofocus': True,
@@ -168,6 +168,21 @@ class StyledAuthenticationForm(AuthenticationForm):
         'autocomplete': 'current-password',
         'class': 'field-input',
     }))
+
+    def clean(self):
+        # Settings promise email login (ACCOUNT_LOGIN_METHODS has 'email'),
+        # but stock AuthenticationForm only tries User.USERNAME_FIELD. Without
+        # this, typing admin@blaqvibes.co.za + the correct password still
+        # fails — the "my admin account never works" support ticket. Resolve
+        # a single matching email to its username before auth runs; ambiguous
+        # or unknown addresses fall through to the normal (failing) path so
+        # the error message never leaks whether an email is registered.
+        username = self.cleaned_data.get('username', '')
+        if username and '@' in username:
+            matches = list(User.objects.filter(email__iexact=username)[:2])
+            if len(matches) == 1:
+                self.cleaned_data['username'] = matches[0].username
+        return super().clean()
 
 
 class StyledPasswordResetForm(PasswordResetForm):
