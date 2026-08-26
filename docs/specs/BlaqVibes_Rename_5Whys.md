@@ -13,7 +13,7 @@ anime effect, size) to show off, then audit everything missing around it.
 | One rename at a time, cooldown after use | **30-day cooldown** for everyone, even Pro |
 | Name is your identity in the lobby | `/u/<name>/` profile, `/git/<name>/<vibe>.git` clone URLs, notifications |
 | — | Old name **reserved 90 days**, old links **302-redirect** |
-| — | Name style (font / color / size / anime fx): **20 ★ per change**, free while Pro |
+| — | Name style (20 people-styles + font / color / size / anime fx): **20 ★ per change**, free while Pro |
 
 `users/rename.py` is the only writer of `User.username` after signup. 36 new
 tests in `users/test_rename.py`. Ledger reasons added: `rename_spend`,
@@ -99,6 +99,30 @@ tests in `users/test_rename.py`. Ledger reasons added: `rename_spend`,
    keyframes. Keyframes live in `blaqvibes.css`, versioned with the theme,
    and respect `prefers-reduced-motion`. Inline styles cannot carry that —
    and allowing them to is exactly what chain 4.1 bans.
+
+### 6. Why twenty named people-styles (Coder, Glamour, Charmer, Strict + 16)?
+
+1. **Why people-types instead of more fonts?** A font slug is a technical
+   knob. "Coder" is a character other people recognise on a follower list.
+   Twenty recipes reuse `NAME_*` — no new injection surface, no new font
+   files, no second wallet. The four requested types plus sixteen more
+   fill one scannable grid.
+2. **Why a slug + recipe, never a user-typed class?** The template prints
+   `namepersona-coder`, never the posted string. Unknown slugs degrade to
+   Classic via `compose_name_style` (write AND read). Flourish CSS lives
+   next to `namefx-*` so motion preferences stay one file. Tests assert
+   every recipe is on-whitelist.
+3. **Why does picking a card fill font/color/size/fx?** A no-JS POST would
+   otherwise save `persona=coder` on top of default dropdowns and lie.
+   Filling the four fields means the existing renderer still works if an
+   old CSS cache is missing the persona class. Ledger refs record both.
+4. **Why does a fine-tune that leaves the recipe clear the persona?**
+   Leaving `namepersona-coder` on a gold-serif mix is a lie, and the extra
+   class would fight the mix. Classic + mix is the honest custom path.
+   Re-selecting the card restores it — clearing is not a lock-out.
+5. **Why is Classic not one of the twenty?** Classic is the free default
+   everyone already has. Counting it would pad the grid with a no-op.
+   Each of the twenty burns the same 20★ as a hand-mixed style.
 
 ### 5. Why charge 20 ★ per style CHANGE and not per style unlocked?
 

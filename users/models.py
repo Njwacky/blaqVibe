@@ -67,6 +67,405 @@ NAME_FX_LABELS = {
     'shine': 'Anime shine (animated)', 'chroma': 'Chroma shift (animated)',
 }
 
+# --- Twenty named people-styles --------------------------------------------
+# Classic is the free default (already on every Profile). It is NOT one of
+# the twenty — counting it would advertise a 20th look that costs nothing
+# and does nothing. The twenty are Coder, Glamour, Charmer, Strict and
+# sixteen more. Each recipe is a packed NAME_* tuple + a versioned CSS class.
+#
+# 5 Whys — twenty named people-styles (each Why has four points):
+# 1. Why people-types instead of another pile of fonts?
+#    a. A font slug is a technical knob. "Coder" / "Glamour" is a character
+#       people recognise on a follower list without opening Settings.
+#    b. Twenty recipes reuse the existing NAME_* whitelist — no new CSS
+#       injection surface, no new font files, no new wallet.
+#    c. A named look is the flex the 20★ burn is supposed to buy. "I am
+#       the Coder" is louder than "I picked JetBrains Mono".
+#    d. The four requested types (coder, glamour, charmer, strict) plus
+#       sixteen more fill one scannable grid, not a four-dropdown puzzle.
+# 2. Why a slug + recipe dict, never a user-typed class name?
+#    a. Same rule as NAME_FONTS: the template prints OUR class
+#       (`namepersona-coder`), never the posted string.
+#    b. An unknown slug degrades to Classic — the renderer and the writer
+#       share compose_name_style, so a tampered DB row cannot invent a class.
+#    c. Extra flourish (tracking, small-caps, skew) lives in versioned CSS
+#       next to namefx-*, so prefers-reduced-motion and theme tokens stay
+#       one file.
+#    d. A recipe that pointed at a font we do not whitelist would be a paid
+#       no-op. compose_name_style only accepts NAME_* slugs; tests assert
+#       every recipe is on-whitelist.
+# 3. Why does picking a people-style fill font / color / size / fx?
+#    a. Without that, a no-JS POST would save persona=coder on top of the
+#       default dropdowns and the look would not match the card they clicked.
+#    b. The four dropdowns stay as a fine-tune for Classic mixes; the card
+#       is the primary picker, the dropdowns are the escape hatch.
+#    c. Filling the four fields means the existing renderer (inline
+#       font/color + size/fx classes) still works if an old CSS cache is
+#       missing the persona class.
+#    d. Ledger refs record both the persona and the four slugs, so a
+#       support ticket can replay the exact look.
+# 4. Why does a fine-tune that no longer matches the recipe clear the
+#    persona back to Classic?
+#    a. Leaving namepersona-coder on a gold-serif mix would lie: the card
+#       said Coder, the page shows something else.
+#    b. The extra class (uppercase, skew) would fight a custom mix the
+#       user just chose — Classic + mix is the honest custom path.
+#    c. Matching a recipe again (or posting defaults + a people-style, the
+#       no-JS path) re-applies that recipe, so clearing is reversible
+#       without a second wallet.
+#    d. One compose_name_style decides this on write AND on read, so the
+#       settings preview, the profile, and the stored row cannot drift.
+# 5. Why twenty, and why is Classic not one of the twenty?
+#    a. Classic is the free default everyone already has; counting it as a
+#       people-style would pad the grid with a no-op.
+#    b. Twenty is a full grid without a second page of cards.
+#    c. Each of the twenty burns the same 20★ as a hand-mixed style — no
+#       secret premium tier, no second price.
+#    d. Adding a 21st later is a dict entry + a CSS class + a test; the
+#       form choices are built FROM this dict so the picker cannot drift.
+NAME_PERSONAS = {
+    'classic': {
+        'label': 'Classic',
+        'blurb': 'Plain. No flex. Always free.',
+        'font': 'classic',
+        'color': 'default',
+        'size': 'md',
+        'fx': 'none',
+        'cls': '',
+    },
+    'coder': {
+        'label': 'Coder',
+        'blurb': 'Mono, cyan, terminal glow.',
+        'font': 'mono',
+        'color': 'cyan',
+        'size': 'md',
+        'fx': 'glow',
+        'cls': 'namepersona-coder',
+    },
+    'glamour': {
+        'label': 'Glamour',
+        'blurb': 'Serif gold with an anime shine.',
+        'font': 'serif',
+        'color': 'gold',
+        'size': 'lg',
+        'fx': 'shine',
+        'cls': 'namepersona-glamour',
+    },
+    'charmer': {
+        'label': 'Charmer',
+        'blurb': 'Soft rounded letters, violet sweep.',
+        'font': 'rounded',
+        'color': 'violet',
+        'size': 'md',
+        'fx': 'shine',
+        'cls': 'namepersona-charmer',
+    },
+    'strict': {
+        'label': 'Strict',
+        'blurb': 'Wide, uppercase, no decoration.',
+        'font': 'grotesk',
+        'color': 'default',
+        'size': 'md',
+        'fx': 'none',
+        'cls': 'namepersona-strict',
+    },
+    'hacker': {
+        'label': 'Hacker',
+        'blurb': 'Green mono, the old-school terminal.',
+        'font': 'mono',
+        'color': 'emerald',
+        'size': 'md',
+        'fx': 'glow',
+        'cls': 'namepersona-hacker',
+    },
+    'artist': {
+        'label': 'Artist',
+        'blurb': 'Serif rainbow that keeps shifting.',
+        'font': 'serif',
+        'color': 'rainbow',
+        'size': 'lg',
+        'fx': 'chroma',
+        'cls': 'namepersona-artist',
+    },
+    'gamer': {
+        'label': 'Gamer',
+        'blurb': 'Loud crimson, ready-up energy.',
+        'font': 'grotesk',
+        'color': 'crimson',
+        'size': 'lg',
+        'fx': 'glow',
+        'cls': 'namepersona-gamer',
+    },
+    'scholar': {
+        'label': 'Scholar',
+        'blurb': 'Small-caps serif. Quiet authority.',
+        'font': 'serif',
+        'color': 'default',
+        'size': 'md',
+        'fx': 'none',
+        'cls': 'namepersona-scholar',
+    },
+    'street': {
+        'label': 'Street',
+        'blurb': 'Tight gold grotesk, no apology.',
+        'font': 'grotesk',
+        'color': 'gold',
+        'size': 'lg',
+        'fx': 'glow',
+        'cls': 'namepersona-street',
+    },
+    'romantic': {
+        'label': 'Romantic',
+        'blurb': 'Italic crimson with a slow shine.',
+        'font': 'serif',
+        'color': 'crimson',
+        'size': 'md',
+        'fx': 'shine',
+        'cls': 'namepersona-romantic',
+    },
+    'cyber': {
+        'label': 'Cyber',
+        'blurb': 'Violet mono, chroma on the edges.',
+        'font': 'mono',
+        'color': 'violet',
+        'size': 'lg',
+        'fx': 'chroma',
+        'cls': 'namepersona-cyber',
+    },
+    'royalty': {
+        'label': 'Royalty',
+        'blurb': 'Wide small-caps, gold, extra large.',
+        'font': 'serif',
+        'color': 'gold',
+        'size': 'xl',
+        'fx': 'glow',
+        'cls': 'namepersona-royalty',
+    },
+    'rebel': {
+        'label': 'Rebel',
+        'blurb': 'Skewed crimson. Does not sit straight.',
+        'font': 'grotesk',
+        'color': 'crimson',
+        'size': 'md',
+        'fx': 'none',
+        'cls': 'namepersona-rebel',
+    },
+    'zen': {
+        'label': 'Zen',
+        'blurb': 'Wide, lowercase, emerald calm.',
+        'font': 'rounded',
+        'color': 'emerald',
+        'size': 'md',
+        'fx': 'none',
+        'cls': 'namepersona-zen',
+    },
+    'neon': {
+        'label': 'Neon',
+        'blurb': 'Cyan grotesk with a double glow.',
+        'font': 'grotesk',
+        'color': 'cyan',
+        'size': 'lg',
+        'fx': 'glow',
+        'cls': 'namepersona-neon',
+    },
+    'vintage': {
+        'label': 'Vintage',
+        'blurb': 'Gold small-caps, old-print serif.',
+        'font': 'serif',
+        'color': 'gold',
+        'size': 'md',
+        'fx': 'none',
+        'cls': 'namepersona-vintage',
+    },
+    'sport': {
+        'label': 'Sport',
+        'blurb': 'Extra-large, uppercase, match-day.',
+        'font': 'grotesk',
+        'color': 'crimson',
+        'size': 'xl',
+        'fx': 'none',
+        'cls': 'namepersona-sport',
+    },
+    'poet': {
+        'label': 'Poet',
+        'blurb': 'Italic violet serif, a slow shine.',
+        'font': 'serif',
+        'color': 'violet',
+        'size': 'md',
+        'fx': 'shine',
+        'cls': 'namepersona-poet',
+    },
+    'mogul': {
+        'label': 'Mogul',
+        'blurb': 'Gold grotesk. Quiet money.',
+        'font': 'grotesk',
+        'color': 'gold',
+        'size': 'lg',
+        'fx': 'none',
+        'cls': 'namepersona-mogul',
+    },
+    'mystic': {
+        'label': 'Mystic',
+        'blurb': 'Rounded rainbow that keeps turning.',
+        'font': 'rounded',
+        'color': 'rainbow',
+        'size': 'md',
+        'fx': 'chroma',
+        'cls': 'namepersona-mystic',
+    },
+}
+
+_STYLE_DEFAULTS = {
+    'font': 'classic',
+    'color': 'default',
+    'size': 'md',
+    'fx': 'none',
+}
+
+
+def people_style_slugs():
+    """The twenty named people-styles — Classic is the default, not a person."""
+    return [slug for slug in NAME_PERSONAS if slug != 'classic']
+
+
+def compose_name_style(font='classic', color='default', size='md', fx='none', persona='classic'):
+    """Resolve a posted (or stored) style to a safe packed dict.
+
+    5 Whys — one composer for write AND read (each Why has four points):
+    1. Why one function instead of set_name_style + Profile renderers?
+       a. Two copies of ".get() or default" drift the first time a slug is
+          added to one side only — a paid style that renders as plain.
+       b. The no-JS path (persona posted, dropdowns still default) and the
+          JS path (persona + filled dropdowns) must land on the same row.
+       c. Tests call this helper directly; a view-only resolver would leave
+          the wallet writer unproven.
+       d. The settings preview maps are built from the same recipes this
+          function applies, so the card cannot sell a look the writer refuses.
+    2. Why coerce unknown slugs instead of raising?
+       a. The renderer must survive a tampered DB value (test_tampered_db).
+       b. A direct caller (admin tool, future API) must not crash the
+          request after the user already paid.
+       c. Fail-closed to Classic is the same decision NAME_FONTS already
+          made — one policy, every field.
+       d. Raising here would turn a stale slug after a future rename of a
+          recipe into a 500 on every profile that still stored it.
+    3. Why apply the recipe when the four fields are still defaults?
+       a. That is the no-JS card click: radio=coder, dropdowns untouched.
+       b. Applying the recipe makes the stored row match the card, so the
+          next GET shows the same look without JavaScript.
+       c. A tampered font on a coder row heals back to the coder recipe
+          instead of rendering a broken half-style.
+       d. Defaults + Classic stays Classic — we do not invent a people-style
+          the user did not pick.
+    4. Why clear the persona when the four fields no longer match?
+       a. A leftover namepersona-coder class on a gold-serif mix is a lie.
+       b. Flourish CSS (uppercase, skew) would fight the mix they just chose.
+       c. Classic + mix is the documented custom path; keeping the slug
+          would make the radio lie on the next Settings GET.
+       d. Re-selecting the card (defaults or exact recipe) restores it —
+          clearing is not a lock-out and does not need a refund.
+    5. Why return css/classes here, not only the five slugs?
+       a. Profile.name_style_css/_classes become one-liners — no second
+          place that can forget the persona class.
+       b. Settings cards preview with the exact same strings the profile
+          will print.
+       c. Tests can assert the packed class list without constructing a
+          Profile row.
+       d. Nothing user-typed is in the return value; every string came
+          from NAME_* / NAME_PERSONAS.
+    """
+    font = font if font in NAME_FONTS else 'classic'
+    color = color if color in NAME_COLORS else 'default'
+    size = size if size in NAME_SIZES else 'md'
+    fx = fx if fx in NAME_FX else 'none'
+    persona = persona if persona in NAME_PERSONAS else 'classic'
+
+    if persona != 'classic':
+        recipe = NAME_PERSONAS[persona]
+        posted = {'font': font, 'color': color, 'size': size, 'fx': fx}
+        recipe_pack = {
+            'font': recipe['font'],
+            'color': recipe['color'],
+            'size': recipe['size'],
+            'fx': recipe['fx'],
+        }
+        if posted == _STYLE_DEFAULTS or posted == recipe_pack:
+            font = recipe['font']
+            color = recipe['color']
+            size = recipe['size']
+            fx = recipe['fx']
+        else:
+            persona = 'classic'
+
+    css = []
+    font_css = NAME_FONTS.get(font, '')
+    if font_css:
+        css.append(f'font-family:{font_css};')
+    color_css = NAME_COLORS.get(color, '')
+    if color_css:
+        css.append(f'color:{color_css};')
+
+    classes = []
+    if color == 'rainbow':
+        classes.append('namefx-rainbow')
+    size_cls = NAME_SIZES.get(size, '')
+    if size_cls:
+        classes.append(size_cls)
+    fx_cls = NAME_FX.get(fx, '')
+    if fx_cls:
+        classes.append(fx_cls)
+    persona_cls = NAME_PERSONAS.get(persona, {}).get('cls') or ''
+    if persona_cls:
+        classes.append(persona_cls)
+
+    return {
+        'name_font': font,
+        'name_color': color,
+        'name_size': size,
+        'name_fx': fx,
+        'name_persona': persona,
+        'css': ''.join(css),
+        'classes': ' '.join(classes),
+    }
+
+
+def name_style_preview_maps():
+    """Whitelist payload for the settings live preview (json_script)."""
+    return {
+        'fonts': NAME_FONTS,
+        'colors': NAME_COLORS,
+        'sizes': NAME_SIZES,
+        'fx': NAME_FX,
+        'personas': {
+            slug: {
+                'font': meta['font'],
+                'color': meta['color'],
+                'size': meta['size'],
+                'fx': meta['fx'],
+                'cls': meta['cls'],
+                'label': meta['label'],
+            }
+            for slug, meta in NAME_PERSONAS.items()
+        },
+    }
+
+
+def persona_card_payloads():
+    """One card per NAME_PERSONAS entry, already composed for the grid."""
+    cards = []
+    for slug, meta in NAME_PERSONAS.items():
+        packed = compose_name_style(
+            meta['font'], meta['color'], meta['size'], meta['fx'], slug,
+        )
+        cards.append({
+            'slug': slug,
+            'label': meta['label'],
+            'blurb': meta['blurb'],
+            'css': packed['css'],
+            'classes': packed['classes'],
+        })
+    return cards
+
 class Profile(models.Model):
     ROLE_CHOICES = [('user','User'),('moderator','Moderator'),('admin','Admin'),('superadmin','Super Admin')]
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='profile')
@@ -102,6 +501,10 @@ class Profile(models.Model):
     name_color = models.CharField(max_length=20, default='default')
     name_size = models.CharField(max_length=4, default='md')
     name_fx = models.CharField(max_length=20, default='none')
+    # Named people-style (coder / glamour / …). Classic is the free default.
+    # users/rename.set_name_style is the only writer; compose_name_style is
+    # the only reader. Unknown slugs coerce to classic.
+    name_persona = models.CharField(max_length=20, default='classic')
     last_rename_at = models.DateTimeField(null=True, blank=True, help_text='Set by rename_user — the 30-day cooldown anchor')
     # Git daemon credential for social-login users (no password on file).
     # ONLY the SHA-256 lives here; the plaintext is shown once at rotate.
@@ -158,34 +561,24 @@ class Profile(models.Model):
         from gallery.ranks import contributor_bonus
         return contributor_bonus(self.user)
 
-    # --- Styled name rendering (read-side of the NAME_* whitelists) -------
-    def name_style_css(self) -> str:
-        """Inline CSS for the display name, built ONLY from NAME_* dicts.
+    # --- Styled name rendering (read-side of the NAME_* / NAME_PERSONAS) --
+    def _composed_name_style(self):
+        """Same composer the writer uses — a bad slug can never leak CSS."""
+        return compose_name_style(
+            self.name_font,
+            self.name_color,
+            self.name_size,
+            self.name_fx,
+            getattr(self, 'name_persona', None) or 'classic',
+        )
 
-        .get() with a blank fallback means an unknown/legacy slug renders as
-        the plain default — a bad value can never leak into the page.
-        """
-        css = []
-        font = NAME_FONTS.get(self.name_font, '')
-        if font:
-            css.append(f'font-family:{font};')
-        color = NAME_COLORS.get(self.name_color, '')
-        if color:
-            css.append(f'color:{color};')
-        return ''.join(css)
+    def name_style_css(self) -> str:
+        """Inline CSS for the display name, built ONLY from NAME_* dicts."""
+        return self._composed_name_style()['css']
 
     def name_style_classes(self) -> str:
-        """Theme classes for the display name (size, fx, rainbow gradient)."""
-        classes = []
-        if self.name_color == 'rainbow':
-            classes.append('namefx-rainbow')
-        size = NAME_SIZES.get(self.name_size, '')
-        if size:
-            classes.append(size)
-        fx = NAME_FX.get(self.name_fx, '')
-        if fx:
-            classes.append(fx)
-        return ' '.join(classes)
+        """Theme classes: size, fx, rainbow, and the people-style flourish."""
+        return self._composed_name_style()['classes']
 
 class SiteSettings(models.Model):
     """Global toggles — superadmin only, backend only"""

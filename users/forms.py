@@ -8,6 +8,7 @@ from .models import (
     NAME_FX,
     NAME_FX_LABELS,
     NAME_FONT_LABELS,
+    NAME_PERSONAS,
     NAME_SIZES,
     NAME_SIZE_LABELS,
     NAME_COLOR_LABELS,
@@ -304,8 +305,62 @@ class RenameForm(forms.Form):
 class NameStyleForm(forms.Form):
     """Whitelist-only style picker. Choices are built FROM the models.NAME_*
     dicts — the form can never offer, or accept, a slug the renderer does
-    not know. Anything else dies as a form error before the wallet moves."""
+    not know. Anything else dies as a form error before the wallet moves.
 
+    5 Whys — why the people-style is a form field too (four points each):
+    1. Why not trust a hidden input the template printed?
+       a. Hidden fields are still POST data; a crafted slug must die here
+          before set_name_style runs, same as a crafted font.
+       b. Choices come FROM NAME_PERSONAS, so the form cannot accept a
+          21st people-style the CSS file does not define.
+       c. required=False lets a no-JS client omit the radio (old bookmarks,
+          existing tests) and still save a Classic mix.
+       d. clean_name_persona maps empty → classic so the writer never sees
+          None and the ledger ref always has a slug.
+    2. Why RadioSelect and not another <select>?
+       a. Twenty people-styles are a grid of looks, not a dropdown of
+          technical slugs — radios are the accessible card pattern.
+       b. The settings template renders the radios itself so each card
+          can preview the real composed class list.
+       c. The widget still exists on the form so a future admin tool that
+          renders {{ form }} gets a valid field, not a missing key.
+       d. Duplicate widgets are avoided by NOT printing {{ form.name_persona }}
+          next to the custom grid — one name=name_persona on the wire.
+    3. Why reject an unknown persona at the form instead of coercing?
+       a. A POST that invents "namepersona-xss" is an attack, not a typo.
+          Fail the form, charge nothing, same as comic-sans-custom.
+       b. Direct callers of set_name_style still coerce — the form is the
+          HTTP gate, the composer is the storage gate.
+       c. Existing font tests already assert form.errors['name_font'];
+          persona must behave identically or the policy forks.
+       d. Coercing at the form would hide bugs in the template (a typo'd
+          radio value would silently become Classic and look like a no-op).
+    4. Why keep the four dropdowns after adding people-styles?
+       a. Classic + mix is the documented custom path; removing the
+          dropdowns would lock every non-recipe look behind a code change.
+       b. Fine-tune that no longer matches a recipe clears the persona
+          (compose_name_style) — the dropdowns are how that mix is posted.
+       c. No-JS users who never click a card can still restyle via the
+          four fields, same as before this feature.
+       d. Preview JS fills the dropdowns from the recipe so what you save
+          is what the card showed, even if they never touch a <select>.
+    5. Why is Classic in NAME_PERSONAS if it is not one of the twenty?
+       a. The radio grid needs a checked default; Classic is that card.
+       b. compose_name_style treats 'classic' as "no extra class", so the
+          slug and the look stay aligned.
+       c. One dict drives form choices, preview maps, and CSS class
+          lookup — a parallel CLASSIC_SLUG constant would drift.
+       d. Tests count people_style_slugs() == 20 and assert 'classic'
+          is present; both invariants live next to the same dict.
+    """
+
+    name_persona = forms.ChoiceField(
+        required=False,
+        widget=forms.RadioSelect(attrs={'class': 'persona-radio'}),
+        choices=lambda: [
+            (slug, meta['label']) for slug, meta in NAME_PERSONAS.items()
+        ],
+    )
     name_font = forms.ChoiceField(
         widget=forms.Select(attrs={'class': 'field-input', 'data-style': 'font'}),
         choices=lambda: [
@@ -330,4 +385,10 @@ class NameStyleForm(forms.Form):
             (slug, NAME_FX_LABELS.get(slug, slug)) for slug in NAME_FX
         ],
     )
+
+    def clean_name_persona(self):
+        value = self.cleaned_data.get('name_persona') or 'classic'
+        if value not in NAME_PERSONAS:
+            raise forms.ValidationError('Pick a people-style from the list.')
+        return value
 

@@ -14,7 +14,18 @@ from django.utils.encoding import force_bytes, force_str
 from django.utils import timezone
 from datetime import datetime, timedelta
 from django_ratelimit.decorators import ratelimit
-from .models import MAX_PAYOUT_STARS, MIN_PAYOUT_STARS, Payout, Profile, Follow, SiteSettings, Tip, UsernameHistory
+from .models import (
+    MAX_PAYOUT_STARS,
+    MIN_PAYOUT_STARS,
+    Payout,
+    Profile,
+    Follow,
+    SiteSettings,
+    Tip,
+    UsernameHistory,
+    name_style_preview_maps,
+    persona_card_payloads,
+)
 from .forms import ChangeEmailForm, NameStyleForm, ProfileForm, RenameForm, TipForm
 from .payouts import PayoutError, payout_rate_label, request_payout as request_payout_hold
 from .social import social_connection_context
@@ -370,21 +381,16 @@ def settings_view(request):
         'name_color': profile.name_color,
         'name_size': profile.name_size,
         'name_fx': profile.name_fx,
+        'name_persona': profile.name_persona or 'classic',
     })
     # The preview JS needs the same whitelists the renderer uses — passed as
     # data, not code: no secrets, no user input, and json_script escapes it.
-    from .models import NAME_COLORS, NAME_FONTS, NAME_FX, NAME_SIZES
-    name_style_maps = {
-        'fonts': NAME_FONTS,
-        'colors': NAME_COLORS,
-        'sizes': NAME_SIZES,
-        'fx': NAME_FX,
-    }
     return render(request, 'users/settings.html', {
         'profile': profile,
         'site': site,
         'style_form': style_form,
-        'name_style_maps': name_style_maps,
+        'name_style_maps': name_style_preview_maps(),
+        'name_personas': persona_card_payloads(),
         **social_connection_context(request.user),
         'rename_cost': RENAME_COST_STARS,
         'style_cost': STYLE_COST_STARS,
@@ -454,7 +460,7 @@ def set_name_style_view(request):
     below the wallet-moving endpoints (tip 20/h)."""
     form = NameStyleForm(request.POST)
     if not form.is_valid():
-        messages.error(request, 'Pick a font, color, size and effect from the list.')
+        messages.error(request, 'Pick a people-style, font, color, size and effect from the list.')
         return redirect('settings')
     try:
         profile, changed = set_name_style(
@@ -463,6 +469,7 @@ def set_name_style_view(request):
             form.cleaned_data['name_color'],
             form.cleaned_data['name_size'],
             form.cleaned_data['name_fx'],
+            form.cleaned_data.get('name_persona') or 'classic',
         )
     except RenameError as e:
         messages.error(request, e.message)

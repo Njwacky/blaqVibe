@@ -39,10 +39,6 @@ from django.utils import timezone
 from gallery.profanity import validate_public_text
 
 from .models import (
-    NAME_COLORS,
-    NAME_FONTS,
-    NAME_FX,
-    NAME_SIZES,
     RENAME_COOLDOWN_DAYS,
     RENAME_COST_STARS,
     RENAME_RESERVE_DAYS,
@@ -50,6 +46,7 @@ from .models import (
     Profile,
     StarEvent,
     UsernameHistory,
+    compose_name_style,
 )
 
 # Never registrable — by signup OR rename. 5 Whys: Why a shared list and not
@@ -210,12 +207,13 @@ def rename_user(user, new_username) -> UsernameHistory:
         return history
 
 
-def set_name_style(user, font, color, size, fx):
+def set_name_style(user, font, color, size, fx, persona='classic'):
     """Apply a whitelisted display-name style. Returns (profile, changed).
 
     PUBG rule, same as renames: styling is Pro (free while active) or
     20 ★ burned per change. Default everything costs nothing — resetting
-    to plain must never be paywalled.
+    to plain must never be paywalled. A named people-style (coder,
+    glamour, …) is the same burn as a hand-mixed look.
 
     5 Whys:
     1. Why pay at all for a cosmetic? The style is the flex other people
@@ -230,18 +228,21 @@ def set_name_style(user, font, color, size, fx):
     3. Why 20 ★ and not 100 ★? It must be cheaper than the name itself
        (restyle freely, rename rarely) but 5★-welcome-grant-proof. 20 ★
        is 4 grants — a throwaway farm breaks even on nothing.
-    4. Why coerce unknown slugs to defaults instead of raising? The
-       blacklist decision is "never render what we did not define"
-       (models.NAME_*). A legacy or tampered value degrades to plain —
-       the safe render and the safe store are the same code path.
+    4. Why coerce unknown slugs (including an unknown persona) to
+       defaults instead of raising? The blacklist decision is "never
+       render what we did not define" (models.NAME_* / NAME_PERSONAS).
+       A legacy or tampered value degrades to plain — the safe render
+       and the safe store are the same compose_name_style path.
     5. Why the profile lock? Balance burn + style write must be atomic
        with the affordability check, same race as every wallet move.
     """
+    packed = compose_name_style(font, color, size, fx, persona)
     clean = {
-        'name_font': font if font in NAME_FONTS else 'classic',
-        'name_color': color if color in NAME_COLORS else 'default',
-        'name_size': size if size in NAME_SIZES else 'md',
-        'name_fx': fx if fx in NAME_FX else 'none',
+        'name_font': packed['name_font'],
+        'name_color': packed['name_color'],
+        'name_size': packed['name_size'],
+        'name_fx': packed['name_fx'],
+        'name_persona': packed['name_persona'],
     }
     with transaction.atomic():
         profile = Profile.objects.select_for_update().get(user=user)
@@ -257,6 +258,7 @@ def set_name_style(user, font, color, size, fx):
                 (clean['name_color'], 'default'),
                 (clean['name_size'], 'md'),
                 (clean['name_fx'], 'none'),
+                (clean['name_persona'], 'classic'),
             )
         )
         if is_custom and not profile.is_pro_active:
@@ -274,14 +276,17 @@ def set_name_style(user, font, color, size, fx):
                 delta=-STYLE_COST_STARS,
                 reason='style_spend',
                 ref=(
-                    f'style:{clean["name_font"]}/{clean["name_color"]}/'
-                    f'{clean["name_size"]}/{clean["name_fx"]}'
+                    f'style:{clean["name_persona"]}/{clean["name_font"]}/'
+                    f'{clean["name_color"]}/{clean["name_size"]}/'
+                    f'{clean["name_fx"]}'
                 ),
             )
         for key, value in clean.items():
             setattr(profile, key, value)
         profile.save(
-            update_fields=['name_font', 'name_color', 'name_size', 'name_fx']
+            update_fields=[
+                'name_font', 'name_color', 'name_size', 'name_fx', 'name_persona',
+            ]
         )
         return profile, True
 

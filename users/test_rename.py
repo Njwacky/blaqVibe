@@ -13,6 +13,11 @@ from django.utils import timezone
 
 from users.forms import NameStyleForm, RenameForm, SignUpForm
 from users.models import (
+    NAME_COLORS,
+    NAME_FONTS,
+    NAME_FX,
+    NAME_PERSONAS,
+    NAME_SIZES,
     Profile,
     RENAME_COOLDOWN_DAYS,
     RENAME_COST_STARS,
@@ -20,6 +25,8 @@ from users.models import (
     STYLE_COST_STARS,
     StarEvent,
     UsernameHistory,
+    compose_name_style,
+    people_style_slugs,
 )
 from users.rename import (
     RESERVED_USERNAMES,
@@ -250,6 +257,9 @@ class RenameRuleTests(TestCase):
         response = self.client.get('/settings/')
         self.assertContains(response, 'rename card')
         self.assertContains(response, 'Name style')
+        self.assertContains(response, 'People-style')
+        for label in ('Coder', 'Glamour', 'Charmer', 'Strict'):
+            self.assertContains(response, label)
 
     def test_signup_reserved_username_blocked(self):
         form = SignUpForm(data={
@@ -314,12 +324,15 @@ class NameStyleTests(TestCase):
             set_name_style(poor2 := poor, 'grotesk', 'gold', 'md', 'none')
 
     def test_unknown_slugs_coerce_to_safe_defaults(self):
-        profile, _changed = set_name_style(self.user, 'papyrus', 'hotpink', 'xxl', 'matrix')
+        profile, _changed = set_name_style(
+            self.user, 'papyrus', 'hotpink', 'xxl', 'matrix', persona='not-a-person',
+        )
         # Unknown slugs are STORED as defaults — a tampered POST buys nothing.
         self.assertEqual(profile.name_font, 'classic')
         self.assertEqual(profile.name_color, 'default')
         self.assertEqual(profile.name_size, 'md')
         self.assertEqual(profile.name_fx, 'none')
+        self.assertEqual(profile.name_persona, 'classic')
 
     def test_tampered_db_value_renders_plain(self):
         """The renderer must survive a bad slug, not echo it."""
@@ -371,3 +384,139 @@ class NameStyleTests(TestCase):
         self.assertContains(response, 'namefx-rainbow')
         self.assertContains(response, 'namefx-shine')
         self.assertContains(response, 'name-size-xl')
+
+    def test_there_are_exactly_twenty_people_styles(self):
+        slugs = people_style_slugs()
+        self.assertEqual(len(slugs), 20)
+        self.assertEqual(len(set(slugs)), 20)
+        self.assertIn('classic', NAME_PERSONAS)
+        self.assertNotIn('classic', slugs)
+        for required in ('coder', 'glamour', 'charmer', 'strict'):
+            self.assertIn(required, slugs)
+
+    def test_every_people_style_recipe_is_on_whitelist(self):
+        for slug, meta in NAME_PERSONAS.items():
+            self.assertIn(meta['font'], NAME_FONTS, slug)
+            self.assertIn(meta['color'], NAME_COLORS, slug)
+            self.assertIn(meta['size'], NAME_SIZES, slug)
+            self.assertIn(meta['fx'], NAME_FX, slug)
+            self.assertTrue(meta['label'], slug)
+            self.assertTrue(meta['blurb'], slug)
+            if slug == 'classic':
+                self.assertEqual(meta['cls'], '')
+            else:
+                self.assertEqual(meta['cls'], f'namepersona-{slug}')
+
+    def test_coder_people_style_stores_recipe_and_class(self):
+        profile, changed = set_name_style(
+            self.user, 'classic', 'default', 'md', 'none', persona='coder',
+        )
+        self.assertTrue(changed)
+        profile.refresh_from_db()
+        self.assertEqual(profile.name_persona, 'coder')
+        self.assertEqual(profile.name_font, 'mono')
+        self.assertEqual(profile.name_color, 'cyan')
+        self.assertEqual(profile.name_size, 'md')
+        self.assertEqual(profile.name_fx, 'glow')
+        self.assertIn('namepersona-coder', profile.name_style_classes())
+        self.assertIn('JetBrains Mono', profile.name_style_css())
+        self.assertIn('#22d3ee', profile.name_style_css())
+        self.assertEqual(profile.stars_balance, 0)
+        burn = StarEvent.objects.get(user=self.user, reason='style_spend')
+        self.assertIn('coder', burn.ref)
+
+    def test_js_off_people_style_post_applies_recipe(self):
+        """No-JS: radio=glamour, dropdowns still default → store the recipe."""
+        self.client.login(username='styler', password='pass12345')
+        response = self.client.post('/settings/name-style/', {
+            'name_persona': 'glamour',
+            'name_font': 'classic',
+            'name_color': 'default',
+            'name_size': 'md',
+            'name_fx': 'none',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.user.profile.refresh_from_db()
+        self.assertEqual(self.user.profile.name_persona, 'glamour')
+        self.assertEqual(self.user.profile.name_font, 'serif')
+        self.assertEqual(self.user.profile.name_color, 'gold')
+        self.assertEqual(self.user.profile.name_fx, 'shine')
+        self.assertIn('namepersona-glamour', self.user.profile.name_style_classes())
+
+    def test_fine_tune_that_leaves_the_recipe_clears_persona(self):
+        set_name_style(self.user, 'classic', 'default', 'md', 'none', persona='coder')
+        self.user.profile.stars_balance = STYLE_COST_STARS
+        self.user.profile.save(update_fields=['stars_balance'])
+        StarEvent.objects.create(
+            user=self.user, delta=STYLE_COST_STARS, reason='backfill', ref='test-retune',
+        )
+        profile, changed = set_name_style(
+            self.user, 'grotesk', 'gold', 'xl', 'shine', persona='coder',
+        )
+        self.assertTrue(changed)
+        profile.refresh_from_db()
+        self.assertEqual(profile.name_persona, 'classic')
+        self.assertEqual(profile.name_font, 'grotesk')
+        self.assertEqual(profile.name_color, 'gold')
+        self.assertNotIn('namepersona-coder', profile.name_style_classes())
+
+    def test_matching_recipe_keeps_the_people_style(self):
+        recipe = NAME_PERSONAS['charmer']
+        profile, _ = set_name_style(
+            self.user,
+            recipe['font'],
+            recipe['color'],
+            recipe['size'],
+            recipe['fx'],
+            persona='charmer',
+        )
+        self.assertEqual(profile.name_persona, 'charmer')
+        self.assertIn('namepersona-charmer', profile.name_style_classes())
+
+    def test_unknown_persona_does_not_echo_into_html(self):
+        Profile.objects.filter(user=self.user).update(
+            name_persona='";onclick=alert(1)',
+            name_font='";color:red',
+        )
+        profile = self.user.profile
+        profile.refresh_from_db()
+        self.assertEqual(profile.name_style_css(), '')
+        self.assertEqual(profile.name_style_classes(), '')
+        response = self.client.get('/u/styler/')
+        self.assertNotContains(response, 'alert(1)')
+        self.assertNotContains(response, 'not-a-person')
+        self.assertNotContains(response, '";color:red')
+        self.assertNotContains(response, 'namepersona-')
+
+    def test_style_form_rejects_unknown_persona(self):
+        form = NameStyleForm(data={
+            'name_persona': 'not-a-person',
+            'name_font': 'classic',
+            'name_color': 'default',
+            'name_size': 'md',
+            'name_fx': 'none',
+        })
+        self.assertFalse(form.is_valid())
+        self.assertIn('name_persona', form.errors)
+
+    def test_settings_lists_all_twenty_people_styles(self):
+        self.client.login(username='styler', password='pass12345')
+        response = self.client.get('/settings/')
+        self.assertContains(response, 'Twenty people-styles')
+        for slug, meta in NAME_PERSONAS.items():
+            self.assertContains(response, meta['label'])
+            if slug != 'classic':
+                self.assertContains(response, f'namepersona-{slug}')
+
+    def test_people_style_renders_on_profile_page(self):
+        set_name_style(self.user, 'classic', 'default', 'md', 'none', persona='strict')
+        response = self.client.get('/u/styler/')
+        self.assertContains(response, 'namepersona-strict')
+
+    def test_compose_never_emits_user_text(self):
+        packed = compose_name_style('papyrus', 'hotpink', 'xxl', 'matrix', 'xss')
+        self.assertEqual(packed['name_persona'], 'classic')
+        self.assertEqual(packed['css'], '')
+        self.assertEqual(packed['classes'], '')
+        self.assertNotIn('papyrus', packed['css'])
+        self.assertNotIn('hotpink', packed['css'])
