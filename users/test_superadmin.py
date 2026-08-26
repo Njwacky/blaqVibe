@@ -186,9 +186,16 @@ class DemoStaffAndPlaceholderPasswordTest(TestCase):
         u = User.objects.get(username='admin')
         self.assertEqual(u.profile.role, 'superadmin')
         self.assertTrue(u.check_password('youpwassword'))
+        from allauth.account.models import EmailAddress
+        addr = EmailAddress.objects.get(email='admin@blaqvibes.co.za')
+        self.assertTrue(addr.verified)
+        self.assertTrue(addr.primary)
         r = self.client.post('/accounts/login/', follow=True,
-                             data={'username': 'admin', 'password': 'youpwassword'})
+                             data={'username': 'admin@blaqvibes.co.za',
+                                   'password': 'youpwassword'})
         self.assertTrue(r.wsgi_request.user.is_authenticated)
+        self.assertEqual(r.wsgi_request.user.username, 'admin')
+        self.assertNotContains(r, 'unlock your 5')
 
     def test_anonymous_admin_url_redirects_to_login(self):
         r = self.client.get('/admin/dashboard/')
@@ -198,6 +205,8 @@ class DemoStaffAndPlaceholderPasswordTest(TestCase):
     def test_login_page_explains_local_demo_accounts(self):
         with self.settings(LOCAL_DEV=True, DEBUG=True):
             r = self.client.get('/accounts/login/')
+        self.assertContains(r, 'admin@blaqvibes.co.za')
+        self.assertContains(r, 'already confirmed')
         self.assertContains(r, 'nolo.ai')
         self.assertContains(r, 'blaq12345')
         self.assertContains(r, 'create_superadmin')

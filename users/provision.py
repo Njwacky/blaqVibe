@@ -38,6 +38,71 @@ class ProvisionError(Exception):
     """User-facing failure from provision_superadmin."""
 
 
+def mark_email_bypassed(user, email=None):
+    """Treat an operator mailbox as already confirmed — no token to click.
+
+    5 Whys: why a dedicated helper?
+    1. Why bypass at all? create_superadmin / env provision has no inbox.
+       Leaving email_verified=False traps the operator behind the
+       "confirm your email" banner and blocks trades, tips, payouts.
+    2. Why both Profile.email_verified AND allauth EmailAddress? The
+       banner and wallet read the Profile flag; allauth email-login and
+       password-reset read EmailAddress. One side verified is the
+       "I signed in with the email and it still asks me to confirm" bug.
+    3. Why not send the real verify mail? There is no token the operator
+       can click for an internal address. Setting both flags IS the
+       bypass, and AdminLog already records the provision.
+    4. Why grant welcome stars here? The grant is bound to a verified
+       mailbox. Skipping it would leave the operator at 0 ★ after a
+       bypass that pretends the mailbox is real.
+    5. Why never steal another user's EmailAddress row? Email is unique
+       in allauth. A clash means this address already belongs to someone
+       — fail closed and keep Profile.email_verified so our own gates
+       still open.
+    """
+    email = (email or getattr(user, 'email', '') or '').strip().lower()
+    if not user or not email:
+        return False
+    if (user.email or '').strip().lower() != email:
+        user.email = email
+        user.save(update_fields=['email'])
+    try:
+        from allauth.account.models import EmailAddress
+        existing = EmailAddress.objects.filter(email__iexact=email).first()
+        if existing and existing.user_id != user.pk:
+            return False
+        EmailAddress.objects.filter(user=user, primary=True).exclude(
+            email__iexact=email
+        ).update(primary=False)
+        addr, _ = EmailAddress.objects.get_or_create(
+            user=user,
+            email=email,
+            defaults={'verified': True, 'primary': True},
+        )
+        if not addr.verified or not addr.primary:
+            addr.verified = True
+            addr.primary = True
+            addr.save(update_fields=['verified', 'primary'])
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception(
+            'allauth EmailAddress bypass failed for user=%s', getattr(user, 'pk', None)
+        )
+    profile, _ = Profile.objects.get_or_create(user=user)
+    if not profile.email_verified:
+        profile.email_verified = True
+        profile.save(update_fields=['email_verified'])
+    try:
+        from users.wallet import grant_welcome_stars
+        grant_welcome_stars(user)
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception(
+            'welcome grant on email bypass failed for user=%s', getattr(user, 'pk', None)
+        )
+    return True
+
+
 def provision_superadmin(username, email, password, *, skip_password_reset=False):
     """Create or repair the superadmin. Returns (user, created, changed).
 
@@ -83,6 +148,8 @@ def provision_superadmin(username, email, password, *, skip_password_reset=False
             profile.email_verified = True
             changed.append('profile.email_verified')
         profile.save(update_fields=['role', 'email_verified'])
+        if mark_email_bypassed(user, email) and 'email_bypassed' not in changed:
+            changed.append('email_bypassed')
 
         AdminLog.objects.create(
             actor=user,
@@ -134,6 +201,8 @@ def repair_createsuperuser_admin():
             fields.append('email_verified')
         if fields:
             profile.save(update_fields=fields)
+        mark_email_bypassed(user, user.email or DEFAULT_EMAIL)
+        if fields:
             AdminLog.objects.create(
                 actor=user,
                 action='repair_superadmin',

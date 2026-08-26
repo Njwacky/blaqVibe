@@ -33,8 +33,13 @@ after you sign in at `/accounts/login/`.
 `profile.role`, which that command leaves as `user`, so you sign in and
 then get a 403.
 
+The operator email is **`admin@blaqvibes.co.za`**. Provisioning marks it
+verified up front (Profile + allauth EmailAddress) — there is no
+confirmation link to click. Sign in with that email at `/accounts/login/`.
+
 Local demo after `seed_demo` (only when `DEBUG=1` or `DJANGO_LOCAL_DEV=1`):
 
+- Operator email (already confirmed): `admin@blaqvibes.co.za` — password from `DJANGO_SUPERADMIN_PASSWORD` / `create_superadmin`
 - Superadmin: `nolo.ai` / `blaq12345`
 - Admin: `blaq` / `blaq12345`
 - Moderator: `thando` / `thando12345`
