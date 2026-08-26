@@ -492,71 +492,19 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   .namefx-shine, .namefx-chroma, .namefx-rainbow { animation: none; }
 }
 
-/* --- People-style picker (settings) --------------------------------------
-   5 Whys: why a card grid, not another <select>?
-   1. Twenty named looks are characters, not technical slugs — a dropdown
-      of "coder/glamour/…" hides the flex the 20★ burn is buying.
-   2. Each card previews the REAL composed classes, so the radio they
-      click is the look that saves (no-JS still posts the slug).
-   3. :has(:checked) keeps the selected card visible without JS.
-   4. Radios stay in the accessibility tree (clipped, not display:none)
-      so keyboard users can move between people-styles. */
-.persona-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
-  gap: 8px;
-  border: 0;
-  padding: 0;
-  margin: 0 0 12px;
-  min-inline-size: 0;
-}
-.persona-grid > legend { margin-bottom: 8px; }
-.persona-card {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 12px;
-  background: var(--surface-subtle);
-  cursor: pointer;
-  min-height: 108px;
-  min-width: 0;
-}
-.persona-card:hover { border-color: var(--accent-border); }
-.persona-card:has(.persona-radio:checked) {
-  border-color: var(--accent-border);
-  background: var(--accent-soft-bg);
-}
-.persona-card:focus-within {
-  outline: 2px solid var(--violet);
-  outline-offset: 2px;
-}
-.persona-radio {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
-}
-.persona-card-name {
-  font-size: 14px;
-  line-height: 1.3;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.persona-card-label { font-size: 12px; font-weight: 700; }
-.persona-card-blurb {
-  font-size: 11px;
-  color: var(--muted);
-  line-height: 1.35;
-}
+/* --- People-style picker (Edit Profile) ----------------------------------
+   5 Whys: why ONE dropdown list, not a grid of cards?
+   1. The picker lives on Edit Profile next to the bio/avatar form — a
+      21-card grid crowded the page into a showroom; a <select> keeps it
+      a form. The option text carries the label + blurb.
+   2. The styles display did not die with the cards: the live Preview
+      span beside the dropdown re-renders the real composed classes on
+      every change, from the same server whitelists as the renderer.
+   3. A native <select> is keyboard- and screen-reader-ready with zero
+      JS — no radio clipping, no focus management to get wrong.
+   4. The flourish classes below still apply wherever the name renders
+      (profile header, follower lists, tips) — picking is dropdown-only,
+      displaying stays class-based and versioned with the theme. */
 
 /* --- Twenty people-style flourishes (users/models.NAME_PERSONAS) ---------
    Letter-spacing, case, italic, small-caps, skew, extra glow. These

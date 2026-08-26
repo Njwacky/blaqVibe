@@ -82,7 +82,8 @@ NAME_FX_LABELS = {
 #    c. A named look is the flex the 20★ burn is supposed to buy. "I am
 #       the Coder" is louder than "I picked JetBrains Mono".
 #    d. The four requested types (coder, glamour, charmer, strict) plus
-#       sixteen more fill one scannable grid, not a four-dropdown puzzle.
+#       sixteen more fill one scannable dropdown list — a named look is
+#       one choice, not a four-dropdown puzzle.
 # 2. Why a slug + recipe dict, never a user-typed class name?
 #    a. Same rule as NAME_FONTS: the template prints OUR class
 #       (`namepersona-coder`), never the posted string.
@@ -96,9 +97,10 @@ NAME_FX_LABELS = {
 #       every recipe is on-whitelist.
 # 3. Why does picking a people-style fill font / color / size / fx?
 #    a. Without that, a no-JS POST would save persona=coder on top of the
-#       default dropdowns and the look would not match the card they clicked.
-#    b. The four dropdowns stay as a fine-tune for Classic mixes; the card
-#       is the primary picker, the dropdowns are the escape hatch.
+#       default dropdowns and the look would not match the style they picked.
+#    b. The four dropdowns stay as a fine-tune for Classic mixes; the
+#       people-style list is the primary picker, the four dropdowns are
+#       the escape hatch.
 #    c. Filling the four fields means the existing renderer (inline
 #       font/color + size/fx classes) still works if an old CSS cache is
 #       missing the persona class.
@@ -106,19 +108,19 @@ NAME_FX_LABELS = {
 #       support ticket can replay the exact look.
 # 4. Why does a fine-tune that no longer matches the recipe clear the
 #    persona back to Classic?
-#    a. Leaving namepersona-coder on a gold-serif mix would lie: the card
-#       said Coder, the page shows something else.
+#    a. Leaving namepersona-coder on a gold-serif mix would lie: the
+#       picker said Coder, the page shows something else.
 #    b. The extra class (uppercase, skew) would fight a custom mix the
 #       user just chose — Classic + mix is the honest custom path.
 #    c. Matching a recipe again (or posting defaults + a people-style, the
 #       no-JS path) re-applies that recipe, so clearing is reversible
 #       without a second wallet.
 #    d. One compose_name_style decides this on write AND on read, so the
-#       settings preview, the profile, and the stored row cannot drift.
+#       Edit Profile preview, the profile, and the stored row cannot drift.
 # 5. Why twenty, and why is Classic not one of the twenty?
 #    a. Classic is the free default everyone already has; counting it as a
-#       people-style would pad the grid with a no-op.
-#    b. Twenty is a full grid without a second page of cards.
+#       people-style would pad the list with a no-op.
+#    b. Twenty is a full dropdown list without a wall of cards.
 #    c. Each of the twenty burns the same 20★ as a hand-mixed style — no
 #       secret premium tier, no second price.
 #    d. Adding a 21st later is a dict entry + a CSS class + a test; the
@@ -339,8 +341,9 @@ def compose_name_style(font='classic', color='default', size='md', fx='none', pe
           JS path (persona + filled dropdowns) must land on the same row.
        c. Tests call this helper directly; a view-only resolver would leave
           the wallet writer unproven.
-       d. The settings preview maps are built from the same recipes this
-          function applies, so the card cannot sell a look the writer refuses.
+       d. The Edit Profile preview maps are built from the same recipes
+          this function applies, so the picker cannot sell a look the
+          writer refuses.
     2. Why coerce unknown slugs instead of raising?
        a. The renderer must survive a tampered DB value (test_tampered_db).
        b. A direct caller (admin tool, future API) must not crash the
@@ -430,7 +433,7 @@ def compose_name_style(font='classic', color='default', size='md', fx='none', pe
 
 
 def name_style_preview_maps():
-    """Whitelist payload for the settings live preview (json_script)."""
+    """Whitelist payload for the Edit Profile live preview (json_script)."""
     return {
         'fonts': NAME_FONTS,
         'colors': NAME_COLORS,
@@ -448,23 +451,6 @@ def name_style_preview_maps():
             for slug, meta in NAME_PERSONAS.items()
         },
     }
-
-
-def persona_card_payloads():
-    """One card per NAME_PERSONAS entry, already composed for the grid."""
-    cards = []
-    for slug, meta in NAME_PERSONAS.items():
-        packed = compose_name_style(
-            meta['font'], meta['color'], meta['size'], meta['fx'], slug,
-        )
-        cards.append({
-            'slug': slug,
-            'label': meta['label'],
-            'blurb': meta['blurb'],
-            'css': packed['css'],
-            'classes': packed['classes'],
-        })
-    return cards
 
 class Profile(models.Model):
     ROLE_CHOICES = [('user','User'),('moderator','Moderator'),('admin','Admin'),('superadmin','Super Admin')]

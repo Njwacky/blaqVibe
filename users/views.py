@@ -24,7 +24,6 @@ from .models import (
     Tip,
     UsernameHistory,
     name_style_preview_maps,
-    persona_card_payloads,
 )
 from .forms import ChangeEmailForm, NameStyleForm, ProfileForm, RenameForm, TipForm
 from .payouts import PayoutError, payout_rate_label, request_payout as request_payout_hold
@@ -163,7 +162,35 @@ def edit_profile(request):
             return redirect('profile_view', username=request.user.username)
     else:
         form = ProfileForm(instance=profile)
-    return render(request, 'users/edit_profile.html', {'form': form, 'profile': profile})
+    # Identity panel (moved here from Settings — "my profile" is where a
+    # member edits their name): the rename card and the name-style picker.
+    # Everything the PUBG-rule panels need to explain themselves;
+    # cooldown_days is None when a rename card is usable. The people-style
+    # is ONE dropdown list here — the live preview span is the styles
+    # display, so no 21-card grid is needed to sell the look.
+    cooldown = cooldown_remaining(profile)
+    style_form = NameStyleForm(initial={
+        'name_font': profile.name_font,
+        'name_color': profile.name_color,
+        'name_size': profile.name_size,
+        'name_fx': profile.name_fx,
+        'name_persona': profile.name_persona or 'classic',
+    })
+    # The preview JS needs the same whitelists the renderer uses — passed as
+    # data, not code: no secrets, no user input, and json_script escapes it.
+    return render(request, 'users/edit_profile.html', {
+        'form': form,
+        'profile': profile,
+        'style_form': style_form,
+        'name_style_maps': name_style_preview_maps(),
+        'rename_cost': RENAME_COST_STARS,
+        'style_cost': STYLE_COST_STARS,
+        'cooldown_days': cooldown.days if cooldown else None,
+        'cooldown_hours': (cooldown.seconds // 3600) if cooldown else None,
+        'rename_cooldown_days': RENAME_COOLDOWN_DAYS,
+        'rename_reserve_days': RENAME_RESERVE_DAYS,
+        'rename_count': UsernameHistory.objects.filter(user=request.user).count(),
+    })
 
 @require_POST
 @login_required
@@ -373,32 +400,16 @@ def activate_pro_trial(request):
 def settings_view(request):
     profile, _ = Profile.objects.get_or_create(user=request.user)
     site = SiteSettings.get() if profile.is_superadmin() else None
-    # Identity panel: everything the PUBG-rule cards need to explain
-    # themselves. cooldown_days is None when a rename card is usable.
-    cooldown = cooldown_remaining(profile)
-    style_form = NameStyleForm(initial={
-        'name_font': profile.name_font,
-        'name_color': profile.name_color,
-        'name_size': profile.name_size,
-        'name_fx': profile.name_fx,
-        'name_persona': profile.name_persona or 'classic',
-    })
-    # The preview JS needs the same whitelists the renderer uses — passed as
-    # data, not code: no secrets, no user input, and json_script escapes it.
+    # 5 Whys: why is there no identity panel here any more? Username and
+    # name-style editing moved to Edit Profile (/settings/profile/) — the
+    # page a member reaches from their own profile — so Settings stays
+    # toggles/git/email/social only. The rename and style endpoints keep
+    # their /settings/... URLs for stability; they redirect back to the
+    # profile editor.
     return render(request, 'users/settings.html', {
         'profile': profile,
         'site': site,
-        'style_form': style_form,
-        'name_style_maps': name_style_preview_maps(),
-        'name_personas': persona_card_payloads(),
         **social_connection_context(request.user),
-        'rename_cost': RENAME_COST_STARS,
-        'style_cost': STYLE_COST_STARS,
-        'cooldown_days': cooldown.days if cooldown else None,
-        'cooldown_hours': (cooldown.seconds // 3600) if cooldown else None,
-        'rename_cooldown_days': RENAME_COOLDOWN_DAYS,
-        'rename_reserve_days': RENAME_RESERVE_DAYS,
-        'rename_count': UsernameHistory.objects.filter(user=request.user).count(),
     })
 
 
@@ -421,17 +432,17 @@ def rename_username(request):
         for errors in form.errors.values():
             for error in errors:
                 messages.error(request, error)
-        return redirect('settings')
+        return redirect('edit_profile')
     try:
         history = rename_user(request.user, form.cleaned_data['new_username'])
     except RenameError as e:
         messages.error(request, e.message)
-        return redirect('settings')
+        return redirect('edit_profile')
     except Exception:
         import logging
         logging.getLogger(__name__).exception('rename view crush')
         messages.error(request, 'Rename failed — nothing was charged. Try again.')
-        return redirect('settings')
+        return redirect('edit_profile')
     if history.method == 'pro':
         messages.success(
             request,
@@ -461,7 +472,7 @@ def set_name_style_view(request):
     form = NameStyleForm(request.POST)
     if not form.is_valid():
         messages.error(request, 'Pick a people-style, font, color, size and effect from the list.')
-        return redirect('settings')
+        return redirect('edit_profile')
     try:
         profile, changed = set_name_style(
             request.user,
@@ -473,12 +484,12 @@ def set_name_style_view(request):
         )
     except RenameError as e:
         messages.error(request, e.message)
-        return redirect('settings')
+        return redirect('edit_profile')
     except Exception:
         import logging
         logging.getLogger(__name__).exception('name style view crush')
         messages.error(request, 'Style change failed — nothing was charged. Try again.')
-        return redirect('settings')
+        return redirect('edit_profile')
     if not changed:
         messages.info(request, 'That is already your name style — nothing charged.')
     elif profile.is_pro_active:
@@ -489,7 +500,7 @@ def set_name_style_view(request):
             f'✓ Name styled — {STYLE_COST_STARS} ★ burned. It shows on your '
             'profile, follower lists and tips.',
         )
-    return redirect('settings')
+    return redirect('edit_profile')
 
 @login_required
 @require_POST

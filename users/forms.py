@@ -313,19 +313,23 @@ class NameStyleForm(forms.Form):
           before set_name_style runs, same as a crafted font.
        b. Choices come FROM NAME_PERSONAS, so the form cannot accept a
           21st people-style the CSS file does not define.
-       c. required=False lets a no-JS client omit the radio (old bookmarks,
+       c. required=False lets a no-JS client omit the select (old bookmarks,
           existing tests) and still save a Classic mix.
        d. clean_name_persona maps empty → classic so the writer never sees
           None and the ledger ref always has a slug.
-    2. Why RadioSelect and not another <select>?
-       a. Twenty people-styles are a grid of looks, not a dropdown of
-          technical slugs — radios are the accessible card pattern.
-       b. The settings template renders the radios itself so each card
-          can preview the real composed class list.
+    2. Why ONE <select> dropdown and not a grid of cards?
+       a. The picker lives on Edit Profile ("my profile"), next to the
+          bio/avatar form — a 21-card grid crowded the page into a
+          showroom; one dropdown keeps it a form.
+       b. A <select> cannot preview each look in place, so the option text
+          carries the label + blurb and the live preview span beside the
+          dropdown renders the real composed look on every change — the
+          styles display moved, it did not die.
        c. The widget still exists on the form so a future admin tool that
           renders {{ form }} gets a valid field, not a missing key.
-       d. Duplicate widgets are avoided by NOT printing {{ form.name_persona }}
-          next to the custom grid — one name=name_persona on the wire.
+       d. One <select> name=name_persona on the wire — the exact POST
+          shape the radio grid produced, so no-JS clients and existing
+          tests post unchanged.
     3. Why reject an unknown persona at the form instead of coercing?
        a. A POST that invents "namepersona-xss" is an attack, not a typo.
           Fail the form, charge nothing, same as comic-sans-custom.
@@ -340,12 +344,12 @@ class NameStyleForm(forms.Form):
           dropdowns would lock every non-recipe look behind a code change.
        b. Fine-tune that no longer matches a recipe clears the persona
           (compose_name_style) — the dropdowns are how that mix is posted.
-       c. No-JS users who never click a card can still restyle via the
-          four fields, same as before this feature.
+       c. No-JS users who never open the people-style list can still
+          restyle via the four fields, same as before this feature.
        d. Preview JS fills the dropdowns from the recipe so what you save
-          is what the card showed, even if they never touch a <select>.
+          is what the preview showed, even if they never touch a <select>.
     5. Why is Classic in NAME_PERSONAS if it is not one of the twenty?
-       a. The radio grid needs a checked default; Classic is that card.
+       a. The dropdown needs a default option; Classic is that option.
        b. compose_name_style treats 'classic' as "no extra class", so the
           slug and the look stay aligned.
        c. One dict drives form choices, preview maps, and CSS class
@@ -356,9 +360,10 @@ class NameStyleForm(forms.Form):
 
     name_persona = forms.ChoiceField(
         required=False,
-        widget=forms.RadioSelect(attrs={'class': 'persona-radio'}),
+        widget=forms.Select(attrs={'class': 'field-input', 'data-style': 'persona'}),
         choices=lambda: [
-            (slug, meta['label']) for slug, meta in NAME_PERSONAS.items()
+            (slug, f"{meta['label']} — {meta['blurb']}")
+            for slug, meta in NAME_PERSONAS.items()
         ],
     )
     name_font = forms.ChoiceField(

@@ -106,23 +106,30 @@ tests in `users/test_rename.py`. Ledger reasons added: `rename_spend`,
    knob. "Coder" is a character other people recognise on a follower list.
    Twenty recipes reuse `NAME_*` — no new injection surface, no new font
    files, no second wallet. The four requested types plus sixteen more
-   fill one scannable grid.
+   fill one scannable dropdown list.
 2. **Why a slug + recipe, never a user-typed class?** The template prints
    `namepersona-coder`, never the posted string. Unknown slugs degrade to
    Classic via `compose_name_style` (write AND read). Flourish CSS lives
    next to `namefx-*` so motion preferences stay one file. Tests assert
    every recipe is on-whitelist.
-3. **Why does picking a card fill font/color/size/fx?** A no-JS POST would
-   otherwise save `persona=coder` on top of default dropdowns and lie.
-   Filling the four fields means the existing renderer still works if an
-   old CSS cache is missing the persona class. Ledger refs record both.
+3. **Why does picking a people-style fill font/color/size/fx?** A no-JS
+   POST would otherwise save `persona=coder` on top of default dropdowns
+   and lie. Filling the four fields means the existing renderer still
+   works if an old CSS cache is missing the persona class. Ledger refs
+   record both.
 4. **Why does a fine-tune that leaves the recipe clear the persona?**
    Leaving `namepersona-coder` on a gold-serif mix is a lie, and the extra
    class would fight the mix. Classic + mix is the honest custom path.
-   Re-selecting the card restores it — clearing is not a lock-out.
+   Re-selecting the style restores it — clearing is not a lock-out.
 5. **Why is Classic not one of the twenty?** Classic is the free default
-   everyone already has. Counting it would pad the grid with a no-op.
+   everyone already has. Counting it would pad the list with a no-op.
    Each of the twenty burns the same 20★ as a hand-mixed style.
+6. **Why one dropdown list on Edit Profile, not a card grid?** The picker
+   moved from Settings to Edit Profile ("my profile") next to the bio/
+   avatar form — a 21-card grid crowded the page into a showroom. The
+   option text carries the label + blurb, and the live Preview span is
+   the styles display: it re-renders the real composed look on every
+   change from the same server whitelists as the renderer.
 
 ### 5. Why charge 20 ★ per style CHANGE and not per style unlocked?
 
@@ -178,10 +185,11 @@ rendered or embedded, and the identity-adjacent economy.
 - `users/models.py` — `UsernameHistory`, `Profile.name_*` fields, `NAME_*`
   whitelists, safe renderers, money constants, ledger reasons
 - `users/forms.py` — `RenameForm`, `NameStyleForm`, reserved names at signup
-- `users/views.py` — rename/restyle views, settings identity panel,
+- `users/views.py` — rename/restyle views, Edit Profile identity panel,
   profile redirect for old names
-- `users/migrations/0018_*` — schema
-- `users/test_rename.py` — 36 tests (money, cooldown, reservation,
+- `users/migrations/0018_*`, `0019_*` — schema
+- `users/test_rename.py` — 37 tests (money, cooldown, reservation,
   impersonation, validation, redirect, rendering safety)
-- `templates/users/_styled_name.html`, `settings.html`, `profile.html`,
-  `templates/gallery/feed.html`, `static/gallery/css/blaqvibes.css`
+- `templates/users/_styled_name.html`, `edit_profile.html`, `settings.html`,
+  `profile.html`, `templates/gallery/feed.html`,
+  `static/gallery/css/blaqvibes.css`
