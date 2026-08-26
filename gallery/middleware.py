@@ -53,14 +53,13 @@ class PreviewEmbedMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
         embed_host = host_needs_embed_cookies(request)
-        from django.conf import settings
-        # Never strip X-Frame-Options on the real site or on testserver —
-        # snippet preview isolation depends on SAMEORIGIN.
-        if embed_host:
-            response.headers.pop('X-Frame-Options', None)
-        rewrite = embed_host or getattr(settings, 'PARTITION_EMBED_COOKIES', False)
-        if not rewrite:
+        # Only the e2b preview host. Production (blaqvibes.co.za) and
+        # laptop localhost keep Lax cookies and X-Frame-Options — this
+        # middleware must never weaken the real site.
+        if not embed_host:
             return response
+        from django.conf import settings
+        response.headers.pop('X-Frame-Options', None)
         for name in (settings.CSRF_COOKIE_NAME, settings.SESSION_COOKIE_NAME):
             morsel = response.cookies.get(name)
             if morsel is None:

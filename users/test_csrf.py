@@ -101,6 +101,23 @@ class PreviewEmbedMiddlewareTests(SimpleTestCase):
         self.assertTrue(morsel['partitioned'])
         self.assertNotIn('X-Frame-Options', response.headers)
 
+    def test_production_host_never_rewrites_even_if_partition_flag(self):
+        def view(request):
+            from django.http import HttpResponse
+            response = HttpResponse('ok')
+            response.set_cookie('csrftoken', 'secret', samesite='Lax', secure=True)
+            response['X-Frame-Options'] = 'DENY'
+            return response
+
+        mw = PreviewEmbedMiddleware(view)
+        request = self.factory.get('/accounts/login/', HTTP_HOST='blaqvibes.co.za')
+        with override_settings(PREVIEW=True, PARTITION_EMBED_COOKIES=True):
+            response = mw(request)
+        morsel = response.cookies['csrftoken']
+        self.assertEqual(morsel['samesite'], 'Lax')
+        self.assertEqual(response['X-Frame-Options'], 'DENY')
+        self.assertFalse(morsel['partitioned'])
+
 
 class CsrfEnforcedLoginTests(TestCase):
     def setUp(self):

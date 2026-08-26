@@ -144,6 +144,52 @@ class CommentAndReviewGateTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn('body', form.errors)
 
+    def test_script_tag_is_stripped_from_rendered_comment(self):
+        self.client.login(username='fan', password='pass12345')
+        self.client.post(
+            f'/app/{self.project.slug}/comment/',
+            {'body': 'Hello **team** <script>alert(1)</script> world'},
+        )
+        comment = Comment.objects.get()
+        self.assertNotIn('<script>', comment.body_html)
+        self.assertIn('<strong>', comment.body_html)
+        page = self.client.get(f'/app/{self.project.slug}/')
+        self.assertContains(page, '<strong>team</strong>')
+        self.assertNotContains(page, '<script>alert(1)</script>')
+
+    def test_reply_nests_under_the_parent(self):
+        self.client.login(username='fan', password='pass12345')
+        self.client.post(
+            f'/app/{self.project.slug}/comment/',
+            {'body': 'Does this work with Django 5 class-based views?'},
+        )
+        parent = Comment.objects.get()
+        self.client.post(
+            f'/app/{self.project.slug}/comment/',
+            {'body': 'Yes, use the docs and a venv.', 'parent_id': parent.pk},
+        )
+        reply = Comment.objects.exclude(pk=parent.pk).get()
+        self.assertEqual(reply.parent_id, parent.pk)
+        page = self.client.get(f'/app/{self.project.slug}/')
+        self.assertContains(page, 'use the docs')
+
+    def test_allow_comments_off_hides_form_and_blocks_post(self):
+        self.owner.profile.allow_comments = False
+        self.owner.profile.save(update_fields=['allow_comments'])
+        Comment.objects.create(
+            project=self.project, user=self.fan, body='Old comment that must hide.',
+        )
+        page = self.client.get(f'/app/{self.project.slug}/')
+        self.assertContains(page, 'turned comments off')
+        self.assertNotContains(page, 'Old comment that must hide')
+        self.assertNotContains(page, 'name="body"')
+        self.client.login(username='fan', password='pass12345')
+        self.client.post(
+            f'/app/{self.project.slug}/comment/',
+            {'body': 'This should never land on a closed thread.'},
+        )
+        self.assertEqual(Comment.objects.count(), 1)
+
     def test_review_form_itself_rejects(self):
         form = ReviewForm(data={'rating': 3, 'text': 'this is fucking broken now'})
         self.assertFalse(form.is_valid())

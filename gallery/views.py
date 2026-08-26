@@ -4,7 +4,7 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.db import transaction
-from django.db.models import F, Q, Count
+from django.db.models import F, Q, Count, Prefetch
 from django.http import Http404, HttpResponse, JsonResponse, HttpResponseRedirect
 from django.core.paginator import Paginator
 from django.utils import timezone
@@ -231,8 +231,17 @@ def app_detail(request, slug):
         # Learn what this person opens. Deduped in cache, one row, never
         # fatal — see gallery/taste.py.
         taste.record(request.user, project, 'view', project=project)
-    comments = project.comments.filter(is_hidden=False).select_related('user').prefetch_related('replies__user')
-    top_comments = comments.filter(parent__isnull=True)
+    comments_open = bool(getattr(project.owner.profile, 'allow_comments', True))
+    visible_replies = Prefetch(
+        'replies',
+        queryset=Comment.objects.filter(is_hidden=False).select_related('user'),
+    )
+    top_comments = (
+        project.comments.filter(is_hidden=False, parent__isnull=True)
+        .select_related('user')
+        .prefetch_related(visible_replies)
+        if comments_open else project.comments.none()
+    )
     is_starred = False
     has_traded = False
     has_bought = False
@@ -296,6 +305,7 @@ def app_detail(request, slug):
     return render(request, 'gallery/app_detail.html', {
         'project': project,
         'comments': top_comments,
+        'comments_open': comments_open,
         'reviews': reviews,
         'nolo_review': nolo_review,
         'ai_readme_preview': ai_readme_preview,
