@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Refresh to sign in — BlaqVibes</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&family=Inter:wght@500;700&display=swap" rel="stylesheet">
+<script>
+try {
+  var theme = localStorage.getItem('blaq-theme');
+  if (theme !== 'light' && theme !== 'dark') theme = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', theme);
+} catch (e) {}
+</script>
+<link rel="stylesheet" href="/static/gallery/css/error.css?v=theme-20260815">
+</head>
+<body>
+<div class="card">
+  <img src="/static/branding/error-fork.png" alt="" style="width:100%;max-width:420px;border-radius:16px;border:1px solid var(--line)">
+  <div style="margin-top:12px;font-family:Space Grotesk,sans-serif;font-size:22px;font-weight:700">Sign-in needs a fresh page</div>
+  <div style="margin-top:6px;color:var(--muted);font-size:13px;line-height:1.6">
+    The preview could not see its security cookie — usually a stale tab
+    or cookies turned off for this site. Refresh, then sign in again
+    with <b>admin@blaqvibes.co.za</b>. No confirmation link to click.
+  </div>
+  <form method="get" action="{{ login_url }}" style="margin-top:14px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+    {% csrf_token %}
+    <button type="submit" style="background:var(--violet);color:var(--on-accent);padding:10px 18px;border:0;border-radius:10px;font-weight:700;cursor:pointer">↻ Refresh sign in</button>
+    <a href="/" style="border:1px solid var(--line);color:var(--text);padding:10px 18px;border-radius:10px;font-weight:600;text-decoration:none">Home</a>
+  </form>
+</div>
+</body>
+</html>
