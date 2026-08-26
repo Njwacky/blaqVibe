@@ -833,10 +833,8 @@
     <p class="help" style="margin: 6px 0 10px">
       {% if profile.email_verified %}Confirmed: {{ user.email }} {% else %}{{ user.email|default:"No email on this account" }} — not confirmed yet.{% endif %}
     </p>
-    {% if not profile.email_verified and user.email %}
-    <form method="post" action="{% url 'resend_verify_email' %}">
-      {% csrf_token %}<button class="btn-ghost">Resend confirmation</button>
-    </form>
+    {% if not profile.email_verified %}
+    <a href="{% url 'edit_email' %}" class="btn-ghost">Fix email / resend confirmation</a>
     {% endif %}
   </div>
 

@@ -162,6 +162,46 @@ class SignUpForm(UserCreationForm):
         return user
 
 
+class ChangeEmailForm(forms.Form):
+    """Fix the mailbox before we send another confirmation.
+
+    5 Whys: why a form instead of mailing User.email again?
+    1. Why edit first? The activate banner used to POST-resend to whatever
+       was stored. A typo at signup then mailed a mailbox the person
+       cannot open, forever.
+    2. Why the same uniqueness rule as SignUpForm? Two accounts with the
+       same address makes email-login a coin flip (see AuthenticationForm).
+    3. Why lowercase? Signup stores lowercased email; a mixed-case twin
+       would look unique and then collide on login.
+    4. Why exclude self? Resending to the current address must stay valid.
+    5. Why not live on ProfileForm? Bio/avatar is public chrome; the
+       mailbox is an auth credential and has its own confirm flow.
+    """
+    email = forms.EmailField(
+        required=True,
+        widget=forms.EmailInput(attrs={
+            'placeholder': 'you@email.com',
+            'autocomplete': 'email',
+            'class': 'field-input',
+        }),
+    )
+
+    def __init__(self, *args, user=None, **kwargs):
+        self.user = user
+        super().__init__(*args, **kwargs)
+
+    def clean_email(self):
+        email = (self.cleaned_data.get('email') or '').strip().lower()
+        if not email:
+            raise forms.ValidationError('Email is required.')
+        taken = User.objects.filter(email__iexact=email)
+        if self.user is not None:
+            taken = taken.exclude(pk=self.user.pk)
+        if taken.exists():
+            raise forms.ValidationError('An account with this email already exists.')
+        return email
+
+
 class StyledAuthenticationForm(AuthenticationForm):
     username = forms.CharField(widget=forms.TextInput(attrs={
         'placeholder': 'Username or email',
