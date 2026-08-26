@@ -81,7 +81,10 @@ class CreateSuperadminTest(TestCase):
 class EmailLoginTest(TestCase):
     def setUp(self):
         u = User.objects.create_user('admin', 'admin@blaqvibes.co.za', PW)
-        Profile.objects.create(user=u, role='superadmin', email_verified=True)
+        # The post_save receiver on User already created a Profile, so a bare
+        # create() here raises IntegrityError on users_profile.user_id.
+        Profile.objects.update_or_create(
+            user=u, defaults={'role': 'superadmin', 'email_verified': True})
         self.client = Client()
 
     def test_login_with_email(self):

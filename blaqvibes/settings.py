@@ -11,7 +11,34 @@ DEBUG = os.getenv('DEBUG', '0') == '1'
 
 # Detect local development in a virtual environment or debug mode.
 # This avoids forcing production-only HTTPS handling when running locally.
-LOCAL_DEV = bool(os.getenv('VIRTUAL_ENV') or os.getenv('PYTHONENV') or os.getenv('DJANGO_LOCAL_DEV') or DEBUG)
+#
+# 5 Whys: why a parser instead of `bool(os.getenv('DJANGO_LOCAL_DEV'))`?
+# 1. Why not bool() of the raw string? In Python bool('0') is True — so
+#    DJANGO_LOCAL_DEV=0, the exact line an operator writes to turn local
+#    mode OFF, turned it ON. Same for 'false'/'no'.
+# 2. Why does that matter? LOCAL_DEV gates SECURE_SSL_REDIRECT,
+#    SESSION_COOKIE_SECURE, CSRF_COOKIE_SECURE, nosniff, X_FRAME_OPTIONS,
+#    the django-insecure SECRET_KEY fallback, SEED_DEMO and CELERY_EAGER.
+#    A silent flip ships an unhardened site that looks configured.
+# 3. Why let an explicit value win in BOTH directions? `VIRTUAL_ENV or ...`
+#    meant a venv deploy could never opt out — the heuristic outranked the
+#    operator. Explicit beats inferred.
+# 4. Why keep the venv heuristic at all? Running from a venv with nothing
+#    set is a local dev box; making every developer export a flag to get
+#    CSS instead of a 400 is a worse default.
+# 5. Why treat empty as unset? `DJANGO_LOCAL_DEV=` in a .env means
+#    "no opinion", not "off" — same as the key being absent.
+def _env_flag(name, default=False):
+    raw = os.getenv(name)
+    if raw is None or raw.strip() == '':
+        return default
+    return raw.strip().lower() in ('1', 'true', 'yes', 'on')
+
+
+if os.getenv('DJANGO_LOCAL_DEV', '').strip() != '':
+    LOCAL_DEV = _env_flag('DJANGO_LOCAL_DEV')
+else:
+    LOCAL_DEV = bool(os.getenv('VIRTUAL_ENV') or os.getenv('PYTHONENV')) or DEBUG
 
 # Sentry — backend only, no JS secrets. Do not dummy-init without a DSN:
 # the Django/WSGI integrations still wrap exception handling, and older
