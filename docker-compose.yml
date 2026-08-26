@@ -21,6 +21,7 @@ services:
 
   web:
     build: .
+    # migrate + seed_demo also provision admin when DJANGO_SUPERADMIN_PASSWORD is set.
     command: bash -c "python manage.py migrate && python manage.py collectstatic --noinput && python manage.py seed_demo && gunicorn blaqvibes.wsgi:application --bind 0.0.0.0:8000 --workers 3"
     volumes:
       - .:/app

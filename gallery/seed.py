@@ -213,6 +213,24 @@ def _ensure_user(username: str, password: str, stars: int = 5, **profile_kwargs)
             updates.append(key)
     if updates:
         profile.save(update_fields=list(dict.fromkeys(updates)))
+    # Demo staff need the Django flags the admin dashboard / Django admin
+    # also look at. Role alone is the BlaqVibes gate; is_staff opens
+    # /blaq-admin-secure/. Never flip these in production seed (roles are
+    # only passed from _ensure_demo_staff, which is LOCAL_DEV-gated).
+    role = profile_kwargs.get('role')
+    flag_fields = []
+    if role == 'superadmin':
+        if not user.is_staff:
+            user.is_staff = True
+            flag_fields.append('is_staff')
+        if not user.is_superuser:
+            user.is_superuser = True
+            flag_fields.append('is_superuser')
+    elif role == 'admin' and not user.is_staff:
+        user.is_staff = True
+        flag_fields.append('is_staff')
+    if flag_fields:
+        user.save(update_fields=flag_fields)
     return user
 
 
@@ -311,10 +329,39 @@ def _seed_zip_app(owner, cats):
     return 1
 
 
+def _ensure_demo_staff():
+    """Local/debug only — the accounts the docs already tell people to use.
+
+    5 Whys: why here? Specs and the admin demo say "login nolo.ai /
+    blaq12345" and "blaq is admin." seed_demo used to create those
+    usernames as role='user', so the documented password signed in and
+    then 403'd on every admin page. That is the "admin login never
+    works" ticket. Production seed stays role='user' — a known-password
+    superadmin must never ship with SEED_DEMO=1 on a public host.
+    """
+    _ensure_user('blaq', 'blaq12345', stars=20, role='admin')
+    _ensure_user('thando', 'thando12345', stars=12, role='moderator')
+    _ensure_user('nolo.ai', 'blaq12345', stars=42, role='superadmin')
+    try:
+        from users.provision import repair_createsuperuser_admin
+        repair_createsuperuser_admin()
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('repair createsuperuser admin failed')
+
+
 def seed_demo():
     """Create published demo vibes. Safe to run many times."""
     owner = _ensure_user('blaq', 'blaq12345', stars=20)
     _ensure_user('thando', 'thando12345', stars=12)
+    if getattr(settings, 'LOCAL_DEV', False) or getattr(settings, 'DEBUG', False):
+        _ensure_demo_staff()
+    try:
+        from users.provision import maybe_provision_from_env
+        maybe_provision_from_env()
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception('env superadmin provision failed')
     cats = _categories()
     created = _seed_snippets(owner, cats)
     created += _seed_zip_app(owner, cats)

@@ -14,8 +14,19 @@ from django.utils.encoding import force_bytes, force_str
 from django.utils import timezone
 from datetime import datetime, timedelta
 from django_ratelimit.decorators import ratelimit
-from .models import MAX_PAYOUT_STARS, MIN_PAYOUT_STARS, Payout, Profile, Follow, SiteSettings, Tip, UsernameHistory
-from .forms import NameStyleForm, ProfileForm, RenameForm, TipForm
+from .models import (
+    MAX_PAYOUT_STARS,
+    MIN_PAYOUT_STARS,
+    Payout,
+    Profile,
+    Follow,
+    SiteSettings,
+    Tip,
+    UsernameHistory,
+    name_style_preview_maps,
+    persona_card_payloads,
+)
+from .forms import ChangeEmailForm, NameStyleForm, ProfileForm, RenameForm, TipForm
 from .payouts import PayoutError, payout_rate_label, request_payout as request_payout_hold
 from .social import social_connection_context
 from .rename import (
@@ -370,21 +381,16 @@ def settings_view(request):
         'name_color': profile.name_color,
         'name_size': profile.name_size,
         'name_fx': profile.name_fx,
+        'name_persona': profile.name_persona or 'classic',
     })
     # The preview JS needs the same whitelists the renderer uses — passed as
     # data, not code: no secrets, no user input, and json_script escapes it.
-    from .models import NAME_COLORS, NAME_FONTS, NAME_FX, NAME_SIZES
-    name_style_maps = {
-        'fonts': NAME_FONTS,
-        'colors': NAME_COLORS,
-        'sizes': NAME_SIZES,
-        'fx': NAME_FX,
-    }
     return render(request, 'users/settings.html', {
         'profile': profile,
         'site': site,
         'style_form': style_form,
-        'name_style_maps': name_style_maps,
+        'name_style_maps': name_style_preview_maps(),
+        'name_personas': persona_card_payloads(),
         **social_connection_context(request.user),
         'rename_cost': RENAME_COST_STARS,
         'style_cost': STYLE_COST_STARS,
@@ -454,7 +460,7 @@ def set_name_style_view(request):
     below the wallet-moving endpoints (tip 20/h)."""
     form = NameStyleForm(request.POST)
     if not form.is_valid():
-        messages.error(request, 'Pick a font, color, size and effect from the list.')
+        messages.error(request, 'Pick a people-style, font, color, size and effect from the list.')
         return redirect('settings')
     try:
         profile, changed = set_name_style(
@@ -463,6 +469,7 @@ def set_name_style_view(request):
             form.cleaned_data['name_color'],
             form.cleaned_data['name_size'],
             form.cleaned_data['name_fx'],
+            form.cleaned_data.get('name_persona') or 'classic',
         )
     except RenameError as e:
         messages.error(request, e.message)
@@ -575,6 +582,8 @@ def delete_account(request):
 
 
 def send_verify_email(request, user):
+    if not (user and user.email):
+        return
     uid = urlsafe_base64_encode(force_bytes(user.pk))
     token = default_token_generator.make_token(user)
     link = request.build_absolute_uri(f'/accounts/verify/{uid}/{token}/')
@@ -585,6 +594,56 @@ def send_verify_email(request, user):
         [user.email],
         fail_silently=True,
     )
+
+
+def apply_unverified_email(user, email):
+    """Point this account at a new unconfirmed mailbox.
+
+    5 Whys: why a helper, not `user.email = …` in the view?
+    1. Why touch allauth EmailAddress too? Password-reset and email-login
+       read that table. Updating User.email alone leaves the old address
+       as primary/verified and the banner never matches the inbox.
+    2. Why drop other EmailAddress rows for this user? An unverified
+       account has one mailbox. Keeping the typo as a second row would
+       let a later confirm of the old token revive it.
+    3. Why never steal another user's EmailAddress? Email is unique in
+       allauth. The form already rejected a taken User.email; this is
+       the same fail-closed for the allauth row.
+    4. Why force email_verified=False? Changing the address must lock
+       the welcome grant and recovery until the NEW mailbox clicks.
+    5. Why lowercase here too? Signup and ChangeEmailForm store lower;
+       a mixed-case write would dodge iexact uniqueness later.
+    """
+    email = (email or '').strip().lower()
+    if not user or not email:
+        return
+    if (user.email or '').strip().lower() != email:
+        user.email = email
+        user.save(update_fields=['email'])
+    profile, _ = Profile.objects.get_or_create(user=user)
+    if profile.email_verified:
+        profile.email_verified = False
+        profile.save(update_fields=['email_verified'])
+    try:
+        from allauth.account.models import EmailAddress
+        clash = EmailAddress.objects.filter(email__iexact=email).exclude(user=user).first()
+        if clash:
+            return
+        EmailAddress.objects.filter(user=user).exclude(email__iexact=email).delete()
+        addr, created = EmailAddress.objects.get_or_create(
+            user=user,
+            email=email,
+            defaults={'verified': False, 'primary': True},
+        )
+        if not created and (addr.verified or not addr.primary):
+            addr.verified = False
+            addr.primary = True
+            addr.save(update_fields=['verified', 'primary'])
+    except Exception:
+        import logging
+        logging.getLogger(__name__).exception(
+            'allauth EmailAddress update failed for user=%s', getattr(user, 'pk', None)
+        )
 
 
 def verify_email(request, uidb64, token):
@@ -611,14 +670,61 @@ def verify_email(request, uidb64, token):
 
 
 @login_required
-@require_POST
 def resend_verify_email(request):
-    if request.user.profile.email_verified:
-        messages.info(request, "Your email is already confirmed.")
+    """Old /send/ URL. Do not fire mail until they confirm the address."""
+    return redirect('edit_email')
+
+
+@login_required
+@ratelimit(key='user', rate='5/h', method='POST')
+def edit_email(request):
+    """Confirm-or-fix the mailbox, then send the activation link.
+
+    5 Whys: why a page instead of the old one-click resend?
+    1. Why stop the POST-resend? A wrong address at signup mailed a
+       mailbox the person cannot open. Resend made that worse.
+    2. Why edit + send in one POST? Two steps (save, then resend) is a
+       place people bounce. One button: this is the address, send it.
+    3. Why 5/h? Same ceiling as git-token rotation — enough for a typo
+       retry, brutal for a loop against someone else's inbox.
+    4. Why bounce verified accounts to settings? Changing a confirmed
+       mailbox is a different (takeover) flow; this page is for activate.
+    5. Why stay on this page after send? They may still have the typo
+       and need another edit without hunting settings.
+    """
+    profile, _ = Profile.objects.get_or_create(user=request.user)
+    if profile.email_verified:
+        messages.info(request, 'Your email is already confirmed.')
         return redirect('settings')
-    if not request.user.email:
-        messages.error(request, "Add an email to your account first.")
-        return redirect('edit_profile')
-    send_verify_email(request, request.user)
-    messages.success(request, "Confirmation email sent. Check your inbox (or the server console in dev).")
-    return redirect('settings')
+    if request.method == 'POST':
+        if getattr(request, 'limited', False):
+            messages.error(request, 'Rate limit: 5 confirmation emails per hour.')
+            return redirect('edit_email')
+        form = ChangeEmailForm(request.POST, user=request.user)
+        if form.is_valid():
+            email = form.cleaned_data['email']
+            changed = (request.user.email or '').strip().lower() != email
+            if changed:
+                apply_unverified_email(request.user, email)
+                request.user.refresh_from_db(fields=['email'])
+            if not request.user.email:
+                messages.error(request, 'Add an email to your account first.')
+                return redirect('edit_email')
+            send_verify_email(request, request.user)
+            if changed:
+                messages.success(
+                    request,
+                    f'Email updated to {email}. Confirmation sent — check that inbox.',
+                )
+            else:
+                messages.success(
+                    request,
+                    f'Confirmation sent to {email}. Check that inbox (or the server console in dev).',
+                )
+            return redirect('edit_email')
+    else:
+        form = ChangeEmailForm(user=request.user, initial={'email': request.user.email})
+    return render(request, 'users/edit_email.html', {
+        'form': form,
+        'profile': profile,
+    })

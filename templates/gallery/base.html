@@ -16,7 +16,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&amp;family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
 {# Version the layout styles explicitly as well as using Django's static tag. #}
 {# This prevents an older service worker cache from briefly restoring the old top navbar on reload. #}
-<link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=name-style-20260821">
+<link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=name-persona-20260826">
 <link rel="stylesheet" href="{% static 'gallery/css/footer.css' %}?v=theme-colors-20260815">
 <script>
 /* Apply saved appearance and sidebar geometry before first paint. */
@@ -109,11 +109,11 @@ try{
 <div id="nav-resizer" class="nav-resizer" role="separator" aria-label="Resize sidebar" aria-orientation="vertical" aria-valuemin="180" aria-valuemax="380" aria-valuenow="230" tabindex="0">
   <button type="button" id="nav-collapse" class="nav-collapse-btn" aria-label="Collapse sidebar" aria-expanded="true">&lt;&lt;</button>
 </div>
-{% if user.is_authenticated and not user.profile.email_verified and user.email %}
+{% if user.is_authenticated and not user.profile.email_verified and request.resolver_match.url_name != 'edit_email' %}
 <div style="max-width:1100px;margin:12px auto 0;padding:0 20px">
   <div style="padding:12px 14px;border-radius:12px;font-size:13px;background:var(--warning-bg);border:1px solid var(--warning-border);color:var(--warning-soft-text);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
-    <span>Confirm {{ user.email }} to unlock your 5 ★ welcome grant and so we can recover your account.</span>
-    <form method="post" action="{% url 'resend_verify_email' %}">{% csrf_token %}<button class="btn-ghost" style="padding:6px 10px;font-size:12px">Resend link</button></form>
+    <span>Confirm {% if user.email %}{{ user.email }}{% else %}your email{% endif %} to unlock your 5 ★ welcome grant. Typed the wrong address? Fix it before we resend.</span>
+    <a href="{% url 'edit_email' %}" class="btn-ghost" style="padding:6px 10px;font-size:12px">Resend link</a>
   </div>
 </div>
 {% endif %}

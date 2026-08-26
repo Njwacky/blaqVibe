@@ -89,11 +89,13 @@
       ✨ Name style — flex on other people
     </h2>
     <p style="font-size: 12px; color: var(--muted); margin: 6px 0 10px">
-      Style the name others see on your profile, follower lists and tips. {% if profile.is_pro_active %}
+      Twenty people-styles — Coder, Glamour, Charmer, Strict and sixteen more.
+      Pick a look, or stay Classic and mix font/color yourself. Style the name
+      others see on your profile, follower lists and tips. {% if profile.is_pro_active %}
       <b style="color: var(--success-text)">Pro — restyling is free.</b>
       {% else %} A restyle costs
       <b style="color: var(--warning-text)">{{ style_cost }} ★</b> per change
-      (free while Pro). Back to defaults is always free. {% endif %}
+      (free while Pro). Back to Classic is always free. {% endif %}
     </p>
     <div
       style="
@@ -123,6 +125,27 @@
       style="display: grid; gap: 10px"
     >
       {% csrf_token %}
+      {# Radios are rendered here, not via {{ style_form.name_persona }}, so
+         each card can preview the real composed look. The form still
+         validates the posted slug against NAME_PERSONAS. CSRF stays on. #}
+      <fieldset class="persona-grid">
+        <legend class="field-label">People-style</legend>
+        {% for persona in name_personas %}
+        <label class="persona-card" for="persona-{{ persona.slug }}">
+          <input
+            class="persona-radio"
+            type="radio"
+            name="name_persona"
+            id="persona-{{ persona.slug }}"
+            value="{{ persona.slug }}"
+            {% if profile.name_persona == persona.slug %}checked{% endif %}
+          />
+          <span class="persona-card-name styled-name {{ persona.classes }}" style="{{ persona.css }}">@{{ user.username }}</span>
+          <span class="persona-card-label">{{ persona.label }}</span>
+          <span class="persona-card-blurb">{{ persona.blurb }}</span>
+        </label>
+        {% endfor %}
+      </fieldset>
       <div
         style="
           display: grid;
@@ -833,10 +856,8 @@
     <p class="help" style="margin: 6px 0 10px">
       {% if profile.email_verified %}Confirmed: {{ user.email }} {% else %}{{ user.email|default:"No email on this account" }} — not confirmed yet.{% endif %}
     </p>
-    {% if not profile.email_verified and user.email %}
-    <form method="post" action="{% url 'resend_verify_email' %}">
-      {% csrf_token %}<button class="btn-ghost">Resend confirmation</button>
-    </form>
+    {% if not profile.email_verified %}
+    <a href="{% url 'edit_email' %}" class="btn-ghost">Fix email / resend confirmation</a>
     {% endif %}
   </div>
 
@@ -1022,25 +1043,74 @@
     const preview = document.getElementById("name-style-preview");
     if (!preview || !maps) return;
     const pick = (sel) => document.querySelector(sel);
+    const selectedPersona = () => {
+      const el = document.querySelector('input[name="name_persona"]:checked');
+      return (el && el.value) || "classic";
+    };
     const refresh = () => {
       const font = maps.fonts[pick('[data-style="font"]').value] || "";
       const color = maps.colors[pick('[data-style="color"]').value] || "";
       const size = maps.sizes[pick('[data-style="size"]').value] || "";
       const fx = maps.fx[pick('[data-style="fx"]').value] || "";
       const rainbow = pick('[data-style="color"]').value === "rainbow";
+      const persona = (maps.personas && maps.personas[selectedPersona()]) || {};
       preview.setAttribute(
         "style",
         "font-size:18px;" +
           (font ? "font-family:" + font + ";" : "") +
           (color ? "color:" + color + ";" : ""),
       );
-      preview.className =
-        "styled-name " +
-        [rainbow ? "namefx-rainbow" : "", size, fx].filter(Boolean).join(" ");
+      preview.className = [
+        "styled-name",
+        rainbow ? "namefx-rainbow" : "",
+        size,
+        fx,
+        persona.cls || "",
+      ]
+        .filter(Boolean)
+        .join(" ");
     };
-    document
-      .querySelectorAll("[data-style]")
-      .forEach((el) => el.addEventListener("change", refresh));
+    const applyPersona = (slug) => {
+      const persona = maps.personas && maps.personas[slug];
+      if (!persona) return;
+      pick('[data-style="font"]').value = persona.font;
+      pick('[data-style="color"]').value = persona.color;
+      pick('[data-style="size"]').value = persona.size;
+      pick('[data-style="fx"]').value = persona.fx;
+      refresh();
+    };
+    const matchPersona = () => {
+      const pack = {
+        font: pick('[data-style="font"]').value,
+        color: pick('[data-style="color"]').value,
+        size: pick('[data-style="size"]').value,
+        fx: pick('[data-style="fx"]').value,
+      };
+      let found = "classic";
+      Object.keys(maps.personas || {}).forEach((slug) => {
+        if (slug === "classic") return;
+        const persona = maps.personas[slug];
+        if (
+          persona.font === pack.font &&
+          persona.color === pack.color &&
+          persona.size === pack.size &&
+          persona.fx === pack.fx
+        ) {
+          found = slug;
+        }
+      });
+      const radio = document.querySelector(
+        'input[name="name_persona"][value="' + found + '"]',
+      );
+      if (radio) radio.checked = true;
+      refresh();
+    };
+    document.querySelectorAll('input[name="name_persona"]').forEach((el) => {
+      el.addEventListener("change", () => applyPersona(el.value));
+    });
+    document.querySelectorAll("[data-style]").forEach((el) => {
+      el.addEventListener("change", matchPersona);
+    });
   })();
 </script>
 {% endblock %}

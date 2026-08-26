@@ -58,23 +58,58 @@ if not SECRET_KEY:
         # Never boot production (DEBUG=0) without a real key.
         raise RuntimeError('SECRET_KEY must be set. Add SECRET_KEY to your .env.')
 
+# Arena / e2b live preview is HTTPS on {port}-{id}.e2b.app, often inside
+# a cross-site iframe. Detect it independently of DEBUG so cookie flags
+# and trusted origins stay correct even if an operator sets DEBUG=0.
+PREVIEW = _env_flag('E2B_SANDBOX') or _env_flag('DJANGO_PREVIEW')
+
 _raw_hosts = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0')
 ALLOWED_HOSTS = [h.strip() for h in _raw_hosts.split(',') if h.strip()]
 if '*' in ALLOWED_HOSTS and not (DEBUG or LOCAL_DEV):
     ALLOWED_HOSTS = ['blaqvibes.co.za', 'www.blaqvibes.co.za']
-if DEBUG or LOCAL_DEV:
+if DEBUG or LOCAL_DEV or PREVIEW:
     for extra in ('localhost', '127.0.0.1', '0.0.0.0', '.e2b.app', '.localhost', 'testserver'):
         if extra not in ALLOWED_HOSTS:
             ALLOWED_HOSTS.append(extra)
 
-CSRF_TRUSTED_ORIGINS = [
-    origin.strip() for origin in os.getenv(
+
+def csrf_trusted_origins(raw, *, preview, local):
+    """Deduped Origin allow-list. Preview/local always trust e2b.app.
+
+    5 Whys: why force https://*.e2b.app instead of trusting .env alone?
+    1. Why list it at all? Django 4+ rejects a POST whose Origin is not
+       the request host *and* not in CSRF_TRUSTED_ORIGINS.
+    2. Why a wildcard, not one hostname? The preview host is
+       `{port}-{sandbox}.e2b.app` and changes every session.
+    3. Why ignore a production-only .env list? Operators copy
+       .env.example (blaqvibes.co.za only). That list would 403 every
+       preview login even when the cookie is present.
+    4. Why keep localhost? Laptop `runserver` Origin is http://127.0.0.1.
+    5. Why dedupe? LOCAL_DEV used to append the same origin twice.
+    """
+    origins = [o.strip() for o in (raw or '').split(',') if o.strip()]
+    if preview or local:
+        origins += [
+            'https://*.e2b.app',
+            'http://localhost:8000',
+            'http://127.0.0.1:8000',
+        ]
+    seen, out = set(), []
+    for origin in origins:
+        if origin not in seen:
+            seen.add(origin)
+            out.append(origin)
+    return out
+
+
+CSRF_TRUSTED_ORIGINS = csrf_trusted_origins(
+    os.getenv(
         'CSRF_TRUSTED_ORIGINS',
         'https://*.e2b.app,https://blaqvibes.co.za,https://www.blaqvibes.co.za',
-    ).split(',') if origin.strip()
-]
-if LOCAL_DEV or DEBUG:
-    CSRF_TRUSTED_ORIGINS += ['http://localhost:8000', 'http://127.0.0.1:8000', 'https://*.e2b.app']
+    ),
+    preview=PREVIEW,
+    local=LOCAL_DEV or DEBUG,
+)
 
 # Canonical public origin — used for emails, sitemap, Paystack callback.
 # Override via env (e.g. a custom domain) instead of hardcoding URLs in views/tasks.
@@ -109,7 +144,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.github',
     'allauth.socialaccount.providers.facebook',
     'gallery.apps.GalleryConfig',
-    'users',
+    'users.apps.UsersConfig',
 ]
 
 SITE_ID = int(os.getenv('SITE_ID', '1'))
@@ -309,6 +344,8 @@ MIDDLEWARE = [
     'gallery.middleware.MaintenanceModeMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
+    # Before CsrfView so process_response runs *after* the CSRF cookie is set.
+    'gallery.middleware.PreviewEmbedMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
@@ -405,12 +442,64 @@ SESSION_COOKIE_HTTPONLY = True
 # CSRF token is exposed via {% csrf_token %} / forms, never read from the cookie,
 # so keep it HttpOnly as defense-in-depth against token exfiltration.
 CSRF_COOKIE_HTTPONLY = True
+# TLS terminates at the preview proxy / nginx. Without this, request.is_secure()
+# is False and Origin https://…e2b.app does not match http://…e2b.app.
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+if PREVIEW:
+    USE_X_FORWARDED_HOST = True
+    USE_X_FORWARDED_PORT = True
+
+
+def cookie_security(*, production, preview):
+    """CSRF/session cookie flags. Preview is an HTTPS iframe; laptop HTTP is not.
+
+    5 Whys: why a helper instead of one if/else in settings?
+    1. Why special-case preview? Arena shows the app at
+       https://{port}-{id}.e2b.app, often inside a cross-site iframe.
+       SameSite=Lax cookies are not sent on that POST — Django then
+       renders "CSRF cookie not set" and login dies.
+    2. Why SameSite=None AND Secure together? Browsers reject
+       SameSite=None unless Secure. The preview host is always HTTPS.
+    3. Why not do this in production? blaqvibes.co.za is first-party.
+       Lax + Secure is the stronger CSRF posture, and we DENY framing.
+    4. Why not do this for local `runserver`? Secure cookies are
+       dropped on http://127.0.0.1 — laptop login would break.
+    5. Why a pure function? Tests cannot re-import settings per case
+       without polluting the process. The helper is the contract.
+    """
+    if preview:
+        return {
+            'CSRF_COOKIE_SECURE': True,
+            'SESSION_COOKIE_SECURE': True,
+            'CSRF_COOKIE_SAMESITE': 'None',
+            'SESSION_COOKIE_SAMESITE': 'None',
+            'partition_cookies': True,
+        }
+    if production:
+        return {
+            'CSRF_COOKIE_SECURE': True,
+            'SESSION_COOKIE_SECURE': True,
+            'CSRF_COOKIE_SAMESITE': 'Lax',
+            'SESSION_COOKIE_SAMESITE': 'Lax',
+            'partition_cookies': False,
+        }
+    return {
+        'CSRF_COOKIE_SECURE': False,
+        'SESSION_COOKIE_SECURE': False,
+        'CSRF_COOKIE_SAMESITE': 'Lax',
+        'SESSION_COOKIE_SAMESITE': 'Lax',
+        'partition_cookies': False,
+    }
+
+
+_cookie = cookie_security(
+    production=not DEBUG and not LOCAL_DEV,
+    preview=PREVIEW,
+)
 if not DEBUG and not LOCAL_DEV:
     SECURE_SSL_REDIRECT = True
     SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-    SESSION_COOKIE_SECURE = True
-    CSRF_COOKIE_SECURE = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
     X_FRAME_OPTIONS = 'DENY'
     SECURE_REFERRER_POLICY = 'same-origin'
@@ -419,12 +508,16 @@ else:
     SECURE_SSL_REDIRECT = False
     SECURE_HSTS_SECONDS = 0
     SECURE_HSTS_INCLUDE_SUBDOMAINS = False
-    SESSION_COOKIE_SECURE = False
-    CSRF_COOKIE_SECURE = False
     SECURE_CONTENT_TYPE_NOSNIFF = False
     X_FRAME_OPTIONS = 'SAMEORIGIN'
     SECURE_REFERRER_POLICY = None
     SECURE_CROSS_ORIGIN_OPENER_POLICY = None
+SESSION_COOKIE_SECURE = _cookie['SESSION_COOKIE_SECURE']
+CSRF_COOKIE_SECURE = _cookie['CSRF_COOKIE_SECURE']
+SESSION_COOKIE_SAMESITE = _cookie['SESSION_COOKIE_SAMESITE']
+CSRF_COOKIE_SAMESITE = _cookie['CSRF_COOKIE_SAMESITE']
+PARTITION_EMBED_COOKIES = _cookie['partition_cookies']
+CSRF_FAILURE_VIEW = 'users.csrf.csrf_failure'
 
 LANGUAGE_CODE = 'en-us'
 TIME_ZONE = 'Africa/Johannesburg'

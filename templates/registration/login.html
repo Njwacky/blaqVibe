@@ -4,10 +4,19 @@
 <div class="auth-wrap card" style="padding:24px">
   <h2 style="font-weight:700">Sign in to BlaqVibes</h2>
   <p class="help" style="margin:8px 0 16px">Welcome back. Your vibes, stars, and trades are waiting.</p>
+  {% if local_dev %}
+  <p class="help" style="margin:0 0 16px;padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:var(--input)">
+    Operator email (already confirmed — no link to click):
+    <b>admin@blaqvibes.co.za</b>.
+    Local demo users: <b>nolo.ai</b> / <b>blaq12345</b> · <b>blaq</b> / <b>blaq12345</b>.
+    Set the operator password with <code>DJANGO_SUPERADMIN_PASSWORD</code> or
+    <code>python manage.py create_superadmin</code>.
+  </p>
+  {% endif %}
   <form method="post" style="display:grid;gap:12px">{% csrf_token %}
     {% if form.non_field_errors %}<div class="errorlist">{{ form.non_field_errors }}</div>{% endif %}
     <div>
-      <label class="field-label" for="id_username">Username</label>
+      <label class="field-label" for="id_username">Username or email</label>
       {{ form.username }}
       {{ form.username.errors }}
     </div>

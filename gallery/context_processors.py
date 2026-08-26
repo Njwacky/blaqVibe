@@ -31,10 +31,17 @@ def extras(request):
         pwa_enabled = SiteSettings.get().pwa_enabled
     except Exception:
         pass
+    local_dev = False
+    try:
+        from django.conf import settings
+        local_dev = bool(getattr(settings, 'LOCAL_DEV', False) or getattr(settings, 'DEBUG', False))
+    except Exception:
+        local_dev = False
     return {
         'unread_notifications': unread,
         'social_providers': social_providers,
         'paystack_enabled': paystack_enabled,
         'nolo_backend': nolo_backend,
         'pwa_enabled': pwa_enabled,
+        'local_dev': local_dev,
     }

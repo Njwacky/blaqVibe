@@ -825,8 +825,22 @@
 
     <!-- COMMENTS -->
     <div class="card" id="comments" style="margin-top: 12px; padding: 14px">
-      <h3 style="font-weight: 700">Comments • {{ comment_count }}</h3>
-      {% if user.is_authenticated %}
+      <h3 style="font-weight: 700">Comments{% if comments_open %} • {{ comment_count }}{% endif %}</h3>
+      {% if not comments_open %}
+      <div
+        style="
+          margin-top: 10px;
+          background: var(--bg);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          font-size: 13px;
+          color: var(--muted);
+        "
+      >
+        The creator turned comments off on this vibe.
+      </div>
+      {% elif user.is_authenticated %}
       <form
         method="post"
         action="{% url 'post_comment' project.slug %}"
@@ -854,6 +868,8 @@
             name="body"
             placeholder="Ask about setup, report a bug, share a vibe... (Markdown **bold** `code` allowed)"
             required
+            minlength="5"
+            maxlength="2000"
             style="
               width: 100%;
               background: var(--bg);
@@ -903,7 +919,7 @@
           gap: 10px;
         "
       >
-        {% for c in comments %}
+        {% if comments_open %}{% for c in comments %}
         <div
           style="
             padding: 12px;
@@ -975,7 +991,7 @@
                 <div style="font-size: 13px">{{ r.body_html|safe }}</div>
               </div>
             </div>
-            {% endif %}{% endfor %} {% if user.is_authenticated %}
+            {% endif %}{% endfor %} {% if user.is_authenticated and comments_open %}
             <form
               method="post"
               action="{% url 'post_comment' project.slug %}"
@@ -988,6 +1004,9 @@
               /><input
                 name="body"
                 placeholder="Reply..."
+                required
+                minlength="5"
+                maxlength="2000"
                 style="
                   flex: 1;
                   background: var(--input);
@@ -1018,7 +1037,7 @@
         >
           No comments yet. Be the first to vibe!
         </div>
-        {% endfor %}
+        {% endfor %}{% endif %}
       </div>
     </div>
 

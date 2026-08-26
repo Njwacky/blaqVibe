@@ -4,7 +4,9 @@ tips). 5 Whys: why an include and not a copy-pasted span in each template?
 The safe rendering (whitelisted slugs -> CSS/classes) must be identical
 everywhere a name appears; an include is one template to fix, not five. The
 style attribute and classes come from Profile.name_style_css/_classes, which
-only ever emit values from users.models.NAME_* — a tampered or legacy slug
-renders as the plain default, never as user-supplied CSS.
+only ever emit values from users.models.NAME_* / NAME_PERSONAS — a tampered
+or legacy slug (including an unknown people-style) renders as the plain
+default, never as user-supplied CSS. People-style flourish classes are
+namepersona-<slug> and live in blaqvibes.css next to namefx-*.
 {% endcomment %}
 <span class="styled-name{% if p %} {{ p.name_style_classes }}{% endif %}"{% if p %} style="{{ p.name_style_css }}"{% endif %}>@{{ u.username }}</span>

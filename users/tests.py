@@ -73,6 +73,76 @@ class AuthAndProTests(TestCase):
         user.profile.refresh_from_db()
         self.assertTrue(user.profile.email_verified)
 
+    def test_activate_banner_resend_goes_to_email_edit(self):
+        User.objects.create_user('typo', password='pass12345', email='typo@wrong.com')
+        self.client.login(username='typo', password='pass12345')
+        page = self.client.get('/')
+        self.assertContains(page, 'typo@wrong.com')
+        self.assertContains(page, '/accounts/verify/email/')
+        self.assertContains(page, 'Resend link')
+        self.assertNotContains(page, 'action="/accounts/verify/send/"')
+
+    def test_resend_send_url_redirects_to_edit_without_mailing(self):
+        User.objects.create_user('hold', password='pass12345', email='hold@test.com')
+        self.client.login(username='hold', password='pass12345')
+        with patch('users.views.send_mail') as send:
+            response = self.client.post('/accounts/verify/send/')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, '/accounts/verify/email/')
+        send.assert_not_called()
+
+    def test_edit_email_page_shows_current_address(self):
+        User.objects.create_user('fixme', password='pass12345', email='wrong@test.com')
+        self.client.login(username='fixme', password='pass12345')
+        response = self.client.get('/accounts/verify/email/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'wrong@test.com')
+        self.assertContains(response, 'typed it wrong')
+        self.assertNotContains(response, 'Resend link')
+
+    def test_edit_email_saves_typo_fix_and_mails_the_new_address(self):
+        user = User.objects.create_user('fixme2', password='pass12345', email='wrong@test.com')
+        self.client.login(username='fixme2', password='pass12345')
+        with patch('users.views.send_mail') as send:
+            response = self.client.post('/accounts/verify/email/', {
+                'email': 'right@test.com',
+            })
+        self.assertEqual(response.status_code, 302)
+        user.refresh_from_db()
+        self.assertEqual(user.email, 'right@test.com')
+        self.assertFalse(user.profile.email_verified)
+        send.assert_called_once()
+        self.assertEqual(send.call_args.kwargs.get('recipient_list') or send.call_args[0][3], ['right@test.com'])
+
+    def test_edit_email_rejects_taken_address(self):
+        User.objects.create_user('taken', password='pass12345', email='taken@test.com')
+        User.objects.create_user('other', password='pass12345', email='other@test.com')
+        self.client.login(username='other', password='pass12345')
+        response = self.client.post('/accounts/verify/email/', {'email': 'taken@test.com'})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'already exists')
+        User.objects.get(username='other').refresh_from_db()
+        self.assertEqual(User.objects.get(username='other').email, 'other@test.com')
+
+    def test_edit_email_resend_same_address_sends_mail(self):
+        User.objects.create_user('samebox', password='pass12345', email='same@test.com')
+        self.client.login(username='samebox', password='pass12345')
+        with patch('users.views.send_mail') as send:
+            response = self.client.post('/accounts/verify/email/', {
+                'email': 'same@test.com',
+            })
+        self.assertEqual(response.status_code, 302)
+        send.assert_called_once()
+
+    def test_verified_user_cannot_use_activate_email_page(self):
+        user = User.objects.create_user('done', password='pass12345', email='done@test.com')
+        user.profile.email_verified = True
+        user.profile.save(update_fields=['email_verified'])
+        self.client.login(username='done', password='pass12345')
+        response = self.client.get('/accounts/verify/email/')
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, '/settings/')
+
     def test_login_hides_social_when_unconfigured(self):
         response = self.client.get('/accounts/login/')
         self.assertEqual(response.status_code, 200)
