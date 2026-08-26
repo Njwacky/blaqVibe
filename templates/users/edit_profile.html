@@ -25,7 +25,7 @@
     <div style="display:flex;gap:8px;justify-content:flex-end"><a href="{% url 'profile_view' user.username %}" class="btn-ghost">Cancel</a><button class="btn-violet">Save Profile</button></div>
   </form>
 
-  {# ── Identity: username rename card (moved from Settings) ─────────── #}
+  
   <div style="margin-top:20px;padding:16px;border:1px solid var(--accent-border);background:var(--card);border-radius:12px">
     <h2 style="font-size:14px;font-weight:700">🪪 Username — rename card</h2>
     <p style="font-size:12px;color:var(--muted);margin:6px 0 10px">
@@ -62,17 +62,10 @@
     {% endif %} {% endif %}
   </div>
 
-  {# ── Identity: name style (moved from Settings) ──────────────────────
-     One dropdown list for the people-style — NO card grid. The styles
-     display is the live Preview span above the form: it re-renders the
-     real composed look (same whitelists as the renderer) on every change,
-     so the dropdown stays one row while the flex stays visible. #}
   <div style="margin-top:12px;padding:16px;border:1px solid var(--line);background:var(--card);border-radius:12px">
     <h2 style="font-size:14px;font-weight:700">✨ Name style — flex on other people</h2>
     <p style="font-size:12px;color:var(--muted);margin:6px 0 10px">
-      Twenty people-styles — Coder, Glamour, Charmer, Strict and sixteen more.
-      Pick a look from the list, or stay Classic and mix font/color yourself.
-      Style the name others see on your profile, follower lists and tips.
+     
       {% if profile.is_pro_active %}
       <b style="color:var(--success-text)">Pro — restyling is free.</b>
       {% else %} A restyle costs
