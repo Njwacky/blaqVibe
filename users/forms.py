@@ -145,7 +145,13 @@ class SignUpForm(UserCreationForm):
             # "nolo" phishing works wherever the handle can appear, and
             # signup is the FIRST place it can appear. One shared list
             # (users/rename.py) gates both doors — no drift.
-            raise forms.ValidationError("That username is reserved.")
+            # Why mention sign-in? Operators try to *register* as admin
+            # with a placeholder password, get this error, and report
+            # "admin login never works." Point them at the real door.
+            raise forms.ValidationError(
+                "That username is reserved. Sign in if you already have "
+                "an operator account, or pick another name."
+            )
         return validate_public_text(username, allow_blank=False)
 
     def save(self, commit=True):

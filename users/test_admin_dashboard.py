@@ -60,7 +60,11 @@ class AdminDashboardViewTests(TestCase):
 
     def test_anonymous_and_plain_users_are_denied(self):
         resp = self.client.get('/admin/dashboard/')
-        self.assertEqual(resp.status_code, 403)
+        # Anonymous visitors are sent to sign-in (with next=) — a 403 fork
+        # page with no form is why "admin password never works."
+        self.assertEqual(resp.status_code, 302)
+        self.assertIn('/accounts/login/', resp.url)
+        self.assertIn('next=', resp.url)
         self.client.login(username='dashbuyer', password='pass12345')
         resp = self.client.get('/admin/dashboard/')
         self.assertEqual(resp.status_code, 403)

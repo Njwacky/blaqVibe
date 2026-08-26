@@ -1,7 +1,9 @@
 from functools import wraps
-from django.shortcuts import redirect, render
-from django.contrib import messages
 import logging
+
+from django.conf import settings
+from django.contrib.auth.views import redirect_to_login
+from django.shortcuts import render
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +20,16 @@ def role_required(required_role):
         @wraps(view)
         def _wrapped(request, *args, **kwargs):
             try:
+                # 5 Whys: why redirect instead of 403 for anonymous?
+                # A visitor hitting /admin/dashboard/ (or the Django-shaped
+                # /admin/) is trying to sign in, not break in. A 403 fork
+                # page with no login form is why "admin password never
+                # works" — they never reached the form. Authenticated
+                # users without the role still 403 (not a coin-flip login).
                 if not request.user.is_authenticated:
-                    return render(request, '403.html', status=403)
+                    return redirect_to_login(
+                        request.get_full_path(), settings.LOGIN_URL,
+                    )
                 if not _has_role(request.user, required_role):
                     # Crush silently + Sentry, safe page
                     try:

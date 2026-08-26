@@ -109,7 +109,7 @@ INSTALLED_APPS = [
     'allauth.socialaccount.providers.github',
     'allauth.socialaccount.providers.facebook',
     'gallery.apps.GalleryConfig',
-    'users',
+    'users.apps.UsersConfig',
 ]
 
 SITE_ID = int(os.getenv('SITE_ID', '1'))

@@ -111,3 +111,99 @@ class EmailLoginTest(TestCase):
                              data={'username': 'admin@blaqvibes.co.za',
                                    'password': PW})
         self.assertFalse(r.wsgi_request.user.is_authenticated)
+
+
+class DemoStaffAndPlaceholderPasswordTest(TestCase):
+    """The 'admin / youpwassword never works' regressions.
+
+    5 Whys: why these extra cases?
+    1. Why seed staff at all? Docs and the admin demo tell people to log
+       in as nolo.ai / blaq12345. seed_demo used to create those users
+       as role='user', so the password worked and the dashboard 403'd.
+    2. Why gate it on LOCAL_DEV? A known-password superadmin must not
+       ship with SEED_DEMO=1 on a public host.
+    3. Why repair createsuperuser's leftover `admin`? That is the exact
+       account operators type (admin + a placeholder password) — Django
+       flags set, profile.role still 'user'.
+    4. Why env provision? People put DJANGO_SUPERADMIN_PASSWORD in .env
+       and never run the command. Boot must honour the env var.
+    5. Why a login-form POST, not client.login()? client.login() skips
+       StyledAuthenticationForm, which is the path the browser uses.
+    """
+
+    def test_local_seed_demo_staff_can_open_admin(self):
+        from django.core.management import call_command
+        with self.settings(LOCAL_DEV=True, DEBUG=False, SEED_DEMO=False):
+            call_command('seed_demo')
+        nolo = User.objects.get(username='nolo.ai')
+        self.assertEqual(nolo.profile.role, 'superadmin')
+        self.assertTrue(nolo.is_superuser)
+        self.assertTrue(nolo.profile.email_verified)
+        self.assertEqual(User.objects.get(username='blaq').profile.role, 'admin')
+        self.assertEqual(User.objects.get(username='thando').profile.role, 'moderator')
+        r = self.client.post('/accounts/login/', follow=True,
+                             data={'username': 'nolo.ai', 'password': 'blaq12345'})
+        self.assertTrue(r.wsgi_request.user.is_authenticated)
+        self.assertEqual(self.client.get('/admin/dashboard/').status_code, 200)
+        self.assertEqual(self.client.get('/admin/roles/').status_code, 200)
+
+    def test_production_seed_does_not_mint_known_superadmin(self):
+        from django.core.management import call_command
+        with self.settings(LOCAL_DEV=False, DEBUG=False, SEED_DEMO=False):
+            call_command('seed_demo')
+        self.assertFalse(User.objects.filter(username='nolo.ai').exists())
+        self.assertEqual(User.objects.get(username='blaq').profile.role, 'user')
+        self.assertEqual(User.objects.get(username='thando').profile.role, 'user')
+
+    def test_createsuperuser_admin_is_repaired_so_placeholder_password_works(self):
+        # The operator's exact leftover: createsuperuser + admin / youpwassword.
+        u = User.objects.create_user('admin', 'admin@blaqvibes.co.za', 'youpwassword')
+        u.is_staff = u.is_superuser = True
+        u.save()
+        self.assertEqual(u.profile.role, 'user')
+        from gallery.seed import seed_demo
+        with self.settings(LOCAL_DEV=True, DEBUG=False, SEED_DEMO=False):
+            seed_demo()
+        u.refresh_from_db()
+        self.assertEqual(u.profile.role, 'superadmin')
+        self.assertTrue(u.check_password('youpwassword'))
+        r = self.client.post('/accounts/login/', follow=True,
+                             data={'username': 'admin', 'password': 'youpwassword'})
+        self.assertTrue(r.wsgi_request.user.is_authenticated)
+        self.assertEqual(self.client.get('/admin/dashboard/').status_code, 200)
+
+    def test_env_password_provisions_admin_youpwassword(self):
+        import os
+        from unittest.mock import patch
+        from users.provision import maybe_provision_from_env
+        env = {
+            'DJANGO_SUPERADMIN_PASSWORD': 'youpwassword',
+            'DJANGO_SUPERADMIN_USERNAME': 'admin',
+            'DJANGO_SUPERADMIN_EMAIL': 'admin@blaqvibes.co.za',
+        }
+        with patch.dict(os.environ, env, clear=False):
+            maybe_provision_from_env(ignore_testing=True)
+        u = User.objects.get(username='admin')
+        self.assertEqual(u.profile.role, 'superadmin')
+        self.assertTrue(u.check_password('youpwassword'))
+        r = self.client.post('/accounts/login/', follow=True,
+                             data={'username': 'admin', 'password': 'youpwassword'})
+        self.assertTrue(r.wsgi_request.user.is_authenticated)
+
+    def test_anonymous_admin_url_redirects_to_login(self):
+        r = self.client.get('/admin/dashboard/')
+        self.assertEqual(r.status_code, 302)
+        self.assertIn('/accounts/login/', r.url)
+
+    def test_login_page_explains_local_demo_accounts(self):
+        with self.settings(LOCAL_DEV=True, DEBUG=True):
+            r = self.client.get('/accounts/login/')
+        self.assertContains(r, 'nolo.ai')
+        self.assertContains(r, 'blaq12345')
+        self.assertContains(r, 'create_superadmin')
+
+    def test_login_page_hides_demo_passwords_outside_local(self):
+        with self.settings(LOCAL_DEV=False, DEBUG=False):
+            r = self.client.get('/accounts/login/')
+        self.assertNotContains(r, 'blaq12345')
+        self.assertNotContains(r, 'create_superadmin')

@@ -22,6 +22,33 @@ Local / CI auto-loads the demo catalog (`seed_demo`) so the first visit is
 not an empty grid. Production stays empty until you run the command or set
 `SEED_DEMO=1`.
 
+## Admin sign-in
+
+There is **no** built-in `admin` password. `admin` is a reserved handle
+(you cannot sign up as it), and `/admin/` is a honeypot — the real Django
+admin lives at `/blaq-admin-secure/`. App admin is `/admin/dashboard/`
+after you sign in at `/accounts/login/`.
+
+`createsuperuser` is not enough: BlaqVibes gates admin pages on
+`profile.role`, which that command leaves as `user`, so you sign in and
+then get a 403.
+
+Local demo after `seed_demo` (only when `DEBUG=1` or `DJANGO_LOCAL_DEV=1`):
+
+- Superadmin: `nolo.ai` / `blaq12345`
+- Admin: `blaq` / `blaq12345`
+- Moderator: `thando` / `thando12345`
+
+Create the operator account (required in production):
+
+```bash
+python manage.py create_superadmin --email you@domain --password 'A-strong-pass'
+```
+
+Or set `DJANGO_SUPERADMIN_PASSWORD` in `.env` — `migrate` / `seed_demo`
+will create or repair `admin` with that password and set
+`profile.role=superadmin`.
+
 Tests:
 
 ```bash
