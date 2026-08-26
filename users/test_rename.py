@@ -252,14 +252,27 @@ class RenameRuleTests(TestCase):
         self.user.refresh_from_db()
         self.assertEqual(self.user.username, 'coder')
 
-    def test_settings_page_shows_identity_cards(self):
+    def test_edit_profile_page_shows_identity_panels(self):
+        """Identity editing lives on Edit Profile ("my profile"), not Settings."""
         self.client.login(username='coder', password='pass12345')
-        response = self.client.get('/settings/')
+        response = self.client.get('/settings/profile/')
         self.assertContains(response, 'rename card')
         self.assertContains(response, 'Name style')
         self.assertContains(response, 'People-style')
         for label in ('Coder', 'Glamour', 'Charmer', 'Strict'):
             self.assertContains(response, label)
+
+    def test_settings_page_no_longer_hosts_identity_panels(self):
+        """Settings is toggles-only — and the card grid is gone everywhere:
+        the people-style is one dropdown list with a live styles display."""
+        self.client.login(username='coder', password='pass12345')
+        response = self.client.get('/settings/')
+        self.assertNotContains(response, 'People-style')
+        self.assertNotContains(response, 'persona-card')
+        self.assertNotContains(response, 'persona-grid')
+        response = self.client.get('/settings/profile/')
+        self.assertNotContains(response, 'persona-card')
+        self.assertContains(response, 'name-style-preview')
 
     def test_signup_reserved_username_blocked(self):
         form = SignUpForm(data={
@@ -499,14 +512,21 @@ class NameStyleTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn('name_persona', form.errors)
 
-    def test_settings_lists_all_twenty_people_styles(self):
+    def test_edit_profile_lists_all_twenty_people_styles(self):
+        """The picker is ONE dropdown on Edit Profile; every people-style is
+        an option (label + blurb), and the flourish classes reach the page
+        through the json_script preview maps — not a card grid."""
         self.client.login(username='styler', password='pass12345')
-        response = self.client.get('/settings/')
+        response = self.client.get('/settings/profile/')
         self.assertContains(response, 'Twenty people-styles')
+        self.assertContains(response, '<select')
+        self.assertContains(response, 'name_persona')
+        self.assertNotContains(response, 'persona-card')
         for slug, meta in NAME_PERSONAS.items():
             self.assertContains(response, meta['label'])
-            if slug != 'classic':
-                self.assertContains(response, f'namepersona-{slug}')
+        # Preview maps (styles display) carry every flourish class.
+        for slug in people_style_slugs():
+            self.assertContains(response, f'namepersona-{slug}')
 
     def test_people_style_renders_on_profile_page(self):
         set_name_style(self.user, 'classic', 'default', 'md', 'none', persona='strict')
