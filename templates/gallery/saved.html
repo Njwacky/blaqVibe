@@ -11,7 +11,10 @@
       <div class="help" style="margin-top:8px">@{{ b.project.owner.username }} • ★ {{ b.project.stars }}</div>
     </a>
     {% empty %}
-    <div style="grid-column:1/-1" class="card" style="padding:28px;text-align:center">
+    {# Single style attribute — a duplicate style= is ignored by browsers,   #}
+    {# which dropped the padding/centering and pressed this text into the    #}
+    {# card border.                                                            #}
+    <div class="card" style="grid-column:1/-1;padding:28px;text-align:center">
       <div style="font-weight:700">Nothing saved yet</div>
       <p class="help" style="margin-top:6px">Open a vibe and tap Save to keep it here.</p>
       <a href="{% url 'feed' %}" class="btn-violet" style="margin-top:12px">Explore vibes</a>

@@ -26,19 +26,19 @@
         <p style="font-size:12px;color:var(--muted);margin-top:4px">One column, truthful — just tell us what it is.</p>
         <div style="margin-top:12px;display:grid;gap:12px">
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div><label style="font-size:12px;color:var(--muted)">Title*</label>{{ form.title }}</div>
-            <div><label style="font-size:12px;color:var(--muted)">Category*</label>{{ form.category }}</div>
+            <div><label class="field-label">Title*</label>{{ form.title }}</div>
+            <div><label class="field-label">Category*</label>{{ form.category }}</div>
           </div>
           <div>
-            <label style="font-size:12px;color:var(--muted)">What kind of program is this?</label>{{ form.creator_kind }}
+            <label class="field-label">What kind of program is this?</label>{{ form.creator_kind }}
             <div style="font-size:11px;color:var(--muted);margin-top:4px">Everything is welcome here — games, APIs, mobile apps, scripts. Leave it on auto-detect and we work it out from your files. Anything we can’t run in the browser is published with an honest “files only” label.</div>
           </div>
-          <div><label style="font-size:12px;color:var(--muted)">Short description*</label>{{ form.short_description }}</div>
-          <div><label style="font-size:12px;color:var(--muted)">README.md* — min 100 chars, must include heading</label>{{ form.readme }}</div>
+          <div><label class="field-label">Short description*</label>{{ form.short_description }}</div>
+          <div><label class="field-label">README.md* — min 100 chars, must include heading</label>{{ form.readme }}</div>
           <div id="readme-preview" class="help" style="display:none;white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;max-height:160px;overflow:auto"></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div><label style="font-size:12px;color:var(--muted)">Tech stack</label>{{ form.tech_stack }}</div>
-            <div><label style="font-size:12px;color:var(--muted)">Thumbnail</label>{{ form.thumbnail }}</div>
+            <div><label class="field-label">Tech stack</label>{{ form.tech_stack }}</div>
+            <div><label class="field-label">Thumbnail</label>{{ form.thumbnail }}</div>
           </div>
           <label style="display:flex;gap:8px;align-items:center;font-size:13px">{{ form.ai_generated }} 🤖 AI-generated</label>
           {% if challenge %}
@@ -48,8 +48,8 @@
           </div>
           {% endif %}
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div><label style="font-size:12px;color:var(--muted)">AI tool</label>{{ form.ai_tool }}</div>
-            <div><label style="font-size:12px;color:var(--muted)">AI prompt</label>{{ form.ai_prompt }}</div>
+            <div><label class="field-label">AI tool</label>{{ form.ai_tool }}</div>
+            <div><label class="field-label">AI prompt</label>{{ form.ai_prompt }}</div>
           </div>
         </div>
         <div style="margin-top:14px;display:flex;justify-content:flex-end"><button type="button" class="btnV" onclick="goStep(2)">Next → Upload</button></div>
@@ -68,13 +68,13 @@
           <div id="zip-hint" style="font-size:11px;color:var(--muted);margin-top:6px"></div>
           <div id="zip-progress" style="display:none;margin-top:10px;height:8px;background:var(--line);border-radius:99px;overflow:hidden"><div id="zip-bar" style="height:100%;width:0;background:#7C3AED"></div></div>
           <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:left">
-            <div><label style="font-size:12px;color:var(--muted)">Trade Cost — Stars</label>{{ form.star_cost }}<div style="font-size:11px;color:var(--muted)">0=free, 1=Bronze, 3=Silver</div></div>
-            <div><label style="font-size:12px;color:var(--muted)">Money Price — ZAR</label>{{ form.price_zar }}<div style="font-size:11px;color:var(--muted)">0=free, 50=R50 — you get 85%</div></div>
+            <div><label class="field-label">Trade Cost — Stars</label>{{ form.star_cost }}<div style="font-size:11px;color:var(--muted)">0=free, 1=Bronze, 3=Silver</div></div>
+            <div><label class="field-label">Money Price — ZAR</label>{{ form.price_zar }}<div style="font-size:11px;color:var(--muted)">0=free, 50=R50 — you get 85%</div></div>
           </div>
         </div>
         <div style="margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--bg)">
           <div style="font-weight:700;font-size:13px">Or snippet code (for HTML/CSS)</div>
-          <div style="display:grid;gap:8px;margin-top:8px"><label style="font-size:12px;color:var(--muted)">HTML</label>{{ form.html_code }}<label style="font-size:12px;color:var(--muted)">CSS</label>{{ form.css_code }}<label style="font-size:12px;color:var(--muted)">JS (optional)</label>{{ form.js_code }}</div>
+          <div style="display:grid;gap:8px;margin-top:8px"><label class="field-label">HTML</label>{{ form.html_code }}<label class="field-label">CSS</label>{{ form.css_code }}<label class="field-label">JS (optional)</label>{{ form.js_code }}</div>
         </div>
         <div style="margin-top:12px;display:flex;gap:8px;justify-content:space-between">
           <button type="button" class="btnG" onclick="goStep(1)">← Back</button>

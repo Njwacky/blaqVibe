@@ -37,32 +37,32 @@
       {% csrf_token %}
       {% if form.errors %}<div style="background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger-text);padding:10px;border-radius:10px;font-size:13px">{{ form.errors }}</div>{% endif %}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div><label style="font-size:12px;color:var(--muted)">Title*</label>{{ form.title }}</div>
-        <div><label style="font-size:12px;color:var(--muted)">Category*</label>{{ form.category }}</div>
+        <div><label class="field-label">Title*</label>{{ form.title }}</div>
+        <div><label class="field-label">Category*</label>{{ form.category }}</div>
       </div>
-      <div><label style="font-size:12px;color:var(--muted)">Short description*</label>{{ form.short_description }}</div>
-      <div><label style="font-size:12px;color:var(--muted)">README.md* — min 100 chars, must include heading</label>{{ form.readme }}</div>
+      <div><label class="field-label">Short description*</label>{{ form.short_description }}</div>
+      <div><label class="field-label">README.md* — min 100 chars, must include heading</label>{{ form.readme }}</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div><label style="font-size:12px;color:var(--muted)">Tech stack</label>{{ form.tech_stack }}</div>
-        <div><label style="font-size:12px;color:var(--muted)">Thumbnail</label>{{ form.thumbnail }}</div>
+        <div><label class="field-label">Tech stack</label>{{ form.tech_stack }}</div>
+        <div><label class="field-label">Thumbnail</label>{{ form.thumbnail }}</div>
       </div>
       <label style="display:flex;gap:8px;align-items:center;font-size:13px">{{ form.ai_generated }} 🤖 AI-generated</label>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div><label style="font-size:12px;color:var(--muted)">AI tool</label>{{ form.ai_tool }}</div>
-        <div><label style="font-size:12px;color:var(--muted)">AI prompt</label>{{ form.ai_prompt }}</div>
+        <div><label class="field-label">AI tool</label>{{ form.ai_tool }}</div>
+        <div><label class="field-label">AI prompt</label>{{ form.ai_prompt }}</div>
       </div>
       <div style="border:1px dashed var(--line);border-radius:12px;padding:14px;background:var(--card)">
         <div style="font-weight:700;font-size:13px">ZIP file (for Full App) — Max 100MB</div>
         <div style="font-size:11px;color:var(--muted)">We auto-block node_modules, .env, .exe and count files. Preview shows the file list and README — it does not start a container.</div>
         <div style="margin-top:8px">{{ form.zip_file }}</div>
         <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:12px">
-          <div><label style="font-size:12px;color:var(--muted)">Trade Cost — Stars</label>{{ form.star_cost }}<div style="font-size:11px;color:var(--muted)">0=free, 1=Bronze, 3=Silver, 5=Gold</div></div>
-          <div><label style="font-size:12px;color:var(--muted)">Money Price — ZAR</label>{{ form.price_zar }}<div style="font-size:11px;color:var(--muted)">Optional. Cards need PAYSTACK_SECRET_KEY.</div></div>
+          <div><label class="field-label">Trade Cost — Stars</label>{{ form.star_cost }}<div style="font-size:11px;color:var(--muted)">0=free, 1=Bronze, 3=Silver, 5=Gold</div></div>
+          <div><label class="field-label">Money Price — ZAR</label>{{ form.price_zar }}<div style="font-size:11px;color:var(--muted)">Optional. Cards need PAYSTACK_SECRET_KEY.</div></div>
         </div>
       </div>
       <div style="border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--bg)">
         <div style="font-weight:700;font-size:13px">Or snippet code (for HTML/CSS)</div>
-        <div style="display:grid;gap:8px;margin-top:8px"><label style="font-size:12px;color:var(--muted)">HTML</label>{{ form.html_code }}<label style="font-size:12px;color:var(--muted)">CSS</label>{{ form.css_code }}<label style="font-size:12px;color:var(--muted)">JS (optional)</label>{{ form.js_code }}</div>
+        <div style="display:grid;gap:8px;margin-top:8px"><label class="field-label">HTML</label>{{ form.html_code }}<label class="field-label">CSS</label>{{ form.css_code }}<label class="field-label">JS (optional)</label>{{ form.js_code }}</div>
       </div>
       <div style="background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;gap:10px;font-size:12px;color:var(--muted)"><span>🔒</span><div><b style="color:var(--text)">Security:</b> ZIP validated, README sanitized, preview sandboxed. Quarantine → Published after checks.</div></div>
       <div style="display:flex;gap:10px;justify-content:flex-end"><a href="{% url 'feed' %}" class="btn-ghost">Cancel</a><button class="btn-violet" type="submit">Publish Vibe →</button></div>

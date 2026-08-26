@@ -589,3 +589,82 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   font-weight: 800;
 }
 .namepersona-mystic { letter-spacing: 0.14em; font-style: italic; }
+
+/* --- Polish layer: micro-interactions + depth -----------------------------
+   The missing "cool": buttons, cards and inputs had zero hover/focus states,
+   so the UI felt static. Everything below is theme-aware (CSS vars) and
+   honors prefers-reduced-motion at the bottom of the section. */
+
+/* Buttons — hover lift + tinted glow, pressed feel on :active. */
+.btn-violet, .btn-ghost, .btn-white, .btnV, .btnG, .btnW {
+  transition: transform .15s ease, box-shadow .2s ease, background .2s ease,
+    border-color .2s ease, color .2s ease, filter .2s ease;
+}
+.btn-violet:hover, .btnV:hover {
+  filter: brightness(1.12);
+  box-shadow: 0 6px 24px color-mix(in srgb, var(--violet) 45%, transparent);
+  transform: translateY(-1px);
+}
+.btn-ghost:hover, .btnG:hover {
+  border-color: color-mix(in srgb, var(--violet) 60%, var(--line));
+  background: color-mix(in srgb, var(--violet) 9%, transparent);
+  color: var(--text);
+}
+.btn-white:hover, .btnW:hover { filter: brightness(.95); transform: translateY(-1px); }
+.btn-violet:active, .btn-ghost:active, .btn-white:active,
+.btnV:active, .btnG:active, .btnW:active { transform: translateY(0) scale(.985); }
+
+/* Icon buttons (theme toggle, burger) — match the avatar pill hover. */
+.icon-btn { transition: border-color .18s ease, background .18s ease, color .18s ease; }
+.icon-btn:hover { border-color: var(--violet); color: var(--text); }
+
+/* Clickable cards — lift + violet ring; thumbnail zooms inside overflow:hidden. */
+a.card { transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+a.card:hover, a.card:focus-visible {
+  transform: translateY(-3px);
+  border-color: color-mix(in srgb, var(--violet) 55%, var(--line));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .28),
+    0 6px 28px color-mix(in srgb, var(--violet) 16%, transparent);
+}
+a.card .card-thumb { transition: transform .35s ease; }
+a.card:hover .card-thumb { transform: scale(1.045); }
+
+/* Inputs — violet focus ring for keyboard and mouse alike. */
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: none;
+  border-color: var(--violet);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--violet) 26%, transparent);
+}
+
+/* Ambient depth — two faint violet glows behind the content, per-theme alpha. */
+:root, [data-theme="dark"] { --glow-strong: 13%; --glow-soft: 8%; }
+[data-theme="light"] { --glow-strong: 9%; --glow-soft: 6%; }
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(640px 420px at 88% -8%, color-mix(in srgb, var(--violet) var(--glow-strong), transparent), transparent 70%),
+    radial-gradient(560px 420px at -12% 34%, color-mix(in srgb, var(--violet) var(--glow-soft), transparent), transparent 72%);
+}
+
+/* Thin theme-aware scrollbars. */
+html { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 38%, transparent) transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted) 32%, transparent);
+  border-radius: 999px;
+  border: 3px solid var(--bg);
+}
+::-webkit-scrollbar-thumb:hover { background: color-mix(in srgb, var(--violet) 55%, transparent); }
+
+@media (prefers-reduced-motion: reduce) {
+  .btn-violet, .btn-ghost, .btn-white, .btnV, .btnG, .btnW,
+  .icon-btn, a.card, a.card .card-thumb { transition: none; }
+  .btn-violet:hover, .btn-white:hover, .btnV:hover, .btnW:hover,
+  a.card:hover { transform: none; }
+  a.card:hover .card-thumb { transform: none; }
+}

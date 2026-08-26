@@ -7,14 +7,14 @@
   <form method="post" enctype="multipart/form-data" style="margin-top:12px;display:grid;gap:12px">
     {% csrf_token %}
     {% if form.errors %}<div style="background:var(--danger-bg);color:var(--danger-text);padding:10px;border-radius:10px;font-size:13px">{{ form.errors }}</div>{% endif %}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><label style="font-size:12px;color:var(--muted)">Title</label>{{ form.title }}</div><div><label style="font-size:12px;color:var(--muted)">Category</label>{{ form.category }}</div></div>
-    <div style="margin-top:12px"><label style="font-size:12px;color:var(--muted)">What kind of program is this?</label>{{ form.creator_kind }}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><label class="field-label">Title</label>{{ form.title }}</div><div><label class="field-label">Category</label>{{ form.category }}</div></div>
+    <div style="margin-top:12px"><label class="field-label">What kind of program is this?</label>{{ form.creator_kind }}
       {% if project.kind_evidence %}<div style="font-size:11px;color:var(--muted);margin-top:4px">We labelled this a <b>{{ project.kind_label }}</b> because: {{ project.kind_evidence|join:", " }}. Pick a kind above to override us.</div>{% endif %}
     </div>
-    <div><label style="font-size:12px;color:var(--muted)">Short desc</label>{{ form.short_description }}</div>
-    <div><label style="font-size:12px;color:var(--muted)">README</label>{{ form.readme }}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><label style="font-size:12px;color:var(--muted)">Tech stack</label>{{ form.tech_stack }}</div><div><label style="font-size:12px;color:var(--muted)">ZIP (re-upload to version)</label>{{ form.zip_file }}</div></div>
-    <div><label style="font-size:12px;color:var(--muted)">Changelog (for version)</label><input name="changelog" placeholder="Fixed chart bug, added TwelveData" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--text);font-size:13px"></div>
+    <div><label class="field-label">Short desc</label>{{ form.short_description }}</div>
+    <div><label class="field-label">README</label>{{ form.readme }}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><label class="field-label">Tech stack</label>{{ form.tech_stack }}</div><div><label class="field-label">ZIP (re-upload to version)</label>{{ form.zip_file }}</div></div>
+    <div><label class="field-label">Changelog (for version)</label><input name="changelog" placeholder="Fixed chart bug, added TwelveData" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--text);font-size:13px"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end"><a href="{{ project.get_absolute_url }}" class="btnG">Cancel</a><button class="btnV">Save & Re-queue Scan</button></div>
   </form>
   {% if project.versions.all %}
@@ -37,8 +37,8 @@
     {% endfor %}
     <form method="post" action="{% url 'add_co_owner' project.slug %}" style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap;align-items:end">
       {% csrf_token %}
-      <div style="flex:1;min-width:140px"><label style="font-size:11px;color:var(--muted)">Username</label>{{ co_owner_form.username }}</div>
-      <div style="width:90px"><label style="font-size:11px;color:var(--muted)">Share %</label>{{ co_owner_form.share_percent }}</div>
+      <div style="flex:1;min-width:140px"><label class="field-label" style="font-size:11px">Username</label>{{ co_owner_form.username }}</div>
+      <div style="width:90px"><label class="field-label" style="font-size:11px">Share %</label>{{ co_owner_form.share_percent }}</div>
       <button class="btnV" style="padding:8px 14px">Add co-owner</button>
     </form>
   </div>
