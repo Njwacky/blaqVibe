@@ -24,5 +24,7 @@ PyJWT==2.13.0
 cryptography==50.0.0
 # Base tooling: fresh venvs/Docker bases ship vulnerable pip/setuptools;
 # pin them so `pip-audit` is clean in any environment built from this file.
-pip==26.1.2
+# 26.1.2 carried PYSEC-2026-3721 (fixed in 26.2) — the pin meant to keep
+# pip-audit clean was itself the finding. Keep bumping this on new advisories.
+pip==26.2.1
 setuptools==83.0.0

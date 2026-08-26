@@ -18,7 +18,7 @@
 """
 import logging
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import F, Sum
 
 from .models import Profile, StarEvent, Tip, WELCOME_STARS

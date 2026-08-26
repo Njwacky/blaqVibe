@@ -174,14 +174,30 @@ class StyledAuthenticationForm(AuthenticationForm):
         # but stock AuthenticationForm only tries User.USERNAME_FIELD. Without
         # this, typing admin@blaqvibes.co.za + the correct password still
         # fails — the "my admin account never works" support ticket. Resolve
-        # a single matching email to its username before auth runs; ambiguous
-        # or unknown addresses fall through to the normal (failing) path so
-        # the error message never leaks whether an email is registered.
+        # a single matching email to its username before auth runs. An unknown
+        # address falls through to the normal (failing) path, so the error
+        # message never leaks whether an email is registered.
+        #
+        # An AMBIGUOUS address must be blocked here, not left to fall through.
+        # allauth's AuthenticationBackend sits in AUTHENTICATION_BACKENDS and
+        # ACCOUNT_LOGIN_METHODS includes 'email', so authenticate() resolves
+        # emails on its own and returns whichever match it finds first — login
+        # for a shared address silently becomes a coin flip between accounts.
         username = self.cleaned_data.get('username', '')
         if username and '@' in username:
             matches = list(User.objects.filter(email__iexact=username)[:2])
             if len(matches) == 1:
                 self.cleaned_data['username'] = matches[0].username
+            elif len(matches) > 1:
+                # Raise the stock invalid-credentials error verbatim: identical
+                # wording and code to the bad-password path, so an ambiguous
+                # address is indistinguishable from a wrong one and still does
+                # not reveal that the address is registered.
+                raise forms.ValidationError(
+                    self.error_messages['invalid_login'],
+                    code='invalid_login',
+                    params={'username': self.username_field.verbose_name},
+                )
         return super().clean()
 
 
