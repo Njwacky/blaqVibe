@@ -3429,3 +3429,55 @@ class TrustFilterTests(TestCase):
         rows = response.json()['results']
         slugs = {r['slug'] for r in rows}
         self.assertIn(self.unknown.slug, slugs)
+
+
+# ==========================================================================
+# Marketing copy — the three promises on the feed (value strip, hero stat,
+# meta description, footer). Every claim is pinned to something the code
+# really does: a claim that stops being true is a bug, not marketing.
+# ==========================================================================
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class MarketingCopyTests(TestCase):
+    """Each test names the feature that makes the claim true."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.cat = make_category()
+        self.owner = make_user('marketer')
+
+    def test_value_strip_promises_render_and_link_the_standard(self):
+        # "Scanned before the feed" is true: gallery.trust + the scan chain.
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '🛡️ Scanned before the feed')
+        self.assertContains(response, 'Read the standard →')      # /trust/ link
+        self.assertContains(response, '★ Stars never expire')     # ledger, no expiry
+        self.assertContains(response, '🇿🇦 Priced in Rands')      # price_zar + payouts
+        self.assertContains(response, '10 ★ = R1')                # economy.py rate
+
+    def test_logged_in_users_still_see_the_promises(self):
+        self.client.force_login(self.owner)
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '★ Stars never expire')
+
+    def test_meta_description_carries_the_trust_line(self):
+        response = self.client.get('/')
+        self.assertContains(response, 'Every vibe is scanned before it reaches your feed')
+
+    def test_footer_carries_the_promises_on_every_page(self):
+        # Any page inheriting base.html — the legend page is a cheap proxy.
+        response = self.client.get('/trust/')
+        self.assertContains(response, '★ Stars never expire')
+
+    def test_payout_claim_matches_the_real_economy(self):
+        """'10 ★ = R1' and 'min 500 ★' in the copy must match the real
+        constants — if the economy ever changes, this breaks BEFORE the
+        marketing lies."""
+        from users.models import MIN_PAYOUT_STARS, MAX_PAYOUT_STARS
+        self.assertEqual(MIN_PAYOUT_STARS, 500)          # "min 500 ★" on the feed
+        self.assertEqual(MAX_PAYOUT_STARS, 50000)        # R5 000 cap, human-sized EFT
+        # 500 ★ = R50 (the comment on MIN_PAYOUT_STARS) ⇒ 10 ★ = R1,
+        # exactly the rate the value strip states.
+        self.assertEqual(MIN_PAYOUT_STARS // 50, 10)

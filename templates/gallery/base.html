@@ -9,9 +9,9 @@
 <link rel="apple-touch-icon" href="/static/branding/icon-180.png">
 <link rel="manifest" href="/static/branding/manifest.json">
 <meta name="theme-color" id="theme-color-meta" content="#07070A">
-<meta name="description" content="{% block meta_desc %}Publish the Vibes. Clone the Culture.{% endblock %}">
+<meta name="description" content="{% block meta_desc %}Publish the Vibes. Clone the Culture. Every vibe is scanned before it reaches your feed — stars never expire, payouts in Rands.{% endblock %}">
 <meta property="og:title" content="{% block og_title %}BlaqVibes{% endblock %}">
-<meta property="og:description" content="{% block og_desc %}Publish the Vibes. Clone the Culture.{% endblock %}">
+<meta property="og:description" content="{% block og_desc %}Publish the Vibes. Clone the Culture. Every vibe is scanned before it reaches your feed — stars never expire, payouts in Rands.{% endblock %}">
 <meta property="og:image" content="{% block og_image %}{% if request.is_secure %}https{% else %}http{% endif %}://{{ request.get_host }}/static/branding/blaqvibes-icon.png{% endblock %}">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&amp;family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
 {# Version the layout styles explicitly as well as using Django's static tag. #}
@@ -134,6 +134,7 @@ try{
     <div class="site-footer__brand">
       <a href="{% url 'feed' %}" class="site-footer__logo">BlaqVibes<span aria-hidden="true">↗</span></a>
       <p>Publish the vibes. Clone the culture.</p>
+      <p style="margin-top: 4px; font-size: 12px">🛡️ Every vibe scanned before the feed. ★ Stars never expire. 🇿🇦 Payouts in Rands.</p>
     </div>
 
     <nav class="site-footer__links" aria-label="Explore BlaqVibes">
