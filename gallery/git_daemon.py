@@ -410,8 +410,16 @@ def _after_push(request, project, user):
                 changelog=f'pre-push snapshot (git {short})',
             )
             locked.zip_file = ContentFile(zip_bytes, name=f'{locked.slug}-{short}.zip')
+            # New bytes via git push = the old trust verdict is void until
+            # the pipeline re-scans (gallery.trust WHY 4). Reset rides the
+            # same save — one write, no window where new bytes wear a ✓.
+            try:
+                from .trust import invalidate_trust
+                invalidate_trust(locked, save=False)
+            except Exception:
+                pass
             locked.status = 'pending'
-            locked.save(update_fields=['zip_file', 'status'])
+            locked.save(update_fields=['zip_file', 'status', 'trust', 'trust_graded_at'])
             job, _ = ScanJob.objects.get_or_create(project=locked)
             job.status = 'queued'
             job.save(update_fields=['status'])

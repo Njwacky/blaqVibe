@@ -117,6 +117,19 @@ def feed(request):
         sort = request.GET.get('sort', '') or default_sort
         program_kind = coerce_program_kind_filter(request.GET.get('program'))
         runnable = request.GET.get('runnable', '')
+        # Trust filter — "instruction must always win", like every other
+        # filter here. 4 points: (1) only the two whitelisted tier strings
+        # are accepted, anything else is ignored — an unknown value can
+        # never become a silent 'exclude everything'; (2) it rides the
+        # existing trust db_index, so it stays a range scan; (3) it is a
+        # GET param, never a session default — trust filtering is a
+        # choice per visit, not a preference the site guesses for you;
+        # (4) it composes with every other filter and sort, and the empty
+        # result is honest (no verified vibes matching → show none, never
+        # quietly refill the grid with unverified ones).
+        trust_filter = request.GET.get('trust', '')
+        if trust_filter not in ('verified', 'scanned'):
+            trust_filter = ''
         projects = AppProject.objects.filter(status='published').select_related('owner','owner__profile','category').prefetch_related('tags')
         if cat:
             projects = projects.filter(category__slug=cat)
@@ -126,6 +139,8 @@ def feed(request):
             projects = projects.exclude(zip_file='')
         if program_kind:
             projects = projects.filter(kind=program_kind)
+        if trust_filter:
+            projects = projects.filter(trust=trust_filter)
         if runnable == '1':
             # Honest filter: only vibes that really can run in the sandbox.
             projects = projects.filter(preview_mode='snippet').exclude(html_code='')
@@ -169,6 +184,8 @@ def feed(request):
                     projects = projects.exclude(html_code='')
                 elif kind == 'full_app':
                     projects = projects.exclude(zip_file='')
+                if trust_filter:
+                    projects = projects.filter(trust=trust_filter)
             except Exception:
                 logger.exception('auto seed_demo failed')
         categories = Category.objects.all().order_by('order')
@@ -185,12 +202,13 @@ def feed(request):
             'program_kinds': PROGRAM_KINDS,
             'program_kind': program_kind,
             'runnable': runnable,
+            'trust': trust_filter,
             'personalized': sort == 'foryou' and bool(my_kinds),
             'my_kinds': [KIND_BY_VALUE[k] for k in my_kinds if k in KIND_BY_VALUE],
         })
     except Exception:
         logger.exception("feed crush silent")
-        return render(request, 'gallery/feed.html', {'page': Paginator(AppProject.objects.none(), 12).get_page(1), 'categories': Category.objects.all(), 'q': '', 'cat': '', 'kind': '', 'sort': 'newest', 'program_kinds': PROGRAM_KINDS, 'program_kind': '', 'runnable': '', 'personalized': False, 'my_kinds': []})
+        return render(request, 'gallery/feed.html', {'page': Paginator(AppProject.objects.none(), 12).get_page(1), 'categories': Category.objects.all(), 'q': '', 'cat': '', 'kind': '', 'sort': 'newest', 'program_kinds': PROGRAM_KINDS, 'program_kind': '', 'runnable': '', 'trust': '', 'personalized': False, 'my_kinds': []})
 
 
 def coerce_program_kind_filter(value):
@@ -502,9 +520,26 @@ def publish(request):
                 except Exception:
                     pass
             else:
+                # Snippet scan step (gallery.trust.snippet_evidence): a pure
+                # regex secrets sweep in-request — no queue, no LLM, no
+                # subprocess — so snippets get REAL badge evidence too.
+                # Evidence only; the verdict is still written by
+                # apply_trust_grade alone. Crush silently.
+                try:
+                    from .trust import snippet_evidence
+                    snippet_evidence(project)
+                except Exception:
+                    logger.exception('snippet evidence failed %s', project.slug)
                 if request.user.projects.filter(status='published').count() >= 3:
                     project.status = 'published'
                     project.save(update_fields=['status'])
+                    # Status just became published — re-grade so the badge
+                    # lands in the same request (pending graded 'unknown').
+                    try:
+                        from .trust import apply_trust_grade
+                        apply_trust_grade(project)
+                    except Exception:
+                        logger.exception('snippet grade failed %s', project.slug)
                     messages.success(request, f"Your snippet “{project.title}” is published.")
                 else:
                     messages.info(request, f"Your vibe “{project.title}” is queued for review — we’ll tell you when it’s uploaded!")
@@ -706,6 +741,13 @@ def edit_vibe(request, slug):
                 except Exception:
                     changelog = 'Update'
                 AppVersion.objects.create(project=project, zip_file=project.zip_file, version=f"1.{project.versions.count()+1}.0", changelog=changelog)
+            # Any content change resets the trust badge (gallery.trust WHY 4):
+            # the old ✓ vouched for the old bytes; the rescan re-earns it.
+            try:
+                from .trust import invalidate_trust
+                invalidate_trust(p, save=False)
+            except Exception:
+                pass
             p.status = 'pending'
             p.save()
             form.save_m2m()
@@ -1199,3 +1241,40 @@ def sitemap_xml(request):
         rows.append(f'<url><loc>{settings.SITE_URL}/app/{p.slug}/</loc><lastmod>{p.updated_at.date().isoformat()}</lastmod></url>')
     rows.append('</urlset>')
     return HttpResponse('\n'.join(rows), content_type='application/xml')
+
+
+def trust_legend(request):
+    """Public "what does the badge mean" page — the anti-fake read.
+
+    5 Whys (4 points each) — why a static legend page at all?
+    1. Why explain the badge? A verdict without a published standard is
+       just marketing; the standard is what makes it trust. Non-devs (the
+       majority of vibe builders) cannot infer "verified" from a tooltip.
+       Fails-if: copy drifts from logic → the page imports TRUST_META and
+       the check table from gallery.trust, so the site renders the code's
+       actual definitions, not a writer's memory of them.
+    2. Why no database on this page? Zero queries means zero leak surface
+       and zero cost; the legend is the same for every visitor.
+       Fails-if: per-vibe detail is wanted → the detail page already
+       shows that vibe's trust_reasons() rows.
+    3. Why spell out what is NOT checked? Overclaiming is how platforms
+       lose trust; saying "we do not run your code" is the honesty rule
+       the rest of the site already follows (no fake previews).
+       Fails-if: a new check is added → add a row to the table below and
+       the grader — a check the page claims but the code skips is a bug.
+    4. Why explain how fakes are handled? The page is also the deterrent:
+       stating that any content change resets the badge tells a would-be
+       bait-and-switcher the trick cannot work here. Fails-if: someone
+       finds a mutation path that skips the reset → it is a bug class the
+       docs name ("status='pending' must ride invalidate_trust"), making
+       it findable in review.
+    """
+    from .trust import TRUST_META, TRUST_VERIFIED, TRUST_SCANNED, TRUST_UNKNOWN
+    context = {
+        'verified': TRUST_META[TRUST_VERIFIED],
+        'scanned': TRUST_META[TRUST_SCANNED],
+        'unknown': TRUST_META[TRUST_UNKNOWN],
+        'checked_count': AppProject.objects.filter(status='published', trust=TRUST_VERIFIED).count(),
+        'scanned_count': AppProject.objects.filter(status='published', trust=TRUST_SCANNED).count(),
+    }
+    return render(request, 'gallery/trust_legend.html', context)

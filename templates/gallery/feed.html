@@ -190,7 +190,8 @@
       >
         <span><b style="color: var(--text)">1-click</b> Publish</span
         ><span>•</span><span>No bare-hands coding</span><span>•</span
-        ><span>Trade ★ / Rands</span>
+        ><span>Trade ★ / Rands</span><span>•</span
+        ><span><b style="color: var(--text)">🛡️</b> Every vibe scanned</span>
       </div>
     </div>
     <div
@@ -241,6 +242,91 @@
           <span class="term-label">Terminal</span>
         </div>
         <div class="term-body" id="terminalBody"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Value strip — the three promises the platform can actually prove:
+       (1) the scan pipeline + the public /trust/ standard, (2) the star
+       ledger (stars are ledgered rows, never expiring credits), (3) Rand
+       pricing + payouts (price_zar, Paystack checkout, /payout/). Static
+       server-rendered copy, no JS, no tracking — nothing here can drift
+       from what the code really does; if a claim stops being true, it is
+       a bug, not marketing. -->
+  <div
+    style="
+      margin-top: 18px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 12px;
+    "
+  >
+    <div
+      style="
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 16px;
+      "
+    >
+      <div style="font-weight: 800; font-size: 13px">
+        🛡️ Scanned before the feed
+      </div>
+      <div
+        style="
+          margin-top: 6px;
+          font-size: 12px;
+          line-height: 1.6;
+          color: var(--muted);
+        "
+      >
+        Virus scan, secrets scan and a dependency audit run on every upload —
+        including a registry check that catches the fake packages AI invents.
+        <a href="{% url 'trust_legend' %}" style="color: var(--link)"
+          >Read the standard →</a
+        >
+      </div>
+    </div>
+    <div
+      style="
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 16px;
+      "
+    >
+      <div style="font-weight: 800; font-size: 13px">★ Stars never expire</div>
+      <div
+        style="
+          margin-top: 6px;
+          font-size: 12px;
+          line-height: 1.6;
+          color: var(--muted);
+        "
+      >
+        Your balance is a real ledger, not monthly credits that vanish when
+        the month does. 10 ★ = R1 when you cash out.
+      </div>
+    </div>
+    <div
+      style="
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        padding: 16px;
+      "
+    >
+      <div style="font-weight: 800; font-size: 13px">🇿🇦 Priced in Rands</div>
+      <div
+        style="
+          margin-top: 6px;
+          font-size: 12px;
+          line-height: 1.6;
+          color: var(--muted);
+        "
+      >
+        Checkout in ZAR and bank payouts for verified creators (min 500 ★).
+        Built in Mzansi for the next million builders.
       </div>
     </div>
   </div>
@@ -315,6 +401,23 @@
       name="runnable"
       value="1"
     />{% endif %}
+    <label
+      style="
+        font-size: 12px;
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      "
+      title="Only show vibes the scan pipeline verified — virus clean, no leaked secrets, real dependencies. See /trust/"
+      ><input
+        type="checkbox"
+        name="trust"
+        value="verified"
+        {% if trust == 'verified' %}checked{% endif %}
+      />
+      🛡️ Checked only</label
+    >
     <select name="category">
       <option value="">All Categories</option>
       {% for c in categories %}
@@ -451,6 +554,11 @@
         </div>
         <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap">
           <span class="badge" style="background:var(--accent-soft-bg);color:var(--accent-text)" title="{{ p.kind_meta.blurb }}">{{ p.kind_icon }} {{ p.kind_label }}</span>
+          {# Trust badge — pipeline-written tier only (gallery.trust). A span, #}
+          {# not a link: the whole card is one <a>; unknown tiers render #}
+          {# nothing so absence stays the honest signal. #}
+          {% if p.trust == 'verified' %}<span class="badge" style="background:var(--success-bg,#DCFCE7);color:var(--success-text,#166534)" title="{{ p.trust_meta.title }}">🛡️ {{ p.trust_meta.label }}</span>
+          {% elif p.trust == 'scanned' %}<span class="badge" style="background:var(--input);border:1px solid var(--line);color:var(--muted)" title="{{ p.trust_meta.title }}">🛡️ {{ p.trust_meta.label }}</span>{% endif %}
           {% if p.can_run_preview %}<span class="badge" style="background:var(--success-bg,#DCFCE7);color:var(--success-text,#166534)" title="Runs in a sandboxed preview">▶ Playable</span>{% else %}<span class="badge" style="background:var(--input);border:1px solid var(--line);color:var(--muted)" title="No live preview — file list, README, and ZIP download">📁 Files only</span>{% endif %}
           {% if p.ai_generated %}<span class="badge" style="border:1px solid var(--warning-border);color:var(--warning-text)">🤖 {{ p.ai_tool|default:"AI" }}</span>{% endif %}
           {% if p.forked_from %}<span class="badge" style="background:var(--input);border:1px solid var(--line);color:var(--muted)">⑂ Forked</span>{% endif %}

@@ -17,6 +17,14 @@ def moderation_action(request, slug):
     if action == 'approve':
         project.status = 'published'
         project.save(update_fields=['status'])
+        # Human approval is a publish path too — grade from the recorded
+        # evidence (snippet_scan for snippets, the scan chain for ZIPs) so
+        # a moderator-approved vibe carries the same badge machinery.
+        try:
+            from .trust import apply_trust_grade
+            apply_trust_grade(project)
+        except Exception:
+            pass
         from .models import ScanJob
         ScanJob.objects.update_or_create(project=project, defaults={'status': 'clean'})
     elif action == 'reject':

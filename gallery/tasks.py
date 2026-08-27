@@ -22,7 +22,13 @@ def vulnerability_scan(self, *args, project_id=None):
         project_id = args[-1]
     p = AppProject.objects.get(pk=project_id)
     # Even snippets without zip get Nolo review
-    report = {"npm": [], "pip": [], "secrets": []}
+    # dep_audit evidence (gallery.trust reads it): 'ran' is True only when
+    # an audit actually executed and parsed — so a missing tool or a
+    # missing manifest can never be mistaken for a passed check.
+    report = {"npm": [], "pip": [], "secrets": [], "dep_audit": {"ran": False, "reason": "no_manifests"}}
+    # Dependency NAMES for the slopsquatting check (gallery.dep_check):
+    # collected while the ZIP is already extracted — no second read.
+    deps = {"npm": [], "pip": []}
     if p.zip_file:
         # ziputil.materialized_path works on local AND S3/R2 storage —
         # FieldFile.path raises NotImplementedError on remote backends.
@@ -40,8 +46,16 @@ def vulnerability_scan(self, *args, project_id=None):
                             data = json.loads(r.stdout.decode(errors='ignore') or '{}')
                             vulns = data.get('vulnerabilities', {})
                             report["npm"] = list(vulns.keys())[:10]
+                            report["dep_audit"] = {"ran": True, "reason": "ok"}
+                    except FileNotFoundError:
+                        report["dep_audit"] = {"ran": False, "reason": "tool_missing"}
                     except Exception as e:
                         logger.info(f"npm audit skip {p.slug}: {e}")
+                    try:
+                        from .dep_check import npm_deps_from_manifest
+                        deps['npm'] = npm_deps_from_manifest(os.path.join(root, 'package.json'))
+                    except Exception:
+                        pass
                     break
                 if 'requirements.txt' in files:
                     try:
@@ -49,16 +63,44 @@ def vulnerability_scan(self, *args, project_id=None):
                         if r.stdout:
                             data = json.loads(r.stdout.decode(errors='ignore') or '[]')
                             report["pip"] = [d.get('name') for d in data][:10]
+                            report["dep_audit"] = {"ran": True, "reason": "ok"}
                     except FileNotFoundError:
-                        pass
+                        report["dep_audit"] = {"ran": False, "reason": "tool_missing"}
                     except Exception as e:
                         logger.info(f"pip audit skip {p.slug}: {e}")
+                    try:
+                        from .dep_check import pip_deps_from_requirements
+                        deps['pip'] = pip_deps_from_requirements(os.path.join(root, 'requirements.txt'))
+                    except Exception:
+                        pass
                     break
         except Exception as e:
             logger.warning("safe extract / audit skip %s: %s", p.slug, e)
             report['extract_error'] = 'unsafe or unreadable zip'
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
+    else:
+        # Snippet: no ZIP, no manifest, no installable dependencies — the
+        # dep check is vacuously TRUE, and saying so lets an honest snippet
+        # earn 'verified' instead of being capped at 'scanned' forever.
+        report["dep_audit"] = {"ran": True, "reason": "snippet_no_deps"}
+    # Slopsquatting check (gallery.dep_check): ask the real registry whether
+    # every dependency name exists. Explicit 404 → flagged (caps the trust
+    # tier at 'scanned' via gallery.trust); network failure → treated as
+    # existing (fail-open, never a false accusation). Budgeted + cached, so
+    # a spam wave costs a constant per hour, never a per-upload bill.
+    try:
+        from .dep_check import check_dependencies
+        outcome = check_dependencies(deps)
+        report['dep_exist_check'] = {
+            'checked': outcome.get('checked', 0),
+            'reason': outcome.get('reason', 'ok'),
+        }
+        if outcome.get('flagged'):
+            report['unknown_deps'] = outcome['flagged'][:10]
+            logger.warning("Possible fake packages in %s: %s", p.slug, report['unknown_deps'])
+    except Exception:
+        logger.exception('dep existence check failed %s', p.slug)
     # Nolo Auto-Review — heuristic or LLM, backend only, crush silently.
     # 5 Whys: Why check the profile toggle here, not in the view that
     # queues the task? Every upload path (publish, edit, git push, fork)
@@ -97,6 +139,14 @@ def vulnerability_scan(self, *args, project_id=None):
             p.save(update_fields=['scan_report'])
         except Exception: pass
     logger.info(f"Vuln scan {p.slug}: {report}")
+    # Trust badge: the vuln step is the last evidence writer before
+    # finalize — grade here so the tier reflects fresh evidence even if
+    # finalize is delayed behind other rows in the FIFO queue.
+    try:
+        from .trust import apply_trust_grade
+        apply_trust_grade(p)
+    except Exception:
+        logger.exception('trust grade after vuln scan failed %s', p.slug)
     return report
 
 @shared_task(bind=True, max_retries=2, queue='scan', time_limit=120, soft_time_limit=90)
@@ -133,6 +183,7 @@ def scan_zip_with_clamav(self, project_id):
         if result.returncode == 1:
             p.status = 'quarantined'
             p.save(update_fields=['status'])
+            _apply_trust(p)
             logger.warning(f"Virus quarantined {p.slug}")
             from .notify import notify
             notify(p.owner, 'quarantined', f'“{p.title}” was quarantined', 'Virus or blocked secret found. Edit and re-upload a clean ZIP.', p.get_absolute_url())
@@ -144,6 +195,7 @@ def scan_zip_with_clamav(self, project_id):
         p.scan_report = report
         p.status = 'pending'
         p.save(update_fields=['scan_report', 'status'])
+        _apply_trust(p)
         from .notify import notify
         notify(p.owner, 'quarantined', f'“{p.title}” needs human review', 'Virus scanner is offline. We did not auto-publish.', p.get_absolute_url())
         return "scanner_unavailable"
@@ -174,6 +226,7 @@ def scan_zip_with_clamav(self, project_id):
         p.scan_report = report
         p.status = 'pending'
         p.save(update_fields=['scan_report', 'status'])
+        _apply_trust(p)
         from .notify import notify
         notify(p.owner, 'quarantined', f'“{p.title}” needs human review',
                'Possible secrets detected in the ZIP. A moderator will review it before it goes live.',
@@ -189,6 +242,24 @@ def _set_scan_job(p, status):
         job.save(update_fields=['status'])
     except Exception:
         logger.exception('scan job update failed')
+
+
+def _apply_trust(p):
+    """Write the stored trust tier for this project.
+
+    The ONLY sanctioned writer of AppProject.trust is gallery.trust (see
+    its 5 Whys). 4 points on why a wrapper here: (1) every call site in
+    the pipeline gets the same crush-silently guarantee — a badge failure
+    can never fail a scan; (2) one import point, so the dependency is
+    obvious in this file; (3) it logs with the project slug so a wrong
+    tier is traceable in ops; (4) if gallery.trust is ever refactored,
+    the pipeline's contract stays this one function.
+    """
+    try:
+        from .trust import apply_trust_grade
+        apply_trust_grade(p)
+    except Exception:
+        logger.exception('trust grade write failed %s', getattr(p, 'slug', '?'))
 
 
 def _send_status_email(p):
@@ -223,10 +294,12 @@ def finalize_publish(*args, project_id=None):
         project_id = args[-1]
     p = AppProject.objects.get(pk=project_id)
     if p.status == 'quarantined':
+        _apply_trust(p)
         return "quarantined_no_publish"
     report = p.scan_report or {}
     if report.get('clamav') == 'unavailable':
         _set_scan_job(p, 'queued')
+        _apply_trust(p)
         return "pending_no_scanner"
     if report.get('clamav') == 'disabled':
         # ClamAV disabled by site admin — skip the scanner check and
@@ -234,6 +307,7 @@ def finalize_publish(*args, project_id=None):
         logger.info(f"ClamAV disabled — publishing {p.slug} without virus scan")
     if report.get('secrets'):
         _set_scan_job(p, 'pending')
+        _apply_trust(p)
         return "pending_secrets"
     if not p.file_tree and p.zip_file:
         try:
@@ -274,6 +348,10 @@ def finalize_publish(*args, project_id=None):
         notify(p.owner, 'published', f'“{p.title}” is live', launch_hint, launch_url)
     # Update ScanJob for the JS poll (backend only — just a status string).
     _set_scan_job(p, 'clean' if p.status == 'published' else p.status)
+    # Trust badge last: every exit path of finalize writes the tier so the
+    # stored verdict can never describe a state the row has left. Published
+    # → verified/scanned from evidence; held → unknown (renders no badge).
+    _apply_trust(p)
     # Email notify — Why backend? JS toast dies when tab closed, email persists.
     _send_status_email(p)
     return "published" if p.status == 'published' else p.status
