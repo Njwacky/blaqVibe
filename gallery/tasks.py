@@ -1,5 +1,5 @@
 from celery import shared_task, chain
-import subprocess, os, zipfile, logging, json, re, tempfile, shutil
+import subprocess, logging, tempfile, shutil
 from django.conf import settings
 from django.core.mail import send_mail
 from .validators import SECRET_PATTERNS
@@ -14,7 +14,14 @@ logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, max_retries=2, queue='scan', time_limit=120, soft_time_limit=90)
 def vulnerability_scan(self, *args, project_id=None):
-    """Backend only: npm audit / pip-audit + Nolo review. No JS sees this."""
+    """Backend only: dependency audits + Nolo review. No JS sees this.
+
+    The audits are hostile-input work, so they are delegated to
+    `gallery.dep_audit`, which runs the tools in a directory of its own against
+    pins it derived itself. This task must never hand a tool `cwd=<extracted
+    upload>` — that turns an uploaded manifest into an outbound request (or a
+    build step) executed by the worker.
+    """
     from .models import AppProject
     # Handle chain arg: chain passes previous result as first arg
     if project_id is None and args:
@@ -38,42 +45,29 @@ def vulnerability_scan(self, *args, project_id=None):
             from .validators import safe_extract_zip
             with materialized_path(p.zip_file) as zip_path:
                 safe_extract_zip(zip_path, tmpdir)
-            for root, _, files in os.walk(tmpdir):
-                if 'package.json' in files:
-                    try:
-                        r = subprocess.run(['npm', 'audit', '--json'], cwd=root, capture_output=True, timeout=30)
-                        if r.stdout:
-                            data = json.loads(r.stdout.decode(errors='ignore') or '{}')
-                            vulns = data.get('vulnerabilities', {})
-                            report["npm"] = list(vulns.keys())[:10]
-                            report["dep_audit"] = {"ran": True, "reason": "ok"}
-                    except FileNotFoundError:
-                        report["dep_audit"] = {"ran": False, "reason": "tool_missing"}
-                    except Exception as e:
-                        logger.info(f"npm audit skip {p.slug}: {e}")
-                    try:
-                        from .dep_check import npm_deps_from_manifest
-                        deps['npm'] = npm_deps_from_manifest(os.path.join(root, 'package.json'))
-                    except Exception:
-                        pass
-                    break
-                if 'requirements.txt' in files:
-                    try:
-                        r = subprocess.run(['pip-audit', '-f', 'json'], cwd=root, capture_output=True, timeout=30)
-                        if r.stdout:
-                            data = json.loads(r.stdout.decode(errors='ignore') or '[]')
-                            report["pip"] = [d.get('name') for d in data][:10]
-                            report["dep_audit"] = {"ran": True, "reason": "ok"}
-                    except FileNotFoundError:
-                        report["dep_audit"] = {"ran": False, "reason": "tool_missing"}
-                    except Exception as e:
-                        logger.info(f"pip audit skip {p.slug}: {e}")
-                    try:
-                        from .dep_check import pip_deps_from_requirements
-                        deps['pip'] = pip_deps_from_requirements(os.path.join(root, 'requirements.txt'))
-                    except Exception:
-                        pass
-                    break
+            # The audits run in a directory WE own, against pins WE derived,
+            # with HOME/npmrc/pip.conf pointed away from the tree. The previous
+            # version ran `pip-audit`/`npm audit` with cwd inside the upload, so
+            # an attacker-supplied requirements.txt (`--index-url`, `-e .`,
+            # `file://`) or `.npmrc` decided where the worker's network traffic
+            # went and what got built — code execution on the box holding the
+            # DB, Redis, R2 and Paystack credentials. See gallery/dep_audit.
+            from .dep_audit import find_manifests, run_dep_audits
+            audit = run_dep_audits(tmpdir)
+            report["npm"] = list(audit.get('npm') or [])[:10]
+            report["pip"] = list(audit.get('pip') or [])[:10]
+            report["dep_audit"] = audit.get('dep_audit') or {'ran': False, 'reason': 'no_manifests'}
+            # Dependency NAMES for the slopsquatting check come from the same
+            # walk (read-only parsers, no tool, no install).
+            try:
+                from .dep_check import npm_deps_from_manifest, pip_deps_from_requirements
+                pkg_path, _lock_path, req_path = find_manifests(tmpdir)
+                if pkg_path:
+                    deps['npm'] = npm_deps_from_manifest(pkg_path)
+                if req_path:
+                    deps['pip'] = pip_deps_from_requirements(req_path)
+            except Exception:
+                logger.info("dep name collection skip %s", p.slug)
         except Exception as e:
             logger.warning("safe extract / audit skip %s: %s", p.slug, e)
             report['extract_error'] = 'unsafe or unreadable zip'

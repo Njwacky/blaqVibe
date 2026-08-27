@@ -9,7 +9,20 @@ MAX_FILES = getattr(settings, 'BLAQVIBES_MAX_FILES', 1000)  # stricter: 1000 not
 MAX_TOTAL_UNCOMPRESSED = 200 * 1024 * 1024  # 200MB, not 500MB
 MAX_COMPRESSION_RATIO = 100  # file_size / compress_size >100 = bomb
 MAX_FILENAME_LEN = 255
-BLOCKED_NAMES = {'node_modules','__pycache__','.git','venv','.venv','.env','__MACOSX','.DS_Store','.ssh','.aws'}
+# Two reasons a path part is refused outright:
+#   * bulk that hides a bomb (node_modules, venv, __pycache__, __MACOSX)
+#   * CREDENTIALS AND TOOL CONFIG — a `.env` next to the code is how a
+#     developer's keys travel, and `.npmrc`/`.pypirc`/`.netrc`/`.gitconfig` are
+#     read by the very tools the scan worker runs (see gallery/dep_audit), so an
+#     uploaded one can redirect an audit to an attacker endpoint. Private keys
+#     by their conventional filenames never belong in a public vibe.
+BLOCKED_NAMES = {
+    'node_modules', '__pycache__', '.git', 'venv', '.venv', '.env', '__MACOSX',
+    '.DS_Store', '.ssh', '.aws',
+    '.npmrc', '.yarnrc', '.yarnrc.yml', '.pnpmfile.cjs', '.netrc', '_netrc',
+    '.pypirc', '.pip.conf', 'pip.conf', '.gitconfig', '.git-credentials',
+    'id_rsa', 'id_dsa', 'id_ecdsa', 'id_ed25519',
+}
 BLOCKED_EXT = {'.exe','.dll','.so','.dylib','.sh','.bat','.bin','.o','.a'}
 SECRET_PATTERNS = [
     re.compile(r'sk_live_[0-9a-zA-Z]+'),
@@ -87,7 +100,10 @@ def validate_zip(file):
                     raise ValidationError(f"Path traversal '..' in: {name}")
                 for part in parts:
                     if part in BLOCKED_NAMES:
-                        raise ValidationError(f"Blocked folder/file in ZIP: {name} — remove {sorted(BLOCKED_NAMES)}")
+                        raise ValidationError(
+                            f"Blocked file/folder in ZIP: {part} — credentials and tool "
+                            f"config never go in a vibe. Remove it and re-upload."
+                        )
                     if part.startswith('.env') and part != '.env.example':
                         raise ValidationError(f"Blocked secrets file: {name}")
                     if part in ('.ssh', '.aws'):

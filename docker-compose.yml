@@ -21,8 +21,12 @@ services:
 
   web:
     build: .
-    # migrate + seed_demo also provision admin when DJANGO_SUPERADMIN_PASSWORD is set.
-    command: bash -c "python manage.py migrate && python manage.py collectstatic --noinput && python manage.py seed_demo && gunicorn blaqvibes.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+    # migrate + collectstatic only. seed_demo is NOT part of the boot path: it
+    # creates accounts whose passwords are published in README.md, and a
+    # public host must never inherit those (see gallery/seed.py:seed_mode).
+    # Run `docker compose exec web python manage.py seed_demo` locally, or set
+    # SEED_DEMO_FORCE=1 on a throwaway demo box for the catalog alone.
+    command: bash -c "python manage.py migrate && python manage.py collectstatic --noinput && python manage.py security_check && gunicorn blaqvibes.wsgi:application --bind 0.0.0.0:8000 --workers 3"
     volumes:
       - .:/app
       - media:/app/media
