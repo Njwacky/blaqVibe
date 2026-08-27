@@ -1,0 +1,59 @@
+/* Publish pages (wizard + side panel layout) */
+
+.step {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 12px;
+  background: var(--line);
+  color: var(--muted);
+  border: 1px solid var(--line);
+  transition: 0.2s;
+}
+.step.on {
+  background: var(--violet);
+  color: var(--on-accent);
+  border-color: var(--accent-border);
+}
+input,
+select,
+textarea {
+  width: 100%;
+  background: var(--input);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  color: var(--text);
+  font-size: 13px;
+}
+input[type="checkbox"] {
+  width: auto;
+}
+
+/* Desktop has the left sidebar (no top bar), so the workspace fills the full
+   viewport height; on mobile the sticky top nav (~64px) sits above it. */
+.publish-shell {
+  display: grid;
+  grid-template-columns: 240px 1fr 320px;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+@media (max-width: 900px) {
+  .publish-shell {
+    min-height: calc(100vh - 64px);
+    min-height: calc(100dvh - 64px);
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}

@@ -1,15 +1,8 @@
 {% extends 'gallery/base.html' %}
+{% load static %}
 {% block title %}Vibe Battles — BlaqVibes{% endblock %}
 {% block head %}
-<style>
-/* Full-height battle shell. Desktop has the left sidebar (no top bar), so the
-   shell takes the whole viewport; on mobile the sticky top nav (~64px) still
-   sits above it, so subtract that. dvh tracks mobile browser chrome. */
-.battle-shell { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
-@media (max-width: 900px) {
-  .battle-shell { height: calc(100vh - 64px); height: calc(100dvh - 64px); }
-}
-</style>
+<link rel="stylesheet" href="{% static 'gallery/css/battle.css' %}?v=ext-20260827">
 {% endblock %}
 {% block content %}
 <div class="battle-shell">
@@ -340,58 +333,5 @@
   </div>
   {% endif %}
 </div>
-<style>
-  @media (max-width: 720px) {
-    #battle-swipe {
-      grid-template-columns: 1fr;
-      overflow: auto;
-    }
-    #battle-swipe .card {
-      border-right: none !important;
-      border-bottom: 1px solid var(--line);
-    }
-    .mobile-hint {
-      display: inline !important;
-    }
-  }
-</style>
-<script>
-  // Swipe right → next battle — mobile only, desktop uses buttons
-  try {
-    const wrap = document.getElementById("battle-swipe");
-    if (wrap) {
-      let startX = 0,
-        isMobile = window.matchMedia("(max-width: 720px)").matches;
-      if (isMobile) {
-        wrap.addEventListener(
-          "touchstart",
-          (e) => {
-            startX = e.touches[0].clientX;
-          },
-          { passive: true },
-        );
-        wrap.addEventListener("touchend", (e) => {
-          const dx = e.changedTouches[0].clientX - startX;
-          if (dx > 80) {
-            window.location.href = document.getElementById("next-battle").href;
-          }
-          if (dx < -80) {
-            window.location.href = document.getElementById("next-battle").href;
-          }
-        });
-        wrap.style.touchAction = "pan-y";
-      }
-      document.querySelectorAll('form[action*="/vote/"]').forEach((form) => {
-        form.addEventListener("submit", function () {
-          const choice = form.querySelector("[name=choice]").value;
-          const card = form.closest(".card");
-          const owner = card.textContent.match(/@\w+/)?.[0] || "@creator";
-          try {
-            toast(`You picked ${owner}'s app • +1 ★`);
-          } catch (e) {}
-        });
-      });
-    }
-  } catch (e) {}
-</script>
+<script src="{% static 'gallery/js/battle.js' %}?v=ext-20260827" defer></script>
 {% endblock %}

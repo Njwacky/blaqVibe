@@ -1,16 +1,8 @@
 {% extends 'gallery/base.html' %}
+{% load static %}
 {% block title %}Earnings — BlaqVibes{% endblock %}
 {% block head %}
-<style>
-/* The Pro Trial banner is a one-row flex; on small phones the CTA button
-   alone is wider than the screen, which pans the page sideways under the
-   nav. Let the row wrap and the button fill the width instead. */
-@media (max-width: 600px) {
-  .pro-banner { flex-wrap: wrap; }
-  .pro-banner form { flex: 1 1 100%; }
-  .pro-banner .btnV { width: 100%; flex-wrap: wrap; }
-}
-</style>
+<link rel="stylesheet" href="{% static 'gallery/css/payout.css' %}?v=ext-20260827">
 {% endblock %}
 {% block content %}
 <div style="max-width:900px;margin:0 auto;padding:20px">

@@ -1,0 +1,11 @@
+/* Nolo Chat + Nolo Help pages */
+
+/* The chat/help split (main + aside) stacks on tablets/phones — otherwise
+   the two columns overflow the viewport and the page pans sideways, breaking
+   the sticky nav's full-width look. minmax(0, 1fr) also stops a wide child
+   (the chat input row) from inflating the track past the screen. */
+@media (max-width: 900px) {
+  .nolo-split { grid-template-columns: minmax(0, 1fr) !important; }
+  .nolo-chat-input-row { flex-wrap: wrap; }
+  .nolo-chat-input-row #nolo-chat-input { flex: 1 1 200px; }
+}
