@@ -12,6 +12,11 @@ from .taxonomy import (
     kind_label,
     kind_meta,
 )
+from .trust import (
+    TRUST_CHOICES,
+    TRUST_UNKNOWN,
+    trust_meta as trust_meta_table,
+)
 
 class Category(models.Model):
     TYPE_CHOICES = [('snippet','Snippet'), ('full_app','Full App')]
@@ -101,6 +106,36 @@ class AppProject(models.Model):
         max_length=10, choices=PREVIEW_MODES, default='files',
         help_text='snippet = runs in the sandboxed iframe. files = file list + README only.',
     )
+    # --- Trust badge -------------------------------------------------------
+    # Public verdict derived from scan evidence by gallery.trust. Stored for
+    # the same 4-point reasons `kind` is stored: (1) the feed must filter and
+    # sort on it in SQL; (2) deriving per card would re-run regex scans on
+    # every page view; (3) a stored verdict is auditable — trust_graded_at
+    # says when it was decided; (4) it is correctable — the pipeline rewrites
+    # it on every rescan and any content change resets it to unknown.
+    # WRITER RULE: only gallery.trust.apply_trust_grade (pipeline) and
+    # invalidate_trust (content change) may write this field. Never a form,
+    # never the API, never a template — that is what makes it unfakeable.
+    trust = models.CharField(
+        max_length=10, choices=TRUST_CHOICES, default=TRUST_UNKNOWN, db_index=True,
+        help_text='verified | scanned | unknown — pipeline-written only, see gallery.trust.',
+    )
+    trust_graded_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text='When the trust tier was last written (grade or reset).',
+    )
+    @property
+    def trust_meta(self):
+        """Fixed presentation row for the badge — server table, never
+        user-supplied, so a creator cannot style or spoof a ✓."""
+        return trust_meta_table(getattr(self, 'trust', TRUST_UNKNOWN) or TRUST_UNKNOWN)
+
+    @property
+    def trust_reasons(self):
+        """Safe per-check sentences for the detail page ("read"): fixed
+        strings only — no filenames, no secret values, nothing user-typed."""
+        from .trust import trust_reasons as _trust_reasons
+        return _trust_reasons(self)
     # Global "how interesting is this" score, 0-100. Recomputed by a task,
     # never inside a request. See gallery.interest.
     appeal_score = models.FloatField(default=0, db_index=True)

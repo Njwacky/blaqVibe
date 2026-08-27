@@ -451,6 +451,11 @@
         </div>
         <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap">
           <span class="badge" style="background:var(--accent-soft-bg);color:var(--accent-text)" title="{{ p.kind_meta.blurb }}">{{ p.kind_icon }} {{ p.kind_label }}</span>
+          {# Trust badge — pipeline-written tier only (gallery.trust). A span, #}
+          {# not a link: the whole card is one <a>; unknown tiers render #}
+          {# nothing so absence stays the honest signal. #}
+          {% if p.trust == 'verified' %}<span class="badge" style="background:var(--success-bg,#DCFCE7);color:var(--success-text,#166534)" title="{{ p.trust_meta.title }}">🛡️ {{ p.trust_meta.label }}</span>
+          {% elif p.trust == 'scanned' %}<span class="badge" style="background:var(--input);border:1px solid var(--line);color:var(--muted)" title="{{ p.trust_meta.title }}">🛡️ {{ p.trust_meta.label }}</span>{% endif %}
           {% if p.can_run_preview %}<span class="badge" style="background:var(--success-bg,#DCFCE7);color:var(--success-text,#166534)" title="Runs in a sandboxed preview">▶ Playable</span>{% else %}<span class="badge" style="background:var(--input);border:1px solid var(--line);color:var(--muted)" title="No live preview — file list, README, and ZIP download">📁 Files only</span>{% endif %}
           {% if p.ai_generated %}<span class="badge" style="border:1px solid var(--warning-border);color:var(--warning-text)">🤖 {{ p.ai_tool|default:"AI" }}</span>{% endif %}
           {% if p.forked_from %}<span class="badge" style="background:var(--input);border:1px solid var(--line);color:var(--muted)">⑂ Forked</span>{% endif %}

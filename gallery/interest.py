@@ -29,6 +29,8 @@ import math
 
 from django.utils import timezone
 
+from .trust import trust_multiplier
+
 logger = logging.getLogger(__name__)
 
 # Weights sum to 100 before the freshness multiplier.
@@ -168,6 +170,15 @@ def compute_appeal(project, now=None):
         # Featured is an editorial thumb on the scale, not a bypass.
         if getattr(project, 'is_featured', False):
             base += 8.0
+        # Trust boost — verified/scanned vibes outrank EQUALS, never betters.
+        # 4 points: (1) users rank trust as the deciding signal in 2026 and a
+        # ranking that ignores it floats slop above checked work; (2) it is
+        # capped at +8% (see TRUST_MULTIPLIER) so a weak verified vibe cannot
+        # out-rank a strong unverified one — reorder equals, don't buy rank;
+        # (3) it multiplies the base BEFORE freshness, so decay still governs
+        # old content identically; (4) the tier is pipeline-written only, so
+        # no user action can ever move this number — unfarmable by design.
+        base *= trust_multiplier(getattr(project, 'trust', None) or 'unknown')
         score = base * freshness_multiplier(project, now=now)
         return round(max(0.0, min(100.0, score)), 3)
     except Exception:

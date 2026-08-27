@@ -181,6 +181,14 @@ def pr_action(request, slug, pr_id):
             target.file_count = source.file_count
             if source.readme:
                 target.readme = source.readme
+            # Merged PR replaces the target's bytes — reset the trust badge
+            # with the same write (gallery.trust WHY 4). The re-queued scan
+            # re-earns it from the merged content only.
+            try:
+                from .trust import invalidate_trust
+                invalidate_trust(target, save=False)
+            except Exception:
+                pass
             target.status = 'pending'
             target.save()
             target.files.all().delete()

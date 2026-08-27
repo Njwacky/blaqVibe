@@ -375,6 +375,18 @@ def seed_demo():
         for project in AppProject.objects.filter(status='published'):
             classify_project(project, allow_llm=False)
             refresh_project(project)
+            # Trust badge for demo snippets — the REAL regex secrets check
+            # (gallery.trust.snippet_evidence), not a hardcoded pass, so the
+            # demo catalog shows the badge exactly as production computes
+            # it. Demo ZIPs stay 'unknown' honestly: they never went
+            # through the ClamAV queue in a seed run, and a badge that
+            # claims an unrun check is the thing the badge exists to stop.
+            try:
+                if not project.zip_file:
+                    from .trust import snippet_evidence
+                    snippet_evidence(project)
+            except Exception:
+                pass
     except Exception:
         import logging
         logging.getLogger(__name__).exception('seed classify failed')

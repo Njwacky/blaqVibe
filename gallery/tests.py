@@ -2869,3 +2869,312 @@ class CoOwnerSplitTests(TestCase):
         self.assertIsNotNone(partner_note)
         self.assertIn('your share', partner_note.title)
         self.assertIn('2 ★', partner_note.title)
+
+
+# ==========================================================================
+# Trust badge — the pipeline-written public verdict (gallery.trust).
+# Every guarantee of the badge's 5 Whys has a test here: the writer rule,
+# the reset rule, the unfakeable rule, the capped ranking boost, and the
+# "nobody gets robbed" story.
+# ==========================================================================
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class TrustBadgeTests(TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.cat = make_category()
+        self.owner = make_user('trustowner')
+        self.client.force_login(self.owner)
+
+    def _clean_zip_report(self):
+        return {
+            'clamav': 'clean', 'secrets': [], 'npm': [], 'pip': [],
+            'dep_audit': {'ran': True, 'reason': 'ok'},
+        }
+
+    # ---- pure grading ---------------------------------------------------
+    def test_clean_zip_project_grades_verified(self):
+        from gallery.trust import trust_grade, TRUST_VERIFIED
+        p = make_project(self.owner, self.cat,
+                         zip_file=make_zip_file({'index.html': '<p>ok</p>'}),
+                         scan_report=self._clean_zip_report())
+        self.assertEqual(trust_grade(p), TRUST_VERIFIED)
+
+    def test_scanner_disabled_by_operator_caps_at_scanned(self):
+        from gallery.trust import trust_grade, TRUST_SCANNED
+        report = self._clean_zip_report()
+        report['clamav'] = 'disabled'
+        p = make_project(self.owner, self.cat,
+                         zip_file=make_zip_file({'index.html': 'x'}),
+                         scan_report=report)
+        self.assertEqual(trust_grade(p), TRUST_SCANNED)
+
+    def test_legacy_report_without_dep_evidence_is_not_verified(self):
+        from gallery.trust import trust_grade, TRUST_SCANNED
+        report = {'clamav': 'clean', 'secrets': []}  # pre-badge row
+        p = make_project(self.owner, self.cat,
+                         zip_file=make_zip_file({'index.html': 'x'}),
+                         scan_report=report)
+        self.assertEqual(trust_grade(p), TRUST_SCANNED)
+
+    def test_vulnerable_or_unknown_deps_cap_at_scanned(self):
+        from gallery.trust import trust_grade, TRUST_SCANNED
+        base = self._clean_zip_report()
+        p1 = make_project(self.owner, self.cat, title='Vuln deps',
+                          zip_file=make_zip_file({'a': 'b'}),
+                          scan_report={**base, 'npm': ['lodash']})
+        self.assertEqual(trust_grade(p1), TRUST_SCANNED)
+        p2 = make_project(self.owner, self.cat, title='Fake deps',
+                          zip_file=make_zip_file({'a': 'b'}),
+                          scan_report={**base, 'unknown_deps': ['npm:definitely-not-real-pkg']})
+        self.assertEqual(trust_grade(p2), TRUST_SCANNED)
+
+    def test_secrets_in_zip_cap_at_scanned(self):
+        from gallery.trust import trust_grade, TRUST_SCANNED
+        report = self._clean_zip_report()
+        report['secrets'] = ['config/settings.py']
+        p = make_project(self.owner, self.cat,
+                         zip_file=make_zip_file({'a': 'b'}),
+                         scan_report=report)
+        self.assertEqual(trust_grade(p), TRUST_SCANNED)
+
+    def test_no_pipeline_evidence_is_unknown(self):
+        from gallery.trust import trust_grade, TRUST_UNKNOWN
+        p = make_project(self.owner, self.cat, scan_report={})
+        self.assertEqual(trust_grade(p), TRUST_UNKNOWN)
+
+    def test_pending_and_quarantined_never_carry_a_badge(self):
+        from gallery.trust import trust_grade, TRUST_UNKNOWN
+        pending = make_project(self.owner, self.cat, title='Pending',
+                               status='pending', scan_report=self._clean_zip_report())
+        quarantined = make_project(self.owner, self.cat, title='Quar',
+                                   status='quarantined', scan_report=self._clean_zip_report())
+        self.assertEqual(trust_grade(pending), TRUST_UNKNOWN)
+        self.assertEqual(trust_grade(quarantined), TRUST_UNKNOWN)
+
+    def test_clean_snippet_grades_verified(self):
+        from gallery.trust import trust_grade, TRUST_VERIFIED
+        p = make_project(self.owner, self.cat, html_code='<p>hi</p>', js_code='let x = 1;',
+                         scan_report={'nolo_review': {'score': 8},
+                                      'dep_audit': {'ran': True, 'reason': 'snippet_no_deps'}})
+        self.assertEqual(trust_grade(p), TRUST_VERIFIED)
+
+    def test_snippet_with_leaked_token_cannot_be_verified(self):
+        """The live SECRET_PATTERNS check on snippet code — an AI-pasted
+        GitHub token must cap the tier even with a spotless report."""
+        from gallery.trust import trust_grade, TRUST_SCANNED
+        p = make_project(self.owner, self.cat, html_code='<p>hi</p>',
+                         js_code='const t = "ghp_' + 'A' * 36 + '";',
+                         scan_report={'nolo_review': {'score': 8},
+                                      'dep_audit': {'ran': True, 'reason': 'snippet_no_deps'}})
+        self.assertEqual(trust_grade(p), TRUST_SCANNED)
+
+    def test_grade_is_pure_and_never_raises(self):
+        from gallery.trust import trust_grade, TRUST_UNKNOWN
+        from types import SimpleNamespace
+        broken = SimpleNamespace(status=None)  # no slug, no scan_report
+        self.assertEqual(trust_grade(broken), TRUST_UNKNOWN)
+
+    # ---- the writer rule -------------------------------------------------
+    def test_apply_trust_grade_writes_and_stamps(self):
+        from gallery.trust import apply_trust_grade, TRUST_VERIFIED
+        p = make_project(self.owner, self.cat,
+                         zip_file=make_zip_file({'index.html': 'x'}),
+                         scan_report=self._clean_zip_report())
+        grade = apply_trust_grade(p)
+        p.refresh_from_db()
+        self.assertEqual(grade, TRUST_VERIFIED)
+        self.assertEqual(p.trust, TRUST_VERIFIED)
+        self.assertIsNotNone(p.trust_graded_at)
+
+    def test_stale_clock_cannot_overwrite_a_newer_grade(self):
+        """Monotonic guard: an out-of-order task must not rewrite a newer
+        verdict with an older one."""
+        from gallery.trust import apply_trust_grade, TRUST_UNKNOWN
+        from django.utils import timezone
+        from datetime import timedelta
+        p = make_project(self.owner, self.cat, scan_report=self._clean_zip_report())
+        p.trust_graded_at = timezone.now() + timedelta(hours=1)  # future stamp
+        p.save()
+        written = apply_trust_grade(p)
+        self.assertEqual(written, TRUST_UNKNOWN)  # refused, current value kept
+
+    # ---- the pipeline end to end ----------------------------------------
+    def test_publish_flow_grades_a_clean_snippet_verified(self):
+        # The publish view trusts snippets from creators with >=3 published
+        # vibes (same precondition as PublishClassificationTests); newer
+        # creators' snippets wait for human review.
+        for i in range(3):
+            make_project(self.owner, self.cat, title=f'Prior vibe {i}')
+        data = {
+            'title': 'Clean snippet', 'category': self.cat.id,
+            'short_description': 'A tiny clean snippet for the badge tests.',
+            'readme': '# Clean\n\n' + ('Totally harmless readme body. ' * 6),
+            'tech_stack': 'HTML', 'html_code': '<p>ok</p>', 'css_code': '',
+            'js_code': 'let safe = true;', 'star_cost': 0, 'price_zar': 0,
+            'creator_kind': '',
+        }
+        response = self.client.post('/publish/', data, follow=True)
+        self.assertEqual(response.status_code, 200)
+        p = AppProject.objects.get(title='Clean snippet')
+        self.assertEqual(p.status, 'published')
+        p.refresh_from_db()
+        self.assertEqual(p.trust, 'verified')
+        self.assertIsNotNone(p.trust_graded_at)
+
+    def test_moderator_approval_grades_a_held_snippet(self):
+        """The other snippet publish path: new creator → queued for review
+        → moderator approves → the badge is graded from the recorded
+        snippet_scan evidence."""
+        mod = make_user('trustmod', role='moderator')
+        held = make_project(self.owner, self.cat, title='Held snippet',
+                            status='pending', html_code='<p>ok</p>', js_code='let x = 1;')
+        from gallery.trust import snippet_evidence
+        snippet_evidence(held)  # what the publish view ran before queueing
+        self.client.force_login(mod)
+        response = self.client.post(f'/moderation/{held.slug}/', {'action': 'approve'}, follow=True)
+        self.assertEqual(response.status_code, 200)
+        held.refresh_from_db()
+        self.assertEqual(held.status, 'published')
+        self.assertEqual(held.trust, 'verified')
+
+    def test_finalize_held_for_secrets_writes_unknown(self):
+        from gallery.tasks import finalize_publish
+        p = make_project(self.owner, self.cat, title='Held', status='pending',
+                         scan_report={'clamav': 'clean', 'secrets': ['config/.env']})
+        result = finalize_publish.run(project_id=p.id)
+        p.refresh_from_db()
+        self.assertEqual(result, 'pending_secrets')
+        self.assertEqual(p.status, 'pending')
+        self.assertEqual(p.trust, 'unknown')
+
+    # ---- the reset rule (nobody gets robbed) -----------------------------
+    def test_content_change_resets_a_verified_badge(self):
+        """The bait-and-switch defence: a buyer traded for a ✓ vibe, the
+        owner then swaps the bytes — the badge must drop before any buyer
+        can be charged for unverified content again."""
+        from gallery.trust import apply_trust_grade, invalidate_trust
+        p = make_project(self.owner, self.cat,
+                         zip_file=make_zip_file({'index.html': 'x'}),
+                         scan_report=self._clean_zip_report())
+        self.assertEqual(apply_trust_grade(p), 'verified')
+        invalidate_trust(p)  # what edit_vibe / git push / PR merge call
+        p.refresh_from_db()
+        self.assertEqual(p.trust, 'unknown')
+
+    def test_buyer_sees_no_badge_after_content_change(self):
+        from gallery.trust import apply_trust_grade, invalidate_trust
+        p = make_project(self.owner, self.cat,
+                         zip_file=make_zip_file({'index.html': 'x'}),
+                         scan_report=self._clean_zip_report())
+        apply_trust_grade(p)
+        invalidate_trust(p)
+        response = self.client.get(p.get_absolute_url())
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, '✓ Checked')
+
+    # ---- the unfakeable rule ----------------------------------------------
+    def test_publish_form_has_no_trust_field(self):
+        self.assertNotIn('trust', AppUploadForm.base_fields)
+
+    def test_posted_trust_value_is_ignored(self):
+        """Spoof attempt: POST trust='verified' alongside a REAL leaked
+        token — the verdict follows the evidence, never the POST."""
+        for i in range(3):
+            make_project(self.owner, self.cat, title=f'Prior spoof {i}')
+        data = {
+            'title': 'Spoof attempt', 'category': self.cat.id,
+            'short_description': 'Trying to POST a fake trust tier.',
+            'readme': '# Spoof\n\n' + ('Readme body long enough to pass. ' * 6),
+            'tech_stack': 'HTML', 'html_code': '<p>ok</p>', 'css_code': '',
+            'js_code': 'const t = "ghp_' + 'B' * 36 + '";',
+            'star_cost': 0, 'price_zar': 0, 'creator_kind': '',
+            'trust': 'verified', 'trust_graded_at': '2020-01-01T00:00:00Z',
+        }
+        response = self.client.post('/publish/', data, follow=True)
+        self.assertEqual(response.status_code, 200)
+        p = AppProject.objects.get(title='Spoof attempt')
+        p.refresh_from_db()
+        self.assertEqual(p.trust, 'scanned')  # evidence (leaked token) wins
+
+    def test_api_returns_tier_never_the_report(self):
+        from gallery.trust import apply_trust_grade
+        p = make_project(self.owner, self.cat,
+                         zip_file=make_zip_file({'index.html': 'x'}),
+                         scan_report=self._clean_zip_report())
+        apply_trust_grade(p)
+        response = self.client.get('/api/v1/apps/')
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()['results']
+        row = next(r for r in payload if r['slug'] == p.slug)
+        self.assertEqual(row['trust'], 'verified')
+        self.assertEqual(row['trust_label'], 'Checked')
+        self.assertNotIn('scan_report', row)
+
+    # ---- presentation table ------------------------------------------------
+    def test_meta_table_covers_exactly_the_tiers(self):
+        from gallery.trust import TRUST_META, TRUST_TIERS
+        field_choices = {c[0] for c in AppProject._meta.get_field('trust').choices}
+        self.assertEqual(set(TRUST_META.keys()), set(TRUST_TIERS))
+        self.assertEqual(field_choices, set(TRUST_TIERS))
+
+    def test_reasons_are_fixed_strings_and_never_leak_filenames(self):
+        from gallery.trust import trust_reasons
+        report = self._clean_zip_report()
+        report['secrets'] = ['supersecretfile.py']  # must NOT reach the page
+        p = make_project(self.owner, self.cat,
+                         zip_file=make_zip_file({'a': 'b'}), scan_report=report)
+        reasons = trust_reasons(p)
+        self.assertTrue(reasons)
+        joined = ' '.join(r['detail'] for r in reasons)
+        self.assertNotIn('supersecretfile', joined)
+        self.assertNotIn('.py', joined)
+        for r in reasons:
+            self.assertIn(r['ok'], (True, False))
+            self.assertTrue(r['detail'])  # every row says something safe
+
+    # ---- ranking: reorder equals, never buy rank ---------------------------
+    def test_verified_boosts_identical_content(self):
+        from gallery.interest import compute_appeal
+        from gallery.trust import TRUST_VERIFIED, trust_multiplier
+        base = make_project(self.owner, self.cat, title='Base', scan_report={})
+        verified = make_project(self.owner, self.cat, title='Boosted',
+                                scan_report={})  # identical in every way
+        verified.trust = TRUST_VERIFIED
+        self.assertAlmostEqual(
+            compute_appeal(verified) / compute_appeal(base),
+            trust_multiplier(TRUST_VERIFIED), places=3)
+
+    def test_boost_is_small_enough_that_quality_still_wins(self):
+        from gallery.interest import compute_appeal
+        from gallery.trust import TRUST_VERIFIED
+        weak = make_project(self.owner, self.cat, title='Weak verified',
+                            readme='# x', tech_stack='', html_code='', js_code='',
+                            scan_report={})
+        weak.trust = TRUST_VERIFIED
+        strong = make_project(self.owner, self.cat, title='Strong unknown',
+                              readme='# Real README\n\n' + ('Documented, tested, described. ' * 40),
+                              tech_stack='HTML, JS',
+                              language_stats={'JavaScript': 90, 'HTML': 10},
+                              html_code='<canvas></canvas>', js_code='let x=1;',
+                              scan_report={})
+        strong.trust = 'unknown'
+        self.assertGreater(compute_appeal(strong), compute_appeal(weak))
+
+    # ---- the public read ----------------------------------------------------
+    def test_trust_legend_page_renders(self):
+        response = self.client.get('/trust/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Trust Badge')
+
+    def test_feed_and_detail_show_the_badge_for_verified(self):
+        from gallery.trust import apply_trust_grade
+        p = make_project(self.owner, self.cat, title='Badged',
+                         zip_file=make_zip_file({'index.html': 'x'}),
+                         scan_report=self._clean_zip_report())
+        apply_trust_grade(p)
+        feed = self.client.get('/')
+        self.assertContains(feed, '🛡️ Checked')
+        detail = self.client.get(p.get_absolute_url())
+        self.assertContains(detail, '✓ Checked')
+        self.assertContains(detail, 'What does this mean?')

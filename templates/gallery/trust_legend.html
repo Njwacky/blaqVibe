@@ -1,0 +1,88 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Trust Badge — BlaqVibes{% endblock %}
+{% block content %}
+<div style="max-width:860px;margin:16px auto;padding:0 20px">
+
+  <div class="card" style="padding:24px">
+    <div style="display:flex;align-items:center;gap:12px;font-size:18px;font-weight:800">
+      🛡️ The BlaqVibes Trust Badge
+    </div>
+    <div style="margin-top:12px;font-size:14px;line-height:1.7;color:var(--muted)">
+      Most app galleries show you a card and hope for the best. BlaqVibes runs every
+      upload through a scan pipeline — <b>virus scan → secrets scan → dependency audit →
+      publish</b> — before it can reach your feed. The badge is the public verdict of that
+      pipeline, and this page is exactly what each tier promises. Nothing on this page is
+      decoration: every claim below is a check the code actually runs.
+    </div>
+    <div style="margin-top:10px;font-size:13px;color:var(--muted)">
+      Right now: <b>{{ checked_count }}</b> checked vibe{{ checked_count|pluralize }} and
+      <b>{{ scanned_count }}</b> scanned vibe{{ scanned_count|pluralize }} in the catalog.
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;padding:24px">
+    <div style="font-weight:800;font-size:15px;margin-bottom:12px">The three tiers</div>
+
+    <div style="display:flex;gap:10px;align-items:flex-start;border:1px solid var(--success-text);border-radius:14px;padding:14px;margin-bottom:10px">
+      <span class="badge" style="background:var(--success-bg,#DCFCE7);color:var(--success-text,#166534);flex-shrink:0">🛡️ {{ verified.label }}</span>
+      <div style="font-size:13px;line-height:1.6;color:var(--muted)">
+        <b>Verified.</b> {{ verified.title }}. The ZIP was virus-scanned clean, scanned for
+        leaked API keys and passwords, and its dependency list was audited. Snippets (code
+        pasted directly, no ZIP) earn the same badge — their code is secret-scanned and
+        they have no installable dependencies.
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;align-items:flex-start;border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:10px">
+      <span class="badge" style="background:var(--input);border:1px solid var(--line);color:var(--muted);flex-shrink:0">🛡️ {{ scanned.label }}</span>
+      <div style="font-size:13px;line-height:1.6;color:var(--muted)">
+        <b>Scanned.</b> {{ scanned.title }} — for example the virus scanner was switched
+        off by the operator, or the dependency audit could not run. We say what happened
+        instead of rounding it up to a ✓. A vibe with possible secrets or a virus never
+        gets this badge — it is held for human review or quarantined.
+      </div>
+    </div>
+
+    <div style="display:flex;gap:10px;align-items:flex-start;border:1px dashed var(--line);border-radius:14px;padding:14px">
+      <span class="badge" style="background:var(--input);border:1px dashed var(--line);color:var(--muted);flex-shrink:0">No badge</span>
+      <div style="font-size:13px;line-height:1.6;color:var(--muted)">
+        <b>Unknown.</b> No complete evidence — still pending, held for review, or published
+        before the badge existed. Absence of the badge is the honest signal: we do not
+        know, so we do not claim.
+      </div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px;padding:24px">
+    <div style="font-weight:800;font-size:15px;margin-bottom:12px">What we check — and what we honestly don't</div>
+    <table style="width:100%;font-size:13px;border-collapse:collapse;color:var(--muted)">
+      <tr style="border-bottom:1px solid var(--line)"><td style="padding:8px">🦠 <b>Virus scan</b></td><td style="padding:8px">ClamAV over the whole ZIP, before anything is published.</td></tr>
+      <tr style="border-bottom:1px solid var(--line)"><td style="padding:8px">🔑 <b>Secrets scan</b></td><td style="padding:8px">Every file in the ZIP (and every snippet) is pattern-checked for leaked API keys, tokens and private keys. Filenames are stored for review — the secret values never leave the scan.</td></tr>
+      <tr style="border-bottom:1px solid var(--line)"><td style="padding:8px">📦 <b>Dependency audit</b></td><td style="padding:8px"><code>npm audit</code> / <code>pip-audit</code> over the manifests, plus a registry check that named packages actually exist (AI-generated code sometimes invents package names — a trick attackers use to plant malware).</td></tr>
+      <tr style="border-bottom:1px solid var(--line)"><td style="padding:8px">🧪 <b>What we don't do</b></td><td style="padding:8px">We do not execute your app. Previews run in a locked-down sandbox iframe, and anything our sandbox cannot run says <i>"no live preview"</i> plainly. The badge certifies what was scanned — it is not a guarantee the app does what its README says.</td></tr>
+      <tr><td style="padding:8px">🧑‍⚖️ <b>Reviews are human</b></td><td style="padding:8px">Stars and reviews are reputation from real people; the badge is machine evidence. They are different signals and we never mix them up.</td></tr>
+    </table>
+  </div>
+
+  <div class="card" style="margin-top:16px;padding:24px">
+    <div style="font-weight:800;font-size:15px;margin-bottom:12px">How fakes are handled</div>
+    <div style="font-size:13px;line-height:1.8;color:var(--muted)">
+      <b>Nobody can buy, vote, or style their way to a ✓.</b> The tier is written by the
+      scan pipeline alone — not by creators, not by stars, not by any form or API call.
+      <br><br>
+      <b>Changing the content always resets the badge.</b> Edit the ZIP, push over git,
+      or merge a PR — the ✓ comes off instantly and only returns after the new bytes are
+      re-scanned. A badge can never vouch for files nobody checked, so a buyer paying
+      stars always gets exactly what was scanned.
+      <br><br>
+      <b>A pending or quarantined vibe shows no badge at all.</b> If the virus scanner is
+      offline, the vibe simply does not auto-publish — missing evidence can never round
+      itself up to "checked".
+      <br><br>
+      <b>Found something we missed?</b> Report it from any vibe's page — reports go to the
+      human moderation queue, and a confirmed report pulls the vibe from the feed.
+    </div>
+  </div>
+
+</div>
+{% endblock %}

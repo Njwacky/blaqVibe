@@ -66,6 +66,7 @@ to `.github/workflows/ci.yml` (needs the `workflows` permission).
 
 ## What is real
 
+- **The trust badge is real evidence, not decoration.** Every vibe carries a pipeline-written tier — `verified` (virus clean, no leaked secrets, dependencies audited), `scanned` (pipeline ran, a check incomplete), or nothing (no complete evidence). Only `gallery.trust.apply_trust_grade` may write it: never a form, never the API, never a user. Changing the content (edit, git push, PR merge) resets the badge to unknown until the new bytes are re-scanned — a ✓ can never vouch for files nobody checked. The public standard lives at `/trust/`, and the tier adds a small (≤8%) ranking boost that reorders equals but cannot buy rank. See `docs/specs/BlaqVibes_Trust_Badge_Spec.md`.
 - **Every kind of program is publishable** — games, APIs, mobile apps, notebooks, CLI tools. Each vibe is auto-labelled with a program kind (creator can override), and anything our sandbox cannot run says "no live preview" plainly instead of faking one. See `docs/specs/BlaqVibes_Discovery_Spec.md`.
 - **The feed learns.** Open, star, fork, or trade a kind of program and it moves to the front of *your* grid ("For you"). Explicit filters and non-default sorts are never silently personalised. Anonymous visitors get the global interest ranking.
 - **Preview files** is an in-app page (sandboxed snippet or file list + README). It is not Docker and not a live host.

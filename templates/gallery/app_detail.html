@@ -1346,6 +1346,35 @@
   <!-- RIGHT -->
   <div>
     <div class="card" style="padding: 14px">
+      {# Trust badge — the pipeline's public verdict (gallery.trust). Only #}
+      {# whitelisted tiers render; copy comes from the server's fixed #}
+      {# TRUST_META table, so nothing user-supplied can style a fake ✓. #}
+      {% if project.trust == 'verified' or project.trust == 'scanned' %}
+      <div
+        style="
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          padding: 8px 10px;
+          margin-bottom: 10px;
+          border-radius: 10px;
+          border: 1px solid {% if project.trust == 'verified' %}var(--success-text){% else %}var(--line){% endif %};
+          background: {% if project.trust == 'verified' %}var(--success-bg){% else %}var(--input){% endif %};
+        "
+      >
+        <span style="font-size: 16px">🛡️</span>
+        <div style="font-size: 12px; line-height: 1.5">
+          <b style="color: {% if project.trust == 'verified' %}var(--success-text){% else %}var(--muted){% endif %}">{% if project.trust == 'verified' %}✓ Checked{% else %}Scanned{% endif %}</b>
+          — {{ project.trust_meta.title }}.
+          {% if project.trust_reasons %}
+          <span style="color: var(--muted)">
+            {% for r in project.trust_reasons %}{{ r.check }}: {{ r.detail }}{% if not forloop.last %} · {% endif %}{% endfor %}.
+          </span>
+          {% endif %}
+          <a href="{% url 'trust_legend' %}" style="color: var(--link)">What does this mean?</a>
+        </div>
+      </div>
+      {% endif %}
       <div style="display: flex; gap: 6px; margin-bottom: 8px">
         <a
           href="{% url 'feed' %}?program={{ project.kind }}"
