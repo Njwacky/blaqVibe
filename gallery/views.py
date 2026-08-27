@@ -892,7 +892,7 @@ def report_vibe(request, slug):
 # objects fetch, and the dumb-protocol fallback — and a POST-only throttle left
 # the read half of the endpoint unlimited per IP for anyone who wanted to mirror
 # the whole gallery one small file at a time.
-@ratelimit(key='ip', rate='240/m', all=True)
+@ratelimit(key='ip', rate='240/m')
 @ratelimit(key='ip', rate='60/m', method='POST')
 def git_clone(request, username, slug, rest=''):
     """Real git smart-HTTP endpoint — `git clone` AND `git push` work.
