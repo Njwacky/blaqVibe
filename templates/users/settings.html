@@ -1,5 +1,7 @@
-{% extends 'gallery/base.html' %} {% block title %}Settings — BlaqVibes{% endblock %} {% block content %}
-<div style="max-width: 800px; margin: 0 auto; padding: 20px">
+{% extends 'gallery/base.html' %}
+{% load static %}
+{% block title %}Settings — BlaqVibes{% endblock %} {% block content %}
+<div id="settings-toggles" data-url="{% url 'toggle_setting' %}" data-csrf="{{ csrf_token }}" style="max-width: 800px; margin: 0 auto; padding: 20px">
   <h1
     style="
       font-family:
@@ -805,79 +807,6 @@
   </div>
 </div>
 
-<style>
-  .switch {
-    position: relative;
-    display: inline-block;
-    width: 44px;
-    height: 24px;
-    flex-shrink: 0;
-  }
-  .switch input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-  }
-  .slider {
-    position: absolute;
-    cursor: pointer;
-    inset: 0;
-    background: var(--line);
-    border-radius: 100px;
-    transition: 0.2s;
-  }
-  .slider:before {
-    content: "";
-    position: absolute;
-    height: 18px;
-    width: 18px;
-    left: 3px;
-    bottom: 3px;
-    background: #fff;
-    border-radius: 50%;
-    transition: 0.2s;
-  }
-  input:checked + .slider {
-    background: #7c3aed;
-  }
-  input:checked + .slider:before {
-    transform: translateX(20px);
-  }
-</style>
-
-<script>
-  document.querySelectorAll(".switch input").forEach((el) => {
-    el.addEventListener("change", () => {
-      const key = el.dataset.key;
-      const value = el.checked;
-      fetch("{% url 'toggle_setting' %}", {
-        method: "POST",
-        headers: {
-          "X-CSRFToken": "{{ csrf_token }}",
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: `key=${encodeURIComponent(key)}&value=${value}`,
-      })
-        .then((r) => r.json())
-        .then((d) => {
-          if (d.ok) {
-            try {
-              toast((value ? "Enabled " : "Disabled ") + key);
-            } catch (e) {}
-          } else {
-            el.checked = !value;
-            try {
-              toast("Failed: " + d.error);
-            } catch (e) {}
-          }
-        })
-        .catch(() => {
-          el.checked = !value;
-        });
-    });
-  });
-
-  // (The name-style live preview moved to Edit Profile with the picker —
-  // nothing on this page references #name-style-maps any more.)
-</script>
+<link rel="stylesheet" href="{% static 'gallery/css/settings.css' %}?v=ext-20260827">
+<script src="{% static 'gallery/js/settings.js' %}?v=ext-20260827" defer></script>
 {% endblock %}

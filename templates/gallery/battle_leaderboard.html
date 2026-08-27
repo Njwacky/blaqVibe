@@ -1,13 +1,8 @@
 {% extends 'gallery/base.html' %}
+{% load static %}
 {% block title %}Leaderboard — BlaqVibes{% endblock %}
 {% block head %}
-<style>
-/* Two-column ranking grids stack on phones — otherwise the columns blow
-   past the viewport and the page pans sideways under the nav. */
-@media (max-width: 720px) {
-  .lb-grid { grid-template-columns: 1fr !important; }
-}
-</style>
+<link rel="stylesheet" href="{% static 'gallery/css/battle.css' %}?v=ext-20260827">
 {% endblock %}
 {% block content %}
 <div style="max-width:1100px;margin:0 auto;padding:20px">
