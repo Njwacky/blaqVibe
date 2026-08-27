@@ -1,17 +1,8 @@
 {% extends 'gallery/base.html' %}
+{% load static %}
 {% block title %}Nolo Chat — BlaqVibes{% endblock %}
 {% block head %}
-<style>
-/* The chat/help split (main + aside) stacks on tablets/phones — otherwise
-   the two columns overflow the viewport and the page pans sideways, breaking
-   the sticky nav's full-width look. minmax(0, 1fr) also stops a wide child
-   (the chat input row) from inflating the track past the screen. */
-@media (max-width: 900px) {
-  .nolo-split { grid-template-columns: minmax(0, 1fr) !important; }
-  .nolo-chat-input-row { flex-wrap: wrap; }
-  .nolo-chat-input-row #nolo-chat-input { flex: 1 1 200px; }
-}
-</style>
+<link rel="stylesheet" href="{% static 'gallery/css/nolo.css' %}?v=ext-20260827">
 {% endblock %}
 {% block content %}
 <div style="max-width:1100px;margin:16px auto;padding:0 20px">
@@ -60,7 +51,7 @@
               <div>Welcome to Nolo Chat! Ask about new apps, templates, or how to use the latest features. I can help compare apps, explain the best fork flow, and point you to the freshest published vibes.</div>
             </div>
           </div>
-          <div class="nolo-chat-input-row" style="display:flex;align-items:center;gap:10px;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:18px">
+          <div id="nolo-chat-input-row" class="nolo-chat-input-row" data-api-url="{% url 'nolo_chat_api' %}" data-csrf="{{ csrf_token }}" style="display:flex;align-items:center;gap:10px;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:18px">
             <span style="width:32px;height:32px;border-radius:10px;background:var(--violet);display:grid;place-items:center;font-size:16px;color:var(--on-accent)">💬</span>
             <input id="nolo-chat-input" type="text" placeholder="Ask a question for Nolo..." style="flex:1;min-width:0;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;color:var(--text);font-size:13px"> 
             <button id="nolo-chat-send" class="btn-violet" style="padding:10px 16px;font-size:13px">Send</button>
@@ -107,58 +98,5 @@
     </aside>
   </div>
 </div>
-<script>
-(function(){
-  const sendBtn = document.getElementById('nolo-chat-send');
-  const input = document.getElementById('nolo-chat-input');
-  const messages = document.getElementById('nolo-chat-messages');
-  const errorBox = document.getElementById('nolo-chat-error');
-  if(!sendBtn || !input || !messages) return;
-  function showError(text){
-    if(!errorBox) return;
-    errorBox.textContent = text;
-    errorBox.style.display = 'block';
-    setTimeout(()=>{ errorBox.style.display='none'; }, 5000);
-  }
-  function appendMessage(role, text){
-    const bubble = document.createElement('div');
-    bubble.style.padding = '16px';
-    bubble.style.border = '1px solid var(--line)';
-    bubble.style.borderRadius = '18px';
-    bubble.style.lineHeight = '1.7';
-    bubble.style.color = 'var(--text)';
-    bubble.style.background = role === 'user' ? 'var(--accent-soft-bg)' : 'var(--card)';
-    bubble.innerHTML = `<div style="font-size:12px;color:var(--muted);margin-bottom:10px">${role === 'user' ? 'You said' : 'Nolo says'}</div><div>${text.replace(/\n/g,'<br>')}</div>`;
-    messages.appendChild(bubble);
-    bubble.scrollIntoView({behavior:'smooth', block:'end'});
-  }
-  async function sendPrompt(){
-    const prompt = input.value.trim();
-    if(!prompt){ showError('Type a question for Nolo first.'); return; }
-    appendMessage('user', prompt);
-    input.value = '';
-    try{
-      const response = await fetch('{% url "nolo_chat_api" %}', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-CSRFToken': '{{ csrf_token }}',
-        },
-        body: JSON.stringify({prompt}),
-      });
-      const data = await response.json();
-      if(!response.ok || data.error){
-        showError(data.error || 'Nolo could not answer right now.');
-        return;
-      }
-      const src = data.source && data.source !== 'heuristic' ? ` (${data.source})` : ' (built-in helper)';
-      appendMessage('nolo', (data.reply || 'Nolo did not return an answer.') + src);
-    }catch(err){
-      showError('Network error — try again.');
-    }
-  }
-  sendBtn.addEventListener('click', sendPrompt);
-  input.addEventListener('keydown', function(e){ if(e.key === 'Enter'){ e.preventDefault(); sendPrompt(); } });
-})();
-</script>
+<script src="{% static 'gallery/js/nolo_chat.js' %}?v=ext-20260827" defer></script>
 {% endblock %}

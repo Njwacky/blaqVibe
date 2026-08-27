@@ -39,8 +39,7 @@
       <div
         style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap"
       >
-        {% include 'users/_styled_name.html' with u=profile_user p=profile %} {%
-        if profile_user.is_staff %}<span
+        {% include 'users/_styled_name.html' with u=profile_user p=profile %}{% if profile_user.is_staff %}<span
           style="
             font-size: 11px;
             background: var(--warning-fill);
@@ -57,8 +56,7 @@
           title="{{ rank.name }} creator — {{ rank.threshold }}+ stars"
           style="font-size:11px;padding:4px 8px;border-radius:8px;font-weight:700;{% if rank.name == 'Platinum' %}background:#e5e4e2;color:#222{% elif rank.name == 'Gold' %}background:#f5c518;color:#3a2e00{% elif rank.name == 'Silver' %}background:#c0c0c0;color:#1a1a1a{% else %}background:var(--warning-bg);color:var(--warning-text){% endif %}"
         >
-          {% if rank.name == 'Platinum' %}💎{% elif rank.name == 'Gold' %}🥇{%
-          elif rank.name == 'Silver' %}🥈{% else %}🥉{% endif %} {{ rank.name }}
+          {% if rank.name == 'Platinum' %}💎{% elif rank.name == 'Gold' %}🥇{% elif rank.name == 'Silver' %}🥈{% else %}🥉{% endif %} {{ rank.name }}
         </span>
         {% if profile.location %}<span
           style="
@@ -283,52 +281,24 @@
   >
     <a
       href="?tab=vibes"
-      {%
-      if
-      tab=""
-      ="vibes"
-      %}aria-current="page"
-      {%
-      endif
-      %}
+      {% if tab == 'vibes' %}aria-current="page"{% endif %}
       style="padding:8px 14px;border-radius:100px;font-size:13px;font-weight:700;{% if tab == 'vibes' %}background:var(--text);color:var(--bg){% else %}background:var(--card);border:1px solid var(--line);color:var(--muted){% endif %}"
       >Vibes ({{ all_count }})</a
     >
     <a
       href="?tab=stars"
-      {%
-      if
-      tab=""
-      ="stars"
-      %}aria-current="page"
-      {%
-      endif
-      %}
+      {% if tab == 'stars' %}aria-current="page"{% endif %}
       style="padding:8px 14px;border-radius:100px;font-size:13px;font-weight:700;{% if tab == 'stars' %}background:var(--text);color:var(--bg){% else %}background:var(--card);border:1px solid var(--line);color:var(--muted){% endif %}"
       >Stars</a
     >
     <a
       href="?tab=followers"
-      {%
-      if
-      tab=""
-      ="followers"
-      %}aria-current="page"
-      {%
-      endif
-      %}
+      {% if tab == 'followers' %}aria-current="page"{% endif %}
       style="padding:8px 14px;border-radius:100px;font-size:13px;font-weight:700;{% if tab == 'followers' %}background:var(--text);color:var(--bg){% else %}background:var(--card);border:1px solid var(--line);color:var(--muted){% endif %}"
       >Followers ({{ followers_count }})</a>
     <a
       href="?tab=following"
-      {%
-      if
-      tab=""
-      ="following"
-      %}aria-current="page"
-      {%
-      endif
-      %}
+      {% if tab == 'following' %}aria-current="page"{% endif %}
       style="padding:8px 14px;border-radius:100px;font-size:13px;font-weight:700;{% if tab == 'following' %}background:var(--text);color:var(--bg){% else %}background:var(--card);border:1px solid var(--line);color:var(--muted){% endif %}"
       >Following ({{ following_count }})</a
     >

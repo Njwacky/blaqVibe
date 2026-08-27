@@ -18,17 +18,7 @@
 {# This prevents an older service worker cache from briefly restoring the old top navbar on reload. #}
 <link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=polish-layer-20260826">
 <link rel="stylesheet" href="{% static 'gallery/css/footer.css' %}?v=theme-colors-20260815">
-<script>
-/* Apply saved appearance and sidebar geometry before first paint. */
-try{
-  var t=localStorage.getItem('blaq-theme');
-  if(t !== 'light' && t !== 'dark') t=window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark';
-  document.documentElement.setAttribute('data-theme',t);
-  var nw=parseInt(localStorage.getItem('blaq-nav-width'),10);
-  if(Number.isFinite(nw) && nw>=180 && nw<=380) document.documentElement.style.setProperty('--nav-w',nw+'px');
-  if(localStorage.getItem('blaq-nav-collapsed')==='1') document.documentElement.setAttribute('data-nav-collapsed','true');
-}catch(e){}
-</script>
+<script src="{% static 'gallery/js/head-theme.js' %}?v=ext-20260827"></script>
 <script src="https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
 <script src="{% static 'gallery/js/blaqvibes.js' %}?v=nav-icons-20260821" defer></script>
@@ -205,73 +195,9 @@ try{
 <div id="pwa-ios-hint" style="display:none;position:fixed;bottom:20px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;max-width:340px;width:calc(100% - 32px);z-index:999;text-align:center">
   <div style="font-weight:700;font-size:13px">Install BlaqVibes</div>
   <div style="font-size:11px;color:var(--muted);margin-top:4px">Tap <span style="background:var(--line);padding:2px 6px;border-radius:6px">Share</span> → <b>Add to Home Screen</b> to install.</div>
-  <button onclick="this.parentElement.style.display='none'" class="btnG" style="margin-top:8px;padding:6px 12px;font-size:11px;width:100%">Got it</button>
+  <button class="btnG" style="margin-top:8px;padding:6px 12px;font-size:11px;width:100%">Got it</button>
 </div>
-<script>
-// PWA — register SW at /sw.js (scope /), backend only, no secrets, crush silently
-try{
-  if('serviceWorker' in navigator){
-    navigator.serviceWorker.register('/sw.js', {scope: '/'}).then(()=>console.log('SW ok')).catch(()=>{});
-  }
-}catch(e){}
-// PWA Install Prompt — app must ask you to install
-let deferredPrompt = null;
-const banner = document.getElementById('pwa-install-banner');
-const installBtn = document.getElementById('pwa-install-btn');
-const dismissBtn = document.getElementById('pwa-dismiss-btn');
-const iosHint = document.getElementById('pwa-ios-hint');
-// Check if already installed
-if(window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone){
-  // Already installed — don't ask
-} else {
-  window.addEventListener('beforeinstallprompt', (e)=>{
-    try{
-      e.preventDefault();
-      deferredPrompt = e;
-      // Show banner after 2s (ask to install)
-      setTimeout(()=>{
-        if(!localStorage.getItem('pwa-dismissed')){
-          banner.style.display='flex';
-        }
-      }, 2000);
-    }catch(err){}
-  });
-  // iOS fallback — no beforeinstallprompt, show hint after 3s
-  const isIos = /iPhone|iPad|iPod/.test(navigator.userAgent);
-  if(isIos && !localStorage.getItem('pwa-ios-dismissed')){
-    setTimeout(()=>{ iosHint.style.display='block'; }, 3000);
-  }
-  window.addEventListener('appinstalled', ()=>{
-    try{ banner.style.display='none'; iosHint.style.display='none'; localStorage.removeItem('pwa-dismissed'); }catch(e){}
-    try{ toast('✓ BlaqVibes installed!'); }catch(e){}
-  });
-}
-if(installBtn){
-  installBtn.addEventListener('click', async ()=>{
-    try{
-      if(!deferredPrompt) return;
-      deferredPrompt.prompt();
-      const choice = await deferredPrompt.userChoice;
-      if(choice.outcome === 'accepted'){ try{toast('Installing BlaqVibes...')}catch(e){} }
-      deferredPrompt = null;
-      banner.style.display='none';
-    }catch(e){}
-  });
-}
-if(dismissBtn){
-  dismissBtn.addEventListener('click', ()=>{
-    try{ localStorage.setItem('pwa-dismissed','1'); }catch(e){}
-    banner.style.display='none';
-    // Show again after 7 days
-    setTimeout(()=>{ try{localStorage.removeItem('pwa-dismissed')}catch(e){} }, 7*24*60*60*1000);
-  });
-}
-if(iosHint){
-  iosHint.querySelector('button').addEventListener('click', ()=>{
-    try{ localStorage.setItem('pwa-ios-dismissed','1'); }catch(e){}
-  });
-}
-</script>
+<script src="{% static 'gallery/js/pwa.js' %}?v=ext-20260827"></script>
 {% endif %}
 {% block scripts %}{% endblock %}
 </body>
