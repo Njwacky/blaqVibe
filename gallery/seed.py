@@ -1,5 +1,13 @@
-"""Idempotent demo catalog so the first visit is not an empty grid."""
+"""Idempotent demo catalog so the first visit is not an empty grid.
+
+This module creates ACCOUNTS, and the passwords are public by design (they are
+printed in README.md so a new contributor can open the admin dashboard). That
+is only ever acceptable in a dev posture — see `seed_mode()` for the gate, and
+`users/test_superadmin.py` for the test that keeps it shut in production.
+"""
 import io
+import logging
+import os
 import re
 import zipfile
 from pathlib import Path
@@ -11,7 +19,14 @@ from django.core.files.base import ContentFile
 from gallery.models import AppFile, AppProject, Category
 from users.models import Profile
 
+logger = logging.getLogger(__name__)
+
 HTML_DIR = Path(settings.BASE_DIR) / 'real_templates' / 'html'
+
+# The documented local password. Kept in ONE place so the README, the tests and
+# the seeder cannot drift apart into three different known credentials.
+DEMO_PASSWORD = 'blaq12345'
+MODERATOR_PASSWORD = 'thando12345'
 
 CATEGORIES = [
     ('landing-pages', 'Landing Pages', 'snippet', 1),
@@ -182,20 +197,34 @@ def _body_html(path: Path) -> str:
     return body
 
 
-def _ensure_user(username: str, password: str, stars: int = 5, **profile_kwargs):
+def _ensure_user(username: str, password: str, stars: int = 5, *,
+                 wallet: bool = True, usable_password: bool = True,
+                 **profile_kwargs):
+    """Create-or-repair a demo account.
+
+    `wallet` and `usable_password` exist so a *forced* production seed can
+    publish the catalog without handing anybody a documented credential:
+    a known password + a funded, verified wallet is an account, not a fixture.
+    An existing user's password and wallet are never touched either way.
+    """
     user, created = User.objects.get_or_create(
         username=username,
         defaults={'email': f'{username}@blaqvibes.local'},
     )
     if created:
-        user.set_password(password)
+        if usable_password:
+            user.set_password(password)
+        else:
+            # No documented password to log in with (and Django refuses to
+            # authenticate an unusable-password account at all).
+            user.set_unusable_password()
         user.save()
     profile, _ = Profile.objects.get_or_create(user=user)
     updates = []
     # Only set the starter balance on first create — never reset a live wallet.
     # Ledger the demo balance too: sum(StarEvent.delta) == stars_balance must
     # hold for every wallet, seeded ones included.
-    if created:
+    if created and wallet:
         profile.stars_balance = stars
         updates.append('stars_balance')
         if stars:
@@ -336,12 +365,13 @@ def _ensure_demo_staff():
     blaq12345" and "blaq is admin." seed_demo used to create those
     usernames as role='user', so the documented password signed in and
     then 403'd on every admin page. That is the "admin login never
-    works" ticket. Production seed stays role='user' — a known-password
-    superadmin must never ship with SEED_DEMO=1 on a public host.
+    works" ticket. This function is now reached ONLY in dev posture
+    (`seed_mode() == 'dev'`) — a known-password superadmin must never
+    exist on a public host, not even with SEED_DEMO=1.
     """
-    _ensure_user('blaq', 'blaq12345', stars=20, role='admin')
-    _ensure_user('thando', 'thando12345', stars=12, role='moderator')
-    _ensure_user('nolo.ai', 'blaq12345', stars=42, role='superadmin')
+    _ensure_user('blaq', DEMO_PASSWORD, stars=20, role='admin')
+    _ensure_user('thando', MODERATOR_PASSWORD, stars=12, role='moderator')
+    _ensure_user('nolo.ai', DEMO_PASSWORD, stars=42, role='superadmin')
     try:
         from users.provision import repair_createsuperuser_admin
         repair_createsuperuser_admin()
@@ -350,11 +380,54 @@ def _ensure_demo_staff():
         logging.getLogger(__name__).exception('repair createsuperuser admin failed')
 
 
+def seed_mode():
+    """'dev' | 'forced' | None — who may receive known-password fixtures.
+
+    5 Whys: why gate the seeder itself and not only its callers?
+    1. Why? `SEED_DEMO=1` was never a statement about passwords; it asked for
+       a populated grid. The old code gated only the *staff* accounts, so a
+       production host still got `blaq`/`thando` — verified wallets, documented
+       passwords, spendable stars.
+    2. Why is that a breach and not a cosmetic issue? `email_verified` is the
+       exact flag that unlocks trading, tipping and payout eligibility, so a
+       seeded account is a usable wallet, not a placeholder row.
+    3. Why keep a `forced` mode at all? A public demo/staging host legitimately
+       wants the catalog. It gets the content with unusable-password, unfunded
+       accounts — the grid renders, nobody inherits a credential.
+    4. Why read settings rather than `manage.py` args? Three entry points seed
+       (the post-migrate signal, the empty-feed auto-seed and the management
+       command); a function they all consult is the only place the rule cannot
+       be forgotten.
+    5. Why raise instead of returning silently? A silent no-op is how "the
+       command succeeded but nothing happened" gets reported as a data bug.
+    """
+    if getattr(settings, 'DEBUG', False) or getattr(settings, 'LOCAL_DEV', False):
+        return 'dev'
+    if os.getenv('SEED_DEMO_FORCE', '').strip() == '1':
+        return 'forced'
+    return None
+
+
 def seed_demo():
-    """Create published demo vibes. Safe to run many times."""
-    owner = _ensure_user('blaq', 'blaq12345', stars=20)
-    _ensure_user('thando', 'thando12345', stars=12)
-    if getattr(settings, 'LOCAL_DEV', False) or getattr(settings, 'DEBUG', False):
+    """Create published demo vibes. Safe to run many times.
+
+    Refuses outright on a public host (see `seed_mode`): the catalog is a
+    development fixture, and the accounts that used to come with it are
+    credentials.
+    """
+    mode = seed_mode()
+    if mode is None:
+        raise RuntimeError(
+            'seed_demo is local-only: it creates accounts whose passwords are '
+            'published in README.md. For a demo/staging host that wants the '
+            'catalog without those credentials, run it with SEED_DEMO_FORCE=1 '
+            '(accounts get unusable passwords and empty wallets). Never '
+            'SEED_DEMO=1 on production.'
+        )
+    dev = mode == 'dev'
+    owner = _ensure_user('blaq', DEMO_PASSWORD, stars=20, wallet=dev, usable_password=dev)
+    _ensure_user('thando', MODERATOR_PASSWORD, stars=12, wallet=dev, usable_password=dev)
+    if dev:
         _ensure_demo_staff()
     try:
         from users.provision import maybe_provision_from_env

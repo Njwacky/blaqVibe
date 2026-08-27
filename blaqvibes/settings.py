@@ -35,10 +35,33 @@ def _env_flag(name, default=False):
     return raw.strip().lower() in ('1', 'true', 'yes', 'on')
 
 
+# Tests are detected BEFORE LOCAL_DEV, for two reasons: the suite runs with
+# DEBUG=0, and a production-shaped LOCAL_DEV=False would switch on
+# SECURE_SSL_REDIRECT so that every test request answers 301. It is also
+# consumed by SEED_DEMO further down, so it must already be defined by then.
+TESTING = any(arg == 'test' for arg in sys.argv) or os.getenv('DJANGO_TEST') == '1'
+
+# Local development is EXPLICIT, or it is a genuine DEBUG run.
+#
+# 5 Whys: why remove the `VIRTUAL_ENV or PYTHONENV` inference?
+# 1. Why was it there? Laptop `runserver` inside a venv gets CSS and seeded
+#    data without exporting anything.
+# 2. Why is that wrong? A venv is also how production gets built: python
+#    buildpacks, Poetry/pipenv installs and slim images that activate a venv
+#    all set VIRTUAL_ENV on a public host.
+# 3. What did that cost? One accidental truthy value silently enabled the
+#    `django-insecure-…` SECRET_KEY (forgeable sessions and signed tokens),
+#    turned off SECURE_SSL_REDIRECT / HSTS / nosniff, downgraded
+#    X-Frame-Options to SAMEORIGIN and defaulted SEED_DEMO to on.
+# 4. Why not keep the heuristic and exempt only SECRET_KEY? LOCAL_DEV exists so
+#    that ONE flag carries the whole hardening posture; a half-trusted flag is
+#    the worst of both worlds.
+# 5. Why fail instead of guess? A clear RuntimeError at boot ("set DEBUG=1 or
+#    DJANGO_LOCAL_DEV=1") beats a site that looks configured and is not.
 if os.getenv('DJANGO_LOCAL_DEV', '').strip() != '':
     LOCAL_DEV = _env_flag('DJANGO_LOCAL_DEV')
 else:
-    LOCAL_DEV = bool(os.getenv('VIRTUAL_ENV') or os.getenv('PYTHONENV')) or DEBUG
+    LOCAL_DEV = DEBUG or TESTING
 
 # Sentry — backend only, no JS secrets. Do not dummy-init without a DSN:
 # the Django/WSGI integrations still wrap exception handling, and older
@@ -55,8 +78,13 @@ if not SECRET_KEY:
     if LOCAL_DEV:
         SECRET_KEY = 'django-insecure-blaqvibes-dev-key-change-in-prod-07070A'
     else:
-        # Never boot production (DEBUG=0) without a real key.
-        raise RuntimeError('SECRET_KEY must be set. Add SECRET_KEY to your .env.')
+        # Never boot production (DEBUG=0) without a real key. LOCAL_DEV is only
+        # true when an operator asked for it (DJANGO_LOCAL_DEV=1) or DEBUG is on,
+        # so the dev key can no longer arrive by inferring a virtualenv.
+        raise RuntimeError(
+            'SECRET_KEY must be set. Add SECRET_KEY to your .env — or, for a '
+            'local run only, DEBUG=1 / DJANGO_LOCAL_DEV=1.'
+        )
 
 # Arena / e2b live preview is HTTPS on {port}-{id}.e2b.app, often inside
 # a cross-site iframe. Detect it independently of DEBUG so cookie flags
@@ -124,9 +152,10 @@ ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '').strip()
 ANTHROPIC_MODEL = os.getenv('ANTHROPIC_MODEL', 'claude-3-5-haiku-latest')
 
 # Seed the demo catalog when the published grid is empty (local / CI).
-# Production stays empty until you run `python manage.py seed_demo` or set SEED_DEMO=1.
-# Tests stay empty unless a test calls seed_demo() itself.
-TESTING = any(arg == 'test' for arg in sys.argv) or os.getenv('DJANGO_TEST') == '1'
+# Production stays empty until an operator runs `python manage.py seed_demo`
+# with an explicit local/dev posture (see gallery/seed.py — the command itself
+# refuses to create known-password accounts on a public host).
+# `TESTING` is defined above, next to LOCAL_DEV, because both are needed there.
 SEED_DEMO = os.getenv('SEED_DEMO', '1' if (LOCAL_DEV and not TESTING) else '0') == '1'
 
 INSTALLED_APPS = [

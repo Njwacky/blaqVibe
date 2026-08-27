@@ -21,6 +21,13 @@ def _seed_after_migrate(sender, **kwargs):
             return
         from gallery.seed import seed_demo
         seed_demo()
+    except RuntimeError as exc:
+        # `seed_demo()` refuses outside a dev posture. Never break `migrate`
+        # over it — the deploy that needs its schema must still get its schema —
+        # but say so: a swallowed refusal is how "the demo data is missing"
+        # arrives as a database bug three days later.
+        import logging
+        logging.getLogger(__name__).error('post-migrate seed refused: %s', exc)
     except Exception:
         # Empty DB during some migrate steps — command / first request will retry.
         pass

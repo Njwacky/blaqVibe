@@ -37,12 +37,19 @@ The operator email is **`admin@blaqvibes.co.za`**. Provisioning marks it
 verified up front (Profile + allauth EmailAddress) — there is no
 confirmation link to click. Sign in with that email at `/accounts/login/`.
 
-Local demo after `seed_demo` (only when `DEBUG=1` or `DJANGO_LOCAL_DEV=1`):
+Local demo after `seed_demo` — **only** when `DEBUG=1` or `DJANGO_LOCAL_DEV=1`:
 
 - Operator email (already confirmed): `admin@blaqvibes.co.za` — password from `DJANGO_SUPERADMIN_PASSWORD` / `create_superadmin`
 - Superadmin: `nolo.ai` / `blaq12345`
 - Admin: `blaq` / `blaq12345`
 - Moderator: `thando` / `thando12345`
+
+`python manage.py seed_demo` **refuses to run** on a public host (no `DEBUG`, no
+`DJANGO_LOCAL_DEV=1`) because those passwords are in this file. A demo/staging
+box that only wants the published catalog runs
+`SEED_DEMO_FORCE=1 python manage.py seed_demo` — same vibes, accounts created
+with unusable passwords and empty wallets. Never set `SEED_DEMO=1` on a host
+that takes real uploads.
 
 Create the operator account (required in production):
 
@@ -53,6 +60,17 @@ python manage.py create_superadmin --email you@domain --password 'A-strong-pass'
 Or set `DJANGO_SUPERADMIN_PASSWORD` in `.env` — `migrate` / `seed_demo`
 will create or repair `admin` with that password and set
 `profile.role=superadmin`.
+
+Before you expose anything:
+
+```bash
+python manage.py security_check          # ERRORs on an unhardened production config
+python manage.py security_check --as-production   # same audit against a dev-configured process
+```
+
+`docker-compose.yml` runs `security_check` in the web container's boot command, so
+a missing HSTS / dev `SECRET_KEY` / `SEED_DEMO=1` stops the deploy instead of
+shipping quietly.
 
 Tests:
 

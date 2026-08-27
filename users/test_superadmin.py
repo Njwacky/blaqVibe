@@ -147,13 +147,43 @@ class DemoStaffAndPlaceholderPasswordTest(TestCase):
         self.assertEqual(self.client.get('/admin/dashboard/').status_code, 200)
         self.assertEqual(self.client.get('/admin/roles/').status_code, 200)
 
-    def test_production_seed_does_not_mint_known_superadmin(self):
+    def test_production_seed_is_refused_entirely(self):
+        """No known-password accounts on a public host — not even role='user'.
+
+        The old contract was "seed in production, but skip the staff rows", which
+        still minted `blaq`/`thando` with the README passwords AND marked them
+        email_verified with a funded wallet — the exact flag that unlocks
+        trading, tipping and payout eligibility. The seeder now refuses outright.
+        """
         from django.core.management import call_command
+        from gallery.models import AppProject
         with self.settings(LOCAL_DEV=False, DEBUG=False, SEED_DEMO=False):
+            with self.assertRaises(RuntimeError):
+                call_command('seed_demo')
+        for username in ('blaq', 'thando', 'nolo.ai'):
+            self.assertFalse(User.objects.filter(username=username).exists())
+        self.assertEqual(AppProject.objects.count(), 0)
+
+    def test_forced_seed_publishes_catalog_without_credentials(self):
+        """SEED_DEMO_FORCE=1 = content on a demo box, credentials off."""
+        import os
+        from unittest.mock import patch
+        from django.core.management import call_command
+        from gallery.models import AppProject
+        with self.settings(LOCAL_DEV=False, DEBUG=False, SEED_DEMO=False), \
+                patch.dict(os.environ, {'SEED_DEMO_FORCE': '1'}):
             call_command('seed_demo')
+        self.assertTrue(AppProject.objects.filter(status='published').exists())
+        blaq = User.objects.get(username='blaq')
+        self.assertFalse(blaq.has_usable_password())
+        self.assertFalse(blaq.profile.email_verified)
+        self.assertEqual(blaq.profile.stars_balance, 0)
+        self.assertEqual(blaq.profile.role, 'user')
         self.assertFalse(User.objects.filter(username='nolo.ai').exists())
-        self.assertEqual(User.objects.get(username='blaq').profile.role, 'user')
-        self.assertEqual(User.objects.get(username='thando').profile.role, 'user')
+        # …and the documented password cannot sign in as them.
+        r = self.client.post('/accounts/login/', follow=True,
+                             data={'username': 'blaq', 'password': 'blaq12345'})
+        self.assertFalse(r.wsgi_request.user.is_authenticated)
 
     def test_createsuperuser_admin_is_repaired_so_placeholder_password_works(self):
         # The operator's exact leftover: createsuperuser + admin / youpwassword.
