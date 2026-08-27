@@ -59,6 +59,15 @@ def api_apps(request):
     valid = {k['value'] for k in PROGRAM_KINDS}
     if program in valid:
         qs = qs.filter(kind=program)
+    # Trust filter — same whitelist rule as the website feed ('verified' |
+    # 'scanned'; anything else is ignored). 4 points: (1) API consumers get
+    # the same instruction the site honours — no divergent trust story;
+    # (2) add-only parameter, existing consumers are unaffected; (3) rides
+    # the trust db_index so the endpoint stays a range scan; (4) an empty
+    # result set is an honest answer, never silently refilled.
+    trust = (request.GET.get('trust') or '').strip().lower()
+    if trust in ('verified', 'scanned'):
+        qs = qs.filter(trust=trust)
     if (request.GET.get('sort') or '') == 'interesting':
         qs = qs.order_by('-appeal_score', '-created_at')
     else:

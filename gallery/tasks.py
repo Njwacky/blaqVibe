@@ -26,6 +26,9 @@ def vulnerability_scan(self, *args, project_id=None):
     # an audit actually executed and parsed — so a missing tool or a
     # missing manifest can never be mistaken for a passed check.
     report = {"npm": [], "pip": [], "secrets": [], "dep_audit": {"ran": False, "reason": "no_manifests"}}
+    # Dependency NAMES for the slopsquatting check (gallery.dep_check):
+    # collected while the ZIP is already extracted — no second read.
+    deps = {"npm": [], "pip": []}
     if p.zip_file:
         # ziputil.materialized_path works on local AND S3/R2 storage —
         # FieldFile.path raises NotImplementedError on remote backends.
@@ -48,6 +51,11 @@ def vulnerability_scan(self, *args, project_id=None):
                         report["dep_audit"] = {"ran": False, "reason": "tool_missing"}
                     except Exception as e:
                         logger.info(f"npm audit skip {p.slug}: {e}")
+                    try:
+                        from .dep_check import npm_deps_from_manifest
+                        deps['npm'] = npm_deps_from_manifest(os.path.join(root, 'package.json'))
+                    except Exception:
+                        pass
                     break
                 if 'requirements.txt' in files:
                     try:
@@ -60,6 +68,11 @@ def vulnerability_scan(self, *args, project_id=None):
                         report["dep_audit"] = {"ran": False, "reason": "tool_missing"}
                     except Exception as e:
                         logger.info(f"pip audit skip {p.slug}: {e}")
+                    try:
+                        from .dep_check import pip_deps_from_requirements
+                        deps['pip'] = pip_deps_from_requirements(os.path.join(root, 'requirements.txt'))
+                    except Exception:
+                        pass
                     break
         except Exception as e:
             logger.warning("safe extract / audit skip %s: %s", p.slug, e)
@@ -71,6 +84,23 @@ def vulnerability_scan(self, *args, project_id=None):
         # dep check is vacuously TRUE, and saying so lets an honest snippet
         # earn 'verified' instead of being capped at 'scanned' forever.
         report["dep_audit"] = {"ran": True, "reason": "snippet_no_deps"}
+    # Slopsquatting check (gallery.dep_check): ask the real registry whether
+    # every dependency name exists. Explicit 404 → flagged (caps the trust
+    # tier at 'scanned' via gallery.trust); network failure → treated as
+    # existing (fail-open, never a false accusation). Budgeted + cached, so
+    # a spam wave costs a constant per hour, never a per-upload bill.
+    try:
+        from .dep_check import check_dependencies
+        outcome = check_dependencies(deps)
+        report['dep_exist_check'] = {
+            'checked': outcome.get('checked', 0),
+            'reason': outcome.get('reason', 'ok'),
+        }
+        if outcome.get('flagged'):
+            report['unknown_deps'] = outcome['flagged'][:10]
+            logger.warning("Possible fake packages in %s: %s", p.slug, report['unknown_deps'])
+    except Exception:
+        logger.exception('dep existence check failed %s', p.slug)
     # Nolo Auto-Review — heuristic or LLM, backend only, crush silently.
     # 5 Whys: Why check the profile toggle here, not in the view that
     # queues the task? Every upload path (publish, edit, git push, fork)

@@ -1,6 +1,8 @@
 import io
+import os
 import zipfile
 from datetime import timedelta
+from unittest import mock
 
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -3178,3 +3180,252 @@ class TrustBadgeTests(TestCase):
         detail = self.client.get(p.get_absolute_url())
         self.assertContains(detail, '✓ Checked')
         self.assertContains(detail, 'What does this mean?')
+
+
+# ==========================================================================
+# Slopsquatting check (gallery.dep_check) + the "Checked only" feed filter.
+# The registry check flags AI-invented package names; the filter lets a
+# buyer browse only what the pipeline verified.
+# ==========================================================================
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class DepCheckTests(TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+
+    # ---- pure parsers -----------------------------------------------------
+    def test_npm_manifest_parser_reads_every_dependency_section(self):
+        from gallery.dep_check import npm_deps_from_manifest
+        import json, tempfile, os
+        with tempfile.NamedTemporaryFile('w', suffix='.json', delete=False) as fh:
+            json.dump({'dependencies': {'react': '^18'},
+                       'devDependencies': {'vite': '^5'},
+                       'peerDependencies': {'@scope/lib': '*'},
+                       'optionalDependencies': {'fsevents': '^2'}}, fh)
+            path = fh.name
+        try:
+            self.assertEqual(npm_deps_from_manifest(path),
+                             ['@scope/lib', 'fsevents', 'react', 'vite'])
+        finally:
+            os.unlink(path)
+
+    def test_npm_manifest_parser_survives_broken_json(self):
+        from gallery.dep_check import npm_deps_from_manifest
+        import tempfile, os
+        with tempfile.NamedTemporaryFile('w', suffix='.json', delete=False) as fh:
+            fh.write('{not json at all')
+            path = fh.name
+        try:
+            self.assertEqual(npm_deps_from_manifest(path), [])
+        finally:
+            os.unlink(path)
+
+    def test_requirements_parser_skips_options_comments_and_markers(self):
+        from gallery.dep_check import pip_deps_from_requirements
+        import tempfile, os
+        body = ('\n'
+                '# a comment\n'
+                'django>=4.2\n'
+                'not-a-real-pkg-zzz==1.0 ; python_version>"3.8"\n'
+                '--index-url https://example.com\n'
+                '-r other-requirements.txt\n'
+                '-e git+https://github.com/x/y.git#egg=y\n'
+                'celery[redis]==5.4\n'
+                '%%garbage-line\n')
+        with tempfile.NamedTemporaryFile('w', suffix='.txt', delete=False) as fh:
+            fh.write(body)
+            path = fh.name
+        try:
+            self.assertEqual(sorted(pip_deps_from_requirements(path)),
+                             ['celery', 'django', 'not-a-real-pkg-zzz'])
+        finally:
+            os.unlink(path)
+
+    # ---- registry lookups: cache, verdicts, breaker ------------------------
+    def test_registry_results_are_cached_per_name(self):
+        from gallery import dep_check
+        calls = []
+        def fake_status(url, timeout=5):
+            calls.append(url)
+            return 200
+        with mock.patch.object(dep_check, '_http_status', side_effect=fake_status):
+            dep_check._exists('npm', 'react')
+            dep_check._exists('npm', 'react')
+        self.assertEqual(len(calls), 1)
+
+    def test_only_an_explicit_404_counts_as_missing(self):
+        from gallery import dep_check
+        for status in (200, 500, 403, None):  # None = network failure
+            with mock.patch.object(dep_check, '_http_status', return_value=status):
+                exists, offline = dep_check._exists('npm', f'pkg-{status}')
+                self.assertTrue(exists, f'status {status} must not flag')
+                self.assertEqual(offline, status is None)
+
+    def test_check_flags_404_and_passes_200(self):
+        from gallery import dep_check
+        def fake_status(url, timeout=5):
+            return 404 if 'not-a-real-pkg-zzz' in url else 200
+        with mock.patch.object(dep_check, '_http_status', side_effect=fake_status):
+            out = dep_check.check_dependencies({'pip': ['django', 'not-a-real-pkg-zzz']})
+        self.assertEqual(out['flagged'], ['pip:not-a-real-pkg-zzz'])
+        self.assertEqual(out['checked'], 2)
+        self.assertEqual(out['reason'], 'ok')
+
+    def test_network_failure_trips_the_circuit_breaker(self):
+        """One network error ends the run — dep #2 is never asked."""
+        from gallery import dep_check
+        calls = []
+        def fake_status(url, timeout=5):
+            calls.append(url)
+            return None
+        with mock.patch.object(dep_check, '_http_status', side_effect=fake_status):
+            out = dep_check.check_dependencies({'npm': ['a-first-pkg', 'a-second-pkg']})
+        self.assertEqual(out['reason'], 'offline')
+        self.assertEqual(out['flagged'], [])
+        self.assertEqual(len(calls), 1)
+
+    def test_dry_budget_checks_nothing(self):
+        import time
+        from django.core.cache import cache
+        from gallery import dep_check
+        cache.set(dep_check.BUCKET_KEY, {'start': int(time.time()), 'count': 10**9}, 3600)
+        with mock.patch.object(dep_check, '_http_status', return_value=404) as hs:
+            out = dep_check.check_dependencies({'npm': ['anything']})
+        self.assertEqual(out['reason'], 'budget')
+        self.assertEqual(out['flagged'], [])
+        hs.assert_not_called()
+
+    def test_env_switch_disables_the_whole_check(self):
+        from gallery import dep_check
+        with mock.patch.dict(os.environ, {'DEP_CHECK_ENABLED': '0'}):
+            with mock.patch.object(dep_check, '_http_status', return_value=404) as hs:
+                out = dep_check.check_dependencies({'npm': ['anything']})
+        self.assertEqual(out['reason'], 'disabled')
+        hs.assert_not_called()
+
+    def test_no_dependencies_reports_no_deps(self):
+        from gallery import dep_check
+        out = dep_check.check_dependencies({'npm': [], 'pip': []})
+        self.assertEqual(out['reason'], 'no_deps')
+
+    # ---- end to end through the real scan task -----------------------------
+    def _fake_status(self, url, timeout=5):
+        return 404 if ('not-a-real-pkg-zzz' in url or 'fake-pkg-abc' in url) else 200
+
+    def test_vuln_scan_flags_a_fake_npm_dependency(self):
+        from gallery import dep_check
+        from gallery.tasks import vulnerability_scan
+        from gallery.trust import trust_grade
+        owner = make_user('depowner1')
+        cat = make_category()
+        p = make_project(owner, cat, title='Fake npm dep', status='pending',
+                         zip_file=make_zip_file({
+                             'package.json': '{"dependencies": {"react": "^18", "fake-pkg-abc": "^1.0"}}',
+                             'index.js': 'console.log(1)',
+                         }))
+        with mock.patch.object(dep_check, '_http_status', side_effect=self._fake_status):
+            vulnerability_scan.run(project_id=p.id)
+        p.refresh_from_db()
+        self.assertEqual(p.scan_report.get('unknown_deps'), ['npm:fake-pkg-abc'])
+        self.assertEqual(p.scan_report.get('dep_exist_check', {}).get('reason'), 'ok')
+        # The row is still pending (finalize publishes it), and pending rows
+        # are 'unknown' by design — the cap shows once it publishes:
+        p.status = 'published'
+        p.save(update_fields=['status'])
+        self.assertEqual(trust_grade(p), 'scanned')  # capped — the badge reacts
+
+    def test_vuln_scan_flags_a_fake_pip_dependency(self):
+        from gallery import dep_check
+        from gallery.tasks import vulnerability_scan
+        from gallery.trust import trust_reasons
+        owner = make_user('depowner2')
+        cat = make_category()
+        p = make_project(owner, cat, title='Fake pip dep', status='pending',
+                         zip_file=make_zip_file({
+                             'requirements.txt': 'django>=4.2\nnot-a-real-pkg-zzz==1.0\n',
+                         }))
+        with mock.patch.object(dep_check, '_http_status', side_effect=self._fake_status):
+            vulnerability_scan.run(project_id=p.id)
+        p.refresh_from_db()
+        self.assertEqual(p.scan_report.get('unknown_deps'), ['pip:not-a-real-pkg-zzz'])
+        p.status = 'published'  # pending rows are 'unknown' by design
+        p.save(update_fields=['status'])
+        joined = ' '.join(r['detail'] for r in trust_reasons(p))
+        self.assertIn('possible fake package', joined)
+
+    def test_vuln_scan_with_real_dependencies_does_not_flag(self):
+        from gallery import dep_check
+        from gallery.tasks import vulnerability_scan
+        owner = make_user('depowner3')
+        cat = make_category()
+        p = make_project(owner, cat, title='Real deps', status='pending',
+                         zip_file=make_zip_file({
+                             'package.json': '{"dependencies": {"react": "^18"}}',
+                         }))
+        with mock.patch.object(dep_check, '_http_status', side_effect=self._fake_status):
+            vulnerability_scan.run(project_id=p.id)
+        p.refresh_from_db()
+        self.assertNotIn('unknown_deps', p.scan_report)
+        self.assertEqual(p.scan_report.get('dep_exist_check', {}).get('checked'), 1)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class TrustFilterTests(TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.cat = make_category()
+        self.owner = make_user('filterowner')
+        from gallery.trust import apply_trust_grade, TRUST_VERIFIED
+        self.verified = make_project(self.owner, self.cat, title='FilterVerifiedOne',
+                                     zip_file=make_zip_file({'index.html': 'x'}),
+                                     scan_report={'clamav': 'clean', 'secrets': [], 'npm': [], 'pip': [],
+                                                  'dep_audit': {'ran': True, 'reason': 'ok'}})
+        self.assertEqual(apply_trust_grade(self.verified), TRUST_VERIFIED)
+        self.unknown = make_project(self.owner, self.cat, title='FilterUnknownOne')
+
+    def test_checked_only_filter_returns_only_verified(self):
+        response = self.client.get('/', {'trust': 'verified'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['trust'], 'verified')
+        self.assertContains(response, 'FilterVerifiedOne')
+        self.assertNotContains(response, 'FilterUnknownOne')
+
+    def test_unknown_trust_values_are_ignored(self):
+        response = self.client.get('/', {'trust': 'bogus'})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context['trust'], '')
+        self.assertContains(response, 'FilterVerifiedOne')
+        self.assertContains(response, 'FilterUnknownOne')
+
+    def test_filter_with_nothing_verified_is_honestly_empty(self):
+        """Nothing verified → the filter shows an EMPTY grid, not a quiet
+        refill with unverified vibes. Absence is the honest answer."""
+        from gallery.trust import invalidate_trust
+        invalidate_trust(self.verified)  # nothing verified anymore
+        response = self.client.get('/', {'trust': 'verified', 'q': ''})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Publish your first vibe')  # empty state
+        self.assertNotContains(response, 'FilterVerifiedOne')
+        self.assertNotContains(response, 'FilterUnknownOne')
+
+    def test_feed_renders_the_checkbox(self):
+        response = self.client.get('/')
+        self.assertContains(response, 'name="trust"')
+        self.assertContains(response, '🛡️ Checked only')
+
+    def test_api_supports_the_trust_filter(self):
+        response = self.client.get('/api/v1/apps/', {'trust': 'verified'})
+        self.assertEqual(response.status_code, 200)
+        rows = response.json()['results']
+        self.assertTrue(rows)
+        self.assertTrue(all(r['trust'] == 'verified' for r in rows))
+        slugs = {r['slug'] for r in rows}
+        self.assertIn(self.verified.slug, slugs)
+        self.assertNotIn(self.unknown.slug, slugs)
+
+    def test_api_ignores_bogus_trust_values(self):
+        response = self.client.get('/api/v1/apps/', {'trust': 'bogus'})
+        rows = response.json()['results']
+        slugs = {r['slug'] for r in rows}
+        self.assertIn(self.unknown.slug, slugs)

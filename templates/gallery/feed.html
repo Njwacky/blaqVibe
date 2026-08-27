@@ -315,6 +315,23 @@
       name="runnable"
       value="1"
     />{% endif %}
+    <label
+      style="
+        font-size: 12px;
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      "
+      title="Only show vibes the scan pipeline verified — virus clean, no leaked secrets, real dependencies. See /trust/"
+      ><input
+        type="checkbox"
+        name="trust"
+        value="verified"
+        {% if trust == 'verified' %}checked{% endif %}
+      />
+      🛡️ Checked only</label
+    >
     <select name="category">
       <option value="">All Categories</option>
       {% for c in categories %}

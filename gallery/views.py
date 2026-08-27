@@ -117,6 +117,19 @@ def feed(request):
         sort = request.GET.get('sort', '') or default_sort
         program_kind = coerce_program_kind_filter(request.GET.get('program'))
         runnable = request.GET.get('runnable', '')
+        # Trust filter — "instruction must always win", like every other
+        # filter here. 4 points: (1) only the two whitelisted tier strings
+        # are accepted, anything else is ignored — an unknown value can
+        # never become a silent 'exclude everything'; (2) it rides the
+        # existing trust db_index, so it stays a range scan; (3) it is a
+        # GET param, never a session default — trust filtering is a
+        # choice per visit, not a preference the site guesses for you;
+        # (4) it composes with every other filter and sort, and the empty
+        # result is honest (no verified vibes matching → show none, never
+        # quietly refill the grid with unverified ones).
+        trust_filter = request.GET.get('trust', '')
+        if trust_filter not in ('verified', 'scanned'):
+            trust_filter = ''
         projects = AppProject.objects.filter(status='published').select_related('owner','owner__profile','category').prefetch_related('tags')
         if cat:
             projects = projects.filter(category__slug=cat)
@@ -126,6 +139,8 @@ def feed(request):
             projects = projects.exclude(zip_file='')
         if program_kind:
             projects = projects.filter(kind=program_kind)
+        if trust_filter:
+            projects = projects.filter(trust=trust_filter)
         if runnable == '1':
             # Honest filter: only vibes that really can run in the sandbox.
             projects = projects.filter(preview_mode='snippet').exclude(html_code='')
@@ -169,6 +184,8 @@ def feed(request):
                     projects = projects.exclude(html_code='')
                 elif kind == 'full_app':
                     projects = projects.exclude(zip_file='')
+                if trust_filter:
+                    projects = projects.filter(trust=trust_filter)
             except Exception:
                 logger.exception('auto seed_demo failed')
         categories = Category.objects.all().order_by('order')
@@ -185,12 +202,13 @@ def feed(request):
             'program_kinds': PROGRAM_KINDS,
             'program_kind': program_kind,
             'runnable': runnable,
+            'trust': trust_filter,
             'personalized': sort == 'foryou' and bool(my_kinds),
             'my_kinds': [KIND_BY_VALUE[k] for k in my_kinds if k in KIND_BY_VALUE],
         })
     except Exception:
         logger.exception("feed crush silent")
-        return render(request, 'gallery/feed.html', {'page': Paginator(AppProject.objects.none(), 12).get_page(1), 'categories': Category.objects.all(), 'q': '', 'cat': '', 'kind': '', 'sort': 'newest', 'program_kinds': PROGRAM_KINDS, 'program_kind': '', 'runnable': '', 'personalized': False, 'my_kinds': []})
+        return render(request, 'gallery/feed.html', {'page': Paginator(AppProject.objects.none(), 12).get_page(1), 'categories': Category.objects.all(), 'q': '', 'cat': '', 'kind': '', 'sort': 'newest', 'program_kinds': PROGRAM_KINDS, 'program_kind': '', 'runnable': '', 'trust': '', 'personalized': False, 'my_kinds': []})
 
 
 def coerce_program_kind_filter(value):

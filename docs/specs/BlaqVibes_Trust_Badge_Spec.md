@@ -90,9 +90,13 @@ source of truth). Summary:
 
 ## 6. Future work this design already reserves
 
-- `unknown_deps` report key → the slopsquatting check slots into
-  `_deps_check` with zero schema changes and instantly tightens `verified`.
-- A "verified only" feed filter needs only the `trust` db_index it already
-  has.
+- ~~`unknown_deps` report key~~ **DONE** — the slopsquatting check
+  (`gallery/dep_check.py`, see `BlaqVibes_Dep_Check_Spec.md`) now produces
+  it: registry-404 dependency names cap the tier at `scanned` with the
+  reason "Dependency not found on the registry (possible fake package)".
+- ~~A "verified only" feed filter~~ **DONE** — `/?trust=verified` (and the
+  🛡️ Checked-only checkbox in the filter bar) plus `?trust=` on
+  `/api/v1/apps/`; whitelisted values only, honest empty results, rides
+  the `trust` db_index.
 - A moderator override would write provenance beside the tier; the
   writer rule stays intact because it goes through the same function.
