@@ -19,6 +19,7 @@ from .search import search_projects
 from .access import user_can_download, user_can_see_project, user_is_moderator, access_denied_message
 from .zip_serve import serve_project_zip, owner_scan_reason
 from .notify import notify
+from .pending import hold_state, notify_queued, owner_hold_payload
 from . import taste
 from .taxonomy import KIND_BY_VALUE, PROGRAM_KINDS, coerce_kind
 from django.core.mail import send_mail
@@ -237,7 +238,7 @@ def coerce_program_kind_filter(value):
 
 def app_detail(request, slug):
     qs = AppProject.objects.select_related(
-        'owner', 'owner__profile', 'category', 'forked_from', 'forked_from__owner'
+        'owner', 'owner__profile', 'category', 'forked_from', 'forked_from__owner', 'scan_job'
     ).prefetch_related('forks__owner', 'files', 'co_owners__user').annotate(
         forks_count=Count('forks', distinct=True),
         prs_count=Count('prs_incoming', distinct=True),
@@ -351,6 +352,7 @@ def app_detail(request, slug):
         'show_viewer_upsell': show_viewer_upsell,
         'viewer_count': project.views,
         'scan_status': scan_status.status if scan_status else project.status,
+        'hold': hold_state(project),
         'owner_rank': owner_rank,
         'user_rank': user_rank,
         'compare_options': compare_options,
@@ -379,11 +381,14 @@ def scan_status(request, slug):
         'status': job.status if job else project.status,
         'is_published': project.status == 'published',
         'reason': '',
+        'poll': False,
+        'poll_ms': 0,
     }
     if request.user.is_authenticated and (
         request.user.pk == project.owner_id or user_is_moderator(request.user)
     ):
         data['reason'] = owner_scan_reason(project)
+        data.update(owner_hold_payload(project))
     return JsonResponse(data)
 
 def preview_files(request, slug):
@@ -604,12 +609,13 @@ def publish(request):
                     from .tasks import process_upload_pipeline
                     job, _ = ScanJob.objects.get_or_create(project=project, defaults={'status': 'queued'})
                     task = process_upload_pipeline.delay(project.id)
-                    job.task_id = task.id if hasattr(task,'id') else ''
+                    raw_id = getattr(task, 'id', '') or ''
+                    job.task_id = raw_id if isinstance(raw_id, str) else ''
                     job.status = 'scanning'
-                    job.save(update_fields=['task_id','status'])
+                    job.save(update_fields=['task_id', 'status'])
                 except Exception as e:
                     logger.warning("Queue error, fallback eager for %s: %s", project.slug, e)
-                messages.info(request, f"⏳ Your vibe “{project.title}” is in the queue — we’re checking for vulnerabilities. We’ll tell you when it’s uploaded! You’re #{ScanJob.objects.filter(status__in=['queued','scanning']).count()} in line, even with concurrent uploads every app is checked.")
+                messages.info(request, f"⏳ Your vibe “{project.title}” is in the queue — we’re checking for vulnerabilities. We’ll tell you when it’s uploaded! You’re #{ScanJob.objects.filter(status__in=['queued','scanning']).count()} in line. This page is not stuck — Inbox will ping you when it is approved.")
                 try:
                     if SiteSettings.get().auto_run_enabled:
                         messages.info(request, "File preview is on the vibe page after the scan. This is not a live server.")
@@ -638,7 +644,7 @@ def publish(request):
                         logger.exception('snippet grade failed %s', project.slug)
                     messages.success(request, f"Your snippet “{project.title}” is published.")
                 else:
-                    messages.info(request, f"Your vibe “{project.title}” is queued for review — we’ll tell you when it’s uploaded!")
+                    messages.info(request, f"Your vibe “{project.title}” is waiting for approval — first snippets need a human. This page is not stuck; Inbox will ping you when it is live.")
                 # Snippets never enter the scan queue, so this is the only
                 # place they can be labelled. Heuristic only: a publish is a
                 # user waiting on a response, and an LLM call belongs on a
@@ -658,6 +664,9 @@ def publish(request):
             except Exception:
                 pass
             taste.record(request.user, project, 'publish', project=project)
+            # Inbox note while it waits — the toast dies with the tab.
+            if project.status == 'pending':
+                notify_queued(project)
             return redirect(project.get_absolute_url())
     else:
         form = AppUploadForm()
@@ -816,7 +825,13 @@ def toggle_star(request, slug):
 
 @login_required
 def my_vibes(request):
-    vibes = AppProject.objects.filter(owner=request.user).order_by('-created_at').select_related('category')
+    vibes = list(
+        AppProject.objects.filter(owner=request.user)
+        .order_by('-created_at')
+        .select_related('category', 'scan_job')
+    )
+    for vibe in vibes:
+        vibe.hold = hold_state(vibe)
     return render(request, 'gallery/my_vibes.html', {'vibes': vibes})
 
 @login_required
@@ -864,7 +879,7 @@ def edit_vibe(request, slug):
                 job.status='queued'; job.save()
                 try:
                     process_upload_pipeline.delay(p.id)
-                    messages.info(request, f"⏳ Your vibe “{p.title}” re-uploaded — re-queued for scan. We’ll tell you when it’s live again!")
+                    messages.info(request, f"⏳ Your vibe “{p.title}” re-uploaded — waiting for approval again. This page is not stuck; Inbox will ping you when it is live.")
                 except Exception: pass
             else:
                 # No ZIP means no scan queue run, so nothing else would
@@ -875,6 +890,8 @@ def edit_vibe(request, slug):
                 except Exception:
                     logger.exception('reclassify on edit failed %s', p.slug)
                 messages.success(request, "✓ Vibe updated!")
+            if p.status == 'pending':
+                notify_queued(p)
             return redirect(p.get_absolute_url())
     else:
         form = AppUploadForm(instance=project)
@@ -1157,6 +1174,8 @@ def fork_vibe(request, slug):
             process_upload_pipeline.delay(fork.id)
         except Exception:
             pass
+        if fork.status == 'pending':
+            notify_queued(fork)
         messages.success(request, f"✓ Forked “{original.title}” → “{fork.title}” — now edit your remix! Original: @{original.owner.username}/{original.slug}")
         return redirect('edit_vibe', slug=fork.slug)
     except Exception as e:

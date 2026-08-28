@@ -1,0 +1,51 @@
+{% if hold %}
+<div
+  id="pending-panel"
+  class="pending-panel {% if hold.phase == 'scanning' %}is-scanning{% elif hold.phase == 'quarantined' %}is-quarantine{% elif hold.phase == 'published' %}is-live{% else %}is-hold{% endif %}"
+  data-scan-url="{% url 'scan_status' project.slug %}"
+  data-poll="{{ hold.poll|yesno:'1,0' }}"
+  data-poll-ms="{{ hold.poll_ms }}"
+>
+  <div class="pending-top">
+    <span class="pending-dot" aria-hidden="true"></span>
+    <div style="flex:1;min-width:0">
+      <div class="pending-headline" id="pending-headline">{{ hold.headline }}</div>
+      <div class="pending-why" id="pending-why">{{ hold.why_waiting }}</div>
+      <div class="pending-next" id="pending-next">{{ hold.next_step }}</div>
+      <div class="pending-next">Status: <b id="scan-text">{{ scan_status }}</b><span id="pending-reason-text">{% if hold.reason %} — {{ hold.reason }}{% endif %}</span></div>
+    </div>
+    <span class="pending-status" id="pending-status-label">{{ hold.status_label }}</span>
+  </div>
+
+  <div class="pending-receipt" id="pending-receipt">
+    <div class="pending-kv">
+      <span>File name</span>
+      <b id="pending-file-name" title="{{ hold.receipt.file_name }}">{{ hold.receipt.file_name|default:"—" }}</b>
+    </div>
+    <div class="pending-kv">
+      <span>Size</span>
+      <b id="pending-file-bytes">{{ hold.receipt.file_bytes_label }}</b>
+    </div>
+    <div class="pending-kv">
+      <span>Files inside</span>
+      <b id="pending-file-count">{{ hold.receipt.file_count }}</b>
+    </div>
+    <div class="pending-kv">
+      <span>Kind</span>
+      <b id="pending-file-kind">{% if hold.receipt.kind == 'zip' %}ZIP upload{% else %}HTML snippet{% endif %}</b>
+    </div>
+  </div>
+
+  <div class="pending-steps" id="pending-steps">
+    {% for step in hold.steps %}
+    <span class="pending-step {{ step.state }}" data-step-id="{{ step.id }}">{{ step.label }}</span>
+    {% endfor %}
+  </div>
+
+  <div class="pending-actions">
+    <a href="{% url 'notifications' %}">Open Inbox →</a>
+    <a href="{% url 'my_vibes' %}">My Vibes</a>
+    {% if user == project.owner %}<a href="{% url 'edit_vibe' project.slug %}">Edit / re-upload</a>{% endif %}
+  </div>
+</div>
+{% endif %}

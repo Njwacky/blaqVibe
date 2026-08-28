@@ -5,24 +5,64 @@
     });
   }
 
-  const banner = document.getElementById('scan-banner');
+  const banner = document.getElementById('pending-panel') || document.getElementById('scan-banner');
   const scanText = document.getElementById('scan-text');
   const scanUrl = banner ? banner.dataset.scanUrl : null;
+
+  function setText(id, value){
+    const el = document.getElementById(id);
+    if(el && value != null && value !== '') el.textContent = value;
+  }
+  function paintSteps(steps){
+    const root = document.getElementById('pending-steps');
+    if(!root || !Array.isArray(steps)) return;
+    root.innerHTML = steps.map(function(s){
+      const label = esc(s.label || s.id || '');
+      const state = esc(s.state || 'todo');
+      return '<span class="pending-step ' + state + '" data-step-id="' + esc(s.id || '') + '">' + label + '</span>';
+    }).join('');
+  }
+  function applyHold(d){
+    if(!d) return;
+    if(scanText){
+      scanText.textContent = d.status || '';
+    }
+    if(d.reason){
+      setText('pending-reason-text', ' — ' + d.reason);
+    }
+    setText('pending-headline', d.headline);
+    setText('pending-why', d.why_waiting);
+    setText('pending-next', d.next_step);
+    setText('pending-status-label', d.status_label);
+    setText('pending-file-name', d.file_name);
+    setText('pending-file-bytes', d.file_bytes_label);
+    if(d.file_count != null) setText('pending-file-count', String(d.file_count));
+    paintSteps(d.steps);
+    if(!banner || !banner.classList.contains('pending-panel')) return;
+    banner.classList.remove('is-scanning','is-hold','is-quarantine','is-live');
+    if(d.phase === 'scanning') banner.classList.add('is-scanning');
+    else if(d.phase === 'quarantined') banner.classList.add('is-quarantine');
+    else if(d.phase === 'published') banner.classList.add('is-live');
+    else banner.classList.add('is-hold');
+  }
+
   if(scanUrl){
     (function poll(){
       fetch(scanUrl).then(r=>r.json()).then(d=>{
-        if(scanText) scanText.textContent=d.status;
-        if(d.reason && scanText) scanText.textContent = d.status + ' — ' + d.reason;
+        applyHold(d);
         if(d.is_published || d.status==='clean'){
           if(scanText) scanText.textContent='clean — vibe is live!';
-          if(banner){ banner.style.background='var(--success-bg)'; banner.style.borderColor='var(--success-border)'; banner.style.color='var(--success-text)'; }
           try{ toast('✓ Your vibe is live!'); }catch(e){}
           setTimeout(()=>location.reload(),1200);
-        } else if(d.status==='quarantined'){
-          if(banner){ banner.style.background='var(--danger-bg)'; banner.style.borderColor='var(--danger-border)'; banner.style.color='var(--danger-text)'; }
-          if(scanText) scanText.textContent='quarantined — blocked for review';
+        } else if(d.status==='quarantined' || d.phase==='quarantined'){
+          if(scanText && !d.reason) scanText.textContent='quarantined — blocked for review';
           try{ toast('Your vibe was quarantined — check My Vibes.'); }catch(e){}
-        } else setTimeout(poll, 2000);
+        } else if(d.poll === false){
+          return;
+        } else {
+          const wait = Number(d.poll_ms) > 0 ? Number(d.poll_ms) : 2000;
+          setTimeout(poll, wait);
+        }
       }).catch(()=>setTimeout(poll,3000));
     })();
   }

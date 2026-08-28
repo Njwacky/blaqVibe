@@ -1,4 +1,5 @@
 {% extends 'gallery/base.html' %} {% load static %} {% block title %}{{project.title }} — BlaqVibes{% endblock %} {% block og_title %}{{ project.title}} — BlaqVibes{% endblock %} {% block og_desc %}{{ project.short_description}}{% endblock %} {% block meta_desc %}{{ project.short_description }}{% endblock%} {% block og_image %}{% if project.thumbnail %}{{ request.scheme }}://{{request.get_host }}{{ project.thumbnail.url }}{% else %}{{ block.super }}{%endif %}{% endblock %} {% block head %}
+<link rel="stylesheet" href="{% static 'gallery/css/pending.css' %}?v=wait-20260828">
 <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -17,52 +18,7 @@
   }
 </script>
 {% endblock %} {% block content %} {% if project.status != 'published' %}
-<div
-  id="scan-banner"
-  data-scan-url="{% url 'scan_status' project.slug %}"
-  style="
-    max-width: 1280px;
-    margin: 12px auto 0;
-    padding: 14px 16px;
-    background: var(--warning-bg);
-    border: 1px solid var(--warning-border);
-    color: var(--warning-soft-text);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 13px;
-    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.15);
-  "
->
-  <span
-    style="
-      width: 10px;
-      height: 10px;
-      background: #f59e0b;
-      border-radius: 50%;
-      animation: pulse 1.2s infinite;
-      flex-shrink: 0;
-    "
-  ></span>
-  <div>
-    <div style="font-weight: 700; color: var(--warning-soft-text)">
-      ⏳ Your vibe is in the queue — we’ll tell you when it’s uploaded!
-    </div>
-    <div style="font-size: 12px; color: var(--warning-soft-text); opacity: 0.9">
-      Status: <b id="scan-text" style="color: inherit">{{ scan_status }}</b>{%      if scan_reason %} — {{ scan_reason }}{% endif %}
-    </div>
-  </div>
-  <span
-    style="
-      margin-left: auto;
-      font-size: 11px;
-      color: var(--warning-text);
-      white-space: nowrap;
-    "
-    >🔒 scan → vuln → publish</span
-  >
-</div>
+{% include 'gallery/_pending_panel.html' %}
 {% endif %}
 <div class="page detail-layout">
   <div>
@@ -1782,6 +1738,6 @@
   </div>
 </div>
 {% endblock %} {% block scripts %}
-<script src="/static/gallery/js/detail.js?v=theme-colors-20260815"></script>
+<script src="/static/gallery/js/detail.js?v=wait-20260828"></script>
 <script src="/static/gallery/js/tip.js?v=shared-tip-20260816"></script>
 {% endblock %}

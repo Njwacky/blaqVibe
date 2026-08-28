@@ -590,6 +590,7 @@ class Notification(models.Model):
         ('sale', 'Sale'),
         ('pr', 'Pull request'),
         ('published', 'Published'),
+        ('queued', 'Waiting for approval'),
         ('quarantined', 'Quarantined'),
         ('review', 'Review'),
         ('challenge', 'Challenge'),

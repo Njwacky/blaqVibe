@@ -1,0 +1,236 @@
+/* Waiting-for-approval panel — the page after upload is a hold, not a hang. */
+
+.pending-panel {
+  max-width: 1280px;
+  margin: 12px auto 0;
+  padding: 16px 18px;
+  background: var(--warning-bg);
+  border: 1px solid var(--warning-border);
+  color: var(--warning-soft-text);
+  border-radius: 14px;
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.12);
+}
+.pending-panel.is-hold {
+  background: color-mix(in srgb, #7c3aed 8%, var(--card));
+  border-color: color-mix(in srgb, #7c3aed 40%, var(--line));
+  color: var(--text);
+  box-shadow: none;
+}
+.pending-panel.is-quarantine {
+  background: var(--danger-bg);
+  border-color: var(--danger-border);
+  color: var(--danger-text);
+  box-shadow: none;
+}
+.pending-panel.is-live {
+  background: var(--success-bg);
+  border-color: var(--success-border);
+  color: var(--success-text);
+}
+
+.pending-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.pending-dot {
+  width: 12px;
+  height: 12px;
+  margin-top: 4px;
+  background: #f59e0b;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.pending-panel.is-scanning .pending-dot {
+  animation: pending-pulse 1.2s infinite;
+}
+.pending-panel.is-hold .pending-dot {
+  background: #7c3aed;
+  animation: none;
+}
+.pending-panel.is-quarantine .pending-dot {
+  background: var(--danger-action, #ef4444);
+  animation: none;
+}
+@keyframes pending-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.pending-headline {
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1.35;
+  color: inherit;
+}
+.pending-why {
+  font-size: 13px;
+  line-height: 1.55;
+  margin-top: 4px;
+  opacity: 0.95;
+}
+.pending-next {
+  font-size: 12px;
+  margin-top: 6px;
+  color: var(--muted);
+}
+.pending-status {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: var(--input);
+  border: 1px solid var(--line);
+  color: var(--warning-text);
+}
+
+.pending-receipt {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  margin-top: 14px;
+}
+.pending-kv {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  min-width: 0;
+}
+.pending-kv span {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  font-weight: 700;
+}
+.pending-kv b {
+  display: block;
+  margin-top: 3px;
+  font-size: 12px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pending-steps {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+.pending-step {
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--input);
+  color: var(--muted);
+}
+.pending-step.done {
+  background: var(--success-bg);
+  border-color: var(--success-border);
+  color: var(--success-text);
+}
+.pending-step.active {
+  background: var(--warning-bg);
+  border-color: var(--warning-border);
+  color: var(--warning-text);
+  font-weight: 700;
+}
+.pending-step.hold {
+  background: color-mix(in srgb, #7c3aed 12%, var(--card));
+  border-color: color-mix(in srgb, #7c3aed 40%, var(--line));
+  color: var(--accent-text, #7c3aed);
+  font-weight: 700;
+}
+.pending-step.skip {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+.pending-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  font-size: 12px;
+}
+.pending-actions a {
+  color: var(--link);
+  font-weight: 700;
+}
+
+@media (max-width: 720px) {
+  .pending-receipt {
+    grid-template-columns: 1fr 1fr;
+  }
+  .pending-status {
+    margin-left: 0;
+  }
+  .pending-top {
+    flex-wrap: wrap;
+  }
+}
+
+/* Publish wizard overlay — the form used to sit still with no progress. */
+.upload-wait {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  background: color-mix(in srgb, #07070a 62%, transparent);
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+.upload-wait[hidden] {
+  display: none !important;
+}
+.upload-wait-card {
+  width: min(440px, 100%);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 22px 20px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+}
+.upload-wait-card h2 {
+  font-family: Space Grotesk, sans-serif;
+  font-size: 18px;
+  margin: 0 0 6px;
+}
+.upload-wait-file {
+  font-size: 13px;
+  color: var(--text);
+  font-weight: 700;
+  margin: 8px 0 4px;
+  word-break: break-all;
+}
+.upload-wait-bytes {
+  font-size: 12px;
+  color: var(--muted);
+  font-family: JetBrains Mono, monospace;
+}
+.upload-wait-bar {
+  height: 8px;
+  background: var(--line);
+  border-radius: 99px;
+  overflow: hidden;
+  margin: 14px 0 10px;
+}
+.upload-wait-fill {
+  height: 100%;
+  width: 0;
+  background: #7c3aed;
+  transition: width 0.15s linear;
+}
+.upload-wait-note {
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--muted);
+  margin: 0;
+}

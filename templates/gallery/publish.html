@@ -3,6 +3,7 @@
 {% block title %}Publish — BlaqVibes{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{% static 'gallery/css/publish.css' %}?v=ext-20260827">
+<link rel="stylesheet" href="{% static 'gallery/css/pending.css' %}?v=wait-20260828">
 {% endblock %}
 {% block content %}
 <div style="max-width:640px;margin:0 auto;padding:20px">
@@ -87,7 +88,7 @@
     <div class="wizard-step" data-step="3" style="display:none">
       <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px">
         <h2 style="font-family:Space Grotesk,sans-serif;font-size:18px">Step 3 — Confirm</h2>
-        <p style="font-size:12px;color:var(--muted);margin-top:4px">Check the listing. After publish we scan the ZIP; it goes live only if the scan is clean.</p>
+        <p style="font-size:12px;color:var(--muted);margin-top:4px">Check the listing, including the file name and size. After you publish, the next page waits for scan and approval on purpose — it is not stuck. Inbox gets a note with the same receipt.</p>
         <div id="confirm-card" style="margin-top:12px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:13px;line-height:1.7">
           <div><b id="c-title">—</b></div>
           <div class="help" id="c-desc"></div>
@@ -102,5 +103,14 @@
     </div>
   </form>
 </div>
-<script src="{% static 'gallery/js/publish.js' %}?v=ext-20260827" defer></script>
+<div id="upload-wait" class="upload-wait" hidden>
+  <div class="upload-wait-card" role="status" aria-live="polite">
+    <h2>Sending your vibe…</h2>
+    <div class="upload-wait-file" id="upload-wait-file">—</div>
+    <div class="upload-wait-bytes" id="upload-wait-bytes"></div>
+    <div class="upload-wait-bar"><div class="upload-wait-fill" id="upload-wait-fill"></div></div>
+    <p class="upload-wait-note" id="upload-wait-note">The next page waits for scan and approval on purpose — it is not stuck. Inbox gets a note with this file name and size.</p>
+  </div>
+</div>
+<script src="{% static 'gallery/js/publish.js' %}?v=wait-20260828" defer></script>
 {% endblock %}
