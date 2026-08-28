@@ -160,8 +160,10 @@ def scan_progress(project) -> dict:
         steps.append({
             'key': 'checks',
             'label': 'Safety checks',
-            'detail': 'Scanning the pasted code for leaked secrets.',
-            'state': state_for(True),
+            'detail': ('Possible secrets found — held for a moderator.' if has_secrets
+                       else 'A virus was found — blocked.' if quarantined
+                       else 'Scanning the pasted code for leaked secrets.'),
+            'state': state_for(not held, active=False, blocked=held),
         })
     else:
         # Virus scan

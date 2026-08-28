@@ -827,7 +827,16 @@ def toggle_star(request, slug):
 
 @login_required
 def my_vibes(request):
-    vibes = AppProject.objects.filter(owner=request.user).order_by('-created_at').select_related('category')
+    vibes = (
+        AppProject.objects.filter(owner=request.user)
+        .order_by('-created_at')
+        .select_related('category', 'scan_job')
+    )
+    # Attach the same rich waiting info the detail page shows, so the owner
+    # can see file size, stage and queue position for every unpublished vibe
+    # at a glance — not just a "Queued" tag. Published vibes need none of it.
+    for p in vibes:
+        p.progress = scan_progress(p) if p.status != 'published' else None
     return render(request, 'gallery/my_vibes.html', {'vibes': vibes})
 
 @login_required
