@@ -288,12 +288,17 @@
   </div>
   {% endif %}
 
+  <!-- Filter bar — one grower (search), grouped controls, actions pinned
+       right. See the 5 Whys on .filter-bar in blaqvibes.css for why the
+       order is search → selects → toggles → actions. -->
   <form id="grid" method="get" class="filter-bar">
     <input
+      class="filter-search"
       type="text"
       name="q"
       value="{{ q }}"
       placeholder="Search stock_app_vibes, Django, Lovable..."
+      aria-label="Search vibes"
     />
     {% if program_kind %}<input
       type="hidden"
@@ -304,24 +309,7 @@
       name="runnable"
       value="1"
     />{% endif %}
-    <label
-      style="
-        font-size: 12px;
-        color: var(--muted);
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      "
-      title="Only show vibes the scan pipeline verified — virus clean, no leaked secrets, real dependencies. See /trust/"
-      ><input
-        type="checkbox"
-        name="trust"
-        value="verified"
-        {% if trust == 'verified' %}checked{% endif %}
-      />
-      🛡️ Checked only</label
-    >
-    <select name="category">
+    <select name="category" aria-label="Filter by category">
       <option value="">All Categories</option>
       {% for c in categories %}
       <option value="{{ c.slug }}" {% if cat == c.slug %}selected{% endif %}>
@@ -329,7 +317,7 @@
       </option>
       {% endfor %}
     </select>
-    <select name="kind">
+    <select name="kind" aria-label="Filter by snippet or full app">
       <option value="">Snippets + Full Apps</option>
       <option value="snippet" {% if kind == "snippet" %}selected{% endif %}>
         Snippets only
@@ -338,7 +326,7 @@
         Full Apps only
       </option>
     </select>
-    <select name="sort">
+    <select name="sort" aria-label="Sort order">
       <option value="foryou" {% if sort == "foryou" %}selected{% endif %}>
         ✦ For you
       </option>
@@ -356,13 +344,17 @@
       </option>
     </select>
     <label
-      style="
-        font-size: 12px;
-        color: var(--muted);
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      "
+      class="filter-check"
+      title="Only show vibes the scan pipeline verified — virus clean, no leaked secrets, real dependencies. See /trust/"
+      ><input
+        type="checkbox"
+        name="trust"
+        value="verified"
+        {% if trust == 'verified' %}checked{% endif %}
+      />
+      🛡️ Checked only</label
+    >
+    <label class="filter-check"
       ><input
         type="checkbox"
         name="ai"
@@ -371,8 +363,10 @@
       />
       🤖 AI</label
     >
-    <button class="btnW" style="padding: 8px 14px">Search</button>
-    <a href="{% url 'feed' %}" class="btnG">Reset</a>
+    <span class="filter-actions">
+      <button class="btnW" type="submit">Search</button>
+      <a href="{% url 'feed' %}" class="btnG">Reset</a>
+    </span>
   </form>
 
   <div class="vibe-grid" style="margin-top: 12px">
