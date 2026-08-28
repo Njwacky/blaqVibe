@@ -1,0 +1,130 @@
+{% extends 'gallery/base.html' %}
+{% load static %}
+{% block title %}Studio{% if starter %} — {{ starter.name }}{% endif %} — BlaqVibes{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'gallery/css/studio.css' %}?v={{ starters_version }}">
+{% endblock %}
+{% block content %}
+<div class="studio-wrap">
+
+  <div class="studio-topbar">
+    <div>
+      <a href="{% url 'starter_gallery' %}" class="studio-back">← Starters</a>
+      <span class="studio-title">{% if starter %}{{ starter.emoji }} {{ starter.name }}{% else %}✏️ Blank canvas{% endif %}</span>
+    </div>
+    <div class="studio-actions">
+      <button type="button" id="studio-fix" class="btn-ghost">🔧 Nolo: fix my code</button>
+      <button type="button" id="studio-run" class="btn-ghost">▶ Refresh preview</button>
+      <button type="button" id="studio-open-publish" class="btn-violet">Publish →</button>
+    </div>
+  </div>
+
+  <div class="studio-note">
+    Edits run in a sandboxed preview right here — nothing is saved until you publish.
+    {% if not user.is_authenticated %}<b>You’ll need to <a href="{% url 'login' %}?next={{ request.path }}">sign in</a> to publish.</b>{% endif %}
+  </div>
+
+  <div class="studio-grid">
+    <!-- Editors -->
+    <div class="studio-editors">
+      <div class="studio-tabs" role="tablist">
+        <button type="button" class="studio-tab on" data-tab="html" role="tab">HTML</button>
+        <button type="button" class="studio-tab" data-tab="css" role="tab">CSS</button>
+        <button type="button" class="studio-tab" data-tab="js" role="tab">JS</button>
+      </div>
+      <div class="studio-panes">
+        <textarea id="ed-html" class="studio-code" spellcheck="false" data-pane="html">{{ initial.html_code }}</textarea>
+        <textarea id="ed-css" class="studio-code" spellcheck="false" data-pane="css" hidden>{{ initial.css_code }}</textarea>
+        <textarea id="ed-js" class="studio-code" spellcheck="false" data-pane="js" hidden>{{ initial.js_code }}</textarea>
+      </div>
+    </div>
+
+    <!-- Live preview -->
+    <div class="studio-preview">
+      <div class="studio-preview-bar">
+        <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        <span class="studio-preview-label">Live preview · sandboxed</span>
+      </div>
+      <iframe id="studio-frame" title="Live preview" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>
+    </div>
+  </div>
+
+  <!-- Nolo debug results -->
+  <div id="studio-nolo" class="studio-nolo" hidden>
+    <div class="studio-nolo-head">
+      <span>🔧 Nolo’s review</span>
+      <span id="studio-nolo-source" class="studio-nolo-source"></span>
+      <button type="button" id="studio-nolo-close" class="studio-x" aria-label="Close">×</button>
+    </div>
+    <p id="studio-nolo-summary" class="studio-nolo-summary"></p>
+    <div id="studio-nolo-findings"></div>
+  </div>
+
+  <!-- Publish drawer (posts through the ONE publish path) -->
+  <div id="studio-publish" class="studio-drawer" hidden>
+    <div class="studio-drawer-card">
+      <div class="studio-drawer-head">
+        <h2>Publish your vibe</h2>
+        <button type="button" id="studio-close-publish" class="studio-x" aria-label="Close">×</button>
+      </div>
+      <p class="studio-drawer-sub">Your HTML/CSS/JS is filled in from the editor. Add a few details and publish — it goes through the same scan, label, and trust checks as any upload.</p>
+
+      <form method="post" action="{% if starter %}{% url 'studio' starter.slug %}{% else %}{% url 'studio_blank' %}{% endif %}" id="studio-form" novalidate>
+        {% csrf_token %}
+        {% if form.errors %}<div class="studio-errors">{{ form.errors }}</div>{% endif %}
+
+        <label class="studio-field-label">Title*</label>
+        {{ form.title }}
+
+        <div class="studio-row">
+          <div>
+            <label class="studio-field-label">Category*</label>
+            {{ form.category }}
+          </div>
+          <div>
+            <label class="studio-field-label">Tech stack</label>
+            {{ form.tech_stack }}
+          </div>
+        </div>
+
+        <label class="studio-field-label">Short description*</label>
+        {{ form.short_description }}
+
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px">
+          <label class="studio-field-label" style="margin:0">README* — min 100 chars, must include a “# ” heading</label>
+          <button type="button" id="studio-readme" class="btn-ghost" style="padding:5px 10px;font-size:12px">✍️ Nolo: write it for me</button>
+        </div>
+        {{ form.readme }}
+
+        <label class="studio-check">{{ form.ai_generated }} 🤖 This was AI-generated</label>
+
+        <!-- Hidden mirrors of the live editor, submitted with the form -->
+        <input type="hidden" name="html_code" id="submit-html">
+        <input type="hidden" name="css_code" id="submit-css">
+        <input type="hidden" name="js_code" id="submit-js">
+        <!-- Studio publishes free snippets; the model + form treat these as
+             required, so send the free defaults. Pricing lives on the full
+             publish flow, not the beginner on-ramp. -->
+        <input type="hidden" name="star_cost" value="0">
+        <input type="hidden" name="price_zar" value="0">
+
+        {% if user.is_authenticated %}
+        <button type="submit" class="btn-violet studio-publish-btn">Publish vibe →</button>
+        {% else %}
+        <a href="{% url 'login' %}?next={{ request.path }}" class="btn-violet studio-publish-btn">Sign in to publish →</a>
+        {% endif %}
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  window.STUDIO = {
+    action: "{% if starter %}{% url 'studio' starter.slug %}{% else %}{% url 'studio_blank' %}{% endif %}",
+    fixUrl: "{% url 'nolo_fix_api' %}",
+    readmeUrl: "{% url 'nolo_readme_api' %}",
+    csrf: "{{ csrf_token }}"
+  };
+</script>
+<script src="{% static 'gallery/js/studio.js' %}?v={{ starters_version }}"></script>
+{% endblock %}

@@ -29,6 +29,10 @@ from .views_community import (
     nolo_chat,
     nolo_chat_api,
     nolo_help,
+    nolo_fix_api,
+    nolo_readme_api,
+    starter_gallery,
+    studio,
     create_pr,
     pr_list,
     pr_detail,
@@ -142,8 +146,15 @@ def feed(request):
         if trust_filter:
             projects = projects.filter(trust=trust_filter)
         if runnable == '1':
-            # Honest filter: only vibes that really can run in the sandbox.
-            projects = projects.filter(preview_mode='snippet').exclude(html_code='')
+            # Honest filter: only vibes that really can run in the sandbox —
+            # an inline snippet (html_code) OR an assembled static-site ZIP
+            # (preview_mode static_zip, entry already found). Mirrors
+            # AppProject.can_run_preview so the filter and the badge agree.
+            from django.db.models import Q as _Q
+            projects = projects.filter(
+                _Q(preview_mode='snippet', html_code__gt='')
+                | _Q(preview_mode='static_zip', static_entry__gt='')
+            )
         if ai == '1':
             projects = projects.filter(ai_generated=True)
         if tech:
@@ -391,15 +402,48 @@ def preview_files(request, slug):
 
 def preview(request, slug):
     """Safe preview shell — the user's HTML/JS runs only inside a sandboxed
-    (opaque-origin) iframe pointed at snippet_doc, never in a privileged context."""
+    (opaque-origin) iframe, never in a privileged context.
+
+    Two runnable shapes share this one shell:
+      * a snippet → the iframe points at snippet_doc;
+      * a static-site ZIP → the iframe points at run_static (an assembled,
+        single-document version of the ZIP's entry HTML).
+    Both are the same opaque-origin sandbox, so the shell's own CSP is
+    identical; only the iframe src differs. A ZIP that is NOT static-runnable
+    still redirects to the honest file list.
+
+    5 Whys: Why one shell for both instead of a second preview page?
+    1. The security posture (locked-down shell, opaque-origin child) is
+       identical; duplicating it risks the copy drifting weaker.
+    2. detail.js and app_detail already link to this URL; keeping it means no
+       template churn and no second thing to keep in sync.
+    3. `can_run_preview` already encodes "is there something to run"; the
+       shell just asks the model which runnable kind it is.
+    4. A static ZIP that fails to assemble falls back to the file list — the
+       shell decides that once, not every template.
+    5. One shell, one CSP header block — the audit surface stays small.
+    """
     project = get_object_or_404(AppProject, slug=slug, status='published')
-    if not project.html_code and project.zip_file:
-        return redirect('preview_files', slug=slug)
+    # Which runnable shape is this? An inline snippet (html_code) always runs
+    # as a snippet; otherwise a static-site ZIP runs if the classifier found
+    # its entry. Deciding from concrete content (not preview_mode alone) keeps
+    # a just-uploaded, not-yet-classified snippet runnable — html_code is the
+    # only evidence the shell needs.
+    if (project.html_code or '').strip():
+        run_mode = 'snippet'
+    elif project.preview_mode == 'static_zip' and (project.static_entry or '').strip():
+        run_mode = 'static_zip'
+    else:
+        # Nothing runs here honestly — send them to files (ZIP) or detail.
+        if project.zip_file:
+            return redirect('preview_files', slug=slug)
+        return redirect(project.get_absolute_url())
     from .preview_token import issue_snippet_token
     taste.record(request.user, project, 'preview', project=project)
     resp = render(request, 'gallery/preview.html', {
         'project': project,
         'snippet_token': issue_snippet_token(project.slug),
+        'run_mode': run_mode,
     })
     # This shell has no scripts of its own — lock it down (only our own inline <style>).
     csp = (
@@ -452,6 +496,58 @@ def snippet_doc(request, slug):
     if not snippet_request_is_framed(request, slug):
         return render(request, 'gallery/snippet_blocked.html', {'project': project}, status=403)
     resp = render(request, 'gallery/snippet_doc.html', {'project': project})
+    resp['Content-Security-Policy'] = (
+        "sandbox allow-scripts; "
+        "default-src 'none'; script-src 'unsafe-inline' https://cdn.tailwindcss.com; "
+        "style-src 'unsafe-inline' https://fonts.googleapis.com; "
+        "img-src data: https: http:; media-src data: https:; "
+        "font-src data: https://fonts.gstatic.com; "
+        "connect-src https://cdn.tailwindcss.com; object-src 'none'; base-uri 'none'; "
+        "form-action 'none'; frame-ancestors 'self'"
+    )
+    resp['X-Frame-Options'] = 'SAMEORIGIN'
+    resp['Referrer-Policy'] = 'no-referrer'
+    resp['X-Content-Type-Options'] = 'nosniff'
+    resp['Cross-Origin-Resource-Policy'] = 'same-origin'
+    return resp
+
+
+def run_static(request, slug):
+    """Assembled single-document run of a static-site ZIP.
+
+    The ZIP's entry HTML with its local CSS/JS/images inlined (gallery.runner),
+    served ONLY into the same sandboxed, opaque-origin iframe as snippet_doc,
+    behind the same short-lived signed token. No file is served from our
+    origin — the assembled bytes are one document, exactly like a snippet.
+
+    5 Whys:
+    1. Why reuse snippet_request_is_framed? The threat is identical (a stolen
+       token opened top-level must not run user JS first-party); one guard,
+       one place to get it right.
+    2. Why not serve `/run/<path>` per asset? That needs `allow-same-origin`
+       or CSP `'self'`, which reopens the exact XSS surface the sandbox
+       closes. Inlining keeps the opaque origin.
+    3. Why gate on preview_mode == 'static_zip'? A ZIP that needs a build or a
+       server has no honest run; assembling its index.html would show broken
+       chrome — the fake preview the site forbids.
+    4. Why the same CSP as snippet_doc? The assembled document is the same
+       shape (inline styles/scripts, remote CDNs, data-URI images); a
+       different policy would either break real vibes or weaken the sandbox.
+    5. Why fall back to snippet_blocked / files instead of 500 on empty
+       assembly? A ZIP we cannot assemble is honestly "no live preview", not
+       a server error the visitor caused.
+    """
+    project = get_object_or_404(AppProject, slug=slug, status='published')
+    if project.preview_mode != 'static_zip' or not project.static_entry:
+        raise Http404
+    if not snippet_request_is_framed(request, slug):
+        return render(request, 'gallery/snippet_blocked.html', {'project': project}, status=403)
+    from .runner import assemble_runnable_document
+    document = assemble_runnable_document(project.zip_file, project.static_entry)
+    if not document:
+        # Nothing to run — honest empty state inside the frame.
+        return render(request, 'gallery/snippet_blocked.html', {'project': project}, status=404)
+    resp = HttpResponse(document, content_type='text/html; charset=utf-8')
     resp['Content-Security-Policy'] = (
         "sandbox allow-scripts; "
         "default-src 'none'; script-src 'unsafe-inline' https://cdn.tailwindcss.com; "
@@ -1027,6 +1123,7 @@ def fork_vibe(request, slug):
             kind_source=original.kind_source,
             kind_confidence=original.kind_confidence,
             preview_mode=original.preview_mode,
+            static_entry=original.static_entry,
             star_cost=0,  # forked is free initially
             forked_from=original,
             status='pending',

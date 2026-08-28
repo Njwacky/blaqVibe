@@ -6,7 +6,14 @@
 <link rel="stylesheet" href="/static/gallery/css/preview.css?v=ext-20260827">
 </head>
 <body>
-{# User content only ever executes inside this sandboxed, opaque-origin frame. #}
+{# User content only ever executes inside this sandboxed, opaque-origin frame.
+   run_mode picks the source: an inline snippet, or an assembled static site
+   from the ZIP. Both are the SAME opaque-origin sandbox — only the src URL
+   differs. #}
+{% if run_mode == 'static_zip' %}
+<iframe sandbox="allow-scripts" referrerpolicy="same-origin" src="{% url 'run_static' project.slug %}?t={{ snippet_token|urlencode }}" title="{{ project.title }} preview"></iframe>
+{% else %}
 <iframe sandbox="allow-scripts" referrerpolicy="same-origin" src="{% url 'snippet_doc' project.slug %}?t={{ snippet_token|urlencode }}" title="{{ project.title }} preview"></iframe>
+{% endif %}
 </body>
 </html>

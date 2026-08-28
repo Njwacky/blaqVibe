@@ -1,0 +1,46 @@
+{% extends 'gallery/base.html' %}
+{% load static %}
+{% block title %}Start a vibe — BlaqVibes{% endblock %}
+{% block content %}
+<div style="max-width:1080px;margin:0 auto;padding:24px 20px">
+
+  <div style="text-align:center;max-width:620px;margin:0 auto 28px">
+    <span style="display:inline-block;font-size:12px;letter-spacing:.06em;padding:6px 12px;border-radius:999px;background:var(--accent-soft-bg);border:1px solid var(--accent-border);color:var(--accent-text)">✦ NO BLANK PAGE</span>
+    <h1 style="font-family:Space Grotesk,sans-serif;font-size:32px;line-height:1.1;margin:14px 0 10px">Start a vibe in your browser</h1>
+    <p style="color:var(--muted);font-size:15px;line-height:1.6">
+      Pick a starter, edit it live with an instant preview, and publish when it feels right —
+      no upload, no setup. Everything runs in a safe sandbox while you tinker.
+    </p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px">
+    {% for s in starters %}
+    <a href="{% url 'studio' s.slug %}" class="starter-card" style="display:flex;flex-direction:column;text-decoration:none;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;transition:border-color .15s,transform .15s">
+      <div style="font-size:30px;line-height:1">{{ s.emoji }}</div>
+      <div style="font-weight:800;margin-top:10px;font-size:16px">{{ s.name }}</div>
+      <div style="color:var(--muted);font-size:13px;line-height:1.5;margin-top:6px;flex:1">{{ s.blurb }}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">
+        {% for t in s.tags %}<span style="font-size:11px;color:var(--muted);background:var(--input);border:1px solid var(--line);border-radius:999px;padding:3px 9px">{{ t }}</span>{% endfor %}
+      </div>
+      <div style="margin-top:14px;font-weight:700;font-size:13px;color:var(--accent-text)">Open in Studio →</div>
+    </a>
+    {% endfor %}
+
+    <a href="{% url 'studio_blank' %}" class="starter-card" style="display:flex;flex-direction:column;justify-content:center;text-align:center;text-decoration:none;color:inherit;background:var(--bg);border:1px dashed var(--accent-border);border-radius:16px;padding:18px;min-height:180px;transition:border-color .15s,transform .15s">
+      <div style="font-size:30px;line-height:1">✏️</div>
+      <div style="font-weight:800;margin-top:10px;font-size:16px">Blank canvas</div>
+      <div style="color:var(--muted);font-size:13px;line-height:1.5;margin-top:6px">Have your own idea? Start from an empty page.</div>
+      <div style="margin-top:14px;font-weight:700;font-size:13px;color:var(--accent-text)">Open Studio →</div>
+    </a>
+  </div>
+
+  <div style="margin-top:26px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;font-size:13px;color:var(--muted);line-height:1.6">
+    <b style="color:var(--text)">How it works.</b> Studio edits run in a sandboxed preview right in your browser —
+    nothing is saved until you press <b>Publish</b>. When you publish, your vibe goes through the same
+    honest checks as any upload: a secret scan, an auto label, and a trust badge. You’ll need an account to own it.
+  </div>
+</div>
+<style>
+  .starter-card:hover { border-color:var(--accent-border); transform:translateY(-2px); }
+</style>
+{% endblock %}

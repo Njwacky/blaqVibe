@@ -103,9 +103,25 @@ class AppProject(models.Model):
     kind_evidence = models.JSONField(default=list, blank=True)
     # Honest capability, computed at classify time — never a guess in a template.
     preview_mode = models.CharField(
-        max_length=10, choices=PREVIEW_MODES, default='files',
-        help_text='snippet = runs in the sandboxed iframe. files = file list + README only.',
+        max_length=12, choices=PREVIEW_MODES, default='files',
+        help_text=('snippet = inline HTML runs in the sandboxed iframe. '
+                   'static_zip = a static site in the ZIP runs there too. '
+                   'files = file list + README only.'),
     )
+    # Which document inside a static_zip is the entry to assemble+run. Stored
+    # for the same reason preview_mode is: the runner view must not re-scan the
+    # archive on every hit, and a wrong entry is correctable by a rescan.
+    # 5 Whys: Why store the path, not re-derive it in the runner view?
+    # 1. detect_static_runnable already walked the file list at classify time;
+    #    re-walking the ZIP on every preview request is I/O we already paid.
+    # 2. The value the badge (preview_mode) was decided from and the value the
+    #    runner opens must be the SAME file, or the badge could promise a run
+    #    the runner cannot deliver.
+    # 3. It is auditable: a moderator can see which file we treat as the entry.
+    # 4. It is correctable — a rescan or edit rewrites it, like every other
+    #    pipeline-written field.
+    # 5. Blank is the honest default: no runnable entry means no static run.
+    static_entry = models.CharField(max_length=500, blank=True, default='')
     # --- Trust badge -------------------------------------------------------
     # Public verdict derived from scan evidence by gallery.trust. Stored for
     # the same 4-point reasons `kind` is stored: (1) the feed must filter and
@@ -229,13 +245,24 @@ class AppProject(models.Model):
 
     @property
     def can_run_preview(self):
-        """True only when there is really something to run in the iframe."""
-        return self.preview_mode == 'snippet' and bool((self.html_code or '').strip())
+        """True only when there is really something to run in the iframe.
+
+        Two honest paths: an inline snippet (html_code) or a static site in
+        the ZIP whose entry we already found (static_entry). Anything else
+        renders the plain "no live preview" state — never faked chrome.
+        """
+        if self.preview_mode == 'snippet':
+            return bool((self.html_code or '').strip())
+        if self.preview_mode == 'static_zip':
+            return bool(self.zip_file) and bool((self.static_entry or '').strip())
+        return False
 
     @property
     def preview_note(self):
         """One honest sentence about what a visitor can do here."""
         if self.can_run_preview:
+            if self.preview_mode == 'static_zip':
+                return 'This static site runs live in a sandboxed preview.'
             return 'Runs live in a sandboxed preview.'
         if self.zip_file:
             return 'No live preview — browse the file list and README, or download the ZIP.'

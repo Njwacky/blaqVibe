@@ -1,0 +1,109 @@
+/* BlaqVibes Studio — editor + live preview layout. */
+.studio-wrap { max-width: 1240px; margin: 0 auto; padding: 14px 16px 40px; }
+
+.studio-topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 10px;
+}
+.studio-back { color: var(--muted); text-decoration: none; font-size: 13px; margin-right: 12px; }
+.studio-back:hover { color: var(--text); }
+.studio-title { font-weight: 800; font-size: 17px; }
+.studio-actions { display: flex; gap: 8px; }
+
+.studio-note {
+  font-size: 13px; color: var(--muted); line-height: 1.5;
+  background: var(--card); border: 1px solid var(--line); border-radius: 10px;
+  padding: 8px 12px; margin-bottom: 12px;
+}
+.studio-note a { color: var(--accent-text); }
+
+.studio-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  min-height: 60vh;
+}
+@media (max-width: 860px) { .studio-grid { grid-template-columns: 1fr; } }
+
+/* Editors */
+.studio-editors {
+  display: flex; flex-direction: column;
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+}
+.studio-tabs { display: flex; border-bottom: 1px solid var(--line); }
+.studio-tab {
+  appearance: none; border: 0; background: transparent; color: var(--muted);
+  padding: 11px 16px; font-weight: 700; font-size: 13px; cursor: pointer;
+  border-bottom: 2px solid transparent;
+}
+.studio-tab.on { color: var(--text); border-bottom-color: var(--accent-text); }
+.studio-panes { flex: 1; display: flex; }
+.studio-code {
+  flex: 1; width: 100%; min-height: 52vh; resize: vertical;
+  border: 0; outline: none; padding: 14px 16px;
+  font-family: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  font-size: 13px; line-height: 1.6; tab-size: 2;
+  background: var(--bg); color: var(--text);
+}
+
+/* Preview */
+.studio-preview {
+  display: flex; flex-direction: column;
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
+}
+.studio-preview-bar {
+  display: flex; align-items: center; gap: 6px;
+  padding: 9px 12px; border-bottom: 1px solid var(--line); background: var(--card);
+}
+.studio-preview-bar .dot { width: 10px; height: 10px; border-radius: 50%; }
+.studio-preview-bar .dot.r { background: #ef4444; }
+.studio-preview-bar .dot.y { background: #f59e0b; }
+.studio-preview-bar .dot.g { background: #10b981; }
+.studio-preview-label { font-size: 12px; color: var(--muted); margin-left: 8px; }
+#studio-frame { flex: 1; width: 100%; min-height: 52vh; border: 0; background: #fff; }
+
+/* Nolo review panel */
+.studio-nolo {
+  margin-top: 14px; background: var(--card); border: 1px solid var(--line);
+  border-radius: 14px; padding: 16px 18px;
+}
+.studio-nolo-head { display: flex; align-items: center; gap: 10px; font-weight: 800; }
+.studio-nolo-source { font-size: 12px; font-weight: 600; color: var(--muted); }
+.studio-nolo-head .studio-x { margin-left: auto; }
+.studio-nolo-summary { color: var(--muted); font-size: 14px; line-height: 1.6; margin: 8px 0 12px; }
+.studio-finding {
+  border: 1px solid var(--line); border-left-width: 4px; border-radius: 10px;
+  padding: 10px 12px; margin-bottom: 8px; font-size: 13px; line-height: 1.55;
+}
+.studio-finding b { display: block; margin-bottom: 3px; }
+.studio-finding div { color: var(--muted); }
+.studio-finding.error { border-left-color: #ef4444; }
+.studio-finding.warning { border-left-color: #f59e0b; }
+.studio-finding.info { border-left-color: #38bdf8; }
+
+/* Publish drawer */
+.studio-drawer {
+  position: fixed; inset: 0; z-index: 60;
+  background: rgba(2, 6, 23, .55); display: grid; place-items: center; padding: 18px;
+}
+.studio-drawer-card {
+  width: min(560px, 96vw); max-height: 90vh; overflow: auto;
+  background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 22px;
+}
+.studio-drawer-head { display: flex; align-items: center; justify-content: space-between; }
+.studio-drawer-head h2 { font-family: Space Grotesk, sans-serif; font-size: 20px; }
+.studio-x { appearance: none; border: 0; background: transparent; color: var(--muted); font-size: 26px; line-height: 1; cursor: pointer; }
+.studio-drawer-sub { color: var(--muted); font-size: 13px; line-height: 1.55; margin: 6px 0 16px; }
+.studio-field-label { display: block; font-size: 12px; font-weight: 700; color: var(--muted); margin: 12px 0 5px; }
+.studio-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.studio-check { display: flex; gap: 8px; align-items: center; font-size: 13px; margin-top: 14px; }
+.studio-errors { background: var(--danger-bg); border: 1px solid var(--danger-border); color: var(--danger-text); padding: 10px; border-radius: 10px; font-size: 13px; margin-bottom: 10px; }
+.studio-publish-btn { width: 100%; margin-top: 18px; text-align: center; justify-content: center; display: inline-flex; }
+
+/* Make the form controls fill the drawer nicely. */
+.studio-drawer-card input[type="text"],
+.studio-drawer-card input:not([type]),
+.studio-drawer-card select,
+.studio-drawer-card textarea {
+  width: 100%; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--input); color: var(--text); font-size: 14px;
+}
+.studio-drawer-card textarea { min-height: 120px; font-family: inherit; }

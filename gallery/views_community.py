@@ -12,7 +12,7 @@ from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.core.mail import send_mail
 from django.db.models import F, Q, Count, Sum
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import render, get_object_or_404, redirect
 from django.utils import timezone
 from django.views.decorators.csrf import ensure_csrf_cookie
@@ -77,8 +77,169 @@ def nolo_chat_api(request):
         logging.getLogger(__name__).exception(f"nolo chat api crush: {e}")
         return JsonResponse({'error': 'Nolo could not answer right now. Try again soon.'}, status=500)
 
+@require_POST
+@ratelimit(key='ip', rate='30/h', method='POST')
+def nolo_fix_api(request):
+    """Nolo debugs a beginner's HTML/CSS/JS. Works with or without an API key.
+
+    5 Whys:
+    1. Why a separate endpoint from chat? The Studio sends structured code
+       (html/css/js/error), not a free chat line; a typed contract lets the
+       UI render findings next to the code.
+    2. Why no login gate? A beginner tinkering in Studio before signing up is
+       exactly who needs debugging help; the rate limit is by IP, not user.
+    3. Why crush to a safe JSON error? A broken analyser must never take the
+       Studio down mid-edit.
+    4. Why return `source`? The UI must be honest about whether a live model
+       or the built-in checks answered (same rule as chat).
+    5. Why cap at 30/h? Debugging is bursty but a paste loop is abuse; the
+       cap matches chat's order of magnitude.
+    """
+    try:
+        if getattr(request, 'limited', False):
+            return JsonResponse({'error': 'Too many requests. Try again later.'}, status=429)
+        data = json.loads(request.body.decode('utf-8') or '{}')
+        from .nolo_assist import fix_code
+        summary, findings, source = fix_code(
+            html=data.get('html', ''),
+            css=data.get('css', ''),
+            js=data.get('js', ''),
+            error=data.get('error', ''),
+        )
+        return JsonResponse({'summary': summary, 'findings': findings, 'source': source})
+    except Exception as e:
+        logger.exception(f"nolo fix api crush: {e}")
+        return JsonResponse({'error': 'Nolo could not analyse that right now.'}, status=500)
+
+
+@require_POST
+@ratelimit(key='ip', rate='30/h', method='POST')
+def nolo_readme_api(request):
+    """Nolo writes a README from the project's title/description/code.
+
+    5 Whys:
+    1. Why here and not the existing ai_readme.py? That one works on a saved
+       ZIP AppProject; the Studio needs a README BEFORE anything is saved,
+       straight from the editor fields.
+    2. Why guarantee a '# ' heading + length? The publish form rejects a
+       README under 100 chars or without a heading; a generator that produced
+       an unpublishable README would be a trap.
+    3. Why no login gate? Same as fix: the beginner needs it before signing up.
+    4. Why sanitise the code first? It is user text; it goes through the prompt
+       scrub before it can reach a model or the page.
+    5. Why return source? Honesty about live-model vs built-in, every time.
+    """
+    try:
+        if getattr(request, 'limited', False):
+            return JsonResponse({'error': 'Too many requests. Try again later.'}, status=429)
+        data = json.loads(request.body.decode('utf-8') or '{}')
+        from .nolo_assist import write_readme
+        markdown, source = write_readme(
+            title=data.get('title', ''),
+            description=data.get('description', ''),
+            html=data.get('html', ''),
+            css=data.get('css', ''),
+            js=data.get('js', ''),
+            tech=data.get('tech', ''),
+        )
+        return JsonResponse({'readme': markdown, 'source': source})
+    except Exception as e:
+        logger.exception(f"nolo readme api crush: {e}")
+        return JsonResponse({'error': 'Nolo could not write that right now.'}, status=500)
+
+
 def nolo_help(request):
     return redirect('nolo_chat')
+
+
+def starter_gallery(request):
+    """The on-ramp: pick a starter template (or a blank page) to open in Studio.
+
+    5 Whys — why a gallery page separate from the feed?
+    1. Why not just seed starters into the feed? The feed is finished vibes to
+       clone/trade; a starter is a *blank canvas to begin from*. Mixing them
+       would blur "learn from this" with "publish over this".
+    2. Why public (no login)? A beginner deciding whether to sign up should be
+       able to see the on-ramp first; the login wall lands only at publish.
+    3. Why data-driven (gallery.starters)? Starters must be trustworthy on
+       first paint — code-reviewed data, never user bytes (see starters.py).
+    4. Why include a blank option? Someone with their own idea should not have
+       to delete a template first; blank is the honest "start from nothing".
+    5. Why keep it read-only? The gallery only routes to Studio; all editing
+       and the publish gate live in one place (studio), so rules cannot drift.
+    """
+    from .starters import STARTERS, STARTERS_VERSION
+    return render(request, 'gallery/starter_gallery.html', {
+        'starters': STARTERS,
+        'starters_version': STARTERS_VERSION,
+    })
+
+
+def studio(request, slug=''):
+    """In-browser editor with a live sandboxed preview + one-click publish.
+
+    GET  — load a starter (or blank) into three editors (HTML/CSS/JS) plus a
+           title/description. The live preview is a client-side srcdoc iframe
+           (see static/gallery/js/studio.js); nothing hits the server to
+           preview, so editing is instant and safe (opaque-origin sandbox).
+    POST — hand the edited fields to the ONE publish path so scan, classify,
+           and trust all apply. Studio never writes an AppProject itself.
+
+    5 Whys:
+    1. Why does the live preview run entirely client-side? An `<iframe
+       sandbox="allow-scripts" srcdoc>` is an opaque origin — it cannot read
+       our cookies or DOM — so the user's in-progress code is safe to run
+       with zero round-trips. This IS the client-side runner, reused.
+    2. Why route publish through gallery.views.publish instead of saving here?
+       Edited starter code is user content; it must pass the same validation,
+       snippet secret-scan, classification, and trust grading as any upload.
+       A second save path would be a second place for those rules to rot.
+    3. Why require login only on POST? Browsing and tinkering should be
+       frictionless; the account is needed only to own a published vibe.
+    4. Why pass the starter through a stable slug? /studio/<slug>/ is linkable
+       from the gallery, the empty feed state, and docs; a stable id keeps
+       those links valid and lets tests target one starter.
+    5. Why a blank studio at /studio/ with no slug? The person with their own
+       idea starts from nothing without deleting a template first.
+    """
+    from .starters import get_starter, STARTERS_VERSION
+    from .forms import AppUploadForm
+
+    starter = get_starter(slug) if slug else None
+    if slug and not starter:
+        raise Http404
+
+    if request.method == 'POST':
+        # Reuse the single publish path so every rule (validate, scan,
+        # classify, trust) applies to Studio output too. publish() itself
+        # enforces login + the 5/h upload rate limit.
+        from .views import publish as publish_view
+        return publish_view(request)
+
+    if starter:
+        initial = {
+            'title': starter['name'],
+            'short_description': starter['blurb'],
+            'readme': starter['readme'],
+            'tech_stack': starter['tech_stack'],
+            'html_code': starter['html'],
+            'css_code': starter['css'],
+            'js_code': starter['js'],
+        }
+    else:
+        initial = {
+            'html_code': '<main>\n  <h1>My vibe</h1>\n  <p>Start building. Edit me.</p>\n</main>',
+            'css_code': ('body{font-family:system-ui,sans-serif;background:#0b1020;'
+                         'color:#e5e7eb;display:grid;place-items:center;min-height:100vh}'),
+            'js_code': '// Your JavaScript runs live in the preview.\n',
+        }
+    form = AppUploadForm(initial=initial)
+    return render(request, 'gallery/studio.html', {
+        'form': form,
+        'starter': starter,
+        'initial': initial,
+        'starters_version': STARTERS_VERSION,
+    })
 
 @login_required
 @ratelimit(key='user', rate='5/h', method='POST')
@@ -325,9 +486,25 @@ def vote_battle(request, battle_id):
         return redirect('battle')
 
 def run_vibe(request, slug):
-    """Send people to the honest preview. Not a Docker host."""
+    """Send people to the honest preview. Not a Docker host.
+
+    5 Whys: Why ask can_run_preview instead of `if html_code`?
+    1. A static-site ZIP now runs live too (preview_mode == 'static_zip'),
+       so "runnable" is no longer "has an inline snippet".
+    2. can_run_preview is the single source of truth the badge and the shell
+       already use — routing on anything else could disagree with the badge.
+    3. A ZIP that only shows files must still land on the file list, not a
+       blank live frame.
+    4. No snippet and no files → honest error, never a fake preview.
+    5. One property, three call sites (card, shell, this router) — they can
+       never drift.
+    """
     project = get_object_or_404(AppProject, slug=slug, status='published')
-    if project.html_code:
+    # An inline snippet always runs; a static-site ZIP runs when the
+    # classifier found its entry. Both land on the sandboxed preview shell.
+    if (project.html_code or '').strip():
+        return redirect('preview', slug=slug)
+    if project.preview_mode == 'static_zip' and (project.static_entry or '').strip():
         return redirect('preview', slug=slug)
     if project.zip_file:
         return redirect('preview_files', slug=slug)
