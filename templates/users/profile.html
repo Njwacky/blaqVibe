@@ -1,7 +1,6 @@
 {% extends 'gallery/base.html' %} {% block title %}@{{ profile_user.username }}
 — BlaqVibes{% endblock %} {% block content %}
 <div style="max-width: 1100px; margin: 0 auto; padding: 20px">
-  <!-- Header -->
   <div
     style="
       background: var(--card);
@@ -49,8 +48,7 @@
             font-weight: 700;
           "
           >STAFF</span
-        >{% endif %} {# Rank pill — social proof computed by gallery.ranks,
-        rendered here. #}
+        >{% endif %}
         <span
           aria-label="Rank: {{ rank.name }}"
           title="{{ rank.name }} creator — {{ rank.threshold }}+ stars"
@@ -206,10 +204,9 @@
     </div>
   </div>
 
-  {# Inline tip panel — hidden until ⭐ Tip is clicked. Zero-sum, ledgered. #}
   {% include 'gallery/_tip_panel.html' with
-  tip_recipient_username=profile_user.username %} {# Recent tips — social proof
-  for the creator. Only renders when it exists. #} {% if recent_tips %}
+  tip_recipient_username=profile_user.username %}
+ {% if recent_tips %}
   <div
     style="
       margin-top: 12px;
@@ -268,7 +265,6 @@
   </div>
   {% endif %}
 
-  <!-- Tabs -->
   <div
     style="
       margin-top: 16px;

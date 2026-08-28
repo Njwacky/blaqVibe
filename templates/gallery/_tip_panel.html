@@ -1,10 +1,3 @@
-{% comment %}
-Inline tip panel — hidden until the ⭐ Tip button is clicked.
-Param: tip_recipient_username. Posts to /u/<username>/tip/ (the same
-backend endpoint the profile uses); the JS in tip.js keeps the
-"Your balance" line honest and prepends the tip to Recent tips when
-that section exists on the page.
-{% endcomment %}
 {% if user.is_authenticated and tip_recipient_username != user.username %}
 <div id="tip-panel" style="display:none;margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px" aria-label="Send a tip">
   <div style="font-weight:700;font-size:13px">⭐ Send @{{ tip_recipient_username }} a tip</div>

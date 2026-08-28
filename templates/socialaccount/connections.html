@@ -1,9 +1,6 @@
 {% extends 'gallery/base.html' %}
 {% block title %}Connected accounts — BlaqVibes{% endblock %}
 {% block content %}
-{# allauth's ConnectionsView. The POST target is this same URL and it validates
-   the disconnect itself (it refuses to remove the last way into an account
-   with no password), so we render its form rather than rolling our own. #}
 <div class="auth-wrap card" style="padding:24px">
   <h2 style="font-weight:700">Connected accounts</h2>
   <p class="help" style="margin:8px 0 16px">

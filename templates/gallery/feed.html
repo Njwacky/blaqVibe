@@ -4,7 +4,6 @@
 <link rel="stylesheet" href="{% static 'gallery/css/feed.css' %}?v=filter-blur-20260828">
 {% endblock %} {% block content %}
 <div style="max-width: 1280px; margin: 0 auto; padding: 16px 20px">
-  <!-- Hero — Your vibe, polished -->
   <div
     class="hero-grid"
     style="
@@ -149,13 +148,6 @@
     </div>
   </div>
 
-  <!-- Value strip — the three promises the platform can actually prove:
-       (1) the scan pipeline + the public /trust/ standard, (2) the star
-       ledger (stars are ledgered rows, never expiring credits), (3) Rand
-       pricing + payouts (price_zar, Paystack checkout, /payout/). Static
-       server-rendered copy, no JS, no tracking — nothing here can drift
-       from what the code really does; if a claim stops being true, it is
-       a bug, not marketing. -->
   <div
     style="
       margin-top: 18px;
@@ -234,8 +226,6 @@
     </div>
   </div>
 
-  <!-- Program kinds: one chip per taxonomy value. A filter is an
-       instruction and always beats the personalised guess below. -->
   <div
     class="kind-chips"
     style="
@@ -288,9 +278,6 @@
   </div>
   {% endif %}
 
-  <!-- Filter bar — one grower (search), grouped controls, actions pinned
-       right. See the 5 Whys on .filter-bar in blaqvibes.css for why the
-       order is search → selects → toggles → actions. -->
   <form id="grid" method="get" class="filter-bar">
     <input
       class="filter-search"
@@ -439,21 +426,12 @@
       </div>
       {% endif %}
       <div style="padding:12px">
-        {# Full title + creator link — the card redesign dropped both (only a #}
-        {# truncated title survived inside the thumbnail). 5 Whys: why must the #}
-        {# full title render as text? Screen readers and search index the text #}
-        {# node, not the 18-char thumbnail stub. Why must the creator link stay? #}
-        {# Profile discovery from the feed is the growth loop — a vibe is only #}
-        {# half the click; the creator is who you follow. #}
         <div style="font-weight:700;font-size:14px;margin-bottom:4px">{{ p.title }}</div>
         <div style="font-size:12px;color:var(--muted);margin-bottom:6px">
           by <a href="{% url 'profile_view' p.owner.username %}" style="color:var(--link)">{% include 'users/_styled_name.html' with u=p.owner p=p.owner.profile %}</a> · ★ {{ p.stars }} · ⬇ {{ p.clones }}
         </div>
         <div style="display:flex;gap:6px;margin-bottom:6px;flex-wrap:wrap">
           <span class="badge" style="background:var(--accent-soft-bg);color:var(--accent-text)" title="{{ p.kind_meta.blurb }}">{{ p.kind_icon }} {{ p.kind_label }}</span>
-          {# Trust badge — pipeline-written tier only (gallery.trust). A span, #}
-          {# not a link: the whole card is one <a>; unknown tiers render #}
-          {# nothing so absence stays the honest signal. #}
           {% if p.trust == 'verified' %}<span class="badge" style="background:var(--success-bg,#DCFCE7);color:var(--success-text,#166534)" title="{{ p.trust_meta.title }}">🛡️ {{ p.trust_meta.label }}</span>
           {% elif p.trust == 'scanned' %}<span class="badge" style="background:var(--input);border:1px solid var(--line);color:var(--muted)" title="{{ p.trust_meta.title }}">🛡️ {{ p.trust_meta.label }}</span>{% endif %}
           {% if p.can_run_preview %}<span class="badge" style="background:var(--success-bg,#DCFCE7);color:var(--success-text,#166534)" title="Runs in a sandboxed preview">▶ Playable</span>{% else %}<span class="badge" style="background:var(--input);border:1px solid var(--line);color:var(--muted)" title="No live preview — file list, README, and ZIP download">📁 Files only</span>{% endif %}

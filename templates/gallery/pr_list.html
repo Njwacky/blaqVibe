@@ -21,7 +21,6 @@
     >
   </div>
 
-  <!-- Create PR if user has a fork -->
   {% if user.is_authenticated %} {% for fork in user.projects.all %} {% if fork.forked_from_id == target.id and fork.status == 'published' %}
   <div
     style="

@@ -1,10 +1,3 @@
-{% comment %}
-Tip trigger button — one shared widget for profiles and app-detail pages.
-Param: tip_recipient_username (the creator receiving the tip).
-Shows ⭐ Tip for logged-in visitors, a login link for anonymous users,
-and nothing on the recipient's own page. Pair with _tip_panel.html and
-load /static/gallery/js/tip.js on the same page.
-{% endcomment %}
 {% if user.is_authenticated %}
   {% if tip_recipient_username != user.username %}
   <button id="tip-btn" class="btn-ghost" data-username="{{ tip_recipient_username }}" data-csrf="{{ csrf_token }}" style="text-align:center">⭐ Tip</button>

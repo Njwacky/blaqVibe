@@ -14,8 +14,6 @@
 <meta property="og:description" content="{% block og_desc %}Publish the Vibes. Clone the Culture. Every vibe is scanned before it reaches your feed — stars never expire, payouts in Rands.{% endblock %}">
 <meta property="og:image" content="{% block og_image %}{% if request.is_secure %}https{% else %}http{% endif %}://{{ request.get_host }}/static/branding/blaqvibes-icon.png{% endblock %}">
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@700&amp;family=Inter:wght@400;500;600;700;800&amp;family=JetBrains+Mono:wght@500&amp;display=swap" rel="stylesheet">
-{# Version the layout styles explicitly as well as using Django's static tag. #}
-{# This prevents an older service worker cache from briefly restoring the old top navbar on reload. #}
 <link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=filter-tidy-20260828">
 <link rel="stylesheet" href="{% static 'gallery/css/footer.css' %}?v=footer-contact-20260828">
 <script src="{% static 'gallery/js/head-theme.js' %}?v=ext-20260827"></script>
@@ -51,10 +49,6 @@
     <button type="button" id="theme-toggle" class="icon-btn" aria-label="Toggle theme"><svg class="bv-icon"><use href="#bv-ico-sun"></use></svg></button>
     <button type="button" id="nav-toggle" class="icon-btn nav-burger" aria-label="Open menu" aria-expanded="false" aria-controls="nav-links"><svg class="bv-icon"><use href="#bv-ico-menu"></use></svg></button>
   </div>
-  {# Nav collapsed to what a NEW user needs: Vibes / Launch / Publish. #}
-  {# Everything else lives in the avatar menu. 5 Whys: Why three links? #}
-  {# 16 top-level links told nobody what the site is. Browse, ship, and #}
-  {# publish ARE the product; inbox/trades/settings are account chrome. #}
   <div class="nav-links" id="nav-links">
     <a href="{% url 'feed' %}"{% if request.path == '/' %} aria-current="page"{% endif %}>Vibes</a>
     <a href="{% url 'starter_gallery' %}" style="color:var(--accent-text);font-weight:700"{% if '/start' in request.path or '/studio' in request.path %} aria-current="page"{% endif %}>✦ Start</a>
@@ -96,7 +90,6 @@
     {% endif %}
   </div>
 </nav>
-{# Desktop sidebar edge: drag the vertical line to resize; use << to collapse. #}
 <div id="nav-resizer" class="nav-resizer" role="separator" aria-label="Resize sidebar" aria-orientation="vertical" aria-valuemin="180" aria-valuemax="380" aria-valuenow="230" tabindex="0">
   <button type="button" id="nav-collapse" class="nav-collapse-btn" aria-label="Collapse sidebar" aria-expanded="true">&lt;&lt;</button>
 </div>
