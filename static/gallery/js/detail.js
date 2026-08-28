@@ -8,20 +8,65 @@
   const banner = document.getElementById('scan-banner');
   const scanText = document.getElementById('scan-text');
   const scanUrl = banner ? banner.dataset.scanUrl : null;
+
+  // Keep the rich waiting panel (headline, file details, queue position and
+  // the stage checklist) in sync with each poll — so the page never looks
+  // frozen while a vibe is being checked.
+  function renderProgress(p){
+    if(!p) return;
+    const headline = document.getElementById('scan-headline');
+    if(headline && p.headline) headline.textContent = p.headline;
+    const reasonEl = document.getElementById('scan-reason');
+    if(reasonEl) reasonEl.textContent = p.reason ? (' — ' + p.reason) : '';
+    if(p.file){
+      const nameEl = document.getElementById('scan-file-name');
+      if(nameEl && p.file.name){ nameEl.textContent = p.file.name; nameEl.title = p.file.name; }
+      const sizeEl = document.getElementById('scan-file-size');
+      if(sizeEl && p.file.size_human) sizeEl.textContent = p.file.size_human;
+      const countEl = document.getElementById('scan-file-count');
+      if(countEl && p.file.file_count){
+        countEl.textContent = p.file.file_count + ' file' + (p.file.file_count===1?'':'s');
+      }
+    }
+    const queueEl = document.getElementById('scan-queue');
+    if(queueEl){
+      if(p.queue_position){ queueEl.textContent = '#' + p.queue_position + ' in line'; queueEl.style.display=''; }
+      else queueEl.style.display='none';
+    }
+    const stepsRoot = document.getElementById('scan-steps');
+    if(stepsRoot && Array.isArray(p.steps)){
+      p.steps.forEach(function(step){
+        const li = stepsRoot.querySelector('[data-key="'+step.key+'"]');
+        if(!li) return;
+        li.className = 'scan-step scan-step--' + step.state;
+        const label = li.querySelector('.scan-step-label');
+        if(label && step.label) label.textContent = step.label;
+        const detail = li.querySelector('.scan-step-detail');
+        if(detail && step.detail) detail.textContent = step.detail;
+      });
+    }
+  }
+
   if(scanUrl){
     (function poll(){
       fetch(scanUrl).then(r=>r.json()).then(d=>{
+        renderProgress(d.progress);
         if(scanText) scanText.textContent=d.status;
         if(d.reason && scanText) scanText.textContent = d.status + ' — ' + d.reason;
         if(d.is_published || d.status==='clean'){
           if(scanText) scanText.textContent='clean — vibe is live!';
-          if(banner){ banner.style.background='var(--success-bg)'; banner.style.borderColor='var(--success-border)'; banner.style.color='var(--success-text)'; }
+          const hl = document.getElementById('scan-headline');
+          if(hl) hl.textContent = '✓ Your vibe is live!';
+          if(banner){ banner.classList.remove('scan-panel--held','scan-panel--blocked'); banner.classList.add('scan-panel--live'); }
           try{ toast('✓ Your vibe is live!'); }catch(e){}
           setTimeout(()=>location.reload(),1200);
         } else if(d.status==='quarantined'){
-          if(banner){ banner.style.background='var(--danger-bg)'; banner.style.borderColor='var(--danger-border)'; banner.style.color='var(--danger-text)'; }
+          if(banner){ banner.classList.remove('scan-panel--held','scan-panel--live'); banner.classList.add('scan-panel--blocked'); }
           if(scanText) scanText.textContent='quarantined — blocked for review';
           try{ toast('Your vibe was quarantined — check My Vibes.'); }catch(e){}
+        } else if((d.progress && d.progress.held)){
+          if(banner){ banner.classList.add('scan-panel--held'); }
+          setTimeout(poll, 4000);
         } else setTimeout(poll, 2000);
       }).catch(()=>setTimeout(poll,3000));
     })();
