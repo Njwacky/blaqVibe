@@ -298,11 +298,37 @@ def classify_project(project, allow_llm=True, save=True):
         verdict['source'] = 'creator'
 
     verdict['kind'] = coerce_kind(verdict.get('kind'))
+
+    # Can a ZIP actually run in the sandbox? Only if it is a static site.
+    # 5 Whys: Why decide this in the classifier and not the runner view?
+    # 1. preview_mode (the badge) and the runner must agree on ONE verdict;
+    #    computing it in two places invites a card that says "runnable" and a
+    #    preview that shows nothing.
+    # 2. The classifier already runs off the request path (scan queue / edit),
+    #    so the file-list walk costs queue time, not page time.
+    # 3. The file list is the only evidence — a build marker means "needs a
+    #    build/host", a real index.html means "opens in a browser".
+    # 4. Storing static_entry here means the runner opens exactly the file the
+    #    badge was decided from.
+    # 5. Snippets skip this entirely (html_code wins), so no ZIP is read for a
+    #    pure-snippet publish.
+    static_runnable = False
+    static_entry = ''
+    if not (getattr(project, 'html_code', '') or '').strip() and getattr(project, 'zip_file', None):
+        try:
+            from .runner import detect_static_runnable
+            paths = _project_paths(project)
+            static_runnable, static_entry = detect_static_runnable(paths)
+        except Exception:
+            logger.exception('static runnable detect failed for %s', getattr(project, 'slug', '?'))
+
     verdict['preview_mode'] = preview_mode_for(
         verdict['kind'],
         bool((getattr(project, 'html_code', '') or '').strip()),
         bool(getattr(project, 'zip_file', None)),
+        static_runnable=static_runnable,
     )
+    verdict['static_entry'] = static_entry if verdict['preview_mode'] == 'static_zip' else ''
 
     if save:
         try:
@@ -311,9 +337,42 @@ def classify_project(project, allow_llm=True, save=True):
             project.kind_confidence = float(verdict.get('confidence') or 0)
             project.kind_evidence = list(verdict.get('evidence') or [])[:5]
             project.preview_mode = verdict['preview_mode']
+            project.static_entry = verdict['static_entry']
             project.save(update_fields=[
-                'kind', 'kind_source', 'kind_confidence', 'kind_evidence', 'preview_mode',
+                'kind', 'kind_source', 'kind_confidence', 'kind_evidence',
+                'preview_mode', 'static_entry',
             ])
         except Exception:
             logger.exception('classify_project save failed for %s', getattr(project, 'slug', '?'))
     return verdict
+
+
+def _project_paths(project):
+    """The archive's file paths — from AppFile rows first, ZIP as fallback.
+
+    5 Whys:
+    1. Why prefer AppFile rows? They are already built at upload/scan time;
+       reading them is one indexed query, not a ZIP open.
+    2. Why fall back to the ZIP at all? An admin/seed/PR path may set the ZIP
+       before the AppFile rows exist, and classify must still be correct.
+    3. Why not always read the ZIP? On remote storage that is a network fetch;
+       doing it when the rows already answer the question is wasted I/O.
+    4. Why cap nothing here? detect_static_runnable is O(files) and the upload
+       validator already caps files at 1000.
+    5. Why swallow errors to []? An unreadable archive means "not runnable" —
+       the honest floor, never a crash.
+    """
+    try:
+        rows = list(project.files.values_list('path', flat=True))
+        if rows:
+            return rows
+    except Exception:
+        pass
+    try:
+        if getattr(project, 'zip_file', None):
+            from .ziputil import build_tree
+            _, file_list = build_tree(project.zip_file)
+            return [f['path'] for f in file_list]
+    except Exception:
+        logger.exception('project paths from zip failed for %s', getattr(project, 'slug', '?'))
+    return []

@@ -159,8 +159,21 @@ UPLOAD_KIND_CHOICES = (('', 'Auto-detect (recommended)'),) + KIND_CHOICES
 
 PREVIEW_MODES = (
     ('snippet', 'Runs in a sandboxed preview'),
+    ('static_zip', 'Static site runs in a sandboxed preview'),
     ('files', 'File list + README only'),
 )
+
+# The two modes that really execute in the sandboxed iframe. Kept as one
+# tuple so the model, the feed filter, and the API agree on "runnable".
+# 5 Whys: Why a named set instead of `in ('snippet','static_zip')` inline?
+# 1. Three call sites (model.can_run_preview, feed runnable filter, API)
+#    must mean the same thing or the badge, the filter, and the JSON drift.
+# 2. Adding a future runnable mode (e.g. wasm) is one edit here, not three.
+# 3. It documents intent: "these run, 'files' does not" is the whole rule.
+# 4. A typo in one inline literal would silently drop a mode from a filter;
+#    a shared constant fails loudly if renamed.
+# 5. Tests can import the exact set instead of re-hardcoding the literals.
+RUNNABLE_PREVIEW_MODES = ('snippet', 'static_zip')
 
 
 def coerce_kind(value):
@@ -234,25 +247,31 @@ def kind_icon(value):
     return kind_meta(value)['icon']
 
 
-def preview_mode_for(kind, has_html, has_zip):
+def preview_mode_for(kind, has_html, has_zip, static_runnable=False):
     """What this specific upload can honestly offer.
 
     5 Whys:
     1. Why not just `kind`? A game *kind* could arrive as a Unity source
        ZIP with no runnable HTML. Capability is per-upload, not per-kind.
-    2. Why does html_code win? That is literally the only thing the
-       sandboxed iframe can execute today (`snippet_doc`).
-    3. Why does a ZIP never become 'snippet'? Serving user files from our
-       origin is the XSS hole the preview token design exists to avoid.
-    4. Why store the answer instead of computing it in the template? The
-       feed renders 12 cards a page and the API returns 50 rows; a stored
-       value keeps both truthful without per-row logic.
-    5. Why is 'files' the floor rather than 'none'? Every published vibe
-       has a README and a file list, so there is always *something* to
-       show — "none" would be a lie in the other direction.
+    2. Why does html_code win? An inline snippet is the simplest thing the
+       sandboxed iframe can execute (`snippet_doc`) and needs no assembly.
+    3. Why can a ZIP now be runnable ('static_zip') when it never was?
+       Because we no longer serve its files from our origin — the runner
+       inlines them into ONE document served into the SAME opaque-origin
+       sandbox as a snippet (see gallery/runner.py). No new origin surface,
+       so the XSS hole the preview token guards against never opens.
+    4. Why must `static_runnable` be decided from the file list, not the
+       kind? A "game" ZIP might be a finished HTML5 export (runnable) or a
+       Unity source tree (not). Only the files know; the caller passes the
+       verdict from gallery.runner.detect_static_runnable.
+    5. Why is 'files' still the floor? A ZIP that needs a build or a server
+       has a README and a file list but nothing that runs in a browser —
+       claiming a live preview there would be the fake preview we forbid.
     """
     if has_html:
         return 'snippet'
+    if has_zip and static_runnable:
+        return 'static_zip'
     if has_zip:
         return 'files'
     # Neither: the upload form rejects this, but be defensive.
