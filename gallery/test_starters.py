@@ -8,6 +8,7 @@ pin the two promises:
     is a normal snippet AppProject with the user's edits — no shortcut around
     scan/classify/trust.
 """
+from django.conf import settings
 from django.test import TestCase, override_settings
 
 from gallery.models import AppProject
@@ -125,3 +126,74 @@ class StudioPublishTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         self.assertIn('/login', resp.url)
         self.assertFalse(AppProject.objects.filter(title='Should Not Publish').exists())
+
+
+class StudioDrawerDismissTests(TestCase):
+    """The publish drawer must appear only when asked for, and always close.
+
+    Regression: `.studio-drawer { display: grid }` is an author-origin rule,
+    and the browser's `display:none` for the `hidden` attribute lives in the
+    UA stylesheet — author always beats UA. So the drawer rendered over the
+    whole Studio page from the moment it loaded, and its × button looked
+    broken because setting `drawer.hidden = true` changed nothing. Two
+    invariants keep that from coming back:
+      * the stylesheet keeps a `[hidden]` guard for every element studio.js
+        toggles by setting `.hidden`;
+      * the drawer markup ships `hidden` plus two obvious ways out (× and a
+        Cancel button), and the page's JS closes on both and on Escape.
+    """
+
+    TOGGLED_BY_JS = ('.studio-drawer', '.studio-nolo', '.studio-code')
+
+    @staticmethod
+    def _css_rules(text):
+        """Minimal selector -> declarations map. Enough for one flat file."""
+        import re
+        text = re.sub(r'/\*.*?\*/', '', text, flags=re.S)
+        return [
+            ([s.strip() for s in m.group(1).split(',')], m.group(2))
+            for m in re.finditer(r'([^{}]+)\{([^{}]*)\}', text)
+        ]
+
+    def test_display_rules_on_js_toggled_elements_have_a_hidden_guard(self):
+        css = (settings.BASE_DIR / 'static' / 'gallery' / 'css' / 'studio.css').read_text()
+        rules = self._css_rules(css)
+        for selector in self.TOGGLED_BY_JS:
+            sets_display = any(
+                selector in sels and '[hidden]' not in s and 'display' in body
+                for sels, body in rules for s in sels
+            )
+            if not sets_display:
+                continue
+            guarded = any(
+                (selector + '[hidden]') in sels and 'display: none' in body.replace(' ', ' ')
+                for sels, body in rules
+            )
+            self.assertTrue(
+                guarded,
+                f'{selector} sets display but has no `{selector}[hidden] {{ display: none }}` '
+                f'guard, so it will ignore the hidden attribute and cover the page.',
+            )
+
+    def test_drawer_starts_hidden_with_two_ways_out(self):
+        html = self.client.get('/studio/hello-landing/').content.decode()
+        open_tag = html[html.index('id="studio-publish"'):].split('>')[0]
+        self.assertIn('hidden', open_tag)
+        self.assertIn('role="dialog"', open_tag)
+        self.assertIn('aria-modal="true"', open_tag)
+        # × in the header and a Cancel button in the form both opt into the
+        # close handler via the same hook.
+        self.assertEqual(html.count('data-close-drawer'), 2, html.count('data-close-drawer'))
+        self.assertContains(self.client.get('/studio/hello-landing/'), 'Cancel — keep editing')
+
+    def test_blank_studio_drawer_also_starts_hidden(self):
+        html = self.client.get('/studio/').content.decode()
+        open_tag = html[html.index('id="studio-publish"'):].split('>')[0]
+        self.assertIn('hidden', open_tag)
+
+    def test_studio_js_closes_the_drawer_on_cancel_and_escape(self):
+        js = (settings.BASE_DIR / 'static' / 'gallery' / 'js' / 'studio.js').read_text()
+        # The template's close controls are wired by this hook…
+        self.assertIn("querySelectorAll('[data-close-drawer]')", js)
+        # …and Escape is a way out too.
+        self.assertIn("'Escape'", js)

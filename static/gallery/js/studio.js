@@ -90,13 +90,40 @@
   // Publish drawer open/close.
   var drawer = document.getElementById('studio-publish');
   var openBtn = document.getElementById('studio-open-publish');
-  var closeBtn = document.getElementById('studio-close-publish');
-  function openDrawer() { if (drawer) drawer.hidden = false; }
-  function closeDrawer() { if (drawer) drawer.hidden = true; }
+  // Anything marked data-close-drawer closes it: the × and the Cancel button.
+  var closeBtns = document.querySelectorAll('[data-close-drawer]');
+  var lastFocused = null;
+
+  function openDrawer() {
+    if (!drawer) return;
+    lastFocused = document.activeElement;
+    drawer.hidden = false;
+    document.body.classList.add('studio-drawer-open');
+    // Land on the first field, not the close button — Enter should not be able
+    // to dismiss the drawer by accident.
+    // (Skip the hidden csrf/code mirrors — focusing one does nothing.)
+    var first = drawer.querySelector('input:not([type="hidden"]), select, textarea')
+      || drawer.querySelector('button');
+    if (first && first.focus) first.focus();
+  }
+  function closeDrawer() {
+    if (!drawer) return;
+    drawer.hidden = true;
+    document.body.classList.remove('studio-drawer-open');
+    // Hand focus back so a keyboard user is not stranded inside a hidden box.
+    if (lastFocused && lastFocused.focus) lastFocused.focus();
+  }
   if (openBtn) openBtn.addEventListener('click', openDrawer);
-  if (closeBtn) closeBtn.addEventListener('click', closeDrawer);
+  closeBtns.forEach(function (b) { b.addEventListener('click', closeDrawer); });
+  // Click the dark backdrop (but not the card inside it) to dismiss.
   if (drawer) drawer.addEventListener('click', function (e) {
     if (e.target === drawer) closeDrawer();
+  });
+  // Escape always gets you out — of the drawer, then of Nolo's panel.
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' && e.key !== 'Esc') return;
+    if (drawer && !drawer.hidden) { closeDrawer(); return; }
+    if (noloBox && !noloBox.hidden) noloBox.hidden = true;
   });
 
   // --- Nolo: fix my code ---------------------------------------------------
