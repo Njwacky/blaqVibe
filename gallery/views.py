@@ -17,7 +17,7 @@ from .models import AppProject, Category, Comment, Star, AppFile, ScanJob, AppRe
 from .forms import AppUploadForm, CoOwnerForm, CommentForm, ReviewForm
 from .search import search_projects
 from .access import user_can_download, user_can_see_project, user_is_moderator, access_denied_message
-from .zip_serve import serve_project_zip, owner_scan_reason
+from .zip_serve import serve_project_zip, owner_scan_reason, scan_progress
 from .notify import notify
 from . import taste
 from .taxonomy import KIND_BY_VALUE, PROGRAM_KINDS, coerce_kind
@@ -345,6 +345,13 @@ def app_detail(request, slug):
         'can_download': can_download,
         'can_push': can_push,
         'scan_reason': owner_scan_reason(project) if request.user.is_authenticated and (request.user == project.owner or user_is_moderator(request.user)) else '',
+        'scan_progress': (
+            scan_progress(project)
+            if project.status != 'published'
+            and request.user.is_authenticated
+            and (request.user == project.owner or user_is_moderator(request.user))
+            else None
+        ),
         'comment_count': getattr(project, 'comment_count', 0),
         'published_forks': [f for f in project.forks.all() if f.status == 'published'][:5],
         'viewers': viewers,
@@ -384,6 +391,10 @@ def scan_status(request, slug):
         request.user.pk == project.owner_id or user_is_moderator(request.user)
     ):
         data['reason'] = owner_scan_reason(project)
+        # Rich, owner-facing progress so the waiting page can keep the
+        # step checklist, queue position and file details in sync as the
+        # JS polls — not just a bare status word.
+        data['progress'] = scan_progress(project)
     return JsonResponse(data)
 
 def preview_files(request, slug):

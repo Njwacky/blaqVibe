@@ -20,48 +20,66 @@
 <div
   id="scan-banner"
   data-scan-url="{% url 'scan_status' project.slug %}"
-  style="
-    max-width: 1280px;
-    margin: 12px auto 0;
-    padding: 14px 16px;
-    background: var(--warning-bg);
-    border: 1px solid var(--warning-border);
-    color: var(--warning-soft-text);
-    border-radius: 12px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    font-size: 13px;
-    box-shadow: 0 4px 16px rgba(245, 158, 11, 0.15);
-  "
+  class="scan-panel{% if scan_progress.quarantined %} scan-panel--blocked{% elif scan_progress.held %} scan-panel--held{% endif %}"
 >
-  <span
-    style="
-      width: 10px;
-      height: 10px;
-      background: #f59e0b;
-      border-radius: 50%;
-      animation: pulse 1.2s infinite;
-      flex-shrink: 0;
-    "
-  ></span>
-  <div>
-    <div style="font-weight: 700; color: var(--warning-soft-text)">
-      ⏳ Your vibe is in the queue — we’ll tell you when it’s uploaded!
+  <div class="scan-panel-head">
+    <span class="scan-dot"></span>
+    <div class="scan-panel-titles">
+      <div class="scan-headline" id="scan-headline">
+        {{ scan_progress.headline|default:"⏳ Your vibe is in the queue — we’ll tell you when it’s uploaded!" }}
+      </div>
+      <div class="scan-sub">
+        Status: <b id="scan-text">{{ scan_progress.status|default:scan_status }}</b
+        ><span id="scan-reason">{% if scan_reason %} — {{ scan_reason }}{% endif %}</span>
+      </div>
     </div>
-    <div style="font-size: 12px; color: var(--warning-soft-text); opacity: 0.9">
-      Status: <b id="scan-text" style="color: inherit">{{ scan_status }}</b>{%      if scan_reason %} — {{ scan_reason }}{% endif %}
-    </div>
+    <span class="scan-flow">🔒 scan → vuln → publish</span>
   </div>
-  <span
-    style="
-      margin-left: auto;
-      font-size: 11px;
-      color: var(--warning-text);
-      white-space: nowrap;
-    "
-    >🔒 scan → vuln → publish</span
-  >
+
+  {% if scan_progress %}
+  <div class="scan-body">
+    {# What did I just upload? — so the page never feels blank while waiting #}
+    <div class="scan-file" id="scan-file">
+      <span class="scan-file-icon">{% if scan_progress.file.is_snippet %}📝{% else %}🗜️{% endif %}</span>
+      <div class="scan-file-meta">
+        <div class="scan-file-name" id="scan-file-name" title="{{ scan_progress.file.name }}">{{ scan_progress.file.name }}</div>
+        <div class="scan-file-sub">
+          <span id="scan-file-size">{{ scan_progress.file.size_human }}</span>
+          {% if scan_progress.file.file_count %}
+          <span class="scan-file-dot">•</span>
+          <span id="scan-file-count">{{ scan_progress.file.file_count }} file{{ scan_progress.file.file_count|pluralize }}</span>
+          {% endif %}
+        </div>
+      </div>
+      {% if scan_progress.queue_position %}
+      <span class="scan-queue" id="scan-queue">#{{ scan_progress.queue_position }} in line</span>
+      {% endif %}
+    </div>
+
+    {# The exact stages, so the creator knows why the page is "stopped" #}
+    <ol class="scan-steps" id="scan-steps">
+      {% for step in scan_progress.steps %}
+      <li class="scan-step scan-step--{{ step.state }}" data-key="{{ step.key }}">
+        <span class="scan-step-mark" aria-hidden="true"></span>
+        <div class="scan-step-text">
+          <span class="scan-step-label">{{ step.label }}</span>
+          <span class="scan-step-detail">{{ step.detail }}</span>
+        </div>
+      </li>
+      {% endfor %}
+    </ol>
+
+    <p class="scan-foot" id="scan-foot">
+      {% if scan_progress.published %}
+        You’re live — no action needed.
+      {% elif scan_progress.held %}
+        No action needed right now — we’ll send an in-app notification once a moderator finishes.
+      {% else %}
+        This page updates by itself. You can safely leave — we’ll notify you when it’s live.
+      {% endif %}
+    </p>
+  </div>
+  {% endif %}
 </div>
 {% endif %}
 <div class="page detail-layout">
@@ -1782,6 +1800,6 @@
   </div>
 </div>
 {% endblock %} {% block scripts %}
-<script src="/static/gallery/js/detail.js?v=theme-colors-20260815"></script>
+<script src="/static/gallery/js/detail.js?v=scan-panel-20260828"></script>
 <script src="/static/gallery/js/tip.js?v=shared-tip-20260816"></script>
 {% endblock %}
