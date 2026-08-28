@@ -10,7 +10,6 @@
     <span style="color:var(--launch-text);font-weight:900">↗</span>
     <div style="font-size:12px;line-height:1.55"><b>This publishes a BlaqVibes listing and safe preview—not a production host or app-store release.</b><div style="color:var(--muted);margin-top:3px">Need a real public URL or store listing? <a href="{% url 'launch_hub' %}" style="color:var(--accent-text);font-weight:700">Find the correct launch path →</a></div></div>
   </div>
-  <!-- Progress -->
   <div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:16px">
     <div style="display:flex;align-items:center;gap:8px" id="step-ind-1"><div class="step on" data-step="1">1</div><span style="font-size:12px;font-weight:700">Details</span></div>
     <div style="flex:1;height:2px;background:var(--line)" id="bar-1"></div>
@@ -23,7 +22,6 @@
     {% csrf_token %}
     {% if form.errors %}<div style="background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger-text);padding:10px;border-radius:10px;font-size:13px;margin-bottom:12px">{{ form.errors }}</div>{% endif %}
 
-    <!-- Step 1 — Details -->
     <div class="wizard-step" data-step="1">
       <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px">
         <h2 style="font-family:Space Grotesk,sans-serif;font-size:18px">Step 1 — Details</h2>
@@ -60,7 +58,6 @@
       </div>
     </div>
 
-    <!-- Step 2 — Upload -->
     <div class="wizard-step" data-step="2" style="display:none">
       <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px">
         <h2 style="font-family:Space Grotesk,sans-serif;font-size:18px">Step 2 — Upload</h2>
@@ -87,7 +84,6 @@
       </div>
     </div>
 
-    <!-- Step 3 — Live -->
     <div class="wizard-step" data-step="3" style="display:none">
       <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px">
         <h2 style="font-family:Space Grotesk,sans-serif;font-size:18px">Step 3 — Confirm</h2>

@@ -25,7 +25,6 @@
   </div>
 
   <div class="studio-grid">
-    <!-- Editors -->
     <div class="studio-editors">
       <div class="studio-tabs" role="tablist">
         <button type="button" class="studio-tab on" data-tab="html" role="tab">HTML</button>
@@ -39,7 +38,6 @@
       </div>
     </div>
 
-    <!-- Live preview -->
     <div class="studio-preview">
       <div class="studio-preview-bar">
         <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
@@ -49,7 +47,6 @@
     </div>
   </div>
 
-  <!-- Nolo debug results -->
   <div id="studio-nolo" class="studio-nolo" hidden>
     <div class="studio-nolo-head">
       <span>🔧 Nolo’s review</span>
@@ -60,7 +57,6 @@
     <div id="studio-nolo-findings"></div>
   </div>
 
-  <!-- Publish drawer (posts through the ONE publish path) -->
   <div id="studio-publish" class="studio-drawer" role="dialog" aria-modal="true" aria-labelledby="studio-publish-title" hidden>
     <div class="studio-drawer-card">
       <div class="studio-drawer-head">
@@ -98,13 +94,9 @@
 
         <label class="studio-check">{{ form.ai_generated }} 🤖 This was AI-generated</label>
 
-        <!-- Hidden mirrors of the live editor, submitted with the form -->
         <input type="hidden" name="html_code" id="submit-html">
         <input type="hidden" name="css_code" id="submit-css">
         <input type="hidden" name="js_code" id="submit-js">
-        <!-- Studio publishes free snippets; the model + form treat these as
-             required, so send the free defaults. Pricing lives on the full
-             publish flow, not the beginner on-ramp. -->
         <input type="hidden" name="star_cost" value="0">
         <input type="hidden" name="price_zar" value="0">
 
@@ -113,8 +105,6 @@
         {% else %}
         <a href="{% url 'login' %}?next={{ request.path }}" class="btn-violet studio-publish-btn">Sign in to publish →</a>
         {% endif %}
-        <!-- An explicit way out: the × alone reads as "close this widget",
-             Cancel reads as "I'm not publishing yet — let me keep editing". -->
         <button type="button" data-close-drawer class="btn-ghost studio-cancel-btn">Cancel — keep editing</button>
       </form>
     </div>

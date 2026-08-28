@@ -6,7 +6,6 @@
 {% endblock %}
 {% block content %}
 <div class="publish-shell">
-  <!-- Left Panel -->
   <aside style="background:var(--card);border-right:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:12px">
     <div style="font-size:11px;letter-spacing:.08em;color:var(--muted);font-weight:700">PUBLISH</div>
     <a href="{% url 'feed' %}" style="padding:8px 10px;border-radius:10px;background:var(--input);border:1px solid var(--line);color:var(--muted);font-size:13px;text-decoration:none">← Back to Feed</a>
@@ -23,7 +22,6 @@
     </div>
   </aside>
 
-  <!-- Main -->
   <main style="padding:20px;overflow:auto">
     <h2 style="font-family:Space Grotesk,sans-serif;font-size:22px;font-weight:700">Publish your vibe</h2>
     <p style="font-size:13px;color:var(--muted);margin:6px 0 16px">Every vibe <b style="color:var(--text)">requires a README.md</b> — what it does, stack, how to run. People read it + file tree before they clone. ZIPs are scanned; preview is files, not Docker.</p>

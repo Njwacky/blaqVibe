@@ -278,6 +278,31 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   place-items: center;
   padding: 10px;
 }
+/* --- Feed filter bar ------------------------------------------------------
+   5 Whys: why were there huge gaps between the controls, and why this
+   exact arrangement?
+   1. Why the holes? `.filter-bar input { flex:1; min-width:180px }` matched
+      the two CHECKBOXES too, so each 15px toggle stretched into a 180px+
+      strip inside its label — ~380px of dead space on top of the search
+      field's own grow, spreading every control apart.
+   2. Why fix the selectors instead of just shrinking the gap? The ballooning
+      was a selector bug, not a spacing choice. Scoping the grow to
+      .filter-search and giving checkboxes their own compact rule removes
+      the dead space at the source — the 8px gap rhythm was never wrong.
+   3. Why reorder to search → selects → toggles → actions? The old order
+      interleaved a checkbox between the field and the dropdowns, so each
+      flex-wrap line broke at a random control. Grouping like controls
+      gives every wrap line the same rhythm and reads left→right as
+      "what" → "bucket" → "switches" → "go".
+   4. Why margin-left:auto on .filter-actions? Leftover row space has to
+      collect somewhere; pinning the buttons to the right edge puts it in
+      ONE predictable place (next to the submit) instead of between
+      controls, and the search field stays the only element that grows.
+   5. Why a 2-column grid under 640px instead of flex-wrap? On a phone,
+      wrap leaves orphaned controls per row (and wrapped sticky bars grow
+      tall enough to eat the screen). Fixed tracks — search full-width,
+      category|kind, sort full-width, both toggles, actions full-width —
+      are deterministic: same rows every time, no holes, smallest height. */
 .filter-bar {
   margin-top: 16px;
   display: flex;
@@ -287,12 +312,35 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   background: var(--bg);
   border: 1px solid var(--line);
   border-radius: 12px;
-  padding: 12px;
+  padding: 10px;
   position: sticky;
   top: 64px;
   z-index: 30;
+  /* Frosted state (feed.js adds .is-stuck once the bar is pinned and cards
+     start sliding underneath): translucent glass + backdrop blur instead of
+     the flat opaque slab. Transitions make the freeze/unfreeze feel smooth. */
+  transition:
+    background-color .25s ease,
+    border-color .25s ease,
+    box-shadow .25s ease,
+    backdrop-filter .25s ease;
 }
-.filter-bar input, .filter-bar select {
+.filter-bar.is-stuck {
+  background: color-mix(in srgb, var(--bg) 62%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  backdrop-filter: blur(14px) saturate(150%);
+  border-color: color-mix(in srgb, var(--accent-border) 35%, var(--line));
+  box-shadow: var(--shadow);
+}
+/* No backdrop-filter support (old browsers / reduced-transparency OS
+   settings): keep the bar opaque so text above cards stays readable. */
+@supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+  .filter-bar.is-stuck { background: var(--bg); }
+}
+/* Field+dropdown chrome is scoped AWAY from checkboxes (Why #1): only text
+   inputs and selects get the padded input look. */
+.filter-bar input[type="text"],
+.filter-bar select {
   background: var(--input);
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -300,7 +348,40 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   color: var(--text);
   font-size: 13px;
 }
-.filter-bar input { flex: 1; min-width: 180px; }
+/* The search field is the bar's ONLY grower (Why #2) — it eats the leftover
+   row so nothing else drifts apart. */
+.filter-bar .filter-search { flex: 1 1 200px; min-width: 150px; }
+.filter-bar select { flex: 0 1 auto; }
+/* Checkboxes: compact themed toggles — accent-color carries the brand violet
+   through the native box in both themes, no padding/border impersonation. */
+.filter-bar input[type="checkbox"] {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--violet);
+}
+.filter-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--muted);
+  white-space: nowrap;
+  cursor: pointer;
+}
+.filter-check:hover { color: var(--text); }
+/* Actions pin right (Why #4); btnW/btnG already carry the 8px/14px padding. */
+.filter-actions { display: inline-flex; gap: 8px; margin-left: auto; }
+.filter-actions .btnW, .filter-actions .btnG { white-space: nowrap; }
+@media (max-width: 640px) {
+  .filter-bar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .filter-bar .filter-search,
+  .filter-bar select[name="sort"],
+  .filter-bar .filter-actions { grid-column: 1 / -1; }
+  /* Full-width actions row: thumb-sized targets splitting the row. */
+  .filter-actions .btnW, .filter-actions .btnG { flex: 1; }
+}
 /* Vertical navbar — on desktop the nav is a fixed full-height sidebar on
    the left; below 900px it falls back to the burger/stacked mobile layout. */
 @media (min-width: 901px) {
