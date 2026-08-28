@@ -79,10 +79,21 @@
 .studio-finding.warning { border-left-color: #f59e0b; }
 .studio-finding.info { border-left-color: #38bdf8; }
 
+/* Hidden means hidden. The `hidden` attribute's `display:none` lives in the
+ * browser's UA stylesheet, so ANY author rule that sets `display` on an
+ * element (like `.studio-drawer { display: grid }`) silently beats it —
+ * the drawer then covers the whole screen from page load and the × button
+ * appears broken. Every element studio.js toggles with `.hidden` needs this
+ * guard. */
+.studio-drawer[hidden],
+.studio-nolo[hidden],
+.studio-code[hidden] { display: none !important; }
+
 /* Publish drawer */
 .studio-drawer {
   position: fixed; inset: 0; z-index: 60;
   background: rgba(2, 6, 23, .55); display: grid; place-items: center; padding: 18px;
+  overflow: auto;
 }
 .studio-drawer-card {
   width: min(560px, 96vw); max-height: 90vh; overflow: auto;
@@ -97,6 +108,9 @@
 .studio-check { display: flex; gap: 8px; align-items: center; font-size: 13px; margin-top: 14px; }
 .studio-errors { background: var(--danger-bg); border: 1px solid var(--danger-border); color: var(--danger-text); padding: 10px; border-radius: 10px; font-size: 13px; margin-bottom: 10px; }
 .studio-publish-btn { width: 100%; margin-top: 18px; text-align: center; justify-content: center; display: inline-flex; }
+.studio-cancel-btn { width: 100%; margin-top: 8px; text-align: center; justify-content: center; display: inline-flex; }
+/* Stop the page behind the drawer from scrolling with the wheel. */
+body.studio-drawer-open { overflow: hidden; }
 
 /* Make the form controls fill the drawer nicely. */
 .studio-drawer-card input[type="text"],

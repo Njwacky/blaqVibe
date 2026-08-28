@@ -61,11 +61,11 @@
   </div>
 
   <!-- Publish drawer (posts through the ONE publish path) -->
-  <div id="studio-publish" class="studio-drawer" hidden>
+  <div id="studio-publish" class="studio-drawer" role="dialog" aria-modal="true" aria-labelledby="studio-publish-title" hidden>
     <div class="studio-drawer-card">
       <div class="studio-drawer-head">
-        <h2>Publish your vibe</h2>
-        <button type="button" id="studio-close-publish" class="studio-x" aria-label="Close">×</button>
+        <h2 id="studio-publish-title">Publish your vibe</h2>
+        <button type="button" id="studio-close-publish" data-close-drawer class="studio-x" aria-label="Close">×</button>
       </div>
       <p class="studio-drawer-sub">Your HTML/CSS/JS is filled in from the editor. Add a few details and publish — it goes through the same scan, label, and trust checks as any upload.</p>
 
@@ -113,6 +113,9 @@
         {% else %}
         <a href="{% url 'login' %}?next={{ request.path }}" class="btn-violet studio-publish-btn">Sign in to publish →</a>
         {% endif %}
+        <!-- An explicit way out: the × alone reads as "close this widget",
+             Cancel reads as "I'm not publishing yet — let me keep editing". -->
+        <button type="button" data-close-drawer class="btn-ghost studio-cancel-btn">Cancel — keep editing</button>
       </form>
     </div>
   </div>
