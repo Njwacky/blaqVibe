@@ -291,6 +291,26 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   position: sticky;
   top: 64px;
   z-index: 30;
+  /* Frosted state (feed.js adds .is-stuck once the bar is pinned and cards
+     start sliding underneath): translucent glass + backdrop blur instead of
+     the flat opaque slab. Transitions make the freeze/unfreeze feel smooth. */
+  transition:
+    background-color .25s ease,
+    border-color .25s ease,
+    box-shadow .25s ease,
+    backdrop-filter .25s ease;
+}
+.filter-bar.is-stuck {
+  background: color-mix(in srgb, var(--bg) 62%, transparent);
+  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  backdrop-filter: blur(14px) saturate(150%);
+  border-color: color-mix(in srgb, var(--accent-border) 35%, var(--line));
+  box-shadow: var(--shadow);
+}
+/* No backdrop-filter support (old browsers / reduced-transparency OS
+   settings): keep the bar opaque so text above cards stays readable. */
+@supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
+  .filter-bar.is-stuck { background: var(--bg); }
 }
 .filter-bar input, .filter-bar select {
   background: var(--input);
