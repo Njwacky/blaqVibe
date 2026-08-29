@@ -1,4 +1,3 @@
-# Copy to .github/workflows/ci.yml (needs the GitHub workflows permission).
 name: CI
 
 on:
@@ -6,19 +5,52 @@ on:
     branches: [master, main]
   pull_request:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     env:
       DJANGO_LOCAL_DEV: '1'
       DJANGO_TEST: '1'
       SEED_DEMO: '0'
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install
+          cache: pip
+
+      - name: Install dependencies
         run: pip install -r requirements.txt
-      - name: CI
+
+      # Migrate, seed, run the gallery+users suites, then audit the settings
+      # module in production posture (DEBUG off, no dev posture, real header
+      # expectations). scripts/ci.sh exits 1 on any regression.
+      - name: CI checks (migrate, seed, tests, hardened-pose audit)
         run: bash scripts/ci.sh
+
+      - name: Verify ops probes respond
+        run: |
+          DJANGO_LOCAL_DEV=1 python manage.py runserver 127.0.0.1:8009 >/tmp/runserver.log 2>&1 &
+          SRV=$!
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8009/healthz; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:8009/readyz
+          kill $SRV || true
+
+# NOTE: the bot that creates Arena PRs does not have the GitHub `workflows`
+# permission, so `.github/workflows/ci.yml` itself cannot be pushed from here.
+# The improved workflow above is the exact file to copy to
+# `.github/workflows/ci.yml` (or grant the `workflows` permission and drop it
+# in). The rest of the stability PR — probes, logging, backups, compose
+# hardening — is not blocked by this.

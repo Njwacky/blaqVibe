@@ -107,6 +107,9 @@ class MaintenanceModeMiddleware:
             or path.startswith('/accounts/password')
             or path.startswith('/accounts/verify')
             or path.startswith('/accounts/reset')
+            # Ops probes stay live through a maintenance window: the LB and
+            # alerting must see "up" while humans see the 503 page.
+            or path in ('/healthz', '/readyz')
         ):
             return self._get_response(request)
 
@@ -116,9 +119,15 @@ class MaintenanceModeMiddleware:
             if site.maintenance:
                 # Superadmins bypass the maintenance wall so they can
                 # resolve the issue without needing a separate login flow.
+                # getattr: this middleware sits AFTER AuthenticationMiddleware
+                # in MIDDLEWARE (that placement is required — see settings.py),
+                # but a request must never 500 the wall because a user object
+                # is missing.
+                user = getattr(request, 'user', None)
                 if (
-                    request.user.is_authenticated
-                    and getattr(request.user.profile, 'role', '') == 'superadmin'
+                    user is not None
+                    and user.is_authenticated
+                    and getattr(getattr(user, 'profile', None), 'role', '') == 'superadmin'
                 ):
                     return self._get_response(request)
                 return render(request, '503.html', status=503)

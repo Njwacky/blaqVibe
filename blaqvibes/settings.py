@@ -370,13 +370,18 @@ if AWS_ACCESS_KEY_ID:
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
-    'gallery.middleware.MaintenanceModeMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     # Before CsrfView so process_response runs *after* the CSRF cookie is set.
     'gallery.middleware.PreviewEmbedMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    # AFTER AuthenticationMiddleware: the maintenance wall needs request.user
+    # to exempt superadmins. It used to sit before auth, so the attribute
+    # access raised whenever maintenance was on, the silent except swallowed
+    # it, and maintenance mode NEVER served the 503 it promised. Now it short-
+    # circuits every public path the same way, and the superadmin bypass works.
+    'gallery.middleware.MaintenanceModeMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'allauth.account.middleware.AccountMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
@@ -566,3 +571,84 @@ LOGOUT_REDIRECT_URL = '/'
 BLAQVIBES_MAX_ZIP_MB = 100
 BLAQVIBES_MAX_FILES = 1000
 # Security: No sensitive data in JS — all secrets stay in os.getenv, never passed to template context
+
+# --- LOGGING ---
+# 5 Whys: why explicit LOGGING instead of Django's default?
+# 1. The default sends nothing to the console at INFO, so the first signal of
+#    a bad upload path or a dead worker is a user complaint, not a log line.
+# 2. docker compose / k8s collect stdout; a file handler would need a volume
+#    nobody created. Console-only means zero extra infrastructure.
+# 3. django.request kept at WARNING hides healthy 404 noise but still reports
+#    500s — the line "Internal Server Error: /path" with the stack trace is
+#    what an on-call actually needs first.
+# 4. propagate=False on named loggers stops each record printing twice (once
+#    for the named logger, once via the root logger).
+# 5. LOG_LEVEL is env-tunable so a bad night can be debugged with
+#    `LOG_LEVEL=DEBUG` and a restart instead of a code change.
+LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO').upper()
+if LOG_LEVEL not in ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'):
+    LOG_LEVEL = 'INFO'
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': (
+                '%(asctime)s %(levelname)s %(name)s %(process)d '
+                '[%(threadName)s] %(message)s'
+            ),
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+            'level': LOG_LEVEL,
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': LOG_LEVEL,
+    },
+    'loggers': {
+        # App code at LOG_LEVEL; 4xx noise stays quiet, 5xx still surfaces.
+        'django': {
+            'handlers': ['console'],
+            'level': LOG_LEVEL,
+            'propagate': False,
+        },
+        'django.request': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'django.security': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        # Query logs are pure noise unless debugging a slow page.
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'WARNING',
+            'propagate': False,
+        },
+        'gallery': {
+            'handlers': ['console'],
+            'level': LOG_LEVEL,
+            'propagate': False,
+        },
+        'users': {
+            'handlers': ['console'],
+            'level': LOG_LEVEL,
+            'propagate': False,
+        },
+        'celery': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
+
