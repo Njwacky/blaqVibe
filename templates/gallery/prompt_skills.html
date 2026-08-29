@@ -1,0 +1,55 @@
+{% extends 'gallery/base.html' %}
+{% load static %}
+{% block title %}Prompt Skills — BlaqVibes{% endblock %}
+{% block meta_desc %}Learn to write clearer, shorter prompts with the 5 Whys method and a practical prompt builder.{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'gallery/css/prompt-skills.css' %}?v=1">{% endblock %}
+{% block content %}
+<div class="skills-page">
+  <section class="skills-hero">
+    <div class="eyebrow">PROMPT SKILLS / FIELD GUIDE</div>
+    <h1>Say less.<br><span>Get more back.</span></h1>
+    <p class="hero-copy">A practical way to turn fuzzy requests into precise prompts. Start with the outcome, cut the filler, and give the model only the context it needs.</p>
+    <div class="hero-actions"><a href="#builder" class="btn-white">Build a prompt <span>↓</span></a><a href="#why" class="btn-ghost">Learn the 5 Whys</a></div>
+    <div class="hero-proof"><span><b>01</b> Define the job</span><span><b>02</b> Set the guardrails</span><span><b>03</b> Check the result</span></div>
+  </section>
+
+  <section class="why-strip" id="why">
+    <div class="section-kicker">THE CORE IDEA</div>
+    <div><h2>Before you add words,<br>ask <em>why</em> five times.</h2><p>Most weak prompts solve the surface request. The 5 Whys method finds the decision or outcome underneath it—so you can ask for the useful thing once.</p></div>
+    <div class="why-steps">
+      <div><span>01</span><b>What do you need?</b><small>State the deliverable, not the topic.</small></div>
+      <div><span>02</span><b>Why do you need it?</b><small>Find the decision it should support.</small></div>
+      <div><span>03</span><b>Who will use it?</b><small>Set the audience and their level.</small></div>
+      <div><span>04</span><b>What must be true?</b><small>Add facts, limits, and evidence.</small></div>
+      <div><span>05</span><b>How will you check it?</b><small>Define a visible success test.</small></div>
+    </div>
+  </section>
+
+  <section class="builder-section" id="builder">
+    <div class="section-heading"><div><div class="section-kicker">PROMPT BUILDER</div><h2>Build a small prompt<br>that carries its weight.</h2></div><p>Everything stays in your browser. Your draft is not uploaded or sent to an AI service.</p></div>
+    <div class="builder-grid">
+      <form class="builder-form" id="promptBuilder">
+        <label><span>01 / Outcome <i>required</i></span><textarea id="goal" rows="3" placeholder="What should the AI produce or help you decide?" required></textarea><small>Use a verb: compare, draft, explain, debug, plan.</small></label>
+        <label><span>02 / Context <i>optional</i></span><textarea id="context" rows="3" placeholder="Only the facts the AI cannot know: audience, data, situation..."></textarea></label>
+        <div class="two-fields"><label><span>03 / Constraints</span><input id="constraints" placeholder="e.g. 5 bullets, plain English, under 150 words"></label><label><span>04 / Output format</span><select id="format"><option>Short bullet list</option><option>Numbered steps</option><option>Markdown table</option><option>JSON</option><option>Brief paragraph</option></select></label></div>
+        <label><span>05 / Success check</span><input id="success" placeholder="e.g. every claim has a source or uncertainty note"></label>
+        <button class="btn-violet builder-submit" type="submit">Assemble efficient prompt <span>↗</span></button>
+      </form>
+      <aside class="output-panel" aria-live="polite"><div class="output-top"><span>YOUR PROMPT</span><span class="token-pill" id="tokenCount">0 est. tokens</span></div><pre id="promptOutput">Fill in the outcome to generate a prompt.</pre><div class="output-actions"><button class="btn-ghost" type="button" id="copyPrompt">Copy prompt</button><button class="btn-ghost" type="button" id="clearPrompt">Clear</button></div><div class="quality-note" id="qualityNote">Tip: specific constraints beat adjectives like “good”, “smart”, or “professional”.</div></aside>
+    </div>
+  </section>
+
+  <section class="learn-section">
+    <div class="section-kicker">THE SMALLER PROMPT PLAYBOOK</div><h2>High signal. Low waste.</h2>
+    <div class="playbook-grid">
+      <article><span class="play-icon">→</span><h3>Lead with the job</h3><p>Put the requested action first. Skip “I hope you are well” and background that does not change the answer.</p><code>Summarize the report in 5 bullets.</code></article>
+      <article><span class="play-icon">#</span><h3>Separate the parts</h3><p>Use short headings or delimiters for instructions, context, and data. This prevents the model from confusing source text with commands.</p><code>Task · Context · Output</code></article>
+      <article><span class="play-icon">≡</span><h3>Start zero-shot</h3><p>Try one clear example without examples first. Add one or two examples only when format or style still varies.</p><code>Zero-shot → test → few-shot</code></article>
+      <article><span class="play-icon">✓</span><h3>Make quality testable</h3><p>Replace “make it better” with a check: word count, required fields, audience, source rule, or acceptance criteria.</p><code>Pass if every row has a reason.</code></article>
+    </div>
+  </section>
+
+  <section class="sources-section"><div><div class="section-kicker">RESEARCH NOTES</div><h2>Grounded in public guidance.</h2><p>This page distils recurring advice from model providers and open-source prompt libraries. Techniques are guidance, not guarantees: test your prompt on real inputs.</p></div><div class="source-links"><a href="https://platform.openai.com/docs/guides/reasoning-best-practices" target="_blank" rel="noopener">OpenAI · reasoning best practices <span>↗</span></a><a href="https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/prompts/prompt-design-strategies" target="_blank" rel="noopener">Google · prompt design strategies <span>↗</span></a><a href="https://github.com/github/gh-aw/tree/HEAD/.github/skills/prompt-token-efficiency" target="_blank" rel="noopener">GitHub · token efficiency skill <span>↗</span></a><a href="https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/use-xml-tags" target="_blank" rel="noopener">Anthropic · structure with XML tags <span>↗</span></a></div></section>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'gallery/js/prompt-skills.js' %}?v=1" defer></script>{% endblock %}

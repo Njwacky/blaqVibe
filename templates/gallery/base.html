@@ -52,6 +52,7 @@
   <div class="nav-links" id="nav-links">
     <a href="{% url 'feed' %}"{% if request.path == '/' %} aria-current="page"{% endif %}>Vibes</a>
     <a href="{% url 'starter_gallery' %}" style="color:var(--accent-text);font-weight:700"{% if '/start' in request.path or '/studio' in request.path %} aria-current="page"{% endif %}>✦ Start</a>
+    <a href="{% url 'prompt_skills' %}" style="color:var(--warning-text);font-weight:700"{% if '/prompt-skills/' in request.path %} aria-current="page"{% endif %}>⌘ Prompt skills</a>
     <a href="{% url 'launch_hub' %}" style="color:var(--launch-text);font-weight:700"{% if '/launch/' in request.path %} aria-current="page"{% endif %}><svg class="bv-icon"><use href="#bv-ico-launch"></use></svg> Launch</a>
     {% if user.is_authenticated %}
       <a href="{% url 'publish' %}" class="btn-violet">+ Publish</a>
@@ -126,6 +127,7 @@
         <h2>Explore</h2>
         <a href="{% url 'feed' %}">Vibes</a>
         <a href="{% url 'launch_hub' %}">Launch guides</a>
+        <a href="{% url 'prompt_skills' %}">Prompt skills</a>
         <a href="{% url 'battle' %}">Battle</a>
         <a href="{% url 'challenge_list' %}">Challenges</a>
       </div>
