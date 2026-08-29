@@ -70,8 +70,8 @@ def nolo_chat_api(request):
         if not prompt:
             return JsonResponse({'error': 'Ask Nolo a question first.'}, status=400)
         from .nolo_ai import get_nolo_ai_answer
-        answer, source = get_nolo_ai_answer(prompt)
-        return JsonResponse({'reply': answer, 'source': source})
+        answer, source, meta = get_nolo_ai_answer(prompt, return_meta=True)
+        return JsonResponse({'reply': answer, 'source': source, 'meta': meta})
     except Exception as e:
         import logging
         logging.getLogger(__name__).exception(f"nolo chat api crush: {e}")

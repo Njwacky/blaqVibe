@@ -101,6 +101,7 @@ to `.github/workflows/ci.yml` (needs the `workflows` permission).
 - PR merge copies the fork ZIP + file list onto the target and re-queues a scan.
 - Inbox, saved vibes, email confirm, sitemap, and `/api/v1/apps/` exist.
 - Nolo chat uses Claude if `ANTHROPIC_API_KEY` is set, else Gemini/Groq, else a short built-in helper. It never pretends to be a live model without a key.
+- **Nolo prompts are token-cheap by default.** `gallery/prompt_economy.py` is a real prompt engine, not a toggle: stable system instructions go first, dynamic user text goes last, whitespace/duplicate-prose is compressed, inputs hit a hard character budget (code is cut at a line boundary), and a provider prompt-cache hint is sent only when the stable prefix is large enough to be honoured. `/nolo/chat/send/` returns a `meta` block with before/after token estimates so the saving is observable, not claimed.
 - Google / GitHub / Facebook sign-in: set each provider's client id **and** secret in `.env` (see `docs/specs/SOCIAL_AUTH.md`).
 
 Demos and old specs live in `docs/demos/` and `docs/specs/`.
