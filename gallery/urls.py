@@ -9,6 +9,7 @@ urlpatterns = [
     path('readyz', health.readiness, name='readyz'),
     path('', views.feed, name='feed'),
     path('trust/', views.trust_legend, name='trust_legend'),
+    path('prompt-skills/', views.prompt_skills, name='prompt_skills'),
     path('sitemap.xml', views.sitemap_xml, name='sitemap'),
     path('api/v1/apps/', api_views.api_apps, name='api_apps'),
     path('api/v1/program-kinds/', api_views.api_program_kinds, name='api_program_kinds'),

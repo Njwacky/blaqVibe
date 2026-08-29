@@ -1366,6 +1366,25 @@ def sitemap_xml(request):
     return HttpResponse('\n'.join(rows), content_type='application/xml')
 
 
+def prompt_skills(request):
+    """A practical, provider-neutral prompt efficiency workbench.
+
+    5 Whys:
+    1. Why teach prompt structure instead of promising a magic optimizer?
+       People need a reusable mental model, not another opaque rewrite.
+    2. Why show an explicit token estimate? Tokens are an approximate budget;
+       making the trade-off visible helps users choose the smallest useful
+       context without pretending to know a provider's tokenizer.
+    3. Why use 5 Whys? It turns a vague request into the actual outcome,
+       constraints, and acceptance test before words are spent on prose.
+    4. Why run in the browser? The user's draft must not leave the page just
+       to count words or assemble a template; privacy and latency improve.
+    5. Why keep the output editable? The human remains accountable for the
+       instruction. The tool accelerates thinking; it does not invent facts.
+    """
+    return render(request, 'gallery/prompt_skills.html')
+
+
 def trust_legend(request):
     """Public "what does the badge mean" page — the anti-fake read.
 
