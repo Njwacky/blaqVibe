@@ -607,6 +607,93 @@ class FiveWhysHolesTests(TestCase):
         self.assertEqual(posted.call_args.kwargs['headers']['x-api-key'], 'sk-ant-test')
 
 
+@override_settings(RATELIMIT_ENABLE=False)
+class PromptEconomyTests(SimpleTestCase):
+    """The real token-saving prompt engine behind Nolo.
+
+    These are pure-function tests: no network, no API key, no model call. They
+    pin the guarantees that make `optimize_prompt` safe to use everywhere —
+    never negative, never over the budget, never mid-token for code, and honest
+    when a rewrite cannot be justified.
+    """
+
+    def test_estimate_tokens_is_positive_and_deterministic(self):
+        from gallery.prompt_economy import estimate_tokens
+        self.assertGreater(estimate_tokens('hello world'), 0)
+        self.assertEqual(estimate_tokens(''), 0)
+        first = estimate_tokens('A long question about star trades and zip previews. ' * 20)
+        second = estimate_tokens('A long question about star trades and zip previews. ' * 20)
+        self.assertEqual(first, second)
+
+    def test_optimize_prompt_compacts_prose_and_keeps_budget(self):
+        from gallery.prompt_economy import optimize_prompt
+        noisy = 'How   do    I   trade   stars?\n\n\n\n\nAnd   then   fork   the   vibe?   \n\n\n\n\n'
+        plan = optimize_prompt(noisy, system='\n\n\nStable   system    instructions.\n\n\n')
+        self.assertLessEqual(plan['user_tokens'], plan['before_tokens'])
+        self.assertGreaterEqual(plan['saved_tokens'], 0)
+        self.assertEqual(plan['ordering'], 'system-first-dynamic-last')
+        self.assertEqual(plan['system'], 'Stable system instructions.')
+
+    def test_optimize_prompt_preserves_code_indentation(self):
+        from gallery.prompt_economy import optimize_prompt
+        code = '''def main():\n    if True:\n        print('a')\n    print(2)\n\n\n\n'''
+        plan = optimize_prompt(code, preserve_code=True, user_budget_chars=5000)
+        self.assertIn('    print(2)', plan['text'])
+        self.assertTrue(plan['preserve_code'])
+        if plan['truncated']:
+            self.assertTrue(any('line boundary' in warning for warning in plan['warnings']))
+
+    def test_optimize_prompt_truncates_long_code_on_line_boundary(self):
+        from gallery.prompt_economy import optimize_prompt
+        code = 'x = 1\n' * 4000
+        plan = optimize_prompt(code, preserve_code=True, user_budget_chars=500)
+        self.assertTrue(plan['user_truncated'])
+        self.assertLessEqual(len(plan['text']), 500)
+        if plan['text']:
+            # The cut must be on a line boundary, so the retained text keeps
+            # complete lines rather than half a token.
+            self.assertGreaterEqual(plan['text'].count('\n'), 1)
+
+    def test_should_enable_prefix_cache_only_for_large_prefix(self):
+        from gallery.prompt_economy import should_enable_prefix_cache
+        self.assertFalse(should_enable_prefix_cache('short stable prefix'))
+        self.assertTrue(should_enable_prefix_cache('x' * 6000))
+
+    def test_optimize_prompt_fallback_keeps_text_when_transform_fails(self):
+        from unittest.mock import patch
+        from gallery.prompt_economy import optimize_prompt
+        # Force the internal helper to explode; optimization must degrade to the
+        # original bytes rather than raise.
+        with patch('gallery.prompt_economy._strip_crlf', side_effect=RuntimeError('boom')):
+            plan = optimize_prompt('keep me   safe', user_budget_chars=300)
+        self.assertEqual(plan['text'], 'keep me   safe')
+        self.assertEqual(plan['saved_tokens'], 0)
+        self.assertTrue(any('unable' in warning for warning in plan['warnings']))
+
+    @override_settings(ANTHROPIC_API_KEY='sk-ant-test')
+    def test_nolo_chat_api_returns_real_token_meta(self):
+        from unittest.mock import Mock, patch
+        fake = Mock()
+        fake.raise_for_status = Mock()
+        fake.json.return_value = {
+            'content': [{'type': 'text', 'text': 'Trade the star cost to unlock the ZIP.'}]
+        }
+        with patch('gallery.nolo_ai.requests.post', return_value=fake):
+            response = self.client.post(
+                '/nolo/chat/send/',
+                data='{"prompt":"How do I trade stars?"}',
+                content_type='application/json',
+            )
+        self.assertEqual(response.status_code, 200)
+        body = response.json()
+        self.assertEqual(body['source'], 'claude')
+        self.assertIn('meta', body)
+        self.assertIn('saved_tokens', body['meta']['prompt'])
+        self.assertGreaterEqual(body['meta']['prompt']['saved_tokens'], 0)
+        self.assertGreaterEqual(body['meta']['prompt']['input_tokens_before'], 1)
+        self.assertEqual(body['meta']['structure']['ordering'], 'system-first-dynamic-last')
+
+
 
 @override_settings(RATELIMIT_ENABLE=False, PAYSTACK_SECRET_KEY='sk_test_webhook', PAYSTACK_ENABLED=True)
 class PaystackWebhookTests(TestCase):

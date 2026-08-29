@@ -3,7 +3,19 @@ import os
 
 import requests
 
+from .prompt_economy import optimize_prompt, should_enable_prefix_cache
+
 logger = logging.getLogger(__name__)
+
+# Real Nolo system instructions. Every word earns its place: this block is
+# intentionally short and *stable*, because a short, unchanged prefix is what
+# makes prompt caching cheap across many requests. Dynamic user text goes in
+# the user message at the end.
+NOLO_SYSTEM_PROMPT = (
+    'You are Nolo on BlaqVibes. Answer the question only. '
+    'Stay concise, plain text, under 120 words. '
+    'If you are unsure, say so. Do not claim to be live when no model key is set.'
+)
 
 
 def _env(name: str) -> str:
@@ -13,6 +25,14 @@ def _env(name: str) -> str:
     except Exception:
         val = os.getenv(name, '')
     return (val or '').strip()
+
+
+def _int_setting(name, default):
+    raw = _env(name)
+    try:
+        return int(raw) if raw else default
+    except (TypeError, ValueError):
+        return default
 
 
 def configured_ai_backend() -> str:
@@ -26,21 +46,37 @@ def configured_ai_backend() -> str:
     return 'heuristic'
 
 
-def get_nolo_ai_answer(prompt):
-    """Return (reply, source). source is claude|gemini|groq|heuristic.
+def _max_output_tokens(default=180):
+    return max(80, _int_setting('NOLO_OUTPUT_MAX_TOKENS', default))
 
-    Claude is used only when ANTHROPIC_API_KEY is set. No key → no fake Claude.
+
+def _system_prompt():
+    return _env('NOLO_SYSTEM_PROMPT') or NOLO_SYSTEM_PROMPT
+
+
+def get_nolo_ai_answer(prompt, *, system_text=None, budget_chars=None, preserve_code=False, return_meta=False):
+    """Return (reply, source) — or (reply, source, meta) when return_meta=True.
+
+    Every backend gets the same token-economy plan: stable system instructions
+    first, then the compressed/capped dynamic user payload. `source` is
+    claude|gemini|groq|heuristic. No API key → no fake live model.
     """
-    prompt_text = (
-        "Answer this BlaqVibes question in a short helpful way:\n\n"
-        f"{prompt}\n\nKeep the answer concise and friendly."
+    sys_text = system_text or _system_prompt()
+    chat_budget = budget_chars if budget_chars is not None else _int_setting('NOLO_CHAT_USER_BUDGET_CHARS', 1800)
+    plan = optimize_prompt(
+        prompt,
+        system=sys_text,
+        user_budget_chars=chat_budget,
+        preserve_code=bool(preserve_code),
     )
+    prompt_text = plan['text']
+
     claude_key = _env('ANTHROPIC_API_KEY')
     if claude_key:
         try:
-            text = _claude_answer(claude_key, prompt_text)
+            text = _claude_answer(claude_key, prompt_text, plan['system'])
             if text:
-                return text, 'claude'
+                return _maybe_meta(text, 'claude', plan, return_meta)
         except Exception as e:
             logger.warning('Claude chat failed: %s', e)
     gemini_key = _env('GEMINI_API_KEY')
@@ -48,11 +84,25 @@ def get_nolo_ai_answer(prompt):
         try:
             import google.generativeai as genai
             genai.configure(api_key=gemini_key)
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            resp = model.generate_content(prompt_text, generation_config={'temperature': 0.4, 'max_output_tokens': 300})
+            model_kwargs = {'model': _env('GEMINI_MODEL') or 'gemini-1.5-flash'}
+            # system_instruction is supported on the versions pinned in
+            # requirements.txt; if a deployment pins an older one it simply
+            # falls through to the other backends rather than pretending.
+            try:
+                model_kwargs['system_instruction'] = plan['system']
+            except Exception:
+                pass
+            model = genai.GenerativeModel(**model_kwargs)
+            resp = model.generate_content(
+                prompt_text,
+                generation_config={
+                    'temperature': 0.4,
+                    'max_output_tokens': _max_output_tokens(240),
+                },
+            )
             text = getattr(resp, 'text', '') or str(resp)
             if text:
-                return text, 'gemini'
+                return _maybe_meta(text, 'gemini', plan, return_meta)
         except Exception as e:
             logger.warning('Gemini chat failed: %s', e)
     groq_key = _env('GROQ_API_KEY')
@@ -60,21 +110,66 @@ def get_nolo_ai_answer(prompt):
         try:
             from groq import Groq
             client = Groq(api_key=groq_key)
+            messages = []
+            if plan['system']:
+                messages.append({'role': 'system', 'content': plan['system']})
+            messages.append({'role': 'user', 'content': prompt_text})
             resp = client.chat.completions.create(
-                model='llama-3.1-8b-instant',
-                messages=[{'role': 'user', 'content': prompt_text}],
-                max_tokens=300,
+                model=_env('GROQ_MODEL') or 'llama-3.1-8b-instant',
+                messages=messages,
+                max_tokens=_max_output_tokens(240),
                 temperature=0.4,
             )
             text = resp.choices[0].message.content
             if text:
-                return text, 'groq'
+                return _maybe_meta(text, 'groq', plan, return_meta)
         except Exception as e:
             logger.warning('Groq chat failed: %s', e)
-    return _heuristic_fallback(prompt), 'heuristic'
+
+    reply = _heuristic_fallback(prompt)
+    return _maybe_meta(reply, 'heuristic', plan, return_meta)
 
 
-def _claude_answer(api_key: str, prompt_text: str) -> str:
+def _maybe_meta(reply, source, plan, return_meta):
+    if not return_meta:
+        return reply, source
+    meta = {
+        'prompt': {
+            'input_tokens': plan['after_tokens'],
+            'input_tokens_before': plan['before_tokens'],
+            'saved_tokens': plan['saved_tokens'],
+            'saved_percent': plan['saved_percent'],
+        },
+        'structure': {
+            'ordering': plan['ordering'],
+            'cacheable_prefix': plan['cacheable'],
+            'truncated': plan['truncated'],
+        },
+        'warnings': plan['warnings'],
+    }
+    return reply, source, meta
+
+
+def _claude_answer(api_key: str, prompt_text: str, system_text: str) -> str:
+    body = {
+        'model': _env('ANTHROPIC_MODEL') or 'claude-3-5-haiku-latest',
+        'max_tokens': _max_output_tokens(240),
+        'messages': [{'role': 'user', 'content': prompt_text}],
+    }
+    # Prompt caching: put the stable system block first and ask the provider to
+    # cache it *only* when it is large enough to be honoured. A short prefix is
+    # still sent as a plain string — never a cache hint that can error.
+    if system_text:
+        if should_enable_prefix_cache(system_text):
+            body['system'] = [
+                {
+                    'type': 'text',
+                    'text': system_text,
+                    'cache_control': {'type': 'ephemeral'},
+                }
+            ]
+        else:
+            body['system'] = system_text
     r = requests.post(
         'https://api.anthropic.com/v1/messages',
         headers={
@@ -82,11 +177,7 @@ def _claude_answer(api_key: str, prompt_text: str) -> str:
             'anthropic-version': '2023-06-01',
             'content-type': 'application/json',
         },
-        json={
-            'model': _env('ANTHROPIC_MODEL') or 'claude-3-5-haiku-latest',
-            'max_tokens': 300,
-            'messages': [{'role': 'user', 'content': prompt_text}],
-        },
+        json=body,
         timeout=20,
     )
     r.raise_for_status()

@@ -32,10 +32,42 @@ logger = logging.getLogger(__name__)
 
 MAX_CODE_LEN = 12000
 
+# Small, stable system blocks for each Nolo skill. They sit at the front of
+# the model input and never change; the pasted user code goes last so provider
+# prompt caching can reuse the instruction prefix across requests.
+NOLO_FIX_SYSTEM_PROMPT = (
+    'You are Nolo, a kind beginner-friendly web debugger. '
+    'Explain the most likely fix in 3-5 short sentences. '
+    'Do not invent code the user did not write.'
+)
+NOLO_README_SYSTEM_PROMPT = (
+    'You are Nolo, a README writer for a tiny web project. '
+    'Return plain markdown only with a # title, ## What is this?, ## Features and ## How to run sections. '
+    'Keep it under 200 words. Do not invent features the code lacks.'
+)
+# Hard budget for pasted code. It is deliberately smaller than the 36k chars a
+# user can paste so the model only reads the most relevant slice instead of
+# paying for every whitespace byte. Curious why the exact figure? See
+# gallery/prompt_economy.py and NOLO_CODE_PROMPT_BUDGET_CHARS in .env.example.
+NOLO_CODE_PROMPT_BUDGET = 8000
+
 
 def _clip(text):
     text = text or ''
     return text[:MAX_CODE_LEN]
+
+
+def _code_budget():
+    try:
+        import os
+        from django.conf import settings
+        raw = getattr(settings, 'NOLO_CODE_PROMPT_BUDGET_CHARS', '') or os.getenv('NOLO_CODE_PROMPT_BUDGET_CHARS', '')
+    except Exception:
+        raw = os.getenv('NOLO_CODE_PROMPT_BUDGET_CHARS', '')
+    try:
+        return max(1000, int(raw)) if raw else NOLO_CODE_PROMPT_BUDGET
+    except (TypeError, ValueError):
+        return NOLO_CODE_PROMPT_BUDGET
 
 
 # --------------------------------------------------------------------------- #
@@ -178,14 +210,24 @@ def fix_code(html='', css='', js='', error='', allow_llm=True):
             from .nolo_ai import configured_ai_backend, get_nolo_ai_answer
             if configured_ai_backend() != 'heuristic':
                 found_txt = '\n'.join(f"- [{f['level']}] {f['title']}: {f['detail']}" for f in findings) or '- (no obvious issues found by static checks)'
+                # Keep instruction text OUT of the user payload: it is part of
+                # the stable system prefix in NOLO_FIX_SYSTEM_PROMPT. Only the
+                # user's data and the static findings travel as dynamic bytes.
                 prompt = (
-                    "You are helping a beginner debug a small web page. Be concise and kind.\n"
                     f"Reported error: {error or '(none given)'}\n\n"
                     f"HTML:\n{html or '(none)'}\n\nCSS:\n{css or '(none)'}\n\nJS:\n{js or '(none)'}\n\n"
-                    f"Static checks already found:\n{found_txt}\n\n"
-                    "Explain the most likely fix in 3-5 short sentences. Do not invent code the user did not write."
+                    f"Static checks already found:\n{found_txt}"
                 )
-                reply, source = get_nolo_ai_answer(prompt)
+                # Route through the token-economy layer with a code-aware
+                # budget: the stable instructions go first, the user code goes
+                # last, and a big paste is cut at a line boundary rather than
+                # burned as input tokens.
+                reply, source = get_nolo_ai_answer(
+                    prompt,
+                    system_text=NOLO_FIX_SYSTEM_PROMPT,
+                    budget_chars=_code_budget(),
+                    preserve_code=True,
+                )
                 if reply and source != 'heuristic':
                     return reply.strip(), findings, source
         except Exception:
@@ -245,15 +287,20 @@ def write_readme(title='', description='', html='', css='', js='', tech='', allo
         try:
             from .nolo_ai import configured_ai_backend, get_nolo_ai_answer
             if configured_ai_backend() != 'heuristic':
+                # The markdown contract lives in NOLO_README_SYSTEM_PROMPT; the
+                # user payload is only the project facts and source samples.
                 prompt = (
-                    "Write a short, friendly markdown README for a small web project.\n"
                     f"Title: {title}\nOne-liner: {description or '(none)'}\nTech: {tech or 'HTML/CSS/JS'}\n\n"
-                    f"HTML:\n{html[:2000]}\n\nJS:\n{js[:2000]}\n\n"
-                    "Return ONLY markdown with: a '# Title' heading, a '## What is this?' section, "
-                    "a '## Features' list, and a '## How to run' section (say it runs in the browser, "
-                    "no build step). Keep it under 200 words. Do not invent features the code lacks."
+                    f"HTML:\n{html[:2000]}\n\nJS:\n{js[:2000]}"
                 )
-                reply, source = get_nolo_ai_answer(prompt)
+                # Same code-aware token budget as fix_code: system first, the
+                # pasted source last, capped before it reaches the model.
+                reply, source = get_nolo_ai_answer(
+                    prompt,
+                    system_text=NOLO_README_SYSTEM_PROMPT,
+                    budget_chars=_code_budget(),
+                    preserve_code=True,
+                )
                 if reply and '# ' in reply and source != 'heuristic':
                     return reply.strip()[:5000], source
         except Exception:
