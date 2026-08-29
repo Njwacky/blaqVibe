@@ -104,4 +104,13 @@ to `.github/workflows/ci.yml` (needs the `workflows` permission).
 - **Nolo prompts are token-cheap by default.** `gallery/prompt_economy.py` is a real prompt engine, not a toggle: stable system instructions go first, dynamic user text goes last, whitespace/duplicate-prose is compressed, inputs hit a hard character budget (code is cut at a line boundary), and a provider prompt-cache hint is sent only when the stable prefix is large enough to be honoured. `/nolo/chat/send/` returns a `meta` block with before/after token estimates so the saving is observable, not claimed.
 - Google / GitHub / Facebook sign-in: set each provider's client id **and** secret in `.env` (see `docs/specs/SOCIAL_AUTH.md`).
 
+## Stability & ops
+
+- **Probes:** `/healthz` (liveness — always 200 if the process is alive, touches nothing) and `/readyz` (readiness — `SELECT 1` against the DB, reports queue state; 503 with JSON when the DB is unreachable). Both bypass maintenance mode. See `docs/STABILITY.md`.
+- **Logging:** structured console logging is configured by default (`LOG_LEVEL` env to change verbosity). 500s + stack traces surface via `django.request`; app loggers (`gallery`, `users`, `celery`) are at INFO.
+- **Backups:** `python manage.py backup_db` writes a consistent snapshot to `backups/` (SQLite online backup API; Postgres `pg_dump -Fc`). Refuses in-memory DBs and prunes to `--keep` (default 10).
+- **CI:** `.github/workflows/ci.yml` runs migrate → seed → all tests → `security_check` in production posture → probe smoke test on push/PR. Local equivalent: `bash scripts/ci.sh`.
+- **Compose:** every service has `restart: unless-stopped`, healthchecks (DB, Redis, web, Celery worker/beat), and `depends_on` waits for *healthy* dependencies. Override defaults in hosted Docker: map `8000:8000`, set `DATABASE_URL`/`REDIS_URL`.
+- **Known-good posture:** `DEBUG=0`, `SECRET_KEY` set (app refuses to boot otherwise), `RATELIMIT_ENABLE=1`, maintenance mode behind `MaintenanceModeMiddleware`. `python manage.py security_check` gates deploys via the compose boot command.
+
 Demos and old specs live in `docs/demos/` and `docs/specs/`.

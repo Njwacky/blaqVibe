@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:16-alpine
+    restart: unless-stopped
     environment:
       POSTGRES_DB: blaqvibes
       POSTGRES_USER: blaq
@@ -10,10 +11,20 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U blaq"]
       interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   redis:
     image: redis:7-alpine
+    restart: unless-stopped
     ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+      start_period: 5s
 
   # Gitea removed. 5 Whys: Why? It ran on :3000 and :2222 with zero Python
   # integration — an unpatched, unused attack surface. Git hosting comes
@@ -21,12 +32,13 @@ services:
 
   web:
     build: .
+    restart: unless-stopped
     # migrate + collectstatic only. seed_demo is NOT part of the boot path: it
     # creates accounts whose passwords are published in README.md, and a
     # public host must never inherit those (see gallery/seed.py:seed_mode).
     # Run `docker compose exec web python manage.py seed_demo` locally, or set
     # SEED_DEMO_FORCE=1 on a throwaway demo box for the catalog alone.
-    command: bash -c "python manage.py migrate && python manage.py collectstatic --noinput && python manage.py security_check && gunicorn blaqvibes.wsgi:application --bind 0.0.0.0:8000 --workers 3"
+    command: bash -c "python manage.py migrate && python manage.py collectstatic --noinput && python manage.py security_check && gunicorn blaqvibes.wsgi:application --bind 0.0.0.0:8000 --workers 3 --access-logfile - --error-logfile -"
     volumes:
       - .:/app
       - media:/app/media
@@ -41,10 +53,20 @@ services:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      # Liveness probe: process up. DB/broker failures are reported by
+      # /readyz but must not kill healthy workers (see gallery/health.py).
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=5).status==200 else 1)"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    stop_grace_period: 30s
 
   celery:
     build: .
+    restart: unless-stopped
     command: celery -A blaqvibes worker -Q scan --loglevel=info -c 2
     volumes:
       - .:/app
@@ -58,10 +80,19 @@ services:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      # Worker liveness: it must be able to reach the broker it consumes from.
+      test: ["CMD", "python", "-c", "import os,redis,sys; redis.Redis.from_url(os.getenv('REDIS_URL','redis://redis:6379/0'), socket_connect_timeout=5).ping(); sys.exit(0)"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    stop_grace_period: 60s
 
   celery-beat:
     build: .
+    restart: unless-stopped
     command: celery -A blaqvibes beat --loglevel=info
     volumes:
       - .:/app
@@ -74,7 +105,14 @@ services:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import os,redis,sys; redis.Redis.from_url(os.getenv('REDIS_URL','redis://redis:6379/0'), socket_connect_timeout=5).ping(); sys.exit(0)"]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+    stop_grace_period: 60s
 
 volumes:
   pgdata:
