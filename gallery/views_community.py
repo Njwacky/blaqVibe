@@ -160,7 +160,8 @@ def starter_gallery(request):
        clone/trade; a starter is a *blank canvas to begin from*. Mixing them
        would blur "learn from this" with "publish over this".
     2. Why public (no login)? A beginner deciding whether to sign up should be
-       able to see the on-ramp first; the login wall lands only at publish.
+       able to pick a starter and write first; the login wall lands at
+       *running* the preview and at publish — never at the editors.
     3. Why data-driven (gallery.starters)? Starters must be trustworthy on
        first paint — code-reviewed data, never user bytes (see starters.py).
     4. Why include a blank option? Someone with their own idea should not have
@@ -176,12 +177,13 @@ def starter_gallery(request):
 
 
 def studio(request, slug=''):
-    """In-browser editor with a live sandboxed preview + one-click publish.
+    """In-browser editor. Write without an account; run preview after login.
 
-    GET  — load a starter (or blank) into three editors (HTML/CSS/JS) plus a
-           title/description. The live preview is a client-side srcdoc iframe
-           (see static/gallery/js/studio.js); nothing hits the server to
-           preview, so editing is instant and safe (opaque-origin sandbox).
+    GET  — load a starter (or blank) into three editors (HTML/CSS/JS).
+           Writing is public. The live preview iframe is only in the HTML
+           when the visitor is signed in; anonymous visitors get a lock
+           panel instead. Drafts live in sessionStorage so sign-in does
+           not wipe the editors.
     POST — hand the edited fields to the ONE publish path so scan, classify,
            and trust all apply. Studio never writes an AppProject itself.
 
@@ -194,13 +196,24 @@ def studio(request, slug=''):
        Edited starter code is user content; it must pass the same validation,
        snippet secret-scan, classification, and trust grading as any upload.
        A second save path would be a second place for those rules to rot.
-    3. Why require login only on POST? Browsing and tinkering should be
-       frictionless; the account is needed only to own a published vibe.
-    4. Why pass the starter through a stable slug? /studio/<slug>/ is linkable
-       from the gallery, the empty feed state, and docs; a stable id keeps
-       those links valid and lets tests target one starter.
-    5. Why a blank studio at /studio/ with no slug? The person with their own
-       idea starts from nothing without deleting a template first.
+    3. Why require login to RUN the preview, not to write? Writing is text
+       in a textarea — no execution, no account. Running HTML/JS executes in
+       the visitor's browser. An account is the same gate we already use for
+       publish, so a shared /studio/ URL cannot become an anonymous script
+       runner, and the conversion is honest: you wrote it, sign in to see it
+       run.
+    4. Why omit the iframe from the anonymous HTML rather than hide it with
+       CSS? `display:none` still leaves an iframe a visitor (or an extension)
+       can unhide, and studio.js would still assign srcdoc. A missing element
+       cannot run. The JS flag `canPreview` is rendered from
+       `request.user.is_authenticated` — flipping it in DevTools cannot
+       conjure an iframe that was never sent.
+    5. Why persist the draft in sessionStorage? Sign-in is a full navigation.
+       Without a local draft, "you can write without an account" deletes the
+       work at the conversion moment. sessionStorage (not localStorage) dies
+       with the tab on a shared computer; the server never stores anonymous
+       code (that would be a pastebin). After login, `?next=` returns to the
+       same /studio/<slug>/ and the editors restore.
     """
     from .starters import get_starter, STARTERS_VERSION
     from .forms import AppUploadForm
@@ -231,7 +244,7 @@ def studio(request, slug=''):
             'html_code': '<main>\n  <h1>My vibe</h1>\n  <p>Start building. Edit me.</p>\n</main>',
             'css_code': ('body{font-family:system-ui,sans-serif;background:#0b1020;'
                          'color:#e5e7eb;display:grid;place-items:center;min-height:100vh}'),
-            'js_code': '// Your JavaScript runs live in the preview.\n',
+            'js_code': '// JavaScript runs in the live preview after you sign in.\n',
         }
     form = AppUploadForm(initial=initial)
     return render(request, 'gallery/studio.html', {
@@ -239,6 +252,8 @@ def studio(request, slug=''):
         'starter': starter,
         'initial': initial,
         'starters_version': STARTERS_VERSION,
+        'can_preview': request.user.is_authenticated,
+        'studio_next': request.path,
     })
 
 @login_required

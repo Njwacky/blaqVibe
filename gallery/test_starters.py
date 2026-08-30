@@ -65,6 +65,118 @@ class StudioViewTests(TestCase):
         self.assertEqual(self.client.get('/studio/not-real/').status_code, 404)
 
 
+class StudioPreviewLoginGateTests(TestCase):
+    """Anonymous visitors can write; they cannot run a live preview.
+
+    5 Whys — why these tests, not just a CSS assert?
+    1. Why omit the iframe instead of hiding it? CSS hide is a fake gate;
+       the HTML must not contain `#studio-frame` for anonymous GETs.
+    2. Why still assert the three editors? "You can write" is the other
+       half of the promise — a login wall on the whole Studio would fail it.
+    3. Why assert the JS flag AND the missing element? Flipping
+       `canPreview` in DevTools must not be enough; there is no iframe
+       to assign srcdoc to.
+    4. Why persist a draft in JS? Sign-in is a navigation; without
+       sessionStorage the conversion deletes the work.
+    5. Why honor `next` on signup? Dumping a new account on the feed
+       looks like the code vanished.
+    """
+
+    def test_anonymous_can_write_but_has_no_preview_iframe(self):
+        resp = self.client.get('/studio/hello-landing/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(resp.context['can_preview'])
+        self.assertContains(resp, 'id="ed-html"')
+        self.assertContains(resp, 'id="ed-css"')
+        self.assertContains(resp, 'id="ed-js"')
+        self.assertContains(resp, 'people vibing')
+        self.assertNotContains(resp, 'id="studio-frame"')
+        self.assertNotContains(resp, 'sandbox="allow-scripts"')
+        self.assertContains(resp, 'Sign in to run a live preview')
+        self.assertContains(resp, 'canPreview: false')
+        self.assertContains(resp, '/accounts/login/?next=/studio/hello-landing/')
+
+    def test_blank_studio_same_gate(self):
+        resp = self.client.get('/studio/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(resp.context['can_preview'])
+        self.assertContains(resp, 'id="ed-html"')
+        self.assertNotContains(resp, 'id="studio-frame"')
+        self.assertContains(resp, 'canPreview: false')
+
+    def test_authenticated_gets_live_preview_iframe(self):
+        user = make_user('studiopreview')
+        self.client.force_login(user)
+        resp = self.client.get('/studio/hello-landing/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.context['can_preview'])
+        self.assertContains(resp, 'id="studio-frame"')
+        self.assertContains(resp, 'sandbox="allow-scripts"')
+        self.assertContains(resp, 'canPreview: true')
+        self.assertContains(resp, 'Live preview · sandboxed')
+        self.assertNotContains(resp, 'Sign in to run a live preview')
+
+    def test_js_never_sets_srcdoc_without_canPreview_and_keeps_editors(self):
+        js = (settings.BASE_DIR / 'static' / 'gallery' / 'js' / 'studio.js').read_text()
+        self.assertIn('canPreview', js)
+        self.assertIn('previewLive', js)
+        self.assertIn('frame.srcdoc', js)
+        self.assertIn('sessionStorage', js)
+        self.assertIn('blaq-studio-draft', js)
+        # The old early-return aborted tabs/Nolo/drawer when the iframe
+        # was missing. Editors must keep working for anonymous writers.
+        self.assertNotIn('if (!frame || !ed.html) return;', js)
+        srcdoc_at = js.index('frame.srcdoc')
+        gate_at = js.index('if (!previewLive) return;')
+        self.assertLess(gate_at, srcdoc_at)
+
+    def test_start_page_does_not_promise_anonymous_preview(self):
+        resp = self.client.get('/start/')
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, 'edit it live with an instant preview')
+        self.assertContains(resp, 'Sign in when you want to run the live preview')
+
+    def test_login_form_keeps_studio_next(self):
+        page = self.client.get('/accounts/login/?next=/studio/hello-landing/')
+        self.assertEqual(page.status_code, 200)
+        self.assertContains(page, 'name="next"')
+        self.assertContains(page, 'value="/studio/hello-landing/"')
+        self.assertContains(page, '/accounts/signup/?next=/studio/hello-landing/')
+
+    def test_signup_returns_to_studio_next(self):
+        resp = self.client.post('/accounts/signup/?next=/studio/hello-landing/', {
+            'username': 'studiofresh',
+            'email': 'studiofresh@test.com',
+            'password1': 'correcthorse1',
+            'password2': 'correcthorse1',
+            'next': '/studio/hello-landing/',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, '/studio/hello-landing/')
+
+    def test_signup_rejects_open_redirect(self):
+        resp = self.client.post('/accounts/signup/', {
+            'username': 'studioevil',
+            'email': 'studioevil@test.com',
+            'password1': 'correcthorse1',
+            'password2': 'correcthorse1',
+            'next': 'https://evil.example/phish',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertNotIn('evil.example', resp.url)
+
+    def test_signup_rejects_protocol_relative_next(self):
+        resp = self.client.post('/accounts/signup/', {
+            'username': 'studioprotocol',
+            'email': 'studioprotocol@test.com',
+            'password1': 'correcthorse1',
+            'password2': 'correcthorse1',
+            'next': '//evil.example/phish',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertNotIn('evil.example', resp.url)
+
+
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-studio-tests')
 class StudioPublishTests(TestCase):
     def setUp(self):

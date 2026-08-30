@@ -14,6 +14,7 @@
   </p>
   {% endif %}
   <form method="post" style="display:grid;gap:12px">{% csrf_token %}
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
     {% if form.non_field_errors %}<div class="errorlist">{{ form.non_field_errors }}</div>{% endif %}
     <div>
       <label class="field-label" for="id_username">Username or email</label>
@@ -29,7 +30,7 @@
   </form>
   {% include 'gallery/_social_auth.html' %}
   <div class="help" style="margin-top:14px;display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap">
-    <a href="{% url 'signup' %}" style="color:var(--link)">Create an account</a>
+    <a href="{% url 'signup' %}{% if request.GET.next %}?next={{ request.GET.next|urlencode }}{% endif %}" style="color:var(--link)">Create an account</a>
     <a href="{% url 'password_reset' %}" style="color:var(--link)">Forgot password?</a>
   </div>
 </div>

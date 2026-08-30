@@ -58,7 +58,58 @@
 .studio-preview-bar .dot.y { background: #f59e0b; }
 .studio-preview-bar .dot.g { background: #10b981; }
 .studio-preview-label { font-size: 12px; color: var(--muted); margin-left: 8px; }
+.studio-preview-label.is-locked { color: var(--warning-text); }
 #studio-frame { flex: 1; width: 100%; min-height: 52vh; border: 0; background: #fff; }
+
+/* Locked preview — no iframe in the anonymous HTML. This panel is the
+   honest stand-in: write stays open, run waits for an account. */
+.studio-preview-lock {
+  flex: 1;
+  min-height: 52vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 28px 22px;
+  gap: 10px;
+  background:
+    radial-gradient(720px 260px at 50% 0%, color-mix(in srgb, var(--violet) 18%, transparent), transparent 70%),
+    var(--bg);
+}
+.studio-preview-lock-icon {
+  width: 56px; height: 56px; border-radius: 16px;
+  display: grid; place-items: center;
+  font-size: 26px;
+  background: var(--accent-soft-bg);
+  border: 1px solid var(--accent-border);
+}
+.studio-preview-lock h2 {
+  font-family: Space Grotesk, sans-serif;
+  font-size: 20px;
+  line-height: 1.2;
+  margin: 4px 0 0;
+}
+.studio-preview-lock p {
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.6;
+  max-width: 38ch;
+}
+.studio-preview-lock-actions {
+  display: flex; gap: 8px; flex-wrap: wrap; justify-content: center;
+  margin-top: 6px;
+}
+.studio-preview-lock-tips {
+  margin-top: 14px;
+  text-align: left;
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.55;
+  max-width: 340px;
+  padding: 0;
+}
+.studio-preview-lock-tips li { margin: 6px 0 0 18px; }
 
 /* Nolo review panel */
 .studio-nolo {

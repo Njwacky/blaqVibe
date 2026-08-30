@@ -1,19 +1,22 @@
 """Curated starter templates — the on-ramp for a vibe coder with nothing yet.
 
 Data, not user content. Each starter is a tiny, self-contained HTML/CSS/JS
-snippet a beginner can open in the in-browser Studio, tweak with a live
-preview, and publish in one step through the SAME publish path every upload
-uses (so scan, classify, and trust all still apply).
+snippet a beginner can open in the in-browser Studio, write in the editors
+without an account, run a live preview once signed in, and publish through
+the SAME publish path every upload uses (so scan, classify, and trust all
+still apply).
 
 5 Whys — why curated data instead of, say, a folder of files or DB rows?
 
 1. Why hard-coded data? A starter must be trustworthy the instant it loads —
    no upload, no scan pending, no user-supplied bytes. Code-reviewed data is
    the only source we can promise is clean on first paint.
-2. Why snippets (html/css/js), not ZIPs? The Studio's whole point is instant,
-   client-side editing with a live sandbox preview; three text fields map
-   straight onto AppProject.html_code/css_code/js_code and the existing
-   snippet preview. A ZIP would need a build step the beginner does not have.
+2. Why snippets (html/css/js), not ZIPs? The Studio's whole point is instant
+   client-side editing; three text fields map straight onto
+   AppProject.html_code/css_code/js_code and the existing snippet preview.
+   A ZIP would need a build step the beginner does not have. The live
+   sandbox still runs those three fields — it just waits for a signed-in
+   session before the iframe exists.
 3. Why route publish through the normal form path? A starter the user edited
    is user content the moment they change it — it must be scanned, classified,
    and trust-graded like anything else. A shortcut that skipped that would be
@@ -27,7 +30,7 @@ uses (so scan, classify, and trust all still apply).
 """
 
 # Bumped when a starter's code changes, so the Studio cache-busts its assets.
-STARTERS_VERSION = "2026-08-28"
+STARTERS_VERSION = "2026-08-30"
 
 
 def _dedent(block: str) -> str:
