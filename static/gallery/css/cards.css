@@ -1,0 +1,267 @@
+/* ── Shared card components ────────────────────────────────────────────
+   The feed and detail pages used to hard-code these styles inline per
+   template. This file gives them one home, theme-aware (uses the --*
+   palette from blaqvibes.css), so dark/light mode and future redesigns
+   stay consistent. */
+
+/* Feed grid card · <a class="card vibe-card"> */
+.vibe-card { display: block; color: inherit; }
+.vibe-card__body { padding: 12px; }
+.vibe-card__title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
+.vibe-card__meta { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.vibe-card__meta a { color: var(--link); }
+.vibe-card__tags { display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
+
+/* Coloured badge variant of .badge (base is in blaqvibes.css) */
+.badge--accent { background: var(--accent-soft-bg); color: var(--accent-text); }
+.badge--success {
+  background: color-mix(in srgb, var(--success-bg) 70%, transparent);
+  color: var(--success-text);
+}
+.badge--muted { background: var(--input); border: 1px solid var(--line); color: var(--muted); }
+.badge--warning { border: 1px solid var(--warning-border); color: var(--warning-text); background: transparent; }
+
+/* Mini "app screenshot" used when a vibe has no thumbnail (feed). Themed
+   instead of the old hard-coded #fff box so it reads on the dark canvas. */
+.app-mock {
+  width: 100%;
+  height: 100%;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: var(--text);
+}
+.app-mock__bar { height: 10px; background: var(--surface-subtle); border-radius: 6px; width: 60%; }
+.app-mock__hero {
+  height: 28px;
+  background: linear-gradient(90deg, #7c3aed, #ec4899);
+  border-radius: 8px;
+}
+.app-mock__head { display: flex; justify-content: space-between; align-items: center; }
+.app-mock__title { font-size: 10px; font-weight: 700; }
+.app-mock__chip {
+  background: var(--accent-soft-bg);
+  color: var(--accent-text);
+  padding: 2px 6px;
+  border-radius: 6px;
+  font-size: 9px;
+  font-weight: 700;
+}
+.app-mock__files {
+  flex: 1;
+  background: var(--input);
+  border: 1px dashed var(--line);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+  font-size: 10px;
+}
+
+/* Browser chrome that wraps a live preview (detail page). */
+.mock-browser { display: flex; flex-direction: column; }
+.mock-browser__bar {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 12px;
+  background: var(--input);
+  border-bottom: 1px solid var(--line);
+}
+.mock-browser__left { display: flex; gap: 6px; align-items: center; min-width: 0; }
+.mock-browser__dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 10px; }
+.mock-browser__dot--red { background: var(--danger-action); }
+.mock-browser__dot--amber { background: #f59e0b; }
+.mock-browser__dot--green { background: #10b981; }
+.mock-browser__label { font-size: 12px; color: var(--muted); margin-left: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mock-browser__badge {
+  font-size: 11px;
+  background: var(--success-bg);
+  color: var(--success-text);
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.mock-browser__frame {
+  width: 100%;
+  height: 380px;
+  border: none;
+  background: var(--surface-subtle);
+  display: block;
+}
+
+/* "No live preview" placeholder (detail page) — previously hard-coded white. */
+.mock-preview {
+  height: 320px;
+  background: var(--surface-subtle);
+  display: grid;
+  place-items: center;
+  color: var(--text);
+  padding: 20px;
+}
+.mock-preview__inner { text-align: center; max-width: 420px; }
+.mock-preview__icon { font-size: 30px; line-height: 1; }
+.mock-preview__title { font-weight: 700; margin-top: 6px; }
+.mock-preview__meta { font-size: 12px; color: var(--muted); margin: 6px 0; }
+.mock-preview__tag {
+  display: inline-block;
+  font-size: 11px;
+  color: var(--muted);
+  background: var(--input);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 6px 10px;
+  margin-top: 4px;
+}
+.mock-preview__note { font-size: 11px; color: var(--muted); margin-top: 8px; }
+
+/* Detail page: download / git clipboard bar + info panels. */
+.clipboard {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: var(--input);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font-family: JetBrains Mono, monospace;
+  font-size: 11px;
+  overflow: auto;
+}
+.clipboard__cmd { color: var(--muted); flex: 1; }
+.clipboard__copy {
+  margin-left: auto;
+  padding: 6px 10px;
+  font-size: 11px;
+  flex: 0 0 auto;
+}
+.detail-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.detail-actions .btn-violet,
+.detail-actions .btn-ghost { flex: 1; justify-content: center; text-align: center; }
+.detail-actions .btn-ghost--success {
+  background: var(--success-action);
+  color: var(--on-accent);
+  flex: 1;
+}
+.detail-actions .js-star-form,
+.detail-actions .js-fork-form,
+.detail-actions .js-save-form { display: inline; }
+.detail-actions .js-star-form .btn-ghost,
+.detail-actions .js-fork-form .btn-ghost,
+.detail-actions .js-save-form .btn-ghost { flex: 0 0 auto; }
+.detail-actions .js-copy-snippet { flex: 0 0 auto; }
+/* Primary download/CTA buttons stretch to fill the row; the rest stay
+   natural-width (star / fork / save / copy). */
+.detail-actions .btn-violet,
+.detail-actions .btn-ghost--success { flex: 1; justify-content: center; text-align: center; }
+/* Green call-to-action variant (Run preview / Browse files). */
+.btn-ghost--success {
+  background: var(--success-action);
+  color: var(--on-accent);
+  border-color: var(--success-action);
+}
+.btn-ghost--success:hover { filter: brightness(1.08); }
+
+/* Full-width primary ghost button (e.g. the secondary ZIP download). */
+.detail-actions .btn-ghost--primary { flex: 1; justify-content: center; text-align: center; }
+
+/* "Launch this vibe" callout (detail page, owner only). */
+.launch-next {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 8px;
+  background: var(--accent-soft-bg);
+  border: 1px solid var(--accent-border);
+  border-radius: 12px;
+  padding: 12px;
+  text-decoration: none;
+  color: inherit;
+}
+.launch-next__icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 36px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  overflow: hidden;
+}
+.launch-next__img { display: block; max-width: 72%; max-height: 72%; }
+.launch-next__body { flex: 1; }
+.launch-next__title {
+  display: block;
+  font-weight: 800;
+  color: var(--launch-text);
+  font-size: 13px;
+}
+.launch-next__sub {
+  display: block;
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* Inline code command list (git push instructions). */
+.code-block {
+  background: var(--surface-subtle);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 8px 10px;
+  margin-top: 8px;
+  font-size: 11px;
+  font-family: JetBrains Mono, monospace;
+  overflow: auto;
+}
+.code-block .clipboard__cmd { display: inline; }
+
+/* Info panels on the detail page (margin-top comes from the template). */
+.detail-panel {
+  margin-top: 12px;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 10px;
+}
+.detail-panel--card { background: var(--card); }
+.detail-panel--warning { background: var(--warning-bg); border-color: var(--warning-border); }
+.detail-panel--accent { background: var(--accent-soft-bg); border-color: var(--accent-border); }
+.detail-panel__head {
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--muted);
+  font-weight: 700;
+}
+.detail-panel__head--success { color: var(--success-text); }
+.detail-panel__head--warning { color: var(--warning-text); }
+.detail-panel__head--link { color: var(--link); }
+.detail-panel__body { font-size: 12px; line-height: 1.6; margin-top: 4px; }
+
+/* Download / git card on the detail page. */
+.download-card { margin: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
+.download-card__counts { font-size: 11px; color: var(--warning-text); }
+.git-note { font-size: 11px; font-family: JetBrains Mono, monospace; color: var(--muted); }
+.git-note a { color: var(--link); }
+
+/* Small helper widths used by the download/git rows. */
+.row { display: flex; gap: 8px; }
+.row--between { justify-content: space-between; }
+.mt-6 { margin-top: 6px; }
+.mt-8 { margin-top: 8px; }
+.mt-10 { margin-top: 10px; }
+.center { text-align: center; }
