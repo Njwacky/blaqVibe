@@ -85,186 +85,77 @@
 <div class="page detail-layout">
   <div>
     <div class="card">
-      <div
-        style="
-          height: 40px;
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 0 12px;
-          background: var(--input);
-          border-bottom: 1px solid var(--line);
-        "
-      >
-        <div style="display: flex; gap: 6px; align-items: center">
-          <span
-            style="
-              width: 10px;
-              height: 10px;
-              background: var(--danger-action);
-              border-radius: 50%;
-            "
-          ></span
-          ><span
-            style="
-              width: 10px;
-              height: 10px;
-              background: #f59e0b;
-              border-radius: 50%;
-            "
-          ></span
-          ><span
-            style="
-              width: 10px;
-              height: 10px;
-              background: #10b981;
-              border-radius: 50%;
-            "
-          ></span
-          ><span style="font-size: 12px; color: var(--muted); margin-left: 6px"
-            >{{ project.slug }} — Preview</span
-          >
+      <div class="mock-browser__bar">
+        <div class="mock-browser__left">
+          <span class="mock-browser__dot mock-browser__dot--red"></span
+          ><span class="mock-browser__dot mock-browser__dot--amber"></span
+          ><span class="mock-browser__dot mock-browser__dot--green"></span
+          ><span class="mock-browser__label">{{ project.slug }} — Preview</span>
         </div>
-        <span
-          style="
-            font-size: 11px;
-            background: var(--success-bg);
-            color: var(--success-text);
-            padding: 4px 8px;
-            border-radius: 8px;
-            font-weight: 700;
-          "
-          >● Secure</span
-        >
+        <span class="mock-browser__badge">● Secure</span>
       </div>
       {% if project.can_run_preview %}
       <iframe
         src="{% url 'preview' project.slug %}"
         sandbox="allow-scripts allow-forms"
         referrerpolicy="no-referrer"
-        style="width: 100%; height: 380px; border: none; background: #fff"
+        class="mock-browser__frame"
         title="{{ project.title }} preview"
       ></iframe>
       {% else %}
-      <div
-        style="
-          height: 320px;
-          background: #fff;
-          display: grid;
-          place-items: center;
-          color: #111;
-          padding: 20px;
-        "
-      >
-        <div style="text-align: center; max-width: 420px">
-          <div style="font-size: 30px; line-height: 1">
+      <div class="mock-preview">
+        <div class="mock-preview__inner">
+          <div class="mock-preview__icon">
             {{ project.kind_icon }}
           </div>
-          <div style="font-weight: 700; margin-top: 6px">
+          <div class="mock-preview__title">
             {{ project.title }}
           </div>
-          <div style="font-size: 12px; color: #475569; margin: 6px 0">
+          <div class="mock-preview__meta">
             {{ project.kind_label }}{% if project.tech_stack %} • {{            project.tech_stack }}{% endif %} • {{ project.file_count }} files
           </div>
-          <div
-            style="
-              display: inline-block;
-              font-size: 11px;
-              color: #475569;
-              background: #f1f5f9;
-              border: 1px solid #cbd5e1;
-              border-radius: 8px;
-              padding: 6px 10px;
-              margin-top: 4px;
-            "
-          >
+          <div class="mock-preview__tag">
             No live preview for a {{ project.kind_label|lower }}
           </div>
-          <div style="font-size: 11px; color: #475569; margin-top: 8px">
+          <div class="mock-preview__note">
             {{ project.preview_note }} {{ project.kind_meta.blurb }}
           </div>
         </div>
       </div>
       {% endif %}
-      <div
-        style="
-          margin: 12px;
-          background: var(--bg);
-          border: 1px solid var(--line);
-          border-radius: 12px;
-          padding: 12px;
-        "
-      >
-        <div
-          style="
-            display: flex;
-            justify-content: space-between;
-            margin-bottom: 6px;
-          "
-        >
-          <span
-            style="
-              font-size: 11px;
-              letter-spacing: 0.06em;
-              color: var(--muted);
-              font-weight: 700;
-            "
-            >DOWNLOAD</span
-          ><span style="font-size: 11px; color: var(--warning-text)"
+      <div class="download-card">
+        <div class="row row--between" style="margin-bottom: 6px">
+          <span class="detail-panel__head">DOWNLOAD</span
+          ><span class="download-card__counts"
             >{{ project.file_count }} files • {{ project.clones }} clones</span
           >
         </div>
-        <div
-          style="
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            background: var(--input);
-            border: 1px solid var(--line);
-            border-radius: 10px;
-            padding: 8px 10px;
-            font-family:
-              JetBrains Mono,
-              monospace;
-            font-size: 11px;
-            overflow: auto;
-          "
-        >
-          <span style="color: var(--muted)">$</span> {{ request.scheme }}://{{          request.get_host }}{% url 'download_zip' project.slug %}
+        <div class="clipboard">
+          <span class="clipboard__cmd">$</span> {{ request.scheme }}://{{          request.get_host }}{% url 'download_zip' project.slug %}
           <button
-            class="btn-white js-copy"
+            class="btn-white js-copy clipboard__copy"
             data-copy="{{ request.scheme }}://{{ request.get_host }}{% url 'download_zip' project.slug %}"
-            style="margin-left: auto; padding: 6px 10px; font-size: 11px"
           >
             Copy
           </button>
         </div>
-        <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap">
+        <div class="detail-actions">
           {% if project.zip_file %} {% if can_download %}
           <a
             href="{% url 'download_zip' project.slug %}"
             class="btn-violet"
-            style="flex: 1; justify-content: center"
             >⬇ Download ZIP</a
           >
           {% elif project.star_cost and user.is_authenticated and user !=          project.owner and not has_traded %}
           <form
             method="post"
             action="{% url 'trade_download' project.slug %}"
-            style="flex: 1"
           >
             {% csrf_token %}<button class="btn-violet" style="width: 100%">
               ⬇ Trade {{ project.star_cost }} ★ to Download
             </button>
           </form>
-          <div
-            style="
-              width: 100%;
-              font-size: 11px;
-              color: var(--muted);
-              text-align: center;
-            "
-          >
+          <div class="center mt-6" style="width: 100%; font-size: 11px; color: var(--muted)">
             You have {{ user.profile.stars_balance }} ★ — download stays locked
             until you trade{% if paystack_enabled %} or buy{% endif %}.
           </div>
@@ -272,21 +163,18 @@
           <a
             href="{% url 'login' %}?next={{ request.path }}"
             class="btn-violet"
-            style="flex: 1; justify-content: center"
             >Sign in to unlock</a
           >
           {% else %}
           <a
             href="#paywall"
             class="btn-violet"
-            style="flex: 1; justify-content: center"
             >⬇ Unlock to download</a
           >
           {% endif %} {% endif %} {% if project.zip_file and can_download %}
           <a
             href="{% url 'download_zip' project.slug %}"
-            class="btn-ghost"
-            style="flex: 1; justify-content: center; text-align: center"
+            class="btn-ghost btn-ghost--primary"
             >⬇ ZIP file</a
           >
           {% endif %}
@@ -297,7 +185,6 @@
             method="post"
             action="{% url 'toggle_star' project.slug %}"
             class="js-star-form"
-            style="display: inline"
           >
             {% csrf_token %}<button class="btn-ghost">
               {% if is_starred %}★ Starred{% else %}☆ Star{% endif %} {{              project.stars }}
@@ -308,7 +195,6 @@
             method="post"
             action="{% url 'fork_vibe' project.slug %}"
             class="js-fork-form"
-            style="display: inline"
           >
             {% csrf_token %}<button class="btn-ghost">
               ⑂ Fork {{ forks_count }}
@@ -318,35 +204,28 @@
           <button class="btn-ghost" type="button" disabled title="Unlock to fork">⑂ Unlock to fork</button>
           {% endif %}
           {% if user.is_authenticated %}
-          <form method="post" action="{% url 'toggle_bookmark' project.slug %}" class="js-save-form" style="display:inline">{% csrf_token %}<button class="btn-ghost">{% if is_bookmarked %}♥ Saved{% else %}♡ Save{% endif %}</button></form>
+          <form method="post" action="{% url 'toggle_bookmark' project.slug %}" class="js-save-form">{% csrf_token %}<button class="btn-ghost">{% if is_bookmarked %}♥ Saved{% else %}♡ Save{% endif %}</button></form>
           {% endif %}
           {% if project.can_run_preview %}
-          <a href="{% url 'preview' project.slug %}" class="btn-ghost" style="flex:1;justify-content:center;text-align:center;background:var(--success-action);color:var(--on-accent)">▶ Run preview</a>
+          <a href="{% url 'preview' project.slug %}" class="btn-ghost btn-ghost--success">▶ Run preview</a>
           {% elif project.zip_file %}
           <a
             href="{% url 'preview_files' project.slug %}"
-            class="btn-ghost"
-            style="
-              flex: 1;
-              justify-content: center;
-              text-align: center;
-              background: var(--success-action);
-              color: var(--on-accent);
-            "
+            class="btn-ghost btn-ghost--success"
             >📁 Browse files</a
           >
           {% endif %}
         </div>
 
         {% if project.zip_file and can_download %}
-        <div style="margin-top: 10px">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 6px">
-            <span style="font-size: 11px; letter-spacing: 0.06em; color: var(--muted); font-weight: 700">GIT</span>
+        <div class="mt-10">
+          <div class="row row--between" style="margin-bottom: 6px">
+            <span class="detail-panel__head">GIT</span>
             <span style="font-size: 11px; color: var(--muted)">{% if can_push %}owner — push enabled{% else %}real repo, clone it{% endif %}</span>
           </div>
-          <div style="display: flex; gap: 8px; align-items: center; background: var(--input); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-family: JetBrains Mono, monospace; font-size: 11px; overflow: auto">
-            <span style="color: var(--muted)">$</span> git clone {{ request.scheme }}://{{ request.get_host }}{% url 'git_clone' project.owner.username project.slug %}
-            <button class="btn-white js-copy" data-copy="git clone {{ request.scheme }}://{{ request.get_host }}{% url 'git_clone' project.owner.username project.slug %}" style="margin-left: auto; padding: 6px 10px; font-size: 11px">Copy</button>
+          <div class="clipboard">
+            <span class="clipboard__cmd">$</span> git clone {{ request.scheme }}://{{ request.get_host }}{% url 'git_clone' project.owner.username project.slug %}
+            <button class="btn-white js-copy clipboard__copy" data-copy="git clone {{ request.scheme }}://{{ request.get_host }}{% url 'git_clone' project.owner.username project.slug %}">Copy</button>
           </div>
           {% if can_push %}
           <div style="background: var(--surface-subtle); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin-top: 8px; font-size: 11px; font-family: JetBrains Mono, monospace; overflow: auto">
@@ -461,55 +340,19 @@
         {% if launch_next %}
         <a
           href="/launch/?artifact={{ launch_next.value }}"
-          style="
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            margin-top: 8px;
-            background: var(--accent-soft-bg);
-            border: 1px solid var(--accent-border);
-            border-radius: 12px;
-            padding: 12px;
-            text-decoration: none;
-          "
+          class="launch-next"
         >
           <span
             aria-hidden="true"
-            style="
-              display: grid;
-              place-items: center;
-              width: 36px;
-              height: 36px;
-              flex: 0 0 36px;
-              border-radius: 10px;
-              background: #fff;
-              border: 1px solid rgba(255, 255, 255, 0.18);
-              overflow: hidden;
-            "
+            class="launch-next__icon"
             ><img
               src="{% static launch_next.icon %}"
               alt=""
-              style="display: block; max-width: 72%; max-height: 72%"
+              class="launch-next__img"
           /></span>
-          <span style="flex: 1">
-            <span
-              style="
-                display: block;
-                font-weight: 800;
-                color: var(--launch-text);
-                font-size: 13px;
-              "
-              >↗ Launch this vibe — {{ launch_next.name }}</span
-            >
-            <span
-              style="
-                display: block;
-                font-size: 11px;
-                color: var(--muted);
-                margin-top: 2px;
-              "
-              >We detected a {{ launch_next.name|lower }} in your ZIP. {{              launch_next.note }}. Step-by-step guides inside.</span
-            >
+          <span class="launch-next__body">
+            <span class="launch-next__title">↗ Launch this vibe — {{ launch_next.name }}</span>
+            <span class="launch-next__sub">We detected a {{ launch_next.name|lower }} in your ZIP. {{              launch_next.note }}. Step-by-step guides inside.</span>
           </span>
         </a>
         {% endif %} {% endif %}

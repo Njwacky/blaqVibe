@@ -78,23 +78,9 @@
           place-items: center;
         "
       >
-        <div
-          style="
-            width: 100%;
-            height: 100%;
-            background: #fff;
-            border-radius: 10px;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            color: #111;
-          "
-        >
-          <div style="font-weight: 700; font-size: 13px">
-            {{ battle.vibe_a.title|truncatechars:30 }}
-          </div>
-          <div style="font-size: 11px; color: #64748b">
+        <div class="app-mock">
+          <div class="app-mock__title">{{ battle.vibe_a.title|truncatechars:30 }}</div>
+          <div class="app-mock__files" style="flex:none">
             {{ battle.vibe_a.tech_stack|default:"—" }} • {{ battle.vibe_a.file_count }} files
           </div>
         </div>
@@ -178,23 +164,9 @@
           place-items: center;
         "
       >
-        <div
-          style="
-            width: 100%;
-            height: 100%;
-            background: #fff;
-            border-radius: 8px;
-            padding: 10px;
-            display: flex;
-            flex-direction: column;
-            gap: 6px;
-            color: #111;
-          "
-        >
-          <div style="font-weight: 700; font-size: 12px">
-            {{ battle.vibe_b.title|truncatechars:30 }}
-          </div>
-          <div style="font-size: 11px; color: #64748b">
+        <div class="app-mock">
+          <div class="app-mock__title">{{ battle.vibe_b.title|truncatechars:30 }}</div>
+          <div class="app-mock__files" style="flex:none">
             {{ battle.vibe_b.tech_stack|default:"—" }} • {{ battle.vibe_b.file_count }} files
           </div>
         </div>
