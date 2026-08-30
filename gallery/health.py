@@ -15,11 +15,15 @@ Why separate endpoints?
    maintenance wall (a 503 on the health path would hide "we are up but
    under maintenance" from load balancers and alerting).
 """
+import logging
+
 from django.db import connection
 from django.http import JsonResponse
 from django.utils import timezone
 
 from django.conf import settings
+
+logger = logging.getLogger(__name__)
 
 PROBE_VERSION = '1'
 
@@ -46,7 +50,10 @@ def _db_ok():
             cursor.fetchone()
         return True, 'ok'
     except Exception as exc:  # never let a probe 500 the probe
-        return False, f'{type(exc).__name__}: {str(exc)[:200]}'
+        # The real error is logged server-side; the public payload must not
+        # carry host/port/db/user strings (see readiness below).
+        logger.exception('readiness database check failed')
+        return False, 'unavailable'
 
 
 def _queue_state():
@@ -66,7 +73,8 @@ def _queue_state():
         client.ping()
         return True, 'ok'
     except Exception as exc:
-        return False, f'redis unreachable: {str(exc)[:200]}'
+        logger.exception('readiness queue check failed')
+        return False, 'unavailable'
 
 
 def readiness(request):

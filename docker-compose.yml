@@ -5,6 +5,9 @@ services:
     environment:
       POSTGRES_DB: blaqvibes
       POSTGRES_USER: blaq
+      # The DB has no host port mapping, so the fallback only ever answers on
+      # the compose network. Still, set a strong POSTGRES_PASSWORD in .env
+      # (see .env.example) before any public deploy — never reuse the default.
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-blaq123}
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -18,7 +21,13 @@ services:
   redis:
     image: redis:7-alpine
     restart: unless-stopped
-    ports: ["6379:6379"]
+    # No host port mapping: Redis is the Celery broker AND the shared
+    # rate-limit cache. Publishing :6379 to the host (or leaving it
+    # unauthenticated on a reachable interface) lets an attacker flush the
+    # rate-limit cache or inject broker messages. Services reach it on the
+    # compose network only. If you must expose it, add
+    #   command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?}"]
+    # and update REDIS_URL accordingly.
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s

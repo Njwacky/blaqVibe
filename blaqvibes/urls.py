@@ -10,6 +10,7 @@ from django.http import FileResponse, Http404
 from django.urls import reverse_lazy
 from django.urls.resolvers import URLPattern, URLResolver
 from django.views.decorators.cache import never_cache
+from django_ratelimit.decorators import ratelimit
 from gallery import views as gviews
 from users.forms import StyledAuthenticationForm, StyledPasswordResetForm, StyledSetPasswordForm
 
@@ -41,9 +42,38 @@ handler500 = 'gallery.views.safe_500'
 # allauth-rendered page — the social signup form, the cancelled page, the
 # authentication-error page — dies with NoReverseMatch instead of rendering.
 # Same URL, same view, second name: no duplicate route, no redirect hop.
-login_view = auth_views.LoginView.as_view(
-    template_name='registration/login.html',
-    authentication_form=StyledAuthenticationForm,
+# Credential-guessing surface. Every other write endpoint carries a
+# @ratelimit; login and password-reset are the two that gate *accounts*, so
+# they are bounded too (per IP, POST only). block=True raises Ratelimited
+# (a PermissionDenied) → handler403 → safe_403, the same friendly page the
+# rest of the site shows. GET stays unlimited so a bot cannot 403 the login
+# form itself out from under a classroom/NAT.
+login_view = ratelimit(key='ip', rate='20/m', method='POST')(
+    auth_views.LoginView.as_view(
+        template_name='registration/login.html',
+        authentication_form=StyledAuthenticationForm,
+    )
+)
+
+# Reset-email bombing + password-set brute force: same ceiling. The email
+# form can't leak whether an address exists (Django's generic response), but
+# an unbounded POST loop still costs one email each — bound it.
+password_reset_view = ratelimit(key='ip', rate='10/m', method='POST')(
+    auth_views.PasswordResetView.as_view(
+        template_name='registration/password_reset_form.html',
+        email_template_name='registration/password_reset_email.txt',
+        subject_template_name='registration/password_reset_subject.txt',
+        form_class=StyledPasswordResetForm,
+        success_url=reverse_lazy('password_reset_done'),
+    )
+)
+
+password_reset_confirm_view = ratelimit(key='ip', rate='20/m', method='POST')(
+    auth_views.PasswordResetConfirmView.as_view(
+        template_name='registration/password_reset_confirm.html',
+        form_class=StyledSetPasswordForm,
+        success_url=reverse_lazy('password_reset_complete'),
+    )
 )
 
 
@@ -116,21 +146,11 @@ urlpatterns = [
     path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),
     path('accounts/signup/', gviews.signup, name='signup'),
     path('accounts/signup/', gviews.signup, name='account_signup'),
-    path('accounts/password_reset/', auth_views.PasswordResetView.as_view(
-        template_name='registration/password_reset_form.html',
-        email_template_name='registration/password_reset_email.txt',
-        subject_template_name='registration/password_reset_subject.txt',
-        form_class=StyledPasswordResetForm,
-        success_url=reverse_lazy('password_reset_done'),
-    ), name='password_reset'),
+    path('accounts/password_reset/', password_reset_view, name='password_reset'),
     path('accounts/password_reset/done/', auth_views.PasswordResetDoneView.as_view(
         template_name='registration/password_reset_done.html',
     ), name='password_reset_done'),
-    path('accounts/reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(
-        template_name='registration/password_reset_confirm.html',
-        form_class=StyledSetPasswordForm,
-        success_url=reverse_lazy('password_reset_complete'),
-    ), name='password_reset_confirm'),
+    path('accounts/reset/<uidb64>/<token>/', password_reset_confirm_view, name='password_reset_confirm'),
     path('accounts/reset/done/', auth_views.PasswordResetCompleteView.as_view(
         template_name='registration/password_reset_complete.html',
     ), name='password_reset_complete'),

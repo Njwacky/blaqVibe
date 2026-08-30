@@ -24,6 +24,7 @@ from .models import (
     Challenge, AppFile, AppVersion, ScanJob,
 )
 from .notify import notify
+from .access import user_can_see_project
 
 logger = logging.getLogger(__name__)
 
@@ -299,21 +300,65 @@ def create_pr(request, slug):
         return redirect('app_detail', slug=slug)
 
 def pr_list(request, slug):
-    """List PRs for a vibe — open/merged/closed, backend only."""
+    """List PRs for a vibe — open/merged/closed, backend only.
+
+    Published target only, same visibility rule as every other content
+    page. A PR list rides on the *target* slug, so it must not confirm
+    (or hand out forks' metadata for) an unpublished vibe. 5 Whys:
+    1. Why gate here when create_pr already checks forked_from? A fork is
+       created pending; its PR rows describe that pending source. Listing
+       them from a guessed pending slug is exactly the leak the rest of
+       the site 404s.
+    2. Why 404, not 403? A 403 confirms the vibe exists (scan_status says
+       the same thing).
+    3. Why gate the TARGET, not just the source? The page title, owner and
+       PR metadata all describe the target; a pending target is private.
+    4. Why keep pr_action ungated? Merge/close is owner/admin-only and
+       re-routes through this page; it cannot read more than it already
+       knows about its own vibe.
+    5. Why not also require the SOURCE to be published? Owners legitimately
+       hold open PRs from their own still-pending forks — the source gate
+       (user_can_see_project) lives on pr_detail, where content is read.
+    """
     try:
-        target = get_object_or_404(AppProject, slug=slug)
+        target = get_object_or_404(AppProject, slug=slug, status='published')
         prs = PullRequest.objects.filter(target=target).select_related('source','author').order_by('-created_at')
         return render(request, 'gallery/pr_list.html', {'target': target, 'prs': prs})
     except Exception as e:
         import logging
         logging.getLogger(__name__).exception(f"pr_list crush: {e}")
-        return render(request, 'gallery/pr_list.html', {'target': get_object_or_404(AppProject, slug=slug), 'prs': PullRequest.objects.none()})
+        return render(request, 'gallery/pr_list.html', {'target': get_object_or_404(AppProject, slug=slug, status='published'), 'prs': PullRequest.objects.none()})
 
 def pr_detail(request, slug, pr_id):
-    """PR diff — real content diff of ZIPs plus Nolo feature compare."""
+    """PR diff — real content diff of ZIPs plus Nolo feature compare.
+
+    Published target AND a visible source. The diff reads real ZIP bytes
+    (gallery.diff), so a PR whose source fork is still pending must 404
+    for strangers — the same rule every other content read enforces via
+    user_can_see_project. The owner/moderator can still review it.
+    """
+    # Gate OUTSIDE the crush try/except. The fallback below must only render
+    # the page for callers who already passed this check — otherwise an
+    # Http404 raised here would be swallowed by `except Exception` and the
+    # fallback's ungated re-fetch would hand the diff to a stranger anyway.
+    #
+    # Who may read a PR diff when the source fork is still pending?
+    #   - the fork owner (user_can_see_project → owner),
+    #   - a moderator (user_can_see_project → moderator),
+    #   - the TARGET's owner — opening a PR against their vibe is an explicit
+    #     invitation to review, and pr_action lets exactly that user merge it.
+    # Note we must NOT check user_can_see_project on pr.target here: the
+    # target is published (gated above), so that would be True for everyone
+    # and would silently reopen the hole.
+    target = get_object_or_404(AppProject, slug=slug, status='published')
+    pr = get_object_or_404(PullRequest, id=pr_id, target=target)
+    allowed = user_can_see_project(request.user, pr.source)
+    if not allowed and getattr(request.user, 'is_authenticated', False) \
+            and request.user.pk == pr.target.owner_id:
+        allowed = True
+    if not allowed:
+        raise Http404
     try:
-        target = get_object_or_404(AppProject, slug=slug)
-        pr = get_object_or_404(PullRequest, id=pr_id, target=target)
         from .diff import diff_projects
         diff = diff_projects(pr.source, pr.target)
         # Nolo diff
@@ -324,7 +369,7 @@ def pr_detail(request, slug, pr_id):
     except Exception as e:
         import logging
         logging.getLogger(__name__).exception(f"pr_detail crush: {e}")
-        return render(request, 'gallery/pr_detail.html', {'pr': get_object_or_404(PullRequest, id=pr_id), 'target': get_object_or_404(AppProject, slug=slug), 'diff': {'added':[],'removed':[],'modified':[],'unchanged':[],'added_count':0,'removed_count':0,'modified_count':0,'common_count':0}, 'nolo_diff': {'only_in_a':[],'only_in_b':[],'common':[]}, 'nolo_review': None})
+        return render(request, 'gallery/pr_detail.html', {'pr': pr, 'target': target, 'diff': {'added':[],'removed':[],'modified':[],'unchanged':[],'added_count':0,'removed_count':0,'modified_count':0,'common_count':0}, 'nolo_diff': {'only_in_a':[],'only_in_b':[],'common':[]}, 'nolo_review': None})
 
 @login_required
 @require_POST

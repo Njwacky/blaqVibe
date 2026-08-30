@@ -476,10 +476,22 @@ SESSION_COOKIE_HTTPONLY = True
 # CSRF token is exposed via {% csrf_token %} / forms, never read from the cookie,
 # so keep it HttpOnly as defense-in-depth against token exfiltration.
 CSRF_COOKIE_HTTPONLY = True
-# TLS terminates at the preview proxy / nginx. Without this, request.is_secure()
-# is False and Origin https://…e2b.app does not match http://…e2b.app.
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-if PREVIEW:
+# Trust X-Forwarded-Proto ONLY when a TLS-terminating proxy is actually in
+# front. The preview host (https://…e2b.app) always is; a real nginx deploy
+# opts in with DJANGO_BEHIND_TLS_PROXY=1. The shipped docker-compose runs
+# gunicorn directly on :8000 with no proxy — trusting a client-supplied
+# X-Forwarded-Proto there would let an attacker claim "https" and defeat
+# SECURE_SSL_REDIRECT. 5 Whys: 1. Why not always trust it? The header is
+# client-controlled; only a proxy that OVERWRITES it makes it truth. 2. Why
+# keep PREVIEW implicit? Arena terminates TLS per-request; operators never
+# set a flag for it. 3. Why a flag for nginx? A flag documents the
+# contract: set it only after configuring the proxy to replace the header.
+# 4. Why not infer from the env? Inference is how the old virtualenv bug
+# shipped unhardened hosts. 5. Why USE_X_FORWARDED_HOST here too? Host/port
+# trust rides the same "a proxy is in front" decision.
+BEHIND_TLS_PROXY = PREVIEW or _env_flag('DJANGO_BEHIND_TLS_PROXY')
+if BEHIND_TLS_PROXY:
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     USE_X_FORWARDED_HOST = True
     USE_X_FORWARDED_PORT = True
 
