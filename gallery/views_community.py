@@ -380,6 +380,9 @@ def pr_action(request, slug, pr_id):
         pr = get_object_or_404(PullRequest, id=pr_id, target=target)
         if request.user != target.owner and not request.user.profile.is_admin():
             return render(request, '403.html', status=403)
+        if pr.status != 'open':
+            messages.info(request, f'PR #{pr.id} is already {pr.status}.')
+            return redirect('pr_list', slug=slug)
         action = request.POST.get('action')
         if action == 'merge':
             from django.core.files.base import ContentFile
@@ -397,11 +400,25 @@ def pr_action(request, slug, pr_id):
                     logger.exception('pr version snapshot failed')
             if source.zip_file:
                 source.zip_file.open()
-                target.zip_file.save(f"{target.slug}.zip", ContentFile(source.zip_file.read()), save=True)
+                try:
+                    target.zip_file.save(
+                        f"{target.slug}.zip", ContentFile(source.zip_file.read()), save=False,
+                    )
+                finally:
+                    source.zip_file.close()
+            else:
+                # A snippet PR must not keep the target's old ZIP attached.
+                target.zip_file = None
+            # PRs can contain a snippet rather than a ZIP. Copy the executable
+            # source as well as archive metadata; otherwise a "merged" snippet
+            # only changed the README and never changed the app people run.
+            target.html_code = source.html_code
+            target.css_code = source.css_code
+            target.js_code = source.js_code
             target.file_tree = source.file_tree or {}
             target.file_count = source.file_count
-            if source.readme:
-                target.readme = source.readme
+            target.readme = source.readme
+            target.tech_stack = source.tech_stack
             # Merged PR replaces the target's bytes — reset the trust badge
             # with the same write (gallery.trust WHY 4). The re-queued scan
             # re-earns it from the merged content only.

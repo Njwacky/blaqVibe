@@ -686,6 +686,14 @@
     </form>
   </div>
 
+  <div style="margin-top:28px;padding:16px;border:1px solid var(--line);background:var(--card);border-radius:12px">
+    <h2 style="font-size:14px;font-weight:700">Password &amp; devices</h2>
+    <p class="help" style="margin:6px 0 12px">Changing your password immediately signs out every other device. New devices or networks are recorded here and emailed to your account address.</p>
+    {% if user.has_usable_password %}<a href="{% url 'password_change' %}" class="btn-ghost">Change password</a>{% else %}<a href="{% url 'password_reset' %}" class="btn-ghost">Set a password by email</a>{% endif %}
+    <form method="post" action="{% url 'logout_other_devices' %}" style="display:inline">{% csrf_token %}<button class="btn-ghost" type="submit">Sign out other devices</button></form>
+    {% if security_events %}<ul style="list-style:none;padding:0;margin:14px 0 0;display:grid;gap:6px">{% for event in security_events %}<li style="font-size:12px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface-subtle)"><b>{{ event.get_event_display }}</b>{% if event.detail %} — {{ event.detail }}{% endif %}<span style="color:var(--muted);float:right">{{ event.created_at|date:"j M Y, H:i" }}</span></li>{% endfor %}</ul>{% endif %}
+  </div>
+
   <div
     style="
       margin-top: 28px;

@@ -953,6 +953,22 @@ def add_co_owner(request, slug):
         try:
             with transaction.atomic():
                 locked = AppProject.objects.select_for_update().get(pk=project.pk, owner=request.user)
+                # The form's total is only an early error: another request can
+                # add a co-owner between validation and this lock. Re-check
+                # here so concurrent additions cannot exceed 100%.
+                existing_share = (
+                    ProjectCoOwner.objects.filter(project=locked)
+                    .aggregate(total=Sum('share_percent'))['total'] or 0
+                )
+                if ProjectCoOwner.objects.filter(project=locked, user=user).exists():
+                    messages.error(request, f'@{user.username} is already a co-owner.')
+                    return redirect('edit_vibe', slug=slug)
+                if existing_share + share > 100:
+                    messages.error(
+                        request,
+                        f'Co-owner shares now total {existing_share}% - adding {share}% would exceed 100%.',
+                    )
+                    return redirect('edit_vibe', slug=slug)
                 ProjectCoOwner.objects.create(project=locked, user=user, share_percent=share)
         except Exception:
             logger.exception('add co-owner failed %s %s', project.slug, user.username)

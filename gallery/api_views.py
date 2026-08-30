@@ -1,5 +1,6 @@
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
+from django_ratelimit.decorators import ratelimit
 
 from .models import AppProject
 from .taxonomy import PROGRAM_KINDS
@@ -52,6 +53,7 @@ def _serialize(project):
     }
 
 
+@ratelimit(key='ip', rate='120/m')
 def api_apps(request):
     """Published vibes. `?program=game` filters, `?sort=interesting` ranks."""
     qs = AppProject.objects.filter(status='published').select_related('owner')
@@ -75,6 +77,7 @@ def api_apps(request):
     return JsonResponse({'results': [_serialize(p) for p in qs[:50]]})
 
 
+@ratelimit(key='ip', rate='120/m')
 def api_app_detail(request, slug):
     project = get_object_or_404(
         AppProject.objects.select_related('owner'),
@@ -87,6 +90,7 @@ def api_app_detail(request, slug):
     return JsonResponse(data)
 
 
+@ratelimit(key='ip', rate='120/m')
 def api_program_kinds(request):
     """The taxonomy itself — so a client never hard-codes our labels."""
     return JsonResponse({'results': [

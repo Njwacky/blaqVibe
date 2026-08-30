@@ -3,6 +3,7 @@ from . import views, admin_views
 urlpatterns = [
     path('u/<str:username>/', views.profile_view, name='profile_view'),
     path('settings/', views.settings_view, name='settings'),
+    path('settings/logout-other-devices/', views.logout_other_devices, name='logout_other_devices'),
     path('settings/rename/', views.rename_username, name='rename_username'),
     path('settings/name-style/', views.set_name_style_view, name='set_name_style'),
     path('settings/git-token/', views.regenerate_git_token, name='regenerate_git_token'),

@@ -817,6 +817,28 @@ class Payout(models.Model):
         return f'••••{num[-4:]}'
 
 
+class SecurityEvent(models.Model):
+    """Privacy-preserving account-security audit trail."""
+    EVENT_CHOICES = [
+        ('login_first_device', 'First recognised sign-in'),
+        ('login_new_device', 'New device or network sign-in'),
+        ('login_recognized_device', 'Recognised sign-in'),
+        ('password_changed', 'Password changed'),
+        ('sessions_revoked', 'Other sessions revoked'),
+        ('git_tokens_revoked', 'Git credentials revoked'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='security_events')
+    event = models.CharField(max_length=32, choices=EVENT_CHOICES)
+    ip_hash = models.CharField(max_length=64, blank=True)
+    device_hash = models.CharField(max_length=64, blank=True)
+    detail = models.CharField(max_length=120, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['user', '-created_at'])]
+
+
 @receiver(post_save, sender=User)
 def create_profile(sender, instance, created, **kwargs):
     if created:

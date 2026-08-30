@@ -316,6 +316,35 @@ class RemainingHoleTests(TestCase):
         self.project.refresh_from_db()
         self.assertEqual(pr.status, 'merged')
         self.assertTrue(self.project.files.filter(path='new.py').exists())
+        versions_after_first_merge = self.project.versions.count()
+        # A replay of a completed PR must not create another snapshot or
+        # re-queue/overwrite the target.
+        response = self.client.post(f'/app/{self.project.slug}/prs/{pr.id}/', {'action': 'merge'})
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(self.project.versions.count(), versions_after_first_merge)
+
+    def test_pr_merge_copies_snippet_source_and_clears_old_archive(self):
+        from gallery.models import PullRequest
+        target = make_project(
+            self.owner, self.cat, title='Snippet target', star_cost=0,
+            html_code='<h1>old</h1>', css_code='h1{color:red}', js_code='old()',
+        )
+        target.zip_file.save('old.zip', make_zip_file({'old.py': 'print(1)\n'}), save=True)
+        fork = make_project(
+            self.buyer, self.cat, title='Snippet fork', forked_from=target,
+            star_cost=0, html_code='<h1>new</h1>', css_code='h1{color:blue}', js_code='new()',
+        )
+        pr = PullRequest.objects.create(
+            source=fork, target=target, author=self.buyer, title='Update snippet', status='open',
+        )
+        self.client.login(username='owner', password='pass12345')
+        response = self.client.post(f'/app/{target.slug}/prs/{pr.id}/', {'action': 'merge'})
+        self.assertEqual(response.status_code, 302)
+        target.refresh_from_db()
+        self.assertEqual(target.html_code, '<h1>new</h1>')
+        self.assertEqual(target.css_code, 'h1{color:blue}')
+        self.assertEqual(target.js_code, 'new()')
+        self.assertFalse(target.zip_file)
 
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False)

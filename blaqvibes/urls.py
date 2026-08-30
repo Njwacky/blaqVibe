@@ -12,7 +12,8 @@ from django.urls.resolvers import URLPattern, URLResolver
 from django.views.decorators.cache import never_cache
 from django_ratelimit.decorators import ratelimit
 from gallery import views as gviews
-from users.forms import StyledAuthenticationForm, StyledPasswordResetForm, StyledSetPasswordForm
+from users.forms import StyledAuthenticationForm, StyledPasswordResetForm, StyledSetPasswordForm, StyledPasswordChangeForm
+from users.security import AccountPasswordChangeView, AccountPasswordResetConfirmView
 
 @never_cache
 def serve_sw(request):
@@ -69,7 +70,7 @@ password_reset_view = ratelimit(key='ip', rate='10/m', method='POST')(
 )
 
 password_reset_confirm_view = ratelimit(key='ip', rate='20/m', method='POST')(
-    auth_views.PasswordResetConfirmView.as_view(
+    AccountPasswordResetConfirmView.as_view(
         template_name='registration/password_reset_confirm.html',
         form_class=StyledSetPasswordForm,
         success_url=reverse_lazy('password_reset_complete'),
@@ -144,6 +145,8 @@ urlpatterns = [
     path('accounts/login/', login_view, name='login'),
     path('accounts/login/', login_view, name='account_login'),
     path('accounts/logout/', auth_views.LogoutView.as_view(), name='logout'),
+    path('accounts/password/change/', AccountPasswordChangeView.as_view(form_class=StyledPasswordChangeForm), name='password_change'),
+    path('accounts/password/change/done/', auth_views.PasswordChangeDoneView.as_view(template_name='registration/password_change_done.html'), name='password_change_done'),
     path('accounts/signup/', gviews.signup, name='signup'),
     path('accounts/signup/', gviews.signup, name='account_signup'),
     path('accounts/password_reset/', password_reset_view, name='password_reset'),

@@ -22,10 +22,12 @@ from .models import (
     Follow,
     SiteSettings,
     Tip,
+    SecurityEvent,
     UsernameHistory,
     name_style_preview_maps,
 )
 from .forms import ChangeEmailForm, NameStyleForm, ProfileForm, RenameForm, TipForm
+from .security import revoke_user_sessions
 from .payouts import PayoutError, payout_rate_label, request_payout as request_payout_hold
 from .social import social_connection_context
 from .rename import (
@@ -409,8 +411,24 @@ def settings_view(request):
     return render(request, 'users/settings.html', {
         'profile': profile,
         'site': site,
+        'security_events': SecurityEvent.objects.filter(user=request.user)[:8],
         **social_connection_context(request.user),
     })
+
+
+@login_required
+@require_POST
+@ratelimit(key='user', rate='5/h', method='POST')
+def logout_other_devices(request):
+    """Owner-controlled emergency response for a suspected account takeover."""
+    count = revoke_user_sessions(
+        request.user, keep_session_key=request.session.session_key
+    )
+    SecurityEvent.objects.create(
+        user=request.user, event='sessions_revoked', detail=f'{count} other session(s) by account owner'
+    )
+    messages.success(request, f'Signed out {count} other device(s).')
+    return redirect('settings')
 
 
 @login_required

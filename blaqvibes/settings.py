@@ -473,6 +473,12 @@ AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 SESSION_COOKIE_HTTPONLY = True
+SESSION_ENGINE = 'django.contrib.sessions.backends.db'
+SECURITY_TRUSTED_PROXY_IPS = tuple(ip.strip() for ip in os.getenv('SECURITY_TRUSTED_PROXY_IPS', '').split(',') if ip.strip())
+# Stolen browser sessions should not survive indefinitely. Active users renew
+# the expiry; idle browsers are forced to authenticate again after eight hours.
+SESSION_COOKIE_AGE = 8 * 60 * 60
+SESSION_SAVE_EVERY_REQUEST = True
 # CSRF token is exposed via {% csrf_token %} / forms, never read from the cookie,
 # so keep it HttpOnly as defense-in-depth against token exfiltration.
 CSRF_COOKIE_HTTPONLY = True
