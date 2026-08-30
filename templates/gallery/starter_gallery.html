@@ -8,8 +8,9 @@
     <span style="display:inline-block;font-size:12px;letter-spacing:.06em;padding:6px 12px;border-radius:999px;background:var(--accent-soft-bg);border:1px solid var(--accent-border);color:var(--accent-text)">✦ NO BLANK PAGE</span>
     <h1 style="font-family:Space Grotesk,sans-serif;font-size:32px;line-height:1.1;margin:14px 0 10px">Start a vibe in your browser</h1>
     <p style="color:var(--muted);font-size:15px;line-height:1.6">
-      Pick a starter, edit it live with an instant preview, and publish when it feels right —
-      no upload, no setup. Everything runs in a safe sandbox while you tinker.
+      Pick a starter and write HTML, CSS and JS in your browser — no upload, no setup.
+      Sign in when you want to run the live preview or publish. The sandbox never
+      executes anonymous code.
     </p>
   </div>
 
@@ -29,22 +30,24 @@
     <a href="{% url 'studio_blank' %}" class="starter-card" style="display:flex;flex-direction:column;justify-content:center;text-align:center;text-decoration:none;color:inherit;background:var(--bg);border:1px dashed var(--accent-border);border-radius:16px;padding:18px;min-height:180px;transition:border-color .15s,transform .15s">
       <div style="font-size:30px;line-height:1">✏️</div>
       <div style="font-weight:800;margin-top:10px;font-size:16px">Blank canvas</div>
-      <div style="color:var(--muted);font-size:13px;line-height:1.5;margin-top:6px">Already have code? Paste it into the HTML, CSS and JS tabs and watch it run.</div>
+      <div style="color:var(--muted);font-size:13px;line-height:1.5;margin-top:6px">Already have code? Paste it into the HTML, CSS and JS tabs. Sign in to watch it run.</div>
       <div style="margin-top:14px;font-weight:700;font-size:13px;color:var(--accent-text)">Open Studio →</div>
     </a>
   </div>
 
   <div style="margin-top:26px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;font-size:13px;color:var(--muted);line-height:1.6">
-    <b style="color:var(--text)">Bringing your own code.</b> Three ways in, all ending in the same preview:
-    <b>1)</b> Open the <b>Blank canvas</b> and paste your HTML, CSS and JS into the three tabs — the preview
-    rebuilds as you type, so you see your own code immediately.
+    <b style="color:var(--text)">Bringing your own code.</b> Three ways in, all ending in the same Studio:
+    <b>1)</b> Open the <b>Blank canvas</b> and paste your HTML, CSS and JS into the three tabs — you can
+    write without an account.
     <b>2)</b> Open any starter and replace its code with yours.
     <b>3)</b> Have a whole project (many files, images, a Python or Node app)? Use the
     <a href="{% url 'publish' %}" style="color:var(--accent-text)">Publish</a> page instead — that one takes a ZIP.
     <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
-      <b style="color:var(--text)">How it works.</b> Studio edits run in a sandboxed preview right in your browser —
-      nothing is saved until you press <b>Publish</b>. When you publish, your vibe goes through the same
-      honest checks as any upload: a secret scan, an auto label, and a trust badge. You’ll need an account to own it.
+      <b style="color:var(--text)">How it works.</b> You can write immediately. The live sandboxed preview
+      and Publish both need an account — so a shared Start link cannot run anonymous JavaScript.
+      After you sign in, the draft in this tab is restored and the preview starts. When you publish,
+      your vibe goes through the same honest checks as any upload: a secret scan, an auto label,
+      and a trust badge.
     </div>
   </div>
 </div>

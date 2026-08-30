@@ -14,14 +14,23 @@
     </div>
     <div class="studio-actions">
       <button type="button" id="studio-fix" class="btn-ghost">🔧 Nolo: fix my code</button>
+      {% if can_preview %}
       <button type="button" id="studio-run" class="btn-ghost">▶ Refresh preview</button>
+      {% else %}
+      <a href="{% url 'login' %}?next={{ studio_next|urlencode }}" class="btn-ghost">▶ Sign in to preview</a>
+      {% endif %}
       <button type="button" id="studio-open-publish" class="btn-violet">Publish →</button>
     </div>
   </div>
 
   <div class="studio-note">
+    {% if can_preview %}
     Edits run in a sandboxed preview right here — nothing is saved until you publish.
-    {% if not user.is_authenticated %}<b>You’ll need to <a href="{% url 'login' %}?next={{ request.path }}">sign in</a> to publish.</b>{% endif %}
+    {% else %}
+    Write HTML, CSS and JS here. <b>You cannot see the live preview until you
+    <a href="{% url 'login' %}?next={{ studio_next|urlencode }}">sign in</a></b>
+    — your draft stays in this tab.
+    {% endif %}
   </div>
 
   <div class="studio-grid">
@@ -41,9 +50,31 @@
     <div class="studio-preview">
       <div class="studio-preview-bar">
         <span class="dot r"></span><span class="dot y"></span><span class="dot g"></span>
+        {% if can_preview %}
         <span class="studio-preview-label">Live preview · sandboxed</span>
+        {% else %}
+        <span class="studio-preview-label is-locked">Preview locked · sign in to run</span>
+        {% endif %}
       </div>
+      {% if can_preview %}
       <iframe id="studio-frame" title="Live preview" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>
+      {% else %}
+      <div class="studio-preview-lock" role="region" aria-labelledby="studio-preview-lock-title">
+        <div class="studio-preview-lock-icon" aria-hidden="true">🔒</div>
+        <h2 id="studio-preview-lock-title">Sign in to run a live preview</h2>
+        <p>Keep writing. The editors stay open. Running HTML/JS is an account action — the same gate as publish — so this page cannot become an anonymous script runner.</p>
+        <div class="studio-preview-lock-actions">
+          <a href="{% url 'login' %}?next={{ studio_next|urlencode }}" class="btn-violet">Sign in to preview →</a>
+          <a href="{% url 'signup' %}?next={{ studio_next|urlencode }}" class="btn-ghost">Create an account</a>
+        </div>
+        <ul class="studio-preview-lock-tips">
+          <li>HTML, CSS and JS stay in this tab while you write.</li>
+          <li>After you sign in, this tab restores your draft and the preview starts.</li>
+          <li>Nothing is uploaded until you press Publish.</li>
+          <li>Nolo can still read the code and suggest fixes without running it.</li>
+        </ul>
+      </div>
+      {% endif %}
     </div>
   </div>
 
@@ -103,7 +134,7 @@
         {% if user.is_authenticated %}
         <button type="submit" class="btn-violet studio-publish-btn">Publish vibe →</button>
         {% else %}
-        <a href="{% url 'login' %}?next={{ request.path }}" class="btn-violet studio-publish-btn">Sign in to publish →</a>
+        <a href="{% url 'login' %}?next={{ studio_next|urlencode }}" class="btn-violet studio-publish-btn">Sign in to publish →</a>
         {% endif %}
         <button type="button" data-close-drawer class="btn-ghost studio-cancel-btn">Cancel — keep editing</button>
       </form>
@@ -116,7 +147,9 @@
     action: "{% if starter %}{% url 'studio' starter.slug %}{% else %}{% url 'studio_blank' %}{% endif %}",
     fixUrl: "{% url 'nolo_fix_api' %}",
     readmeUrl: "{% url 'nolo_readme_api' %}",
-    csrf: "{{ csrf_token }}"
+    csrf: "{{ csrf_token }}",
+    canPreview: {% if can_preview %}true{% else %}false{% endif %},
+    draftKey: "{{ starter.slug|default:'blank'|escapejs }}"
   };
 </script>
 <script src="{% static 'gallery/js/studio.js' %}?v={{ starters_version }}"></script>

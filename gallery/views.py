@@ -23,6 +23,7 @@ from . import taste
 from .taxonomy import KIND_BY_VALUE, PROGRAM_KINDS, coerce_kind
 from django.core.mail import send_mail
 from users.forms import SignUpForm
+from django.utils.http import url_has_allowed_host_and_scheme
 
 from .views_community import (
     nolo_compare,
@@ -51,6 +52,35 @@ from .views_community import (
 )
 logger = logging.getLogger(__name__)
 
+
+def safe_internal_next(request, default=''):
+    """Same-origin relative `next` URL, or default.
+
+    5 Whys:
+    1. Why honor next at all? Studio sends beginners to sign in / sign up
+       mid-edit; dumping them on the feed after that is a trap that looks
+       like their code vanished.
+    2. Why reject absolute URLs to other hosts? Open redirect — a login
+       form that bounces to evil.example is an account-phishing hole.
+    3. Why require a leading '/' and forbid '//'? Protocol-relative
+       `//evil.example` fools a naive "starts with slash" check.
+    4. Why also use Django's url_has_allowed_host_and_scheme? Defence in
+       depth against scheme tricks (`javascript:`, `data:`).
+    5. Why a default instead of raising? A missing or garbage next is not
+       an error for the user — send them to the caller’s fallback.
+    """
+    candidate = (request.POST.get('next') or request.GET.get('next') or '').strip()
+    if not candidate.startswith('/') or candidate.startswith('//'):
+        return default
+    if url_has_allowed_host_and_scheme(
+        candidate,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return candidate
+    return default
+
+
 @ratelimit(key='ip', rate='10/h', method='POST')
 def signup(request):
     """Account creation — rate limited per IP.
@@ -68,6 +98,7 @@ def signup(request):
     """
     if getattr(request, 'limited', False):
         return HttpResponse("Too many signups from this network. Try again later.", status=429)
+    next_url = safe_internal_next(request)
     if request.method == 'POST':
         form = SignUpForm(request.POST)
         if form.is_valid():
@@ -80,10 +111,10 @@ def signup(request):
             except Exception:
                 logger.exception('verify email send failed')
             messages.success(request, "Welcome to BlaqVibes — we sent a confirmation link to your email.")
-            return redirect('feed')
+            return redirect(next_url or 'feed')
     else:
         form = SignUpForm()
-    return render(request, 'registration/signup.html', {'form': form})
+    return render(request, 'registration/signup.html', {'form': form, 'next': next_url})
 
 def feed(request):
     """The discovery grid.

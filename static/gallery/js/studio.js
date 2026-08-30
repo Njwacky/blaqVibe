@@ -1,4 +1,4 @@
-/* BlaqVibes Studio — in-browser editor with a live, client-side sandboxed preview.
+/* BlaqVibes Studio — in-browser editor. Write always; run only when signed in.
  *
  * 5 Whys (mirrored from gallery/views_community.studio):
  * 1. Why srcdoc in a sandboxed iframe, not a server round-trip per keystroke?
@@ -7,26 +7,37 @@
  *    can run it instantly, locally, with zero latency and zero server load.
  * 2. Why NOT allow-same-origin on the frame? That would give the previewed
  *    code our origin (cookies, storage). allow-scripts alone keeps it opaque.
- * 3. Why debounce the auto-refresh? Rebuilding the document on every keystroke
- *    janks the editor; a short debounce keeps typing smooth and the preview
- *    near-live.
- * 4. Why mirror the editors into hidden inputs only at submit? The server form
- *    is the single publish path; the editors are the source of truth until the
- *    moment we hand their text to that form.
- * 5. Why no external editor library? A plain <textarea> has zero supply-chain
- *    surface and works with keyboard and screen readers out of the box — the
- *    audience is beginners, not power users who need a full IDE.
+ * 3. Why require login to RUN, not to write? Writing is text. Running HTML/JS
+ *    executes in the visitor's browser. The iframe is omitted from anonymous
+ *    HTML so DevTools cannot conjure a runner the server never sent.
+ * 4. Why not abort the whole script when `#studio-frame` is missing?
+ *    Anonymous visitors still need tabs, drafts, Nolo, and the publish
+ *    drawer. Only `render()` no-ops without a live frame.
+ * 5. Why persist the draft in sessionStorage? Sign-in is a full navigation.
+ *    Without a local draft, "you can write without an account" deletes the
+ *    work at the conversion moment. sessionStorage dies with the tab;
+ *    the server never stores anonymous code.
  */
 (function () {
   'use strict';
+
+  var cfg = window.STUDIO || {};
+  var canPreview = cfg.canPreview === true;
+  var draftKey = 'blaq-studio-draft:' + (cfg.draftKey || 'blank');
+  var DRAFT_MAX = 180000;
 
   var ed = {
     html: document.getElementById('ed-html'),
     css: document.getElementById('ed-css'),
     js: document.getElementById('ed-js'),
   };
+  // Editors must keep working even when the preview iframe was never sent.
+  if (!ed.html) return;
+
   var frame = document.getElementById('studio-frame');
-  if (!frame || !ed.html) return;
+  // Both the server flag AND the element have to be present. Flipping
+  // canPreview in DevTools cannot conjure an iframe that was never sent.
+  var previewLive = canPreview && !!frame;
 
   function buildDocument() {
     var css = ed.css ? ed.css.value : '';
@@ -44,12 +55,51 @@
   }
 
   function render() {
+    if (!previewLive) return;
     // srcdoc keeps the frame at an opaque origin (no allow-same-origin).
     frame.srcdoc = buildDocument();
   }
 
+  function readDraft() {
+    try {
+      var raw = sessionStorage.getItem(draftKey);
+      if (!raw) return null;
+      var data = JSON.parse(raw);
+      if (!data || typeof data !== 'object') return null;
+      return data;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  function writeDraft() {
+    try {
+      var payload = JSON.stringify({
+        html: ed.html ? ed.html.value : '',
+        css: ed.css ? ed.css.value : '',
+        js: ed.js ? ed.js.value : '',
+      });
+      if (payload.length > DRAFT_MAX) return;
+      sessionStorage.setItem(draftKey, payload);
+    } catch (e) {
+      /* quota / private mode — writing still works, just no restore */
+    }
+  }
+
+  function restoreDraft() {
+    var data = readDraft();
+    if (!data) return;
+    if (typeof data.html === 'string' && ed.html) ed.html.value = data.html;
+    if (typeof data.css === 'string' && ed.css) ed.css.value = data.css;
+    if (typeof data.js === 'string' && ed.js) ed.js.value = data.js;
+  }
+
+  restoreDraft();
+
   var timer = null;
   function scheduleRender() {
+    writeDraft();
+    if (!previewLive) return;
     if (timer) clearTimeout(timer);
     timer = setTimeout(render, 350);
   }
@@ -66,7 +116,7 @@
     });
   });
 
-  // Live preview as you type.
+  // Live preview as you type (no-ops when the iframe was never sent).
   ['html', 'css', 'js'].forEach(function (k) {
     if (ed[k]) ed[k].addEventListener('input', scheduleRender);
   });
@@ -81,11 +131,12 @@
       var s = el.selectionStart, en = el.selectionEnd;
       el.value = el.value.slice(0, s) + '  ' + el.value.slice(en);
       el.selectionStart = el.selectionEnd = s + 2;
+      writeDraft();
     });
   });
 
   var runBtn = document.getElementById('studio-run');
-  if (runBtn) runBtn.addEventListener('click', render);
+  if (runBtn && previewLive) runBtn.addEventListener('click', render);
 
   // Publish drawer open/close.
   var drawer = document.getElementById('studio-publish');
@@ -127,7 +178,6 @@
   });
 
   // --- Nolo: fix my code ---------------------------------------------------
-  var cfg = window.STUDIO || {};
   var noloBox = document.getElementById('studio-nolo');
   var noloSummary = document.getElementById('studio-nolo-summary');
   var noloFindings = document.getElementById('studio-nolo-findings');
@@ -230,6 +280,7 @@
       if (h) h.value = ed.html ? ed.html.value : '';
       if (c) c.value = ed.css ? ed.css.value : '';
       if (j) j.value = ed.js ? ed.js.value : '';
+      try { sessionStorage.removeItem(draftKey); } catch (e) {}
     });
   }
 
