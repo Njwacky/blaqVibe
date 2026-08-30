@@ -1018,9 +1018,15 @@ def delete_vibe(request, slug):
 @require_POST
 @ratelimit(key='ip', rate='10/h', method='POST')
 def report_vibe(request, slug):
+    # Published only — gate OUTSIDE the crush try/except. The report button
+    # only appears on a visible vibe, and accepting reports against
+    # pending/quarantined/removed slugs would let a guessed slug confirm
+    # existence + spam the queue. Raising Http404 here (not inside the try)
+    # means an unpublished slug 404s directly instead of the old fallback's
+    # 302-to-the-listing, which confirmed the vibe exists.
+    project = get_object_or_404(AppProject, slug=slug, status='published')
     try:
         from .prompt_sanitize import sanitize_prompt
-        project = get_object_or_404(AppProject, slug=slug)
         reason = request.POST.get('reason','other')
         if reason not in ('spam','malware','copyright','other'):
             reason = 'other'
@@ -1031,7 +1037,7 @@ def report_vibe(request, slug):
     except Exception as e:
         import logging
         logging.getLogger(__name__).exception(f"report crush: {e}")
-        return redirect(get_object_or_404(AppProject, slug=slug).get_absolute_url())
+        return redirect(project.get_absolute_url())
 
 @csrf_exempt
 # Two limiters, deliberately. The POST-only one below (60/m) bounds pushes; this one
@@ -1254,8 +1260,17 @@ def apply_ai_readme(request, slug):
 
 @login_required
 def download_version(request, slug, version_id):
-    """Owner (or unlocked buyer) can fetch a historical ZIP. Never via .url."""
+    """Owner (or unlocked buyer) can fetch a historical ZIP. Never via .url.
+
+    Visibility-gated: the caller must be able to *see* the project (owner/
+    moderator/published) or hold a download receipt (Trade/Sale). A stranger
+    hitting a pending/quarantined/removed slug now 404s instead of bouncing
+    to a page that itself 404s — same honest "not confirmable" rule as the
+    rest of the site.
+    """
     project = get_object_or_404(AppProject, slug=slug)
+    if not (user_can_see_project(request.user, project) or user_can_download(request.user, project)):
+        raise Http404
     version = get_object_or_404(AppVersion, pk=version_id, project=project)
     if request.user != project.owner and not user_can_download(request.user, project):
         messages.error(request, access_denied_message(request.user, project))
@@ -1304,9 +1319,14 @@ def oops_demo(request):
     return render(request, '404.html', status=200)
 
 def fork_network(request, slug):
-    """Fork network graph — backend builds tree, no JS secrets, crush silently."""
+    """Fork network graph — backend builds tree, no JS secrets, crush silently.
+
+    Published root only: the network page enumerates forks, and a pending
+    root must not be confirmable (or its forks surfaced) from a guessed
+    slug — same 404 rule as every other content read.
+    """
     try:
-        root = get_object_or_404(AppProject, slug=slug)
+        root = get_object_or_404(AppProject, slug=slug, status='published')
         # Find root of network (follow forked_from chain up)
         cur = root
         seen = set()
@@ -1326,7 +1346,7 @@ def fork_network(request, slug):
     except Exception as e:
         import logging
         logging.getLogger(__name__).exception(f"fork_network crush: {e}")
-        return render(request, 'gallery/fork_network.html', {'root': get_object_or_404(AppProject, slug=slug), 'forks': AppProject.objects.none()})
+        return render(request, 'gallery/fork_network.html', {'root': get_object_or_404(AppProject, slug=slug, status='published'), 'forks': AppProject.objects.none()})
 
 # Safe error pages — don't scare user with HttpResponse, show friendly fork image, "It's not you, it's me"
 def safe_404(request, exception=None):
