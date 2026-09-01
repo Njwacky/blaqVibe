@@ -66,6 +66,7 @@ def admin_dashboard(request):
         'quarantined': AppProject.objects.filter(status='quarantined').count(),
         'total_trades': Trade.objects.count(),
         'reports': AppReport.objects.count(),
+        'open_reports': AppReport.objects.filter(status='open').count(),
         'users': User.objects.count(),
         'total_clones': AppProject.objects.aggregate(n=Sum('clones'))['n'] or 0,
     }
@@ -160,7 +161,13 @@ def admin_dashboard(request):
         bar_color='#8B5CF6',
     )
 
-    recent_reports = AppReport.objects.select_related('project', 'user').order_by('-created_at')[:10]
+    # Open first, then handled; the dashboard should show the work, not the
+    # archive. We keep it small (10) because the triage page owns the detail.
+    recent_reports = (
+        AppReport.objects
+        .select_related('project', 'project__owner', 'user', 'handled_by')
+        .order_by('status', '-created_at')[:10]
+    )
     return render(request, 'users/admin_dashboard.html', {
         'stats': stats,
         'charts': charts,

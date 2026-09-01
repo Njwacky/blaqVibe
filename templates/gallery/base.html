@@ -40,6 +40,7 @@
   <symbol id="bv-ico-earnings" viewBox="0 0 24 24"><path d="M12 3 14.7 8.6 21 9.4 16.4 13.8 17.6 20 12 17 6.4 20 7.6 13.8 3 9.4 9.3 8.6 12 3Z"/></symbol>
   <symbol id="bv-ico-settings" viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/><path d="M4 12h2m12 0h2M12 4v2m0 12v2M6.6 6.6 8 8m8 8 1.4 1.4M17.4 6.6 16 8m-8 8-1.4 1.4"/></symbol>
   <symbol id="bv-ico-shield" viewBox="0 0 24 24"><path d="M12 3 20 6v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3Z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></symbol>
+  <symbol id="bv-ico-report" viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 4V4Z"/><path d="M8 9h8M8 12h5"/></symbol>
   <symbol id="bv-ico-admin" viewBox="0 0 24 24"><path d="M8 11a4 4 0 1 1 3.5 3.97"/><path d="M11.5 15H21v3h-3v3h-3v-3h-3.5"/><path d="M8 11h.01"/></symbol>
   <symbol id="bv-ico-logout" viewBox="0 0 24 24"><path d="M10 5H5v14h5"/><path d="M13 17l5-5-5-5"/><path d="M18 12H9"/></symbol>
 </svg>
@@ -77,7 +78,7 @@
           <a role="menuitem" href="{% url 'trading_history' %}"><svg class="bv-icon"><use href="#bv-ico-trades"></use></svg> Trades</a>
           <a role="menuitem" href="{% url 'payout_dashboard' %}"><svg class="bv-icon"><use href="#bv-ico-earnings"></use></svg> Earnings</a>
           <a role="menuitem" href="{% url 'settings' %}"><svg class="bv-icon"><use href="#bv-ico-settings"></use></svg> Settings</a>
-          {% if user.profile.is_moderator %}<div class="nav-menu-sep"></div><a role="menuitem" href="{% url 'moderation_queue' %}"><svg class="bv-icon"><use href="#bv-ico-shield"></use></svg> Moderation queue</a>{% endif %}
+          {% if user.profile.is_moderator %}<div class="nav-menu-sep"></div><a role="menuitem" href="{% url 'moderation_queue' %}"><svg class="bv-icon"><use href="#bv-ico-shield"></use></svg> Moderation queue</a><a role="menuitem" href="{% url 'reports_queue' %}"><svg class="bv-icon"><use href="#bv-ico-report"></use></svg> Reports{% if open_reports %} <span class="nav-badge">{{ open_reports }}</span>{% endif %}</a>{% endif %}
           {% if user.profile.is_admin %}<a role="menuitem" href="{% url 'admin_dashboard' %}"><svg class="bv-icon"><use href="#bv-ico-admin"></use></svg> Admin</a>{% endif %}
           <div class="nav-menu-sep"></div>
           <a role="menuitem" href="#" class="js-logout"><svg class="bv-icon"><use href="#bv-ico-logout"></use></svg> Logout</a>
@@ -159,10 +160,12 @@
           <a href="{% url 'publish' %}">Publish content</a>
           <a href="{% url 'admin_dashboard' %}">Admin dashboard</a>
           <a href="{% url 'moderation_queue' %}">Moderation queue</a>
+          <a href="{% url 'reports_queue' %}">Reports{% if open_reports %} ({{ open_reports }}){% endif %}</a>
         {% elif user.profile.is_moderator %}
           <span class="site-footer__role">Moderator</span>
           <a href="{% url 'publish' %}">Publish content</a>
           <a href="{% url 'moderation_queue' %}">Moderation queue</a>
+          <a href="{% url 'reports_queue' %}">Reports{% if open_reports %} ({{ open_reports }}){% endif %}</a>
           <a href="{% url 'notifications' %}">Inbox</a>
         {% else %}
           <span class="site-footer__role">Creator</span>

@@ -66,7 +66,10 @@
     </div>
   </div>
 
-  <h2 style="margin-top:20px;font-size:14px">Recent Reports</h2>
-  {% for r in recent_reports %}<div style="background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:6px;font-size:12px"><b>{{ r.project.title }}</b> — {{ r.reason }} • {{ r.details|default:"—" }} • by {% if r.user %}@{{ r.user.username }}{% else %}anon{% endif %} • {{ r.created_at|timesince }} ago</div>{% empty %}<div style="color:var(--muted);font-size:12px">No reports</div>{% endfor %}
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:20px;flex-wrap:wrap">
+    <h2 style="font-size:14px">Recent Reports <span style="color:var(--danger-text);font-size:12px">{{ stats.open_reports }} open</span></h2>
+    <a href="{% url 'reports_queue' %}" style="font-size:12px;font-weight:700;color:var(--link);text-decoration:none">Open report triage →</a>
+  </div>
+  {% for r in recent_reports %}<div style="background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:6px;font-size:12px"><b>{{ r.project.title }}</b> — {{ r.get_reason_display }} <span style="color:var(--muted)">[{{ r.get_status_display }}]</span> • {{ r.details|default:"—" }} • by {% if r.user %}@{{ r.user.username }}{% else %}anon{% endif %} • {{ r.created_at|timesince }} ago{% if r.handled_by %} • handled by @{{ r.handled_by.username }}{% endif %}</div>{% empty %}<div style="color:var(--muted);font-size:12px">No reports</div>{% endfor %}
 </div>
 {% endblock %}

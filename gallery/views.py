@@ -4,7 +4,7 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
 from django.db import transaction
-from django.db.models import F, Q, Count, Prefetch
+from django.db.models import F, Q, Count, Prefetch, Sum
 from django.http import Http404, HttpResponse, JsonResponse, HttpResponseRedirect
 from django.core.paginator import Paginator
 from django.utils import timezone
@@ -1043,12 +1043,20 @@ def report_vibe(request, slug):
     project = get_object_or_404(AppProject, slug=slug, status='published')
     try:
         from .prompt_sanitize import sanitize_prompt
+        from .reports import create_report
+
         reason = request.POST.get('reason','other')
         if reason not in ('spam','malware','copyright','other'):
             reason = 'other'
         details = sanitize_prompt(request.POST.get('details',''))[:500]
-        AppReport.objects.create(project=project, user=request.user if request.user.is_authenticated else None, reason=reason, details=details)
-        messages.success(request, "Reported — moderators will review. Thank you.")
+        # Exactly one creation path. create_report handles dedupe (one open
+        # report per signed-in user per vibe within 24h), moderator fan-out
+        # and profanity-safe notify — never a bare .objects.create() here.
+        report, created = create_report(project, request.user, reason, details)
+        if not created:
+            messages.info(request, "You've already reported this vibe — it's in the queue for review.")
+        else:
+            messages.success(request, "Reported — moderators will review. Thank you.")
         return redirect(project.get_absolute_url())
     except Exception as e:
         import logging

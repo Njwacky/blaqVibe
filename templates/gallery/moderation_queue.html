@@ -2,8 +2,13 @@
 {% block title %}Moderation Queue — BlaqVibes{% endblock %}
 {% block content %}
 <div style="max-width:1100px;margin:0 auto;padding:20px">
-  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">🛡️ Moderation Queue</h1>
-  <p style="color:var(--muted);font-size:13px">Staff only — approve pending vibes or review quarantined (virus/secrets). All actions are backend, no JS secrets.</p>
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+    <div>
+      <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">🛡️ Moderation Queue</h1>
+      <p style="color:var(--muted);font-size:13px">Staff only — approve pending vibes or review quarantined (virus/secrets). All actions are backend, no JS secrets.</p>
+    </div>
+    <a href="{% url 'reports_queue' %}" style="font-size:12px;font-weight:700;color:var(--danger-text);text-decoration:none">🚨 Report triage{% if open_reports %} ({{ open_reports }} open){% endif %} →</a>
+  </div>
 
   <h2 style="margin:16px 0 8px;font-size:14px">⏳ Pending Scan/Review ({{ pending.count }})</h2>
   {% for p in pending %}

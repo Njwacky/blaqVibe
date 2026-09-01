@@ -1,7 +1,7 @@
 from django.urls import path
 from . import views, trading_views, api_views, launch_views, health
 from .csp_views import csp_report
-from .moderation import moderation_queue, moderation_action
+from .moderation import moderation_queue, moderation_action, reports_queue, report_action
 urlpatterns = [
     # Ops probes: liveness (process up) and readiness (DB reachable).
     # Unauthenticated, no-store JSON — see gallery/health.py.
@@ -26,6 +26,12 @@ urlpatterns = [
     path('my-vibes/', views.my_vibes, name='my_vibes'),
     path('trades/', trading_views.trading_history, name='trading_history'),
     path('moderation/queue/', moderation_queue, name='moderation_queue'),
+    # Specific report triage routes MUST precede the catch-all
+    # 'moderation/<slug:slug>/' below, or Django would bind
+    # /moderation/reports/ to the @require_POST moderation_action and answer
+    # GET with 405 instead of rendering the queue.
+    path('moderation/reports/', reports_queue, name='reports_queue'),
+    path('moderation/reports/<int:report_id>/', report_action, name='report_action'),
     path('moderation/<slug:slug>/', moderation_action, name='moderation_action'),
     path('app/<slug:slug>/', views.app_detail, name='app_detail'),
     path('app/<slug:slug>/edit/', views.edit_vibe, name='edit_vibe'),

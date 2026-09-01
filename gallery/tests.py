@@ -1038,6 +1038,8 @@ class LaunchGuideTests(TestCase):
             'digitalocean-app-platform': {'docs.digitalocean.com'},
             'railway': {'docs.railway.com'},
             'fly-io': {'fly.io'},
+            'aws-lambda': {'docs.aws.amazon.com'},
+            'azure-functions': {'learn.microsoft.com'},
             'google-cloud-run': {'cloud.google.com'},
         }
         self.assertEqual(set(expected_hosts), {guide['slug'] for guide in LAUNCH_GUIDES})

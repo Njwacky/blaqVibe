@@ -27,7 +27,7 @@
 |---|----------|-------------------|--------------|--------|
 | 1 | **Email Notify on Queue Done** | User closes tab, never knows vibe is live | Why email not just toast? Toast dies on close. Why not now? Needs `send_mail` + Celery on `finalize_publish`. Why backend? Secrets stay backend. | 1 day |
 | 2 | **Edit / Re-upload Version** | Can’t fix bug after publish; must delete & re-upload loses stars | Why version? Git-like `v1.1.0`. Why not overwrite? History matters. | 2 days |
-| 3 | **Delete & Report Vibes** | Spam/malware stays live until staff finds it | Why report? 10k vibes = can’t staff scan all. Why backend? No JS trust. | 1 day |
+| 3 | ~~**Delete & Report Vibes**~~ | ✅ DONE 01 Sep 2026 — `/moderation/reports/` triage: open/ignored/resolved lifecycle, outcome per action, moderator fan-out on creation, owner notify on quarantine/removal, AdminLog audit, sibling auto-resolve, report dedupe per user/project (24h), admin-only remove/delete. See `gallery/reports.py`, `templates/gallery/reports_queue.html`. | 1 day |
 | 4 | ~~**Real Git Daemon (clone/push)**~~ | ✅ DONE — see above | Dulwich smart-HTTP, Basic auth + git tokens, push re-scans via the queue | done |
 | 5 | **Search v2 (Full-text + Trending)** | `icontains` slow at 1k, no “Trending” or `tech:Django` | Why Postgres `SearchVector` + `trigram`? GIN index. Why trending? `clones*3 + stars`. | 2 days |
 | 6 | **Pagination + Performance** | Feed loads all, 10k = OOM. Need 12/page + `select_related` | Why 12? Grid 3×4. Why not infinite? SEO needs pages. | 0.5 day |
