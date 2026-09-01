@@ -1340,16 +1340,25 @@ def fork_network(request, slug):
     Published root only: the network page enumerates forks, and a pending
     root must not be confirmable (or its forks surfaced) from a guessed
     slug — same 404 rule as every other content read.
+
+    The root is re-gated with user_can_see_project AFTER following the
+    forked_from chain up. A published fork can point at a now-pending or
+    removed original; showing that root's metadata to a stranger would
+    confirm a slug the rest of the site 404s. The check sits OUTSIDE the
+    crush try/except so the Http404 propagates instead of the fallback
+    re-rendering the network from the requested (published) slug.
     """
+    root = get_object_or_404(AppProject, slug=slug, status='published')
+    # Find root of network (follow forked_from chain up)
+    cur = root
+    seen = set()
+    while cur.forked_from and cur.forked_from_id not in seen and cur.forked_from_id != cur.id:
+        seen.add(cur.id)
+        cur = cur.forked_from
+    root = cur
+    if not user_can_see_project(request.user, root):
+        raise Http404
     try:
-        root = get_object_or_404(AppProject, slug=slug, status='published')
-        # Find root of network (follow forked_from chain up)
-        cur = root
-        seen = set()
-        while cur.forked_from and cur.forked_from_id not in seen and cur.forked_from_id != cur.id:
-            seen.add(cur.id)
-            cur = cur.forked_from
-        root = cur
         # All forks in network (direct + indirect)
         forks = AppProject.objects.filter(forked_from__isnull=False, status='published').filter(
             # Simple: direct forks of root + forks of forks (1 level deep for demo, at scale recursive CTE)
@@ -1362,7 +1371,9 @@ def fork_network(request, slug):
     except Exception as e:
         import logging
         logging.getLogger(__name__).exception(f"fork_network crush: {e}")
-        return render(request, 'gallery/fork_network.html', {'root': get_object_or_404(AppProject, slug=slug, status='published'), 'forks': AppProject.objects.none()})
+        # Crush fallback: root is already visibility-gated above, so it is
+        # safe to render an empty network from it (never re-fetch ungated).
+        return render(request, 'gallery/fork_network.html', {'root': root, 'forks': AppProject.objects.none()})
 
 # Safe error pages — don't scare user with HttpResponse, show friendly fork image, "It's not you, it's me"
 def safe_404(request, exception=None):

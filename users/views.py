@@ -42,6 +42,7 @@ from .rename import (
     set_name_style,
 )
 from gallery.models import AppProject
+from gallery.access import user_can_see_project
 from gallery.notify import notify
 
 # 5 Whys: Why /u/<username>/ not /profile/<id>? Username is brand, SEO, like GitHub.
@@ -111,14 +112,22 @@ def profile_view(request, username):
     # fact "who starred what when" — one row per (user, project), unique by
     # constraint. select_related('project__owner') kills the N+1 that the old
     # AppProject query had on every card's owner.
+    # Why filter through user_can_see_project HERE and not at row creation? A
+    # star can only be cast on a published vibe (toggle_star requires it), but
+    # that vibe can later be re-queued (pending) or removed. A stranger reading
+    # a public profile's Stars tab must not learn about a vibe that has since
+    # gone non-public — same visibility rule as every other content read. The
+    # starred user (profile owner) and moderators still see their own/hidden
+    # rows, because user_can_see_project returns True for owner/moderator.
     starred = []
     if tab == 'stars':
         from gallery.models import Star
-        starred = (
-            Star.objects.filter(user=user)
+        starred = [
+            s for s in Star.objects.filter(user=user)
             .select_related('project', 'project__owner')
             .order_by('-created_at')
-        )
+            if user_can_see_project(request.user, s.project)
+        ]
 
     # Rank + currency proof. rank() and stars_received() were computed on the
     # model but never rendered anywhere — dead backend logic. They are the
