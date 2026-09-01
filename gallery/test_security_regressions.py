@@ -16,7 +16,7 @@ from django.core.cache import caches
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.conf import settings
 
-from gallery.models import AppReport, AppVersion, PullRequest
+from gallery.models import AppReport, AppVersion, PullRequest, Star
 
 # Reuse the shared helpers from gallery.tests so the regression suite
 # exercises the exact same fixtures the rest of the app tests use.
@@ -90,6 +90,60 @@ class PullRequestVisibilityRegressionTests(TestCase):
     def test_anonymous_fork_network_of_published_root_is_200(self):
         response = self.client.get(f'/app/{self.target.slug}/forks/')
         self.assertEqual(response.status_code, 200)
+
+    def test_fork_network_climb_to_pending_original_404_for_stranger(self):
+        # A published fork can point at an original that has since re-queued
+        # (pending). fork_network follows the forked_from chain up to that
+        # root; a stranger must not be handed the pending original's metadata
+        # — it is the same "guessed slug must not be confirmable" rule as the
+        # direct pending-root case.
+        original = make_project(self.owner, self.cat, title='Now-pending original', status='pending')
+        pubfork = make_project(self.buyer, self.cat, title='Published fork',
+                               forked_from=original, status='published')
+        response = self.client.get(f'/app/{pubfork.slug}/forks/')
+        self.assertEqual(response.status_code, 404)
+
+    def test_fork_network_climb_to_pending_original_200_for_original_owner(self):
+        original = make_project(self.owner, self.cat, title='Now-pending original', status='pending')
+        pubfork = make_project(self.buyer, self.cat, title='Published fork',
+                               forked_from=original, status='published')
+        self.client.login(username='owner', password='pass12345')
+        response = self.client.get(f'/app/{pubfork.slug}/forks/')
+        self.assertEqual(response.status_code, 200)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class ProfileStarsVisibilityRegressionTests(TestCase):
+    """Related object-lookup leak — a public profile's Stars tab must not
+    reveal vibes that have since gone non-public (pending/quarantined/removed).
+
+    A star can only be cast on a published vibe (toggle_star), but that vibe
+    can later be re-queued or removed. Reading the profile with ?tab=stars has
+    to honour the same visibility rule as every other content read.
+    """
+
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('owner')
+        self.stranger = make_user('stranger')
+        # Realistic lifecycle: the vibe was once published (so it could be
+        # starred) and has since been re-queued — status flips to 'pending'.
+        self.pending = make_project(self.owner, self.cat, title='Secret pending vibe', star_cost=0)
+        self.pending.zip_file.save('pending.zip', make_zip_file({'app.py': 'x=1\n'}), save=True)
+        Star.objects.create(user=self.owner, project=self.pending)
+        self.pending.status = 'pending'
+        self.pending.save(update_fields=['status'])
+
+    def test_stranger_profile_stars_hides_pending_vibe(self):
+        response = self.client.get(f'/u/{self.owner.username}/?tab=stars')
+        self.assertEqual(response.status_code, 200)
+        self.assertNotContains(response, 'Secret pending vibe')
+
+    def test_owner_profile_stars_still_shows_own_pending_vibe(self):
+        self.client.login(username='owner', password='pass12345')
+        response = self.client.get(f'/u/{self.owner.username}/?tab=stars')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Secret pending vibe')
 
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')

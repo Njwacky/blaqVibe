@@ -39,7 +39,7 @@ Fixes are implemented on this branch and covered by `gallery/test_security_regre
 | 8 | `gallery/csp_views.py` | `@ratelimit(key='ip', rate='60/m', method='POST')` on `csp_report` |
 | 9 | — | retracted, no change (see above) |
 
-**Regression tests** (`gallery/test_security_regressions.py`): PR diff/list/network visibility for anonymous/stranger/fork-owner/target-owner/moderator; `download_version` pending-gate; `report_vibe` pending-404; login (20/m) + password-reset (10/m) rate limits incl. GET-unlimited; csp-report flood (60/m) + valid-report 204; `/readyz` exception-string non-disclosure; `SECURE_PROXY_SSL_HEADER` default-vs-proxy posture via a controlled subprocess import.
+**Regression tests** (`gallery/test_security_regressions.py`): PR diff/list/network visibility for anonymous/stranger/fork-owner/target-owner/moderator; `fork_network` chain-climb to a pending original (404 stranger / 200 original-owner); `download_version` pending-gate; `report_vibe` pending-404; profile-stars visibility (stranger hides pending / owner still sees it); login (20/m) + password-reset (10/m) rate limits incl. GET-unlimited; csp-report flood (60/m) + valid-report 204; `/readyz` exception-string non-disclosure; `SECURE_PROXY_SSL_HEADER` default-vs-proxy posture via a controlled subprocess import.
 
 ---
 
@@ -92,6 +92,11 @@ def pr_detail(request, slug, pr_id):
     ...
 ```
 (`fork_network` should likewise start from a published root.)
+
+**Applied** — the three endpoints above now gate with `status='published'` / `user_can_see_project`, and a follow-up pass found two **related** visibility-bypass lookups that the original sweep missed, now also closed:
+
+- **`fork_network` chain-climb** (`gallery/views.py`): the view follows the `forked_from` chain up to the network root. A *published* fork can point at an original that has since re-queued (`pending`) or been removed; the walked-up `root` was rendered without re-gating, so a stranger hitting `/app/<published-fork>/forks/` was handed the non-public original's metadata. `root` is now re-gated with `user_can_see_project` **outside** the `try/except` (so the `Http404` propagates instead of the crumb-fallback re-rendering the network from the requested slug).
+- **Profile stars object lookup** (`users/views.py`, `profile_view`): the public `?tab=stars` list was a `Star.objects.filter(user=user)` lookup that rendered each `project`'s title/description regardless of status. A stranger could read a public profile's Stars tab and learn about a vibe that has since gone `pending`/`removed`. Each row is now filtered through `user_can_see_project`, which preserves owner/moderator visibility while hiding non-public vibes from strangers.
 
 ---
 
