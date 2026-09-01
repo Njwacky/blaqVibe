@@ -1188,6 +1188,122 @@ LAUNCH_GUIDES = (
         ),
     },
     {
+        "slug": "aws-lambda",
+        "last_reviewed": "2026-08-20",
+        "category": "web",
+        "icon": "gallery/icons/launch/brands/aws.svg",
+        "name": "AWS Lambda",
+        "pace": "More setup",
+        "eyebrow": "Serverless functions",
+        "title": "Deploy a function on AWS Lambda",
+        "summary": "For a stateless function that autoscales — even to zero — with pay‑per‑use billing.",
+        "result": "A public HTTPS Lambda URL (or via API Gateway)",
+        "artifact": "A zip archive or container image",
+        "time": "Moderate – enable the API, deploy, configure scaling and secrets",
+        "good_for": ("APIs", "Event‑driven services", "WebSocket apps", "Autoscaling workloads"),
+        "not_for": "Long‑running stateful processes or apps that need persistent local disk",
+        "prerequisites": (
+          "A AWS account with programmatic access keys",
+          "The AWS CLI installed and authenticated",
+          "A stateless app that binds to the PORT provided and starts within the startup timeout.",
+        ),
+        "steps": (
+          {
+            "title": "Enable the Cloud Run API and set the project",
+            "body": "Point gcloud at the project that owns the service, then enable the Cloud Run API. Billing must be enabled on the project before the API accepts traffic.",
+            "commands": (
+              {"label": "Set the active project", "text": "gcloud config set project <PROJECT_ID>", "replace": "Replace <PROJECT_ID>."},
+              {"label": "Enable the Cloud Run API", "text": "gcloud services enable run.googleapis.com"},
+            ),
+          },
+          {
+            "title": "Deploy from source (buildpacks) or a Dockerfile",
+            "body": "The quickest path builds the container for you from source. gcloud prompts for a region and asks whether to allow unauthenticated invocations — choose 'y' for a public site, 'n' for a private API.",
+            "commands": (
+              {"label": "Deploy a service from source", "text": "gcloud run deploy <SERVICE_NAME> --source .", "replace": "Replace <SERVICE_NAME>."},
+            ),
+          },
+          {
+            "title": "Set environment variables and secrets",
+            "body": "Update the service with its environment variables. Anything sensitive belongs in Secret Manager, referenced from the service config — never baked into the image or committed.",
+            "commands": (
+              {"label": "Update environment variables", "text": "gcloud run services update <SERVICE_NAME> --set-env-vars KEY=VALUE", "replace": "Replace service name and KEY=VALUE pairs."},
+            ),
+          },
+          {
+            "title": "Configure scaling, CPU, and concurrency",
+            "body": "Set min and max instances, CPU allocation, and concurrency to match the workload. A deliberate max‑instances cap is the cheapest insurance against a traffic spike turning into a large bill.",
+          },
+          {
+            "title": "Verify, attach a domain, and monitor",
+            "body": "Open the generated run.app URL in a private window and test cold starts and autoscaling. Map a custom domain under the service's Domain mappings, then watch Logs and Error Reporting for runtime failures.",
+          },
+        ),
+        "checklist": (
+          "Service deploys and returns 200 on the run.app URL",
+          "App binds to PORT and starts within the timeout",
+          "Secrets come from Secret Manager, not the image",
+          "Min/max instances are set deliberately",
+          "Custom domain serves over HTTPS, if configured",
+        ),
+        "sources": (
+          {"label": "Cloud Run overview", "url": "https://cloud.google.com/run/docs/overview/what-is-cloud-run"},
+          {"label": "Cloud Run quickstart (build and deploy)", "url": "https://cloud.google.com/run/docs/quickstarts/build-and-deploy/python"},
+          {"label": "gcloud run deploy reference", "url": "https://cloud.google.com/sdk/gcloud/reference/run/deploy"},
+        ),
+    },
+    {
+        "slug": "azure-functions",
+        "last_reviewed": "2026-08-20",
+        "category": "web",
+        "icon": "gallery/icons/launch/brands/azure.svg",
+        "name": "Azure Functions",
+        "pace": "More setup",
+        "eyebrow": "Serverless functions",
+        "title": "Deploy a function on Azure Functions",
+        "summary": "For a stateless function that autoscales — even to zero — with pay‑per‑use billing.",
+        "result": "An Azure Functions endpoint",
+        "artifact": "A zip archive or container image",
+        "time": "Moderate",
+        "good_for": ("APIs", "Event‑driven services"),
+        "not_for": "Long‑running stateful processes",
+        "prerequisites": (
+          "An Azure account",
+        ),
+        "steps": (
+          {
+            "title": "Prove the app starts locally with PORT",
+            "body": "Run the production server locally with PORT set. Fix anything that hardcodes a port or binds only to 127.0.0.1 – Azure injects PORT and expects the app to listen on 0.0.0.0.",
+          },
+          {
+            "title": "Create a project and deploy from GitHub",
+            "body": "Choose New Project → Deploy from GitHub repo and select the repository. Azure detects the runtime and builds automatically on pushes.",
+          },
+          {
+            "title": "Set the start command and environment variables",
+            "body": "In the service's Variables tab add every secret and any non‑default start command. Save, and Azure redeploys with the new environment. Keep secrets out of the repository.",
+          },
+          {
+            "title": "Add a database",
+            "body": "Choose New → Database → Postgres or Redis. Azure injects the connection URL into your app's environment automatically.",
+          },
+          {
+            "title": "Test, attach a domain, and watch logs",
+            "body": "Open the generated URL in a private window and test database‑backed flows, restarts, and error pages. Add a custom domain under the service's Settings tab. Use the Deployments and Logs tabs to diagnose failures.",
+          },
+        ),
+        "checklist": (
+          "App responds on the generated URL over HTTPS",
+          "Start command is explicit in the service config",
+          "Secrets live in service variables, not source",
+          "Database connection survives a redeploy",
+          "Custom domain resolves, if configured",
+        ),
+        "sources": (
+          {"label": "Railway Docs", "url": "https://docs.railway.com/"},
+          {"label": "Railway: deploy a Django app", "url": "https://docs.railway.com/guides/django"},
+        ),
+    },
         "slug": "google-cloud-run",
         "last_reviewed": "2026-08-20",
         "category": "web",

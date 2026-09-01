@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Azure Functions – BlaqVibe Launch Guide Demo</title>
+<link rel="stylesheet" href="/static/css/launch.css">
+</head>
+<body>
+<header>
+<h1>Azure Functions – Deploy a serverless function on Azure</h1>
+<nav>
+<a href="/launch/">Launch Hub</a> | <a href="/launch/?artifact=server">Server / API</a>
+</nav>
+</header>
+
+<section class="guide-summary">
+<p><strong>Pace:</strong> More setup</p>
+<p><summary>For a backend or full‑stack app deployed straight from a GitHub repo with auto‑deploys, managed databases, and simple scaling.</summary></p>
+<p><strong>Good for:</strong> Node/Python/Ruby/Go backends, Django and full‑stack apps, managed Postgres/Redis, CRON jobs.</p>
+<p><strong>Not for:</strong> Static frontends only (cheaper on a static host) or GPU‑heavy workloads.</p>
+</section>
+
+<section class="prerequisites">
+<h3>Prerequisites</h3>
+<ul>
+<li>A Railway account.</li>
+<li>A project in a Git repository with a start command (or a Dockerfile).</li>
+<li>Confirmation that the app reads the PORT environment variable.</li>
+</ul>
+</section>
+
+<section class="steps">
+<h3>Steps</h3>
+
+<ol>
+<li>
+<strong>Prove the app starts locally with PORT</strong>
+<p>Run the production server locally with PORT set. Fix anything that hardcodes a port or binds only to 127.0.0.1 — Railway injects PORT and expects the app to listen on 0.0.0.0.</p>
+</li>
+
+<li>
+<strong>Create a project and deploy from GitHub</strong>
+<p>Choose New Project → Deploy from GitHub repo and select the repository. Railway detects the runtime with Nixpacks or uses your Dockerfile, then builds and deploys automatically on pushes.</p>
+</li>
+
+<li>
+<strong>Set the start command and environment variables</strong>
+<p>In the service's Variables tab add every secret and any non‑default start command. Save, and Railway redeploys with the new environment. Keep secrets out of the repository.</p>
+</li>
+
+<li>
+<strong>Add a database</strong>
+<p>Choose New → Database → Postgres or Redis. Railway injects the connection URL into your app's environment automatically, so no manual host/port configuration is needed.</p>
+</li>
+
+<li>
+<strong>Test, attach a domain, and watch logs</strong>
+<p>Open the generated URL in a private window and test database‑backed flows, restarts, and error pages. Add a custom domain under the service's Settings tab. Use the Deployments and Logs tabs to diagnose failures.</p>
+</li>
+</ol>
+</section>
+
+<section class="checklist">
+<h3>Checklist</h3>
+<ul>
+<li>App responds on the generated URL over HTTPS</li>
+<li>Start command is explicit in the service config</li>
+<li>Secrets live in service variables, not source</li>
+<li>Database connection survives a redeploy</li>
+<li>Custom domain resolves, if configured</li>
+</ul>
+</section>
+
+<footer>
+<p>Sources: <a href="https://docs.railway.com/">Railway Docs</a> | <a href="https://docs.railway.com/guides/django">Deploy a Django app</a></p>
+</footer>
+</body>
+</html>
