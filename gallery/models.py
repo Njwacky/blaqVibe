@@ -323,12 +323,41 @@ class ScanJob(models.Model):
 
 class AppReport(models.Model):
     REASON_CHOICES = [('spam','Spam'),('malware','Malware/Virus'),('copyright','Copyright'),('other','Other')]
+    STATUS_CHOICES = [
+        ('open', 'Open'),
+        ('resolved', 'Resolved'),
+        ('ignored', 'Ignored'),
+    ]
+    OUTCOME_CHOICES = [
+        ('', '—'),
+        ('no_action', 'Dismissed (no violation found)'),
+        ('quarantined', 'Vibe quarantined'),
+        ('removed', 'Vibe removed (soft delete — buyers keep downloads)'),
+        ('deleted', 'Vibe deleted'),
+    ]
     project = models.ForeignKey(AppProject, on_delete=models.CASCADE, related_name='reports')
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     reason = models.CharField(max_length=20, choices=REASON_CHOICES, default='other')
     details = models.CharField(max_length=500, blank=True)
+    # Report lifecycle. Before this existed a report row was just a row:
+    # moderator opened /admin/dashboard/, saw it, and the closing action
+    # (if any) happened in the moderator's head. Status + outcome make the
+    # triage explicit and auditable end-to-end.
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='open', db_index=True)
+    outcome = models.CharField(max_length=12, choices=OUTCOME_CHOICES, default='', blank=True)
+    handled_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='handled_reports',
+    )
+    handled_at = models.DateTimeField(null=True, blank=True)
+    note = models.CharField(max_length=500, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    def __str__(self): return f"{self.project.slug} — {self.reason}"
+
+    def __str__(self): return f"{self.project.slug} — {self.reason} ({self.status})"
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['status', 'created_at'])]
 
 class ProjectCoOwner(models.Model):
     """A revenue share in a vibe's star trades.
@@ -595,6 +624,7 @@ class Notification(models.Model):
         ('challenge', 'Challenge'),
         ('payout', 'Payout'),
         ('git_push', 'Git push'),
+        ('report', 'Report'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
     kind = models.CharField(max_length=20, choices=KIND_CHOICES)

@@ -1,10 +1,20 @@
 def extras(request):
     unread = 0
-    if getattr(request, 'user', None) and request.user.is_authenticated:
+    open_reports = 0
+    user = getattr(request, 'user', None)
+    if user is not None and user.is_authenticated:
         try:
             unread = request.user.notifications.filter(is_read=False).count()
         except Exception:
             unread = 0
+        # One count only for staff, so the nav badge is free to show. Reads
+        # an indexed row set; never performed on a public cache-key path.
+        try:
+            if user.profile.is_moderator():
+                from .models import AppReport
+                open_reports = AppReport.objects.filter(status='open').count()
+        except Exception:
+            open_reports = 0
     social_providers = []
     try:
         from users.social import configured_social_providers
@@ -39,6 +49,7 @@ def extras(request):
         local_dev = False
     return {
         'unread_notifications': unread,
+        'open_reports': open_reports,
         'social_providers': social_providers,
         'paystack_enabled': paystack_enabled,
         'nolo_backend': nolo_backend,
