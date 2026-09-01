@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AWS Lambda – BlaqVibe Launch Guide Demo</title>
+<link rel="stylesheet" href="/static/css/launch.css">
+</head>
+<body>
+<header>
+<h1>AWS Lambda – Host a serverless function on AWS</h1>
+<nav>
+<a href="/launch/">Launch Hub</a> | <a href="/launch/?artifact=server">Server / API</a>
+</nav>
+</header>
+
+<section class="guide-summary">
+<p><strong>Pace:</strong> More setup</p>
+<p><summary>For a stateless function that autoscales — even to zero — with pay‑per‑use billing.</summary></p>
+<p><strong>Good for:</strong> APIs, event‑driven services, WebSocket apps, APIs that need to scale to zero.</p>
+<p><strong>Not for:</strong> Long‑running stateful processes or apps that need persistent local disk.</p>
+</section>
+
+<section class="prerequisites">
+<h3>Prerequisites</h3>
+<ul>
+<li>An AWS account with programmatic access keys.</li>
+<li>The AWS CLI installed and authenticated.</li>
+>A stateless app that binds to the PORT provided and starts within the startup timeout.</li>
+</ul>
+</section>
+
+<section class="steps">
+<h3>Steps</h3>
+
+<ol>
+<li>
+<strong>Enable the Cloud Run API and set the project</strong>
+<p>Point gcloud at the project that owns the service, then enable the Cloud Run API. Billing must be enabled on the project before the API accepts traffic.</p>
+<ol>
+<li>Set the active project: <code>gcloud config set project &lt;PROJECT_ID&gt;</code></li>
+<li>Enable the Cloud Run API: <code>gcloud services enable run.googleapis.com</code></li>
+</ol>
+</li>
+
+<li>
+<strong>Deploy from source (buildpacks) or a Dockerfile</strong>
+<p>The quickest path builds the container for you from source. gcloud prompts for a region and asks whether to allow unauthenticated invocations — choose 'y' for a public site, 'n' for a private API.</p>
+<ol>
+<li>Deploy a service from source: <code>gcloud run deploy &lt;SERVICE_NAME&gt; --source .</code></li>
+</ol>
+</li>
+
+<li>
+<strong>Set environment variables and secrets</strong>
+<p>Update the service with its environment variables. Anything sensitive belongs in Secret Manager, referenced from the service config — never baked into the image or committed.</p>
+<ol>
+<li>Update environment variables: <code>gcloud run services update &lt;SERVICE_NAME&gt; --set-env-vars KEY=VALUE</code></li>
+</ol>
+</li>
+
+<li>
+<strong>Configure scaling, CPU, and concurrency</strong>
+<p>Set min and max instances, CPU allocation, and concurrency to match the workload. A deliberate max‑instances cap is the cheapest insurance against a traffic spike turning into a large bill.</p>
+</li>
+
+<li>
+<strong>Verify, attach a domain, and monitor</strong>
+<p>Open the generated run.app URL in a private window and test cold starts and autoscaling. Map a custom domain under the service's Domain mappings, then watch Logs and Error Reporting for runtime failures.</p>
+</li>
+</ol>
+</section>
+
+<section class="checklist">
+<h3>Checklist</h3>
+<ul>
+<li>Service deploys and returns 200 on the run.app URL</li>
+<li>App binds to PORT and starts within the timeout</li>
+<li>Secrets come from Secret Manager, not the image</li>
+<li>Min/max instances are set deliberately</li>
+<li>Custom domain serves over HTTPS, if configured</li>
+</ul>
+</section>
+
+<footer>
+<p>Sources: <a href="https://cloud.google.com/run/docs/overview/what-is-cloud-run">Cloud Run overview</a> | <a href="https://cloud.google.com/run/docs/quickstarts/build-and-deploy/python">quickstart</a></p>
+</footer>
+</body>
+</html>
