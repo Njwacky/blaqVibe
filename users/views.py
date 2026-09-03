@@ -1,3 +1,4 @@
+import logging
 from django.shortcuts import render, get_object_or_404, redirect
 from django.http import Http404
 from django.contrib.auth.decorators import login_required
@@ -149,7 +150,19 @@ def profile_view(request, username):
             next_rank = {'name': name, 'threshold': threshold}
             break
 
+    # Progression (XP / level / badges) is public: it is reputation, the
+    # same class of fact as the star counter. It is READ-only here — the
+    # only writer is users.progress, called from the action that earned it.
+    try:
+        from .progress import ACHIEVEMENTS, progress_for
+        progress = progress_for(user)
+        progress['all_badges'] = ACHIEVEMENTS
+    except Exception:
+        logging.getLogger(__name__).exception('progress lookup failed for %s', username)
+        progress = None
+
     return render(request, 'users/profile.html', {
+        'progress': progress,
         'profile_user': user, 'profile': profile, 'is_own': is_own,
         'vibes': vibes, 'vibes_all': vibes_all,
         'published_count': published_count, 'all_count': all_count,
@@ -225,7 +238,10 @@ def toggle_follow(request, username):
     if not created:
         follow.delete()
         return JsonResponse({'following': False, 'followers': target.followers.count()})
-    notify(target, 'follow', f'@{request.user.username} followed you', url=f'/u/{request.user.username}/')
+    # Notification preferences are honoured server-side: a muted kind never
+    # writes a row, so the inbox and the unread badge cannot disagree.
+    if getattr(target.profile, 'notify_on_follow', True):
+        notify(target, 'follow', f'@{request.user.username} followed you', url=f'/u/{request.user.username}/')
     return JsonResponse({'following': True, 'followers': target.followers.count()})
 
 
@@ -357,6 +373,7 @@ def payout_dashboard(request):
 
 @login_required
 @require_POST
+@ratelimit(key='user', rate='5/h', method='POST')
 def request_payout(request):
     """Queue a cash-out. All money rules live in users.payouts — the view
     only carries the user's input and the outcome back to the dashboard."""
@@ -407,6 +424,18 @@ def activate_pro_trial(request):
         messages.error(request, "Pro activation failed silently")
         return redirect('payout_dashboard')
 
+# Rendered by the settings page. Keys match Profile fields handled by
+# toggle_setting, so the generic switch JS needs no special case.
+NOTIFICATION_PREF_ROWS = (
+    ('notify_on_star', 'Someone stars your vibe', 'The quiet one — the first sign a stranger liked your work.'),
+    ('notify_on_fork', 'Someone forks/remixes your vibe', 'Usually the most useful note you will get: somebody built on you.'),
+    ('notify_on_comment', 'Comments and reviews', 'Feedback on a vibe you published.'),
+    ('notify_on_follow', 'New followers', 'Who started following you.'),
+    ('notify_on_trade', 'Trades and sales', 'Money events — stars moved for one of your vibes.'),
+    ('notify_on_milestone', 'Star milestones', 'Only at 10 / 50 / 100 / 500 ★, so this one is quiet by design.'),
+)
+
+
 @login_required
 def settings_view(request):
     profile, _ = Profile.objects.get_or_create(user=request.user)
@@ -417,9 +446,15 @@ def settings_view(request):
     # toggles/git/email/social only. The rename and style endpoints keep
     # their /settings/... URLs for stability; they redirect back to the
     # profile editor.
+    notification_prefs = [
+        {'key': key, 'label': label, 'help': help_text,
+         'value': getattr(profile, key, True)}
+        for key, label, help_text in NOTIFICATION_PREF_ROWS
+    ]
     return render(request, 'users/settings.html', {
         'profile': profile,
         'site': site,
+        'notification_prefs': notification_prefs,
         'security_events': SecurityEvent.objects.filter(user=request.user)[:8],
         **social_connection_context(request.user),
     })
@@ -563,7 +598,8 @@ def toggle_setting(request):
         key = request.POST.get('key')
         value = request.POST.get('value') == 'true'
         # User toggles
-        user_keys = ['auto_language','nolo_enabled','auto_thumbnail','allow_trading','email_on_trade','email_on_review','show_language','allow_forks','allow_prs','allow_comments','allow_reviews']
+        user_keys = ['auto_language','nolo_enabled','auto_thumbnail','allow_trading','email_on_trade','email_on_review','show_language','allow_forks','allow_prs','allow_comments','allow_reviews',
+                     'notify_on_star','notify_on_fork','notify_on_follow','notify_on_comment','notify_on_trade','notify_on_milestone']
         if key in user_keys:
             profile,_ = Profile.objects.get_or_create(user=request.user)
             setattr(profile, key, value)

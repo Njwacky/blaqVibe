@@ -2,8 +2,23 @@
 {% block title %}Challenges — BlaqVibes{% endblock %}
 {% block content %}
 <div style="max-width:900px;margin:0 auto;padding:20px">
-  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">🏆 Challenges — Build Vol.2</h1>
-  <p style="color:var(--muted);font-size:13px">Weekly bounty to turn MyVibe Vol.1 into Vol.2. Publish with tag #challenge-week-12 to join. Winner gets <b style="color:var(--warning-text)">stars + Pro + top 1st</b>.</p>
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">🏆 Challenges</h1>
+  <p style="color:var(--muted);font-size:13px">
+    One small build a day. Publish with the day's tag to enter — the most-starred
+    vibe when the day closes takes <b style="color:var(--warning-text)">the ★ bounty + Pro</b>,
+    and everyone who enters earns XP.
+  </p>
+
+  {% if not active %}
+  {# Honest empty state: never advertise a bounty that does not exist. #}
+  <div style="margin-top:12px;background:var(--card);border:1px dashed var(--line);border-radius:12px;padding:18px;text-align:center">
+    <div style="font-size:13px;font-weight:700">No challenge is running right now</div>
+    <p style="color:var(--muted);font-size:12px;margin-top:6px">
+      A new one opens every day. In the meantime, publish a vibe or remix someone else's — that earns XP too.
+    </p>
+    <a href="{% url 'publish' %}" class="btnV" style="padding:10px 14px;text-decoration:none;display:inline-block;margin-top:6px">Publish a vibe →</a>
+  </div>
+  {% endif %}
 
   {% if active %}
   <div style="margin-top:12px;background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:12px;padding:14px;display:flex;gap:12px;align-items:center">
@@ -11,9 +26,19 @@
     <div style="flex:1">
       <div style="font-weight:800">Active — {{ active.title }} <span style="font-size:11px;background:var(--warning-fill);color:var(--on-warning);padding:3px 7px;border-radius:6px">{{ active.bounty_stars }} ★ bounty</span> <span style="font-size:11px;background:var(--input);border:1px solid var(--line);padding:3px 7px;border-radius:6px">#{{ active.tag }}</span></div>
       <div style="font-size:12px;color:var(--muted);margin-top:4px">{{ active.description }}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:4px">Ends {{ active.end|date:"Y-m-d" }} • <a href="{% url 'challenge_detail' active.tag %}" style="color:var(--warning-text)">View submissions →</a> • Publish with tag to join</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">Ends {{ active.end|date:"Y-m-d H:i" }} • {{ active.submission_count|default:0 }} entered • Publish with tag to join</div>
+      {% if active.top_submissions %}
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">Leading:
+        {% for s in active.top_submissions %}
+          <a href="{{ s.get_absolute_url }}" style="color:var(--link)">{{ s.title|truncatechars:24 }}</a> ★{{ s.stars }}{% if not forloop.last %} · {% endif %}
+        {% endfor %}
+      </div>
+      {% endif %}
     </div>
-    <a href="{% url 'publish' %}" class="btnV" style="padding:10px 14px;text-decoration:none">Publish for Challenge →</a>
+    <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
+      <a href="{% url 'publish' %}" class="btnV" style="padding:10px 14px;text-decoration:none">Enter →</a>
+      <a href="{% url 'challenge_detail' active.tag %}" class="btnG" style="padding:8px 12px;text-decoration:none;font-size:12px">Submissions</a>
+    </div>
   </div>
   {% endif %}
 

@@ -307,6 +307,26 @@ def trust_reasons(project):
         return []
 
 
+def _award_verified_xp(project, tier):
+    """One XP grant the first time a vibe proves itself clean.
+
+    Why here? apply_trust_grade is the single writer of the tier, so this
+    is the one place where 'verified' can be observed as a fact. The grant
+    is ref-keyed to the project, so re-scans, re-grades and repeated task
+    runs pay exactly once.
+    """
+    try:
+        if tier != TRUST_VERIFIED:
+            return
+        owner = getattr(project, 'owner', None)
+        if not owner or not getattr(owner, 'pk', None):
+            return
+        from users.progress import award
+        award(owner, 'verified', ref=f'verified:{project.pk}')
+    except Exception:
+        logger.exception('verified xp failed %s', getattr(project, 'slug', '?'))
+
+
 def apply_trust_grade(project, save=True):
     """The ONE pipeline writer of the stored grade.
 
@@ -325,6 +345,9 @@ def apply_trust_grade(project, save=True):
         project.trust_graded_at = now
         if save:
             project.save(update_fields=['trust', 'trust_graded_at'])
+        # Progression rides the verdict, not the view: whichever path got a
+        # vibe to 'verified' (pipeline, edit rescan, backfill) pays once.
+        _award_verified_xp(project, grade)
         return grade
     except Exception:
         logger.exception('apply_trust_grade failed for %s', getattr(project, 'slug', '?'))

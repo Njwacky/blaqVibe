@@ -35,6 +35,7 @@ urlpatterns = [
     path('moderation/<slug:slug>/', moderation_action, name='moderation_action'),
     path('app/<slug:slug>/', views.app_detail, name='app_detail'),
     path('app/<slug:slug>/edit/', views.edit_vibe, name='edit_vibe'),
+    path('app/<slug:slug>/stats/', views.vibe_stats, name='vibe_stats'),
     path('app/<slug:slug>/co-owners/add/', views.add_co_owner, name='add_co_owner'),
     path('app/<slug:slug>/co-owners/<int:user_id>/remove/', views.remove_co_owner, name='remove_co_owner'),
     path('app/<slug:slug>/delete/', views.delete_vibe, name='delete_vibe'),

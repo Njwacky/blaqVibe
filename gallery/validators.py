@@ -24,6 +24,14 @@ BLOCKED_NAMES = {
     'id_rsa', 'id_dsa', 'id_ecdsa', 'id_ed25519',
 }
 BLOCKED_EXT = {'.exe','.dll','.so','.dylib','.sh','.bat','.bin','.o','.a'}
+# A subset of BLOCKED_NAMES that is *build output*, not a credential. They
+# get their own error message: the beginner fix ("delete the folder and
+# re-zip") is different from the security fix ("rotate that key").
+# 5 Whys: why not one message for both? Because the single biggest upload
+# failure is an ordinary vibe-coded folder that contains node_modules/ —
+# and an error that says "credentials" sends that person to check their
+# keys instead of their folder. Same block, different instruction.
+BULK_NAMES = {'node_modules', '__pycache__', 'venv', '.venv', '__MACOSX', '.DS_Store'}
 SECRET_PATTERNS = [
     re.compile(r'sk_live_[0-9a-zA-Z]+'),
     re.compile(r'AKIA[0-9A-Z]{16}'),
@@ -66,7 +74,11 @@ def validate_zip(file):
             if not infos:
                 raise ValidationError("ZIP is empty (no files).")
             if len(infos) > MAX_FILES:
-                raise ValidationError(f"Too many files ({len(infos)}). Max {MAX_FILES} — possible bomb or node_modules.")
+                raise ValidationError(
+                    f"Too many files ({len(infos)}), max {MAX_FILES}. This is almost always "
+                    f"build output — delete node_modules/, .venv/ and dist/ and zip the "
+                    f"project again."
+                )
 
             total_uncompressed = 0
             for info in infos:
@@ -99,13 +111,28 @@ def validate_zip(file):
                 if any(part == '..' for part in parts):
                     raise ValidationError(f"Path traversal '..' in: {name}")
                 for part in parts:
-                    if part in BLOCKED_NAMES:
+                    if part in BULK_NAMES:
+                        # Distinct copy for the *common* beginner case. A
+                        # vibe-coded folder almost always contains
+                        # node_modules/ or .venv/; telling that person
+                        # "credentials never go in a vibe" is a wrong
+                        # diagnosis they cannot act on. Name the fix.
                         raise ValidationError(
-                            f"Blocked file/folder in ZIP: {part} — credentials and tool "
-                            f"config never go in a vibe. Remove it and re-upload."
+                            f"“{part}/” is in your ZIP. Delete that folder and zip the "
+                            f"project again — it is build output, not your app "
+                            f"(it also pushes you over the file limit)."
                         )
                     if part.startswith('.env') and part != '.env.example':
-                        raise ValidationError(f"Blocked secrets file: {name}")
+                        raise ValidationError(
+                            f"“{name}” is an environment file. Keep the keys out: rename "
+                            f"it to .env.example with empty values, and delete the real one."
+                        )
+                    if part in BLOCKED_NAMES:
+                        raise ValidationError(
+                            f"“{part}” looks like credentials or tool config: {name}. "
+                            f"Remove it and re-upload — real keys belong in your host's "
+                            f"environment settings, never in a public vibe."
+                        )
                     if part in ('.ssh', '.aws'):
                         raise ValidationError(f"Blocked hidden file: {name}")
 

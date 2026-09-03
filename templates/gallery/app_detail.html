@@ -335,6 +335,7 @@
         {% if user.is_authenticated and user == project.owner %}
         <div style="display:flex;gap:6px;margin-top:8px">
           <a href="{% url 'edit_vibe' project.slug %}" class="btn-ghost" style="flex:1;text-align:center">✎ Edit / Re-upload</a>
+          <a href="{% url 'vibe_stats' project.slug %}" class="btn-ghost" style="flex:1;text-align:center">📊 Stats</a>
           <form method="post" action="{% url 'delete_vibe' project.slug %}" class="js-delete-form" style="flex:1">{% csrf_token %}<button class="btn-ghost" style="width:100%;color:var(--danger-text)">🗑 Delete</button></form>
         </div>
         {% if launch_next %}

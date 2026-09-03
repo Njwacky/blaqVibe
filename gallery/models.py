@@ -1,7 +1,12 @@
+from django.core.validators import MaxValueValidator
 from django.db import models
 from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils.text import slugify
+
+# Price ceilings — see the 5 Whys on AppProject.star_cost.
+MAX_STAR_COST = 5
+MAX_PRICE_ZAR = 9999
 
 from .taxonomy import (
     DEFAULT_KIND,
@@ -62,8 +67,29 @@ class AppProject(models.Model):
     file_tree = models.JSONField(default=dict, blank=True)
     file_count = models.PositiveIntegerField(default=0)
     language_stats = models.JSONField(default=dict, blank=True)  # {'Python':68,'JavaScript':22}
-    star_cost = models.PositiveIntegerField(default=0, help_text="Stars to trade to download (0=free, 1=Bronze, 3=Silver, 5=Gold)")
-    price_zar = models.PositiveIntegerField(default=0, help_text="Money price in ZAR (0=free, 50=R50) — for real money via Paystack")
+    # Price caps are MODEL validators, not widget attributes. 5 Whys:
+    # 1. Why cap at all? `max=5` on the HTML widget is decoration — a stray
+    #    digit in a crafted POST (or a typo in a script) used to store
+    #    9999 ★ and the vibe became permanently unbuyable.
+    # 2. Why a model validator and not a form-only check? Every writer
+    #    (publish form, edit form, admin, a future API) goes through
+    #    full_clean() or the ModelForm, so one declaration guards them all.
+    # 3. Why 5? The published tiers are Bronze 1 / Silver 3 / Gold 5; the
+    #    whole UI and the copy ("0=free, 2=Bronze") are written against them.
+    # 4. Why 9999 ZAR and not a smaller ceiling? It is a sane upper bound for
+    #    an indie vibe, and Paystack's own limits apply long before ours.
+    # 5. Why not silently clamp? A clamped price hides a mistake the creator
+    #    still believes they set. Rejecting is honest and reversible.
+    star_cost = models.PositiveIntegerField(
+        default=0,
+        validators=[MaxValueValidator(MAX_STAR_COST)],
+        help_text=f"Stars to trade to download (0=free … {MAX_STAR_COST}=Gold)",
+    )
+    price_zar = models.PositiveIntegerField(
+        default=0,
+        validators=[MaxValueValidator(MAX_PRICE_ZAR)],
+        help_text=f"Money price in ZAR (0=free, 50=R50) — max R{MAX_PRICE_ZAR}",
+    )
     ai_readme = models.TextField(blank=True, help_text="AI-generated README, backend only")
     forked_from = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='forks')
     scan_report = models.JSONField(default=dict, blank=True)  # backend only, never sent raw to JS
@@ -625,6 +651,12 @@ class Notification(models.Model):
         ('payout', 'Payout'),
         ('git_push', 'Git push'),
         ('report', 'Report'),
+        # Added with the retention work: the social half of the loop.
+        ('star', 'Star'),
+        ('fork', 'Fork'),
+        ('milestone', 'Milestone'),
+        ('achievement', 'Achievement'),
+        ('git_push_rejected', 'Git push rejected'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
     kind = models.CharField(max_length=20, choices=KIND_CHOICES)

@@ -340,6 +340,11 @@ def finalize_publish(*args, project_id=None):
         except Exception:
             logger.exception('artifact detect failed %s', p.slug)
         notify(p.owner, 'published', f'“{p.title}” is live', launch_hint, launch_url)
+        try:
+            from users.progress import award
+            award(p.owner, 'publish', ref=f'project:{p.pk}')
+        except Exception:
+            logger.exception('publish xp failed %s', p.slug)
     # Update ScanJob for the JS poll (backend only — just a status string).
     _set_scan_job(p, 'clean' if p.status == 'published' else p.status)
     # Trust badge last: every exit path of finalize writes the tier so the
