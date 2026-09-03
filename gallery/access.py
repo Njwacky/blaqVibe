@@ -22,19 +22,53 @@ def user_is_moderator(user) -> bool:
 def user_can_see_project(user, project) -> bool:
     """Published is public. Pending/quarantined is owner or moderator only.
 
+    This is deliberately fail-closed: an object with no usable status is not
+    public. Callers that expose project-derived metadata should use this
+    policy before rendering the object, not after a broad ``try/except``.
+
     'removed' (soft-deleted): the page is gone for everyone except
     moderators — buyers keep the *download*, not the listing. 5 Whys:
     Why hide the page from buyers too? The creator asked for the vibe to
     be gone; the purchase contract covers the ZIP, not the storefront.
     """
+    if project is None:
+        return False
     status = getattr(project, 'status', None)
     if status == 'published':
         return True
     if not getattr(user, 'is_authenticated', False):
         return False
-    if user.pk == project.owner_id:
+    owner_id = getattr(project, 'owner_id', None)
+    if owner_id is not None and user.pk == owner_id:
         return True
     return user_is_moderator(user)
+
+
+def user_can_review_pr(user, pr) -> bool:
+    """Return whether *user* may read a pull-request's source/diff.
+
+    PR pages can expose source ZIP contents, so visibility is checked against
+    both objects involved rather than relying on the numeric PR id or target
+    slug. The target must itself be published. A pending source is reviewable
+    only by the source owner, a moderator, or the published target owner.
+
+    Keeping this rule beside ``user_can_see_project`` gives every PR endpoint
+    one fail-closed policy to reuse instead of subtly different IDOR checks.
+    """
+    if pr is None:
+        return False
+    target = getattr(pr, 'target', None)
+    source = getattr(pr, 'source', None)
+    if target is None or source is None:
+        return False
+    if getattr(target, 'status', None) != 'published':
+        return False
+    if user_can_see_project(user, source):
+        return True
+    return (
+        getattr(user, 'is_authenticated', False)
+        and getattr(user, 'pk', None) == getattr(target, 'owner_id', None)
+    )
 
 
 def effective_star_cost(project) -> int:
