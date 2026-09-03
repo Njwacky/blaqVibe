@@ -16,8 +16,14 @@ import zipfile, os, json, logging
 from .models import AppProject, Category, Comment, Star, AppFile, ScanJob, AppReport, AppVersion, Review, Trade, PullRequest, ProjectCoOwner
 from .forms import AppUploadForm, CoOwnerForm, CommentForm, ReviewForm
 from .search import search_projects
-from .access import user_can_download, user_can_see_project, user_is_moderator, access_denied_message
-from .zip_serve import serve_project_zip, owner_scan_reason, scan_progress
+from .access import (
+    access_denied_message,
+    last_scanned_version,
+    user_can_download,
+    user_can_see_project,
+    user_is_moderator,
+)
+from .zip_serve import serve_named_zip, serve_project_zip, owner_scan_reason, scan_progress
 from .notify import notify
 from . import taste
 from .taxonomy import KIND_BY_VALUE, PROGRAM_KINDS, coerce_kind
@@ -152,6 +158,7 @@ def feed(request):
         sort = request.GET.get('sort', '') or default_sort
         program_kind = coerce_program_kind_filter(request.GET.get('program'))
         runnable = request.GET.get('runnable', '')
+        following = request.GET.get('following', '')
         # Trust filter — "instruction must always win", like every other
         # filter here. 4 points: (1) only the two whitelisted tier strings
         # are accepted, anything else is ignored — an unknown value can
@@ -186,6 +193,14 @@ def feed(request):
                 _Q(preview_mode='snippet', html_code__gt='')
                 | _Q(preview_mode='static_zip', static_entry__gt='')
             )
+        # "From creators you follow" — a tab, not a sort, so it composes
+        # with every filter above instead of replacing them.
+        if following == '1':
+            if not request.user.is_authenticated:
+                messages.info(request, "Sign in to see vibes from creators you follow.")
+                return redirect('feed')
+            followed = request.user.following.values_list('following_id', flat=True)
+            projects = projects.filter(owner_id__in=list(followed))
         if ai == '1':
             projects = projects.filter(ai_generated=True)
         if tech:
@@ -234,7 +249,7 @@ def feed(request):
         paginator = Paginator(projects, 12)
         page = paginator.get_page(request.GET.get('page'))
         my_kinds = taste.top_kinds(request.user, limit=3) if request.user.is_authenticated else []
-        return render(request, 'gallery/feed.html', {
+        ctx = {
             'page': page,
             'categories': categories,
             'q': q,
@@ -244,13 +259,41 @@ def feed(request):
             'program_kinds': PROGRAM_KINDS,
             'program_kind': program_kind,
             'runnable': runnable,
+            'following': following,
             'trust': trust_filter,
             'personalized': sort == 'foryou' and bool(my_kinds),
             'my_kinds': [KIND_BY_VALUE[k] for k in my_kinds if k in KIND_BY_VALUE],
-        })
+        }
+        # Rails are only noise once somebody is filtering or searching: they
+        # are a discovery surface for "I just landed here", not a second
+        # result set on top of a query.
+        unfiltered = not any([q, cat, kind, program_kind, runnable, trust_filter, following, ai, tech])
+        if unfiltered:
+            try:
+                from . import trending
+                from .daily import today_challenge
+                exclude_owner = request.user if request.user.is_authenticated else None
+                ctx['trending'], ctx['trending_is_hot'] = trending.trending_vibes(
+                    limit=6, exclude_owner=exclude_owner)
+                ctx['rising_creators'] = trending.rising_creators(
+                    limit=4, exclude_user=request.user if request.user.is_authenticated else None)
+                ctx['recent_remixes'] = trending.recent_remixes(limit=4)
+                ctx['activity'] = trending.activity_summary()
+                ctx['daily'] = today_challenge()
+                if request.user.is_authenticated:
+                    ctx['suggested_creators'] = trending.suggested_creators(request.user, limit=4)
+                    ctx['following_count'] = request.user.following.count()
+                    # First-run strip: only while there is something to do.
+                    ctx['show_onboarding'] = (
+                        request.user.projects.count() == 0
+                        or request.user.following.count() == 0
+                    )
+            except Exception:
+                logger.exception('feed rails failed')
+        return render(request, 'gallery/feed.html', ctx)
     except Exception:
         logger.exception("feed crush silent")
-        return render(request, 'gallery/feed.html', {'page': Paginator(AppProject.objects.none(), 12).get_page(1), 'categories': Category.objects.all(), 'q': '', 'cat': '', 'kind': '', 'sort': 'newest', 'program_kinds': PROGRAM_KINDS, 'program_kind': '', 'runnable': '', 'trust': '', 'personalized': False, 'my_kinds': []})
+        return render(request, 'gallery/feed.html', {'page': Paginator(AppProject.objects.none(), 12).get_page(1), 'categories': Category.objects.all(), 'q': '', 'cat': '', 'kind': '', 'sort': 'newest', 'program_kinds': PROGRAM_KINDS, 'program_kind': '', 'runnable': '', 'following': '', 'trust': '', 'personalized': False, 'my_kinds': []})
 
 
 def coerce_program_kind_filter(value):
@@ -668,7 +711,61 @@ def publish(request):
                     snippet_evidence(project)
                 except Exception:
                     logger.exception('snippet evidence failed %s', project.slug)
-                if request.user.projects.filter(status='published').count() >= 3:
+
+                # 5 Whys — why publish on evidence instead of the old
+                # "must already have 3 published vibes" rule?
+                # 1. Why did that rule fail? A brand-new creator has zero
+                #    published vibes, so every first publish was held —
+                #    and a hold is invisible: no ScanJob row, no task, no
+                #    notification, only "we'll tell you", which nothing told.
+                # 2. Why not just auto-publish unconditionally? A snippet
+                #    still deserves a check, and the check we can afford
+                #    in-request (snippet_evidence: regex only, no queue,
+                #    no LLM) is real evidence — so publish on ITS answer.
+                # 3. Why hold when it flags? A pasted API key is a real
+                #    leak; that is a human decision, not a silent push.
+                # 4. Why is spam still contained? publish is 5/h per user,
+                #    signup is 10/h per IP, snippets only ever run in the
+                #    opaque-origin sandbox, and reports + the moderation
+                #    queue remain the backstop for anything that lands.
+                # 5. Why tell the moderator? A held snippet with no queue
+                #    entry is a vibe nobody owns — the notification makes
+                #    the hold somebody's job instead of nobody's.
+                flagged = bool((project.scan_report or {}).get('snippet_scan', {}).get('secrets_found'))
+                if flagged:
+                    project.status = 'pending'
+                    project.save(update_fields=['status'])
+                    try:
+                        from .trust import apply_trust_grade
+                        apply_trust_grade(project)
+                    except Exception:
+                        logger.exception('snippet grade failed %s', project.slug)
+                    notify(
+                        project.owner,
+                        'quarantined',
+                        f'“{project.title}” is held for review',
+                        'The code looks like it contains an API key or token. Remove it and '
+                        'edit the vibe — it goes straight to the feed after that.',
+                        project.get_absolute_url(),
+                    )
+                    try:
+                        from .reports import moderators_to_notify
+                        for staff in moderators_to_notify(project.owner):
+                            notify(
+                                staff,
+                                'report',
+                                f'Snippet held: {project.title}',
+                                'Secret-shaped content flagged at publish — needs a human look.',
+                                project.get_absolute_url(),
+                            )
+                    except Exception:
+                        logger.debug('moderator fan-out skipped for %s', project.slug)
+                    messages.warning(
+                        request,
+                        "“%s” is held for review — the code looks like it contains an API "
+                        "key or token. Remove it and edit the vibe to go live." % project.title,
+                    )
+                else:
                     project.status = 'published'
                     project.save(update_fields=['status'])
                     # Status just became published — re-grade so the badge
@@ -678,9 +775,15 @@ def publish(request):
                         apply_trust_grade(project)
                     except Exception:
                         logger.exception('snippet grade failed %s', project.slug)
-                    messages.success(request, f"Your snippet “{project.title}” is published.")
-                else:
-                    messages.info(request, f"Your vibe “{project.title}” is queued for review — we’ll tell you when it’s uploaded!")
+                    messages.success(
+                        request,
+                        f"Your snippet “{project.title}” is published — it’s on the feed now.",
+                    )
+                    try:
+                        from users.progress import award
+                        award(project.owner, 'publish', ref=f'project:{project.pk}')
+                    except Exception:
+                        logger.exception('publish xp failed %s', project.slug)
                 # Snippets never enter the scan queue, so this is the only
                 # place they can be labelled. Heuristic only: a publish is a
                 # user waiting on a response, and an LLM call belongs on a
@@ -706,19 +809,36 @@ def publish(request):
     return render(request, 'gallery/publish.html', {'form': form, 'challenge': challenge})
 
 def download_zip(request, slug):
-    # 'removed' is reachable on purpose: buyers of a soft-deleted vibe keep
-    # their paid ZIP (user_can_download enforces the Trade/Sale receipt).
-    project = get_object_or_404(AppProject, slug=slug, status__in=['published', 'removed'])
+    # 'removed' and 'pending' are reachable on purpose: buyers of a
+    # soft-deleted vibe keep their paid ZIP, and a buyer whose vibe is being
+    # re-scanned keeps access to the last scanned version instead of losing
+    # the download for the length of the scan (user_can_download enforces
+    # the Trade/Sale receipt; quarantined is refused outright).
+    project = get_object_or_404(AppProject, slug=slug, status__in=['published', 'removed', 'pending'])
     if not project.zip_file:
         raise Http404
     if not user_can_download(request.user, project):
-        if project.status == 'removed':
-            # Don't leak a redirect to a dead page — the listing is gone.
+        if project.status in ('removed', 'pending'):
+            # Don't leak a redirect to a dead page — the listing is gone
+            # (or, for a pending rescan, is not confirmable to a stranger).
             raise Http404
         messages.error(request, access_denied_message(request.user, project))
         if not request.user.is_authenticated:
             return redirect(f"{settings.LOGIN_URL}?next={request.path}")
         return redirect(project.get_absolute_url())
+    if project.status == 'pending':
+        # Serve the bytes the scanner already cleared, never the archive that
+        # is still in the queue. No scanned version yet → nothing to serve.
+        version = last_scanned_version(project)
+        if not version or not version.zip_file:
+            messages.info(
+                request,
+                "This vibe is being re-scanned and has no earlier version yet — "
+                "your download comes back the moment the scan clears it.",
+            )
+            return redirect(project.get_absolute_url())
+        taste.record(request.user, project, 'download', project=project)
+        return serve_named_zip(version.zip_file, f'{project.slug}-{version.version}.zip')
     taste.record(request.user, project, 'download', project=project)
     return serve_project_zip(project, user=request.user, ip=request.META.get('REMOTE_ADDR', ''))
 
@@ -777,10 +897,24 @@ def post_comment(request, slug):
                 parent = Comment.objects.get(pk=parent_id, project=project, is_hidden=False)
             except Exception:
                 parent = None
-        Comment.objects.create(project=project, user=request.user, body=body, parent=parent)
+        comment = Comment.objects.create(project=project, user=request.user, body=body, parent=parent)
         taste.record(request.user, project, 'comment', project=project)
         if project.owner_id != request.user.id:
-            notify(project.owner, 'comment', f'@{request.user.username} commented on {project.title}', body[:160], project.get_absolute_url() + '#comments')
+            _notify_project_owner(
+                project.owner,
+                'comment',
+                f'@{request.user.username} commented on {project.title}',
+                project.get_absolute_url() + '#comments',
+                actor=request.user,
+                body=body[:160],
+            )
+        # Feedback is the repeatable half of the loop, so it pays a little
+        # XP — capped per day in users.progress so it cannot be farmed.
+        try:
+            from users.progress import award
+            award(request.user, 'comment_given', ref=f'comment:{comment.pk}')
+        except Exception:
+            logger.exception('comment xp failed %s', project.slug)
         return redirect(project.get_absolute_url() + '#comments')
     except Exception as e:
         import logging
@@ -789,6 +923,7 @@ def post_comment(request, slug):
 
 @require_POST
 @login_required
+@ratelimit(key='user', rate='10/h', method='POST')
 def post_review(request, slug):
     try:
         from .models import Review
@@ -810,6 +945,20 @@ def post_review(request, slug):
                 messages.success(request, f"Review {rating}★ posted — Nolo and human ratings now show.")
             else:
                 messages.success(request, f"Review updated to {rating}★")
+            if project.owner != request.user:
+                _notify_project_owner(
+                    project.owner,
+                    'review',
+                    f'@{request.user.username} reviewed “{project.title}” {rating}★',
+                    project.get_absolute_url() + '#reviews',
+                    actor=request.user,
+                    body=(text or '')[:160],
+                )
+            try:
+                from users.progress import award
+                award(request.user, 'review_given', ref=f'review:{review.pk}')
+            except Exception:
+                logger.exception('review xp failed %s', project.slug)
             # Email the owner if they want review emails.
             # 5 Whys: Why email on top of the in-app notify? A review
             # changes the vibe's average rating and affects its ranking —
@@ -843,8 +992,42 @@ def post_review(request, slug):
         logging.getLogger(__name__).exception(f"post_review crush: {e}")
         return redirect(get_object_or_404(AppProject, slug=slug).get_absolute_url() + '#reviews')
 
-@require_POST
-@login_required
+def _notify_project_owner(owner, kind, title, url, actor=None, body=''):
+    """Social notification, honouring the recipient's per-kind preference.
+
+    5 Whys: why a helper instead of calling notify() directly?
+    1. Every social event (star, fork, comment, review, trade) must respect
+       the same six switches; one helper means the seventh call site cannot
+       forget.
+    2. Why is the lookup defensive? Profile may be missing (deleted account,
+       shell-created user); a missing profile must not raise inside a view
+       the user perceives as "I just starred something".
+    3. Why is `actor` unused for now? It is the hook for muting a specific
+       person later (blocking) without touching every call site again.
+    4. Why not check "does this person want email"? The email switches are
+       separate and stay separate — an in-app note is not an email.
+    5. Why return a bool? Callers and tests can assert the suppression
+       instead of counting rows after the fact.
+    """
+    pref_map = {
+        'star': 'notify_on_star',
+        'fork': 'notify_on_fork',
+        'follow': 'notify_on_follow',
+        'comment': 'notify_on_comment',
+        'review': 'notify_on_comment',
+        'trade': 'notify_on_trade',
+        'sale': 'notify_on_trade',
+        'milestone': 'notify_on_milestone',
+    }
+    key = pref_map.get(kind)
+    try:
+        if key and not getattr(owner.profile, key, True):
+            return False
+    except Exception:
+        pass
+    return bool(notify(owner, kind, title, body, url))
+
+
 def toggle_star(request, slug):
     project = get_object_or_404(AppProject, slug=slug, status='published')
     from .economy import toggle_project_star
@@ -854,6 +1037,36 @@ def toggle_star(request, slug):
     # is a griefing tool against your own recommendations.
     if starred:
         taste.record(request.user, project, 'star', project=project)
+        # The creator loop: somebody liked your work → tell them, and pay
+        # the reputation. Self-stars are not an event for anybody else, so
+        # no notification and no XP (progress.award is ref-keyed, so even a
+        # replayed request cannot pay it twice).
+        if project.owner_id != request.user.id:
+            _notify_project_owner(
+                project.owner,
+                'star',
+                f'@{request.user.username} starred “{project.title}”',
+                project.get_absolute_url(),
+                actor=request.user,
+            )
+            try:
+                from users.progress import award
+                award(
+                    project.owner,
+                    'star_received',
+                    ref=f'star:{project.id}:{request.user.id}',
+                )
+            except Exception:
+                logger.exception('star xp failed %s', project.slug)
+            project.refresh_from_db(fields=['stars'])
+            if project.stars in (10, 50, 100, 500, 1000):
+                notify(
+                    project.owner,
+                    'milestone',
+                    f'★ {project.stars} on “{project.title}”',
+                    'Your vibe crossed a milestone — nice.',
+                    project.get_absolute_url(),
+                )
     return JsonResponse({'starred': starred})
 
 @login_required
@@ -870,15 +1083,74 @@ def my_vibes(request):
         p.progress = scan_progress(p) if p.status != 'published' else None
     return render(request, 'gallery/my_vibes.html', {'vibes': vibes})
 
+def _content_fields_changed(project, cleaned):
+    """True only when the *executable* bytes changed.
+
+    5 Whys: why compare fields instead of always re-queueing?
+    1. Because `p.status = 'pending'` used to run on every save, so editing
+       a title took a live vibe off the feed — and for a snippet nothing
+       ever set it back. The creator saw "✓ Vibe updated!" while the world
+       saw a 404.
+    2. Why distinguish code from metadata? A new README or a new title is
+       not new executable content; re-running the whole scan chain for it
+       buys nothing and costs a queue slot.
+    3. Why is a replaced ZIP always "changed"? The archive is one opaque
+       blob; we cannot cheaply diff it, so any new upload is re-scanned.
+    4. Why is this the only place that decides? publish, edit and git push
+       all funnel through their own callers; keeping the test here means
+       one rule for "does this need a rescan".
+    5. Why not trust the browser? A crafted POST can send the same code
+       back with a new ZIP; the check reads the server's own state.
+    """
+    for field in ('html_code', 'css_code', 'js_code'):
+        if (cleaned.get(field) or '') != (getattr(project, field, '') or ''):
+            return True
+    return False
+
+
+@login_required
+def vibe_stats(request, slug):
+    """Creator analytics for ONE of your own vibes.
+
+    Owner-only by construction: the queryset filters on owner=request.user,
+    so another creator's slug is a 404 (not a 403 — a 403 would confirm the
+    vibe exists to somebody guessing slugs).
+    """
+    project = get_object_or_404(
+        AppProject.objects.filter(owner=request.user).select_related('category'),
+        slug=slug,
+    )
+    from .analytics import creator_stats, project_stats
+    stats = project_stats(project)
+    # Headline the thing that actually moved, instead of dumping a table.
+    if stats.get('views_today'):
+        headline = "Your vibe got %d view%s today." % (stats['views_today'], 's' if stats['views_today'] != 1 else '')
+    elif stats.get('downloads_week'):
+        headline = "Downloaded %d times this week." % stats['downloads_week']
+    elif stats.get('stars_week'):
+        headline = "%d new star%s this week." % (stats['stars_week'], 's' if stats['stars_week'] != 1 else '')
+    else:
+        headline = "Quiet week. Share the link or enter today's challenge to get eyes on it."
+    return render(request, 'gallery/vibe_stats.html', {
+        'project': project,
+        'stats': stats,
+        'creator': creator_stats(request.user),
+        'headline': headline,
+    })
+
+
 @login_required
 def edit_vibe(request, slug):
     project = get_object_or_404(AppProject, slug=slug, owner=request.user)
     if request.method == 'POST':
         form = AppUploadForm(request.POST, request.FILES, instance=project)
         if form.is_valid():
+            was_published = project.status == 'published'
+            new_zip = 'zip_file' in request.FILES
+            code_changed = _content_fields_changed(project, form.cleaned_data)
             p = form.save(commit=False)
             # Versioning: if new ZIP, save old as AppVersion
-            if 'zip_file' in request.FILES and project.zip_file:
+            if new_zip and project.zip_file:
                 from .profanity import validate_public_text
                 from .prompt_sanitize import sanitize_prompt
                 try:
@@ -888,6 +1160,15 @@ def edit_vibe(request, slug):
                 except Exception:
                     changelog = 'Update'
                 AppVersion.objects.create(project=project, zip_file=project.zip_file, version=f"1.{project.versions.count()+1}.0", changelog=changelog)
+
+            # --- Metadata-only edit: nothing to re-scan, nothing to hide ---
+            if not new_zip and not code_changed:
+                # Deliberately does NOT touch status or trust: the bytes the
+                # badge vouched for are still the bytes we are serving.
+                p.save()
+                form.save_m2m()
+                return _finish_snippet_edit(request, p, republished=False)
+
             # Any content change resets the trust badge (gallery.trust WHY 4):
             # the old ✓ vouched for the old bytes; the rescan re-earns it.
             try:
@@ -895,11 +1176,17 @@ def edit_vibe(request, slug):
                 invalidate_trust(p, save=False)
             except Exception:
                 pass
-            p.status = 'pending'
-            p.save()
-            form.save_m2m()
-            # Rebuild tree + re-queue scan (every edit is re-checked)
+
             if p.zip_file:
+                # New archive bytes must be re-checked before they are served
+                # to the public, so the vibe does step out of the feed while
+                # the chain runs. Two guarantees come with that (see
+                # gallery.access.user_can_download): people who already PAID
+                # keep their download, and the vibe is only hidden — never
+                # deleted. If the queue is healthy this is seconds.
+                p.status = 'pending'
+                p.save()
+                form.save_m2m()
                 try:
                     from .ziputil import build_tree
                     p.files.all().delete()
@@ -908,28 +1195,90 @@ def edit_vibe(request, slug):
                     p.save(update_fields=['file_tree','file_count'])
                     for f in files[:2000]:
                         AppFile.objects.create(project=p, path=f['path'], size=f['size'])
-                except Exception: pass
+                except Exception:
+                    logger.exception('tree rebuild failed on edit %s', p.slug)
                 from .tasks import process_upload_pipeline
                 from .models import ScanJob
-                job,_ = ScanJob.objects.get_or_create(project=p)
-                job.status='queued'; job.save()
+                job, _ = ScanJob.objects.get_or_create(project=p)
+                job.status = 'queued'
+                job.save(update_fields=['status'])
                 try:
                     process_upload_pipeline.delay(p.id)
-                    messages.info(request, f"⏳ Your vibe “{p.title}” re-uploaded — re-queued for scan. We’ll tell you when it’s live again!")
-                except Exception: pass
-            else:
-                # No ZIP means no scan queue run, so nothing else would
-                # ever re-label this vibe after an edit — do it here.
-                try:
-                    from .tasks import classify_and_score
-                    classify_and_score(p)
                 except Exception:
-                    logger.exception('reclassify on edit failed %s', p.slug)
-                messages.success(request, "✓ Vibe updated!")
-            return redirect(p.get_absolute_url())
+                    # The broker is down. Say so instead of pretending the
+                    # queued state is progress — a silent "we'll tell you"
+                    # is how a vibe disappears with no trace.
+                    logger.exception('edit rescan queue failed %s', p.slug)
+                    messages.error(
+                        request,
+                        "The scan service is offline, so “%s” is held for review "
+                        "instead of being re-checked. Nothing was lost — it returns "
+                        "to the feed as soon as a scan worker is back." % p.title,
+                    )
+                    return redirect(p.get_absolute_url())
+                if was_published:
+                    messages.info(
+                        request,
+                        f"⏳ “{p.title}” is re-scanning — it stays out of the feed for a "
+                        f"moment so nobody downloads unchecked files. Buyers keep their "
+                        f"downloads. We’ll tell you when it’s live again.",
+                    )
+                else:
+                    messages.info(request, f"⏳ “{p.title}” re-queued for scan.")
+                return redirect(p.get_absolute_url())
+
+            # --- Snippet edit: re-scan in-request, stay live when clean ---
+            # Snippets never enter the queue (see trust.snippet_evidence): the
+            # check is a regex over three text fields, so it costs
+            # microseconds and can run while the creator waits. That is what
+            # lets an edit keep the vibe published instead of dropping it into
+            # a queue that would never publish it again.
+            secrets_found = False
+            try:
+                from .trust import apply_trust_grade, snippet_evidence
+                snippet_evidence(p, save=False)
+                secrets_found = bool(
+                    (p.scan_report or {}).get('snippet_scan', {}).get('secrets_found')
+                )
+                p.status = 'pending' if secrets_found else ('published' if was_published else p.status)
+                p.save()
+                form.save_m2m()
+                apply_trust_grade(p)
+            except Exception:
+                logger.exception('snippet rescan failed on edit %s', p.slug)
+            if secrets_found:
+                notify(
+                    p.owner,
+                    'quarantined',
+                    f'“{p.title}” is held for review',
+                    'The edited code contains something that looks like an API key or token. '
+                    'Remove it and edit again to put the vibe straight back on the feed.',
+                    p.get_absolute_url(),
+                )
+                messages.warning(
+                    request,
+                    "Saved, but “%s” is held for review: the code looks like it contains "
+                    "an API key or token. Remove it and edit again to go live." % p.title,
+                )
+                return redirect(p.get_absolute_url())
+            return _finish_snippet_edit(request, p, republished=True)
     else:
         form = AppUploadForm(instance=project)
     return render(request, 'gallery/edit_vibe.html', {'form': form, 'project': project, 'co_owner_form': CoOwnerForm()})
+
+
+def _finish_snippet_edit(request, project, republished):
+    """Re-label a snippet after an edit and tell the creator what happened."""
+    try:
+        from .tasks import classify_and_score
+        classify_and_score(project)
+    except Exception:
+        logger.exception('reclassify on edit failed %s', project.slug)
+    if republished:
+        messages.success(request, f"✓ Vibe updated — “{project.title}” stayed live.")
+    else:
+        messages.success(request, "✓ Vibe updated!")
+    return redirect(project.get_absolute_url())
 
 
 @login_required
@@ -1112,15 +1461,27 @@ def trade_download(request, slug):
         rows = list(Trade.objects.filter(buyer=request.user, project=project))
         paid = sum(r.cost for r in rows)
         is_split = len(rows) > 1
+        try:
+            from users.progress import award
+            award(request.user, 'trade_made', ref=f'trade:{rows[0].pk}')
+        except Exception:
+            logger.exception('trade xp failed %s', project.slug)
         for r in rows:
             who = r.seller
             if who:
                 share_note = f' ({r.cost}★ of {paid}★ — your share)' if is_split else ''
-                notify(
-                    who, 'trade',
+                _notify_project_owner(
+                    who,
+                    'trade',
                     f'@{request.user.username} traded {r.cost} ★ for {project.title}{share_note}',
-                    url=project.get_absolute_url(),
+                    project.get_absolute_url(),
+                    actor=request.user,
                 )
+                try:
+                    from users.progress import award
+                    award(who, 'trade_received', ref=f'trade:{r.pk}')
+                except Exception:
+                    logger.exception('trade xp failed %s', project.slug)
             # Email the seller(s) if they want trade emails.
             # 5 Whys: Why email on top of the in-app notify? A star trade
             # is a money event — the notification must survive a closed
@@ -1212,6 +1573,21 @@ def fork_vibe(request, slug):
         fork.save()  # generates slug
         # Forking is a loud statement of interest in this kind of program.
         taste.record(request.user, original, 'fork', project=original)
+        # The remix loop: the original creator hears about it and is paid in
+        # reputation. Keyed to the fork row, so a replay pays nothing twice.
+        try:
+            from users.progress import award
+            _notify_project_owner(
+                original.owner,
+                'fork',
+                f'@{request.user.username} forked “{original.title}”',
+                fork.get_absolute_url(),
+                actor=request.user,
+                body='Their remix is live — see what they changed.',
+            )
+            award(original.owner, 'fork_received', ref=f'fork:{fork.pk}')
+        except Exception:
+            logger.exception('fork notify/xp failed %s', original.slug)
         # Copy zip file if exists
         if original.zip_file:
             try:
@@ -1248,6 +1624,10 @@ def fork_vibe(request, slug):
 
 @require_POST
 @login_required
+# A rate limit is a *cost* control here, not just an abuse control: every
+# call runs a hosted LLM. 10/h is generous for editing a README and a hard
+# ceiling on a loop with someone else's API bill.
+@ratelimit(key='user', rate='10/h', method='POST')
 def generate_ai_readme(request, slug):
     try:
         project = get_object_or_404(AppProject, slug=slug, owner=request.user)
@@ -1367,14 +1747,20 @@ def fork_network(request, slug):
     if not user_can_see_project(request.user, root):
         raise Http404
     try:
+        # Published forks for everybody, plus your own still-scanning forks
+        # for you: a creator must be able to find the remix they just made,
+        # while a stranger must not be able to confirm it exists.
+        visible = Q(status='published')
+        if getattr(request.user, 'is_authenticated', False):
+            visible = visible | Q(owner=request.user)
         # All forks in network (direct + indirect)
-        forks = AppProject.objects.filter(forked_from__isnull=False, status='published').filter(
+        forks = AppProject.objects.filter(forked_from__isnull=False).filter(visible).filter(
             # Simple: direct forks of root + forks of forks (1 level deep for demo, at scale recursive CTE)
             Q(forked_from=root) | Q(forked_from__forked_from=root)
         ).select_related('owner','forked_from').order_by('-created_at')[:20]
         # Fallback if no indirect, just direct
         if not forks.exists():
-            forks = AppProject.objects.filter(forked_from=root, status='published').select_related('owner')[:20]
+            forks = AppProject.objects.filter(forked_from=root).filter(visible).select_related('owner')[:20]
         return render(request, 'gallery/fork_network.html', {'root': root, 'forks': forks})
     except Exception as e:
         import logging
@@ -1415,6 +1801,7 @@ def safe_500(request):
 
 @login_required
 @require_POST
+@ratelimit(key='user', rate='60/h', method='POST')
 def toggle_bookmark(request, slug):
     from .models import Bookmark
     project = get_object_or_404(AppProject, slug=slug, status='published')

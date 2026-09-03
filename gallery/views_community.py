@@ -261,11 +261,15 @@ def studio(request, slug=''):
 @ratelimit(key='user', rate='5/h', method='POST')
 def create_pr(request, slug):
     """Create Pull Request from fork to its original — backend checks forked_from."""
+    # Ownership is resolved BEFORE the try: Http404 is an Exception, so the
+    # broad catch-all below used to swallow it and answer 302 for a fork
+    # that isn't the caller's. A 404 is the honest answer — it neither
+    # confirms the slug exists nor leaks that the row is someone else's.
+    source = get_object_or_404(AppProject, slug=slug, owner=request.user)
     try:
         if getattr(request, 'limited', False):
             messages.error(request, "Rate limit: 5 PRs/hour")
             return redirect('app_detail', slug=slug)
-        source = get_object_or_404(AppProject, slug=slug, owner=request.user)
         if not source.forked_from:
             messages.error(request, "Only forked vibes can create PR")
             return redirect(source.get_absolute_url())
@@ -293,6 +297,8 @@ def create_pr(request, slug):
         except Exception: pass
         messages.success(request, f"✓ PR #{pr.id} opened — {source.slug} → {target.slug}")
         return redirect('pr_list', slug=target.slug)
+    except Http404:
+        raise
     except Exception as e:
         import logging
         logging.getLogger(__name__).exception(f"create_pr crush: {e}")
@@ -373,6 +379,7 @@ def pr_detail(request, slug, pr_id):
 
 @login_required
 @require_POST
+@ratelimit(key='user', rate='20/h', method='POST')
 def pr_action(request, slug, pr_id):
     """Merge or close — only target owner can merge/close."""
     try:
@@ -442,6 +449,11 @@ def pr_action(request, slug, pr_id):
             pr.status = 'merged'
             pr.save(update_fields=['status','updated_at'])
             notify(pr.author, 'pr', f'PR #{pr.id} merged into {target.title}', url=target.get_absolute_url())
+            try:
+                from users.progress import award
+                award(pr.author, 'pr_merged', ref=f'pr:{pr.id}')
+            except Exception:
+                logging.getLogger(__name__).exception('pr merge xp failed %s', pr.id)
             messages.success(request, f"✓ PR #{pr.id} merged — files copied from fork, re-queued for scan.")
         elif action == 'close':
             pr.status = 'closed'
@@ -622,8 +634,25 @@ def copy_increment(request, slug):
 def challenge_list(request):
     from .models import Challenge
     from django.utils import timezone
+    # A challenge every day, with or without the AI generator: the pool is
+    # derived from the date, so simply loading this page materialises it.
+    # Settling here too means a finished day pays its winner the first time
+    # anybody looks, with no Celery beat required.
+    try:
+        from .daily import ensure_daily_challenge, settle_past_challenges
+        ensure_daily_challenge()
+        settle_past_challenges()
+    except Exception:
+        logging.getLogger(__name__).exception('daily challenge setup failed')
     challenges = Challenge.objects.all().order_by('-start')
     active = Challenge.objects.filter(is_active=True, start__lte=timezone.now(), end__gte=timezone.now()).first()
+    if active is not None:
+        try:
+            from .daily import leaderboard, submissions
+            active.submission_count = submissions(active).count()
+            active.top_submissions = leaderboard(active, limit=3)
+        except Exception:
+            logging.getLogger(__name__).exception('challenge leaderboard failed')
     return render(request, 'gallery/challenge_list.html', {'challenges': challenges, 'active': active})
 
 @login_required
@@ -666,10 +695,12 @@ def challenge_detail(request, tag):
     from .models import Challenge
     from gallery.models import AppProject
     challenge = get_object_or_404(Challenge, tag=tag)
-    submissions = AppProject.objects.filter(tags__slug=challenge.tag, status='published').select_related('owner').order_by('-created_at')
+    # Ranked, not just listed: a challenge page is a scoreboard. Highest
+    # stars first, earliest publish as the tie-break (see daily.settle).
+    submissions = AppProject.objects.filter(tags__slug=challenge.tag, status='published').select_related('owner').order_by('-stars', 'created_at')
     # Also include pending for owner/admin view?
     if request.user.is_authenticated and (request.user.profile.is_admin() if hasattr(request.user, 'profile') else False):
-        submissions = AppProject.objects.filter(tags__slug=challenge.tag).select_related('owner').order_by('-created_at')
+        submissions = AppProject.objects.filter(tags__slug=challenge.tag).select_related('owner').order_by('-stars', 'created_at')
     return render(request, 'gallery/challenge_detail.html', {'challenge': challenge, 'submissions': submissions})
 
 @login_required

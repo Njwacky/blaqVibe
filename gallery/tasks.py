@@ -340,6 +340,11 @@ def finalize_publish(*args, project_id=None):
         except Exception:
             logger.exception('artifact detect failed %s', p.slug)
         notify(p.owner, 'published', f'“{p.title}” is live', launch_hint, launch_url)
+        try:
+            from users.progress import award
+            award(p.owner, 'publish', ref=f'project:{p.pk}')
+        except Exception:
+            logger.exception('publish xp failed %s', p.slug)
     # Update ScanJob for the JS poll (backend only — just a status string).
     _set_scan_job(p, 'clean' if p.status == 'published' else p.status)
     # Trust badge last: every exit path of finalize writes the tier so the
@@ -419,6 +424,28 @@ def process_upload_pipeline(project_id):
     # Chain: virus -> vuln -> finalize. If any quarantines, later steps still run but finalize skips publish.
     c = chain(scan_zip_with_clamav.s(project_id), vulnerability_scan.s(project_id), finalize_publish.s(project_id))
     return c.apply_async(queue='scan')
+
+@shared_task
+def run_daily_challenges():
+    """Create today's prompt and pay out the days that just closed.
+
+    The daily loop used to run only when somebody happened to open
+    /challenges/ — which meant a quiet day could leave yesterday's bounty
+    unpaid and today's prompt un-created until a human showed up. The work
+    is the same two idempotent calls; only the trigger moved onto the
+    clock. Both halves are safe to re-run: ensure_daily_challenge() is
+    get_or_create on the day's tag, and settle_past_challenges() skips any
+    challenge that already has a winner.
+    """
+    try:
+        from .daily import ensure_daily_challenge, settle_past_challenges
+        challenge = ensure_daily_challenge()
+        settled = settle_past_challenges()
+        return {'tag': getattr(challenge, 'tag', None), 'settled': len(settled)}
+    except Exception:
+        logger.exception('run_daily_challenges failed')
+        return {'tag': None, 'settled': 0}
+
 
 @shared_task
 def generate_weekly_challenges():

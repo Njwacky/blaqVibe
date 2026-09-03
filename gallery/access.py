@@ -76,12 +76,40 @@ def user_can_download(user, project) -> bool:
             Trade.objects.filter(buyer=user, project=project).exists()
             or Sale.objects.filter(buyer=user, project=project).exists()
         )
-    if status != "published":
+    # Quarantined means the scanner found something: nobody downloads that,
+    # not even a buyer. A receipt is a promise about *their* purchase, not a
+    # licence to serve flagged bytes to anybody's machine.
+    if status == "quarantined":
         return False
     if not getattr(project, "zip_file", None):
         return False
     if getattr(user, "is_authenticated", False) and user.pk == project.owner_id:
         return True
+    # 5 Whys — why does a receipt outrank the rescan state?
+    # 1. Why does this matter? An edit (or a `git push`) moves a vibe back
+    #    to pending while it is re-scanned. Under the old rule a buyer's
+    #    download broke for the whole rescan — and forever if the scanner
+    #    was unavailable. They paid; the outage was not theirs.
+    # 2. Why not just keep serving the pending bytes? Because those bytes
+    #    have not been scanned yet. The download view therefore serves the
+    #    last *scanned* version (see last_scanned_version), never the
+    #    un-checked archive.
+    # 3. Why check the receipt before the price? A free vibe that is
+    #    mid-rescan has no receipt, so it correctly stays locked for a
+    #    stranger; only paid access survives the pipeline.
+    # 4. Why not allow moderators? Review happens in the moderation queue
+    #    and on the detail page; a download is not a review tool.
+    # 5. Why is 'removed' handled above and 'quarantined' refused here?
+    #    Removal is the creator's choice, quarantine is the scanner's;
+    #    the first must not punish buyers, the second must protect them.
+    if status == "pending" and getattr(user, "is_authenticated", False):
+        if (
+            Trade.objects.filter(buyer=user, project=project).exists()
+            or Sale.objects.filter(buyer=user, project=project).exists()
+        ):
+            return True
+    if status != "published":
+        return False
     cost = effective_star_cost(project)
     price = effective_price_zar(project)
     if cost == 0 and price == 0:
@@ -93,6 +121,25 @@ def user_can_download(user, project) -> bool:
     if price > 0 and Sale.objects.filter(buyer=user, project=project).exists():
         return True
     return False
+
+
+def last_scanned_version(project):
+    """The most recent archived ZIP for a vibe that is mid-rescan.
+
+    AppVersion rows are written when an edit replaces the ZIP and when a PR
+    merge swaps it, so the newest row is the newest set of bytes the
+    pipeline has already checked. Serving *that* to an existing buyer keeps
+    their purchase alive during a rescan without ever handing out bytes the
+    scanner has not seen.
+
+    Returns None when there is nothing scanned yet (a first upload that is
+    still in the queue) — in that case there is nothing safe to serve and
+    the caller says so honestly.
+    """
+    try:
+        return project.versions.order_by('-created_at').first()
+    except Exception:
+        return None
 
 
 def access_denied_message(user, project) -> str:

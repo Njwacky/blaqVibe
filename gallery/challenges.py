@@ -12,6 +12,7 @@
    row you cannot answer "why did this wallet jump 10 ★?"
 """
 from datetime import timedelta
+import logging
 
 from django.db import transaction
 from django.db.models import F
@@ -81,6 +82,11 @@ def award_challenge_winner(challenge, winner, actor=None):
         f'+{bounty} ★ and Pro for {PRO_PRIZE_DAYS} days.',
         winner.get_absolute_url(),
     )
+    try:
+        from users.progress import award
+        award(winner.owner, 'challenge_win', ref=f'challenge:{locked.tag}')
+    except Exception:
+        logging.getLogger(__name__).exception('challenge xp failed %s', locked.tag)
     if actor is not None:
         AdminLog.objects.create(
             actor=actor,

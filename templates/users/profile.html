@@ -56,6 +56,19 @@
         >
           {% if rank.name == 'Platinum' %}💎{% elif rank.name == 'Gold' %}🥇{% elif rank.name == 'Silver' %}🥈{% else %}🥉{% endif %} {{ rank.name }}
         </span>
+        {% if progress %}<span
+          title="Level {{ progress.index }} — {{ progress.xp }} XP"
+          style="
+            font-size: 11px;
+            background: var(--accent-soft-bg);
+            border: 1px solid var(--accent-border);
+            color: var(--accent-text);
+            padding: 4px 8px;
+            border-radius: 8px;
+            font-weight: 700;
+          "
+          >L{{ progress.index }} · {{ progress.name }}</span
+        >{% endif %}
         {% if profile.location %}<span
           style="
             font-size: 11px;
@@ -70,6 +83,31 @@
       <div style="font-size: 13px; color: var(--text); margin: 6px 0">
         {{ profile.bio|default:"No bio yet — what do you build?" }}
       </div>
+      {% if progress %}
+      <div style="margin-top:8px;max-width:420px">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)">
+          <span>Level {{ progress.index }} · {{ progress.name }}</span>
+          <span>{% if progress.next %}{{ progress.to_next }} XP to {{ progress.next_name }}{% else %}Max level{% endif %}</span>
+        </div>
+        <div
+          role="progressbar"
+          aria-valuemin="0"
+          aria-valuemax="100"
+          aria-valuenow="{{ progress.progress }}"
+          aria-label="Progress to next level"
+          style="height:6px;background:var(--line);border-radius:999px;overflow:hidden;margin-top:4px"
+        >
+          <div style="height:100%;width:{{ progress.progress }}%;background:var(--violet)"></div>
+        </div>
+        {% if progress.badges %}
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+          {% for b in progress.badges %}
+          <span title="{{ b.label }} — {{ b.desc }}" style="font-size:11px;background:var(--input);border:1px solid var(--line);border-radius:999px;padding:3px 9px">{{ b.icon }} {{ b.label }}</span>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endif %}
       <div class="profile-socials" aria-label="Profile links and signals">
         {% if profile.website %}
         <a

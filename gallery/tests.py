@@ -45,6 +45,24 @@ def make_user(username, password='pass12345', **profile_kwargs):
     return user
 
 
+def published_zip(project, files=None):
+    """Attach a real ZIP to a project, the way publish() would.
+
+    Shared by every suite that exercises downloads, trades, versions or
+    previews: one helper means one place to change if the storage layout
+    moves.
+    """
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    project.zip_file.save(
+        f'{project.slug}.zip',
+        SimpleUploadedFile(f'{project.slug}.zip',
+                           make_zip_bytes(files or {'index.html': '<h1>hi</h1>'}),
+                           content_type='application/zip'),
+        save=True,
+    )
+    return project
+
+
 def make_category():
     return Category.objects.create(name='Apps', slug='apps', type='full_app')
 
@@ -3215,7 +3233,14 @@ class TrustBadgeTests(TestCase):
         self.assertEqual(response.status_code, 200)
         p = AppProject.objects.get(title='Spoof attempt')
         p.refresh_from_db()
-        self.assertEqual(p.trust, 'scanned')  # evidence (leaked token) wins
+        # The POSTed tier can never land — that is the whole point of the
+        # test. What replaced it: a snippet whose code matches a secret
+        # pattern is HELD for review rather than published with a lower
+        # tier, so the verdict is 'unknown' (a pending row is never
+        # badged) and the creator is told what to remove.
+        self.assertNotEqual(p.trust, 'verified')
+        self.assertIn(p.trust, ('unknown', 'scanned'))
+        self.assertEqual(p.status, 'pending')
 
     def test_api_returns_tier_never_the_report(self):
         from gallery.trust import apply_trust_grade

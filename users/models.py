@@ -476,6 +476,26 @@ class Profile(models.Model):
     allow_trading = models.BooleanField(default=True, help_text="If off, your vibes are free (0 ★)")
     email_on_trade = models.BooleanField(default=True)
     email_on_review = models.BooleanField(default=True)
+    # --- In-app notification preferences ---------------------------------
+    # 5 Whys: why per-kind switches instead of one "notifications" switch?
+    # 1. An inbox that cannot be tuned is an inbox people mute at the OS
+    #    level, and then the one notification that matters is lost too.
+    # 2. Why server-side and not a JS-only hide? A hidden toast still
+    #    writes a row and still costs a query; a preference stops the write.
+    # 3. Why default on? The whole retention loop depends on the creator
+    #    learning that somebody touched their work.
+    # 4. Why not email per kind? Email volume is a bigger commitment; the
+    #    two email switches above stay as they are.
+    # 5. Why is the check in gallery.views._notify_project_owner and not in
+    #    notify()? notify() is also used for things a user MUST see
+    #    (payouts, quarantine, reports). Preferences apply to the social
+    #    kinds only.
+    notify_on_star = models.BooleanField(default=True)
+    notify_on_fork = models.BooleanField(default=True)
+    notify_on_follow = models.BooleanField(default=True)
+    notify_on_comment = models.BooleanField(default=True)
+    notify_on_trade = models.BooleanField(default=True)
+    notify_on_milestone = models.BooleanField(default=True)
     show_language = models.BooleanField(default=True)
     allow_forks = models.BooleanField(default=True)
     allow_prs = models.BooleanField(default=True)
@@ -541,8 +561,16 @@ class Profile(models.Model):
         self.save(update_fields=['git_token_hash'])
         return token
     def stars_received(self):
-        from django.db.models import Sum
-        return self.user.projects.aggregate(s=Sum('stars'))['s'] or 0
+        # Memoised for the life of this instance (one request). A single
+        # page renders a creator's totals in three or four places — the
+        # profile header, the owner card, the co-owner row — and each one
+        # used to run its own SUM(). Writers (stars, trades) bump rows with
+        # F() and never re-read these totals in the same request, so the
+        # cached value cannot be stale on the page that computed it.
+        if getattr(self, '_stars_received_cache', None) is None:
+            from django.db.models import Sum
+            self._stars_received_cache = self.user.projects.aggregate(s=Sum('stars'))['s'] or 0
+        return self._stars_received_cache
     def rank(self):
         from gallery.ranks import contributor_bonus
         return contributor_bonus(self.user)
@@ -837,6 +865,72 @@ class SecurityEvent(models.Model):
     class Meta:
         ordering = ['-created_at']
         indexes = [models.Index(fields=['user', '-created_at'])]
+
+
+class XPEvent(models.Model):
+    """One awarded XP grant — append-only and idempotent by (user, reason, ref).
+
+    5 Whys:
+    1. Why a row per grant instead of a single `xp` integer? A counter
+       cannot answer "why did this level jump?" and cannot be made
+       idempotent; a row can, via the unique constraint below.
+    2. Why unique (user, reason, ref)? Every award is keyed to the thing
+       that earned it (project 12, trade 44, comment 9). A retry, a double
+       click, or a re-run of a task hits the same key and is rejected —
+       XP farming by repetition is impossible by construction, not by a
+       rate limit that can be tuned wrong.
+    3. Why append-only (no update path)? Same rule as StarEvent: a
+       progression log you can edit is not a log.
+    4. Why is `ref` free text and not a FK? One table serves projects,
+       trades, PRs and comments; a generic ref keeps it to one index and
+       one uniqueness rule instead of four nullable FKs.
+    5. Why is `amount` stored rather than derived from `reason` at read
+       time? The weights will be tuned; a stored amount keeps history
+       honest — past grants keep the value they were paid at.
+    """
+
+    REASON_CHOICES = [
+        ('publish', 'Published a vibe'),
+        ('star_received', 'Received a star'),
+        ('fork_received', 'Received a fork/remix'),
+        ('comment_given', 'Gave feedback'),
+        ('review_given', 'Wrote a review'),
+        ('trade_made', 'Traded for a vibe'),
+        ('trade_received', 'Someone traded your vibe'),
+        ('pr_merged', 'Pull request merged'),
+        ('verified', 'Vibe passed the trust scan'),
+        ('challenge_win', 'Won a challenge'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='xp_events')
+    amount = models.PositiveSmallIntegerField()
+    reason = models.CharField(max_length=20, choices=REASON_CHOICES)
+    ref = models.CharField(max_length=120, blank=True, default='')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'reason', 'ref')
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['user', '-created_at'])]
+
+
+class Achievement(models.Model):
+    """An earned badge. Awarded only by users.progress.sync_achievements.
+
+    The slug list lives in progress.ACHIEVEMENTS (server-side table); this
+    row is the record that it happened, unique per user, so a badge can
+    never be earned twice and never awarded by a form or an API call.
+    """
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='achievements')
+    slug = models.CharField(max_length=40)
+    earned_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        unique_together = ('user', 'slug')
+        ordering = ['-earned_at']
+
+    def __str__(self):
+        return f'@{self.user.username} · {self.slug}'
 
 
 @receiver(post_save, sender=User)

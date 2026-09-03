@@ -72,6 +72,14 @@ class AppUploadForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
+        # 5 Whys: why skip the "provide a ZIP or snippet" error when the ZIP
+        # field already has one? The creator DID provide a ZIP — ours was
+        # rejected for a specific reason (node_modules, .env, too many files).
+        # Tacking on "Provide either a ZIP file or HTML snippet" reads as
+        # "we didn't get your file" and buries the real, fixable reason under
+        # a second error that is not true. One failure, one instruction.
+        if self.errors.get('zip_file'):
+            return cleaned
         zipf = cleaned.get('zip_file')
         html = (cleaned.get('html_code') or '').strip()
         if not zipf and not html:

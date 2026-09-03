@@ -1,0 +1,84 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Stats — {{ project.title }} — BlaqVibes{% endblock %}
+{% block content %}
+<div style="max-width:1000px;margin:0 auto;padding:20px">
+  <a href="{% url 'my_vibes' %}" style="font-size:12px;color:var(--muted)">← My Vibes</a>
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px;margin-top:6px">
+    📊 {{ project.title }}
+  </h1>
+  <p style="color:var(--muted);font-size:13px;margin-top:4px">{{ headline }}</p>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:14px">
+    <div class="card" style="padding:12px">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase">Views</div>
+      <div style="font-size:22px;font-weight:800">{{ stats.views_total }}</div>
+      <div style="font-size:11px;color:var(--muted)">+{{ stats.views_today }} today · +{{ stats.views_week }} this week</div>
+    </div>
+    <div class="card" style="padding:12px">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase">Downloads</div>
+      <div style="font-size:22px;font-weight:800">{{ stats.downloads_total }}</div>
+      <div style="font-size:11px;color:var(--muted)">+{{ stats.downloads_week }} this week</div>
+    </div>
+    <div class="card" style="padding:12px">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase">Stars</div>
+      <div style="font-size:22px;font-weight:800">{{ stats.stars_total }}</div>
+      <div style="font-size:11px;color:var(--muted)">+{{ stats.stars_week }} this week</div>
+    </div>
+    <div class="card" style="padding:12px">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase">Trades</div>
+      <div style="font-size:22px;font-weight:800">{{ stats.trades_total }}</div>
+      <div style="font-size:11px;color:var(--muted)">★ {{ stats.stars_earned }} earned</div>
+    </div>
+    <div class="card" style="padding:12px">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase">Forks</div>
+      <div style="font-size:22px;font-weight:800">{{ stats.forks }}</div>
+      <div style="font-size:11px;color:var(--muted)">remixes of this vibe</div>
+    </div>
+    <div class="card" style="padding:12px">
+      <div style="font-size:11px;color:var(--muted);text-transform:uppercase">Comments</div>
+      <div style="font-size:22px;font-weight:800">{{ stats.comments }}</div>
+      <div style="font-size:11px;color:var(--muted)">visible on the page</div>
+    </div>
+  </div>
+
+  {% if stats.rank_in_kind %}
+  <div class="card" style="margin-top:12px;padding:12px;display:flex;gap:10px;align-items:center">
+    <div style="font-size:22px" aria-hidden="true">🏅</div>
+    <div>
+      <div style="font-size:13px;font-weight:700">
+        #{{ stats.rank_in_kind.position }} of {{ stats.rank_in_kind.of }} in {{ stats.rank_in_kind.kind }}
+      </div>
+      <div style="font-size:11px;color:var(--muted)">Ranked by stars against published vibes of the same kind.</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px;margin-top:12px">
+    <div class="card" style="padding:12px">
+      <h2 style="font-size:12px;font-weight:800;margin:0 0 8px">Views — last {{ stats.days }} days</h2>
+      {% include 'gallery/_sparkbars.html' with series=stats.views_series max=stats.views_max colour='var(--link)' %}
+    </div>
+    <div class="card" style="padding:12px">
+      <h2 style="font-size:12px;font-weight:800;margin:0 0 8px">Downloads — last {{ stats.days }} days</h2>
+      {% include 'gallery/_sparkbars.html' with series=stats.downloads_series max=stats.downloads_max colour='var(--success-text)' %}
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:12px;padding:12px">
+    <h2 style="font-size:12px;font-weight:800;margin:0 0 8px">You, across all your vibes</h2>
+    <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:12px;color:var(--muted)">
+      <span><b style="color:var(--text)">{{ creator.published }}</b> published</span>
+      <span><b style="color:var(--text)">{{ creator.stars_total }}</b> stars</span>
+      <span><b style="color:var(--text)">{{ creator.downloads_week }}</b> downloads this week</span>
+      <span><b style="color:var(--text)">{{ creator.trades_week }}</b> trades this week</span>
+      <span><b style="color:var(--text)">{{ creator.stars_earned }}</b> ★ earned</span>
+      <span><b style="color:var(--text)">{{ creator.followers }}</b> followers</span>
+    </div>
+  </div>
+
+  <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+    <a href="{{ project.get_absolute_url }}" class="btn-ghost" style="padding:9px 14px;text-decoration:none">View vibe →</a>
+    <a href="{% url 'edit_vibe' slug=project.slug %}" class="btn-ghost" style="padding:9px 14px;text-decoration:none">Edit</a>
+  </div>
+</div>
+{% endblock %}

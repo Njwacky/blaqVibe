@@ -14,6 +14,14 @@ def get_rank(total_stars):
     return {'threshold': rank[0], 'name': rank[1], 'discount': rank[2], 'bonus': rank[3]}
 
 def contributor_bonus(user):
+    # Memoised on the user instance for one request: `rank()` is rendered
+    # beside every creator name on a page, and each call used to run two
+    # aggregates (SUM(stars) + SUM(trade.cost)). Both inputs move only via
+    # F() updates from write paths that never render this in the same
+    # request, so the cached rank cannot disagree with the page.
+    cached = getattr(user, '_rank_cache', None)
+    if cached is not None:
+        return cached
     from django.db.models import Sum
     try:
         total = user.projects.aggregate(s=Sum('stars'))['s'] or 0
@@ -24,4 +32,9 @@ def contributor_bonus(user):
         total += stars_earned(user)
     except Exception:
         pass
-    return get_rank(total)
+    rank = get_rank(total)
+    try:
+        setattr(user, '_rank_cache', rank)
+    except Exception:
+        pass
+    return rank

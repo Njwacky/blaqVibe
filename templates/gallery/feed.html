@@ -362,6 +362,121 @@
     </span>
   </form>
 
+  {% if following == '1' %}
+  <div style="margin-top:10px;font-size:12px;color:var(--muted)">
+    Showing vibes from creators you follow ·
+    <a href="{% url 'feed' %}" style="color:var(--link)">show everything</a>
+  </div>
+  {% endif %}
+
+  {% if show_onboarding %}
+  {# First-run strip: three small steps that end in a reason to come back. #}
+  <div class="onboard-strip" style="margin-top:12px;background:var(--card);border:1px solid var(--accent-border);border-radius:16px;padding:14px 16px;display:flex;gap:16px;flex-wrap:wrap;align-items:center">
+    <div style="font-weight:800;font-size:13px;flex-shrink:0">👋 Start here</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:12px">
+      <span style="background:var(--input);border:1px solid var(--line);border-radius:100px;padding:6px 10px">
+        1 · Pick what you're into →
+        {% for k in program_kinds|slice:":5" %}
+          <a href="?program={{ k.value }}" style="color:var(--link)">{{ k.icon }}</a>
+        {% endfor %}
+      </span>
+      {% if suggested_creators %}
+      <span style="background:var(--input);border:1px solid var(--line);border-radius:100px;padding:6px 10px">
+        2 · Follow a creator →
+        {% for u in suggested_creators|slice:":3" %}
+          <a href="/u/{{ u.username }}/" style="color:var(--link)">@{{ u.username }}</a>{% if not forloop.last %} · {% endif %}
+        {% endfor %}
+      </span>
+      {% endif %}
+      <a href="{% url 'starter_gallery' %}" class="btn-violet" style="padding:6px 12px;text-decoration:none;font-size:12px">
+        3 · Build something →
+      </a>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if daily %}
+  <a href="{% url 'challenge_detail' daily.tag %}" class="daily-card" style="margin-top:12px;display:flex;gap:12px;align-items:center;background:linear-gradient(135deg,var(--warning-bg),var(--card));border:1px solid var(--warning-border);border-radius:16px;padding:14px 16px;text-decoration:none;color:inherit">
+    <div style="font-size:26px" aria-hidden="true">🏆</div>
+    <div style="flex:1">
+      <div style="font-weight:800;font-size:13px">
+        Today's Challenge — {{ daily.title }}
+        <span style="font-size:11px;background:var(--warning-fill);color:var(--on-warning);padding:3px 7px;border-radius:6px">{{ daily.bounty_stars }} ★</span>
+      </div>
+      <div style="font-size:12px;color:var(--muted);margin-top:3px">{{ daily.description|truncatechars:120 }}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:3px">
+        {{ daily.submission_count|default:0 }} entered · ends {{ daily.end|date:"H:i" }} · publish with <code>#{{ daily.tag }}</code>
+      </div>
+    </div>
+    <span class="btn-violet" style="padding:9px 14px;text-decoration:none;font-size:12px">Enter →</span>
+  </a>
+  {% endif %}
+
+  {% if trending %}
+  <div class="rail" style="margin-top:14px">
+    <div class="rail__head" style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
+      <h2 style="font-size:13px;font-weight:800;margin:0">
+        {% if trending_is_hot %}🔥 Trending this week{% else %}✨ New on BlaqVibes{% endif %}
+      </h2>
+      {% if activity %}
+      <span style="font-size:11px;color:var(--muted)">
+        {{ activity.published }} published · {{ activity.stars }} stars · {{ activity.downloads }} downloads · {{ activity.trades }} trades in {{ activity.days }} days
+      </span>
+      {% endif %}
+    </div>
+    <div class="rail__row" style="display:flex;gap:10px;overflow-x:auto;padding-bottom:4px">
+      {% for p in trending %}
+      <a href="{{ p.get_absolute_url }}" class="card rail-card" style="min-width:190px;max-width:190px;text-decoration:none;color:inherit">
+        <div style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.title }}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">@{{ p.owner.username }} · ★ {{ p.stars }} · ⬇ {{ p.clones }}</div>
+        <div style="font-size:11px;margin-top:4px;color:var(--muted)">{{ p.kind_icon }} {{ p.kind_label }}</div>
+      </a>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if rising_creators or recent_remixes or suggested_creators %}
+  <div class="rail-row" style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
+    {% if rising_creators %}
+    <div class="card" style="padding:12px">
+      <h3 style="font-size:12px;font-weight:800;margin:0 0 8px">📈 Rising creators</h3>
+      {% for u in rising_creators %}
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <a href="/u/{{ u.username }}/" style="font-size:12px;color:var(--link);flex:1">@{{ u.username }}</a>
+        <span style="font-size:11px;color:var(--muted)">{{ u.recent_heat }} this week</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if recent_remixes %}
+    <div class="card" style="padding:12px">
+      <h3 style="font-size:12px;font-weight:800;margin:0 0 8px">⑂ Recently remixed</h3>
+      {% for p in recent_remixes %}
+      <div style="margin-bottom:6px;font-size:12px">
+        <a href="{{ p.get_absolute_url }}" style="color:var(--link)">{{ p.title|truncatechars:26 }}</a>
+        <div style="font-size:11px;color:var(--muted)">by @{{ p.owner.username }}{% if p.forked_from %} · remix of {{ p.forked_from.title|truncatechars:18 }}{% endif %}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+    {% if suggested_creators %}
+    <div class="card" style="padding:12px">
+      <h3 style="font-size:12px;font-weight:800;margin:0 0 8px">👋 Creators you may like</h3>
+      {% for u in suggested_creators %}
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <a href="/u/{{ u.username }}/" style="font-size:12px;color:var(--link);flex:1">@{{ u.username }}</a>
+        <span style="font-size:11px;color:var(--muted)">{{ u.projects.count }} vibes</span>
+      </div>
+      {% endfor %}
+      {% if following_count %}
+      <a href="?following=1" style="font-size:11px;color:var(--link)">See vibes from the {{ following_count }} you follow →</a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% endif %}
+
   <div class="vibe-grid" style="margin-top: 12px">
     {% for p in page %}
     <a href="{{ p.get_absolute_url }}" class="card vibe-card">
