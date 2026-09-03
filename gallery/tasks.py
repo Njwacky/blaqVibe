@@ -426,6 +426,28 @@ def process_upload_pipeline(project_id):
     return c.apply_async(queue='scan')
 
 @shared_task
+def run_daily_challenges():
+    """Create today's prompt and pay out the days that just closed.
+
+    The daily loop used to run only when somebody happened to open
+    /challenges/ — which meant a quiet day could leave yesterday's bounty
+    unpaid and today's prompt un-created until a human showed up. The work
+    is the same two idempotent calls; only the trigger moved onto the
+    clock. Both halves are safe to re-run: ensure_daily_challenge() is
+    get_or_create on the day's tag, and settle_past_challenges() skips any
+    challenge that already has a winner.
+    """
+    try:
+        from .daily import ensure_daily_challenge, settle_past_challenges
+        challenge = ensure_daily_challenge()
+        settled = settle_past_challenges()
+        return {'tag': getattr(challenge, 'tag', None), 'settled': len(settled)}
+    except Exception:
+        logger.exception('run_daily_challenges failed')
+        return {'tag': None, 'settled': 0}
+
+
+@shared_task
 def generate_weekly_challenges():
     """Weekly Celery beat — AI drafts 3 challenges, deduped, is_active=False for superadmin approve. Backend only."""
     try:

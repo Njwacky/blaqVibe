@@ -561,8 +561,16 @@ class Profile(models.Model):
         self.save(update_fields=['git_token_hash'])
         return token
     def stars_received(self):
-        from django.db.models import Sum
-        return self.user.projects.aggregate(s=Sum('stars'))['s'] or 0
+        # Memoised for the life of this instance (one request). A single
+        # page renders a creator's totals in three or four places — the
+        # profile header, the owner card, the co-owner row — and each one
+        # used to run its own SUM(). Writers (stars, trades) bump rows with
+        # F() and never re-read these totals in the same request, so the
+        # cached value cannot be stale on the page that computed it.
+        if getattr(self, '_stars_received_cache', None) is None:
+            from django.db.models import Sum
+            self._stars_received_cache = self.user.projects.aggregate(s=Sum('stars'))['s'] or 0
+        return self._stars_received_cache
     def rank(self):
         from gallery.ranks import contributor_bonus
         return contributor_bonus(self.user)

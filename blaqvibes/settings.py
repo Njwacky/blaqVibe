@@ -325,6 +325,14 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': crontab(minute='*/10'),
         'kwargs': {'limit': int(os.getenv('APPEAL_BATCH_LIMIT', '500'))},
     },
+    # The daily prompt has to exist at 00:00 whether or not anybody is
+    # browsing, and yesterday's bounty has to be paid whether or not a
+    # moderator remembers to click. 00:05 keeps it clear of the midnight
+    # boundary (and of the weekly challenge job on Monday 00:00).
+    'daily-challenge': {
+        'task': 'gallery.tasks.run_daily_challenges',
+        'schedule': crontab(hour=0, minute=5),
+    },
 }
 
 # --- Discovery / program-kind classification ---

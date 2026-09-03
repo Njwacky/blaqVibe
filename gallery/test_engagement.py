@@ -17,7 +17,7 @@ Two of these tests exist because of bugs found while writing them:
   swallow the Http404 in its broad ``except Exception`` and answer 302.
 """
 import json
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 
 from django.contrib.auth.models import User
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -486,3 +486,131 @@ class PersonalisedHomeTests(TestCase):
         taste.record(other, webapp.kind, 'star')
         self.assertEqual(taste.top_kinds(self.user, limit=3), [])
         self.assertEqual(taste.top_kinds(other, limit=3), ['web_app'])
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-engagement-tests')
+class QueryBudgetTests(TestCase):
+    """P12 — the new surfaces must not scale their query count with data.
+
+    The scaling test is the one that matters: an N+1 is invisible in a
+    two-row fixture and obvious when the fixture grows. The absolute
+    budgets are generous on purpose (they are a tripwire for a 10x
+    regression, not a straitjacket for a new badge on the page).
+    """
+
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('qb-owner')
+        self.fans = [make_user(f'qb-fan-{i}') for i in range(6)]
+
+    def _add_vibes(self, n, prefix):
+        out = []
+        for i in range(n):
+            p = published_zip(make_project(self.owner, self.cat, title=f'{prefix} {i}'))
+            Star.objects.create(project=p, user=self.fans[i % len(self.fans)])
+            CloneEvent.objects.create(project=p, user=self.fans[i % len(self.fans)])
+            out.append(p)
+        return out
+
+    def _queries(self, path):
+        from django.test.utils import CaptureQueriesContext
+        from django.db import connection
+        with CaptureQueriesContext(connection) as ctx:
+            response = self.client.get(path)
+        self.assertEqual(response.status_code, 200, path)
+        return len(ctx)
+
+    def test_feed_query_count_does_not_grow_with_the_catalogue(self):
+        self.client.force_login(self.owner)
+        self._add_vibes(6, 'Small')
+        small = self._queries('/')
+        self._add_vibes(18, 'Big')
+        big = self._queries('/')
+        self.assertLessEqual(big, small + 5, f'feed queries grew {small} → {big}')
+
+    def test_profile_query_count_does_not_grow_with_the_catalogue(self):
+        self._add_vibes(6, 'Small')
+        small = self._queries(f'/u/{self.owner.username}/')
+        self._add_vibes(18, 'Big')
+        big = self._queries(f'/u/{self.owner.username}/')
+        self.assertLessEqual(big, small + 5, f'profile queries grew {small} → {big}')
+
+    def test_stats_page_stays_inside_its_query_budget(self):
+        vibes = self._add_vibes(6, 'Stats')
+        self.client.force_login(self.owner)
+        self.assertLessEqual(self._queries(f'/app/{vibes[0].slug}/stats/'), 45)
+
+    def test_detail_page_stays_inside_its_query_budget(self):
+        vibes = self._add_vibes(6, 'Detail')
+        self.assertLessEqual(self._queries(f'/app/{vibes[0].slug}/'), 45)
+
+    def test_creator_totals_are_computed_once_per_request(self):
+        """The same totals rendered in three places must cost one aggregate."""
+        vibes = self._add_vibes(3, 'Totals')
+        self.client.force_login(self.owner)
+        before = self._queries(f'/app/{vibes[0].slug}/')
+        self.assertLessEqual(before, 45)
+        profile = self.owner.profile
+        first = profile.stars_received()   # warms the cache (1 aggregate)
+        rank = profile.rank()              # warms the cache (2 aggregates)
+        with self.assertNumQueries(0):
+            self.assertEqual(profile.stars_received(), first)
+            self.assertEqual(profile.rank(), rank)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-engagement-tests')
+class DailyChallengeJobTests(TestCase):
+    """The daily loop must turn without a human opening /challenges/."""
+
+    def setUp(self):
+        self.cat = make_category()
+        self.author = make_user('job-author')
+        self.rival = make_user('job-rival')
+
+    def test_management_command_is_idempotent(self):
+        from django.core.management import call_command
+        call_command('daily_challenge', verbosity=0)
+        first = Challenge.objects.count()
+        call_command('daily_challenge', verbosity=0)
+        self.assertEqual(Challenge.objects.count(), first)
+
+    def test_command_pays_yesterday_winner_once(self):
+        from django.core.management import call_command
+        from datetime import time as _time
+        from gallery.daily import daily_tag
+        from gallery.models import Tag
+        from users.models import Profile, StarEvent
+
+        yesterday = timezone.localdate() - timedelta(days=1)
+        challenge = Challenge.objects.create(
+            title='Yesterday', description='d', bounty_stars=15,
+            tag=daily_tag(yesterday),
+            start=timezone.make_aware(datetime.combine(yesterday, _time.min)),
+            end=timezone.make_aware(datetime.combine(yesterday, _time.min)) + timedelta(hours=1),
+            is_active=True,
+        )
+        tag, _ = Tag.objects.get_or_create(slug=challenge.tag, defaults={'name': challenge.tag})
+        winner = published_zip(make_project(self.author, self.cat, title='Winner Vibe'))
+        winner.tags.add(tag)
+        loser = published_zip(make_project(self.rival, self.cat, title='Loser Vibe'))
+        loser.tags.add(tag)
+        for i in range(3):
+            Star.objects.create(project=winner, user=make_user(f'job-fan-{i}'))
+        Star.objects.create(project=loser, user=self.rival)
+
+        call_command('daily_challenge', verbosity=0)
+        challenge.refresh_from_db()
+        self.assertEqual(challenge.winner_id, winner.pk)
+        self.assertEqual(
+            StarEvent.objects.filter(user=self.author, reason='challenge_bounty').count(), 1)
+
+        # Second run must not pay twice — a cron that fires twice is not a
+        # bug in the cron, it is a bug in the job.
+        call_command('daily_challenge', verbosity=0)
+        self.assertEqual(
+            StarEvent.objects.filter(user=self.author, reason='challenge_bounty').count(), 1)
+
+    def test_celery_task_creates_todays_challenge(self):
+        from gallery.tasks import run_daily_challenges
+        result = run_daily_challenges()
+        self.assertEqual(result['tag'], Challenge.objects.get(tag=result['tag']).tag)
