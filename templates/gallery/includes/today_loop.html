@@ -1,79 +1,89 @@
+{% load static %}
 {% if today_enabled %}
-<section class="today-loop" aria-labelledby="today-loop-title" style="margin-top:14px;background:linear-gradient(135deg,var(--card),var(--accent-soft-bg));border:1px solid var(--accent-border);border-radius:20px;padding:18px">
-  <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
-    <div>
-      <div style="font-size:10px;letter-spacing:.12em;font-weight:800;color:var(--accent-text)">BLAQVIBES TODAY</div>
-      <h2 id="today-loop-title" style="font-size:22px;line-height:1.15;margin:4px 0 5px">Build. Show. Remix. Repeat.</h2>
-      <div style="font-size:12px;color:var(--muted)">Your personal command center — see what happened, choose your next move, keep building.</div>
+<link rel="stylesheet" href="{% static 'gallery/css/today-loop.css' %}?v=today-20260905">
+<section class="today-loop" aria-labelledby="today-loop-title">
+  <div class="today-loop__head">
+    <div class="today-loop__head-copy">
+      <div>
+        <div class="today-loop__eyebrow">BLAQVIBES TODAY</div>
+        <h2 id="today-loop-title" class="today-loop__title">Build. Show. Remix. Repeat.</h2>
+        <div class="today-loop__sub">Your command center: see what happened, choose your next move, keep building.</div>
+      </div>
     </div>
     {% if unread_notifications %}
-    <a href="{% url 'notifications' %}" style="text-decoration:none;background:var(--accent-soft-bg);border:1px solid var(--accent-border);border-radius:100px;padding:7px 11px;font-size:11px;color:var(--accent-text);font-weight:800">🔔 {{ unread_notifications }} new</a>
+      <a href="{% url 'notifications' %}" class="today-loop__signal">🔔 {{ unread_notifications }} new</a>
     {% else %}
-    <span style="font-size:11px;color:var(--muted);padding-top:6px">You're caught up ✓</span>
+      <span class="today-loop__signal today-loop__signal--quiet">You're caught up ✓</span>
     {% endif %}
   </div>
 
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px;margin-top:14px">
-    <a href="{% if daily %}{% url 'challenge_detail' daily.tag %}{% else %}{% url 'challenge_list' %}{% endif %}" style="text-decoration:none;color:inherit;background:linear-gradient(135deg,var(--warning-bg),var(--input));border:1px solid var(--warning-border);border-radius:14px;padding:13px">
-      <div style="font-size:11px;font-weight:800;color:var(--warning-text)">🏆 TODAY'S MISSION</div>
+  <div class="today-loop__grid">
+    <a href="{% if daily %}{% url 'challenge_detail' daily.tag %}{% else %}{% url 'challenge_list' %}{% endif %}" class="today-loop__card today-loop__card--mission">
+      <div class="today-loop__label today-loop__label--mission">🏆 TODAY'S MISSION</div>
       {% if daily %}
-      <div style="font-size:13px;font-weight:800;margin-top:5px">{{ daily.title }}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:4px">{{ daily.bounty_stars }} ★ · {{ daily.submission_count|default:0 }} entered</div>
+        <div class="today-loop__value">{{ daily.title }}</div>
+        <div class="today-loop__muted">{{ daily.bounty_stars }} ★ · {{ daily.submission_count|default:0 }} entered</div>
       {% else %}
-      <div style="font-size:13px;font-weight:800;margin-top:5px">Find a challenge</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:4px">Build something small today.</div>
+        <div class="today-loop__value">Find a challenge</div>
+        <div class="today-loop__muted">Build something small today.</div>
       {% endif %}
     </a>
 
-    <div style="background:var(--input);border:1px solid var(--line);border-radius:14px;padding:13px">
-      <div style="display:flex;justify-content:space-between;gap:8px;font-size:11px"><span style="font-weight:800">⚡ YOUR MOMENTUM</span><b style="color:var(--accent-text)">+{{ weekly_xp }} XP</b></div>
-      <div style="font-size:13px;font-weight:800;margin-top:5px">{{ rank.name }} creator</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:4px">{{ week_stars }} stars · {{ week_comments }} comments · {{ week_reviews }} reviews this week</div>
+    <div class="today-loop__card">
+      <div class="today-loop__stats">
+        <span class="today-loop__label">⚡ YOUR MOMENTUM</span>
+        <b class="today-loop__xp">+{{ weekly_xp }} XP</b>
+      </div>
+      <div class="today-loop__value">{{ rank.name }} creator</div>
+      <div class="today-loop__muted">{{ week_stars }} stars · {{ week_comments }} comments · {{ week_reviews }} reviews this week</div>
     </div>
 
-    <a href="{% if my_next_vibe %}{{ my_next_vibe.get_absolute_url }}{% else %}{% url 'publish' %}{% endif %}" style="text-decoration:none;color:inherit;background:var(--input);border:1px solid var(--line);border-radius:14px;padding:13px">
-      <div style="font-size:11px;font-weight:800">🚀 YOUR LATEST VIBE</div>
+    <a href="{% if my_next_vibe %}{{ my_next_vibe.get_absolute_url }}{% else %}{% url 'publish' %}{% endif %}" class="today-loop__card">
+      <div class="today-loop__label">🚀 YOUR LATEST VIBE</div>
       {% if my_next_vibe %}
-      <div style="font-size:13px;font-weight:800;margin-top:5px">{{ my_next_vibe.title }}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:4px">★ {{ my_next_vibe.stars }} · {{ my_vibes|length }} published vibe{{ my_vibes|length|pluralize }}</div>
+        <div class="today-loop__value">{{ my_next_vibe.title }}</div>
+        <div class="today-loop__muted">★ {{ my_next_vibe.stars }} · {{ my_vibes|length }} published vibe{{ my_vibes|length|pluralize }}</div>
       {% else %}
-      <div style="font-size:13px;font-weight:800;margin-top:5px">Ship your first vibe</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:4px">Your creator loop starts with one published project.</div>
+        <div class="today-loop__value">Ship your first vibe</div>
+        <div class="today-loop__muted">Your creator loop starts with one published project.</div>
       {% endif %}
     </a>
   </div>
 
-  <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--input);border:1px solid var(--line);border-radius:14px;padding:10px 12px">
-    <span style="font-size:10px;letter-spacing:.08em;font-weight:800;color:var(--muted)">NEXT MOVE</span>
-    <a href="{{ next_action_url }}" style="font-size:12px;font-weight:800;color:var(--accent-text);text-decoration:none">{{ next_action }} →</a>
+  <div class="today-loop__next">
+    <div class="today-loop__next-copy">
+      <span class="today-loop__next-label">NEXT MOVE</span>
+      <a href="{{ next_action_url }}" class="today-loop__next-link">{{ next_action }} →</a>
+    </div>
+    <span class="today-loop__next-badge">KEEP MOVING</span>
   </div>
 
   {% if recent_notifications or following_vibes %}
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:10px;margin-top:10px">
-    {% if recent_notifications %}
-    <div style="background:var(--input);border:1px solid var(--line);border-radius:14px;padding:13px">
-      <div style="font-size:11px;font-weight:800;margin-bottom:7px">🔔 WHAT HAPPENED</div>
-      {% for n in recent_notifications|slice:":3" %}
-      <a href="{{ n.url|default:'#' }}" style="display:block;text-decoration:none;color:inherit;padding:5px 0;border-top:1px solid var(--line)">
-        <div style="font-size:11px;font-weight:700">{{ n.title }}</div>
-        {% if n.body %}<div style="font-size:10px;color:var(--muted);margin-top:2px">{{ n.body|truncatechars:70 }}</div>{% endif %}
-      </a>
-      {% endfor %}
-    </div>
-    {% endif %}
+    <div class="today-loop__feeds">
+      {% if recent_notifications %}
+        <div class="today-loop__feed">
+          <div class="today-loop__feed-title">🔔 WHAT HAPPENED</div>
+          {% for n in recent_notifications|slice:":3" %}
+            <a href="{{ n.url|default:'#' }}" class="today-loop__item">
+              <div class="today-loop__item-title">{{ n.title }}</div>
+              {% if n.body %}<div class="today-loop__muted">{{ n.body|truncatechars:70 }}</div>{% endif %}
+            </a>
+          {% endfor %}
+        </div>
+      {% endif %}
 
-    {% if following_vibes %}
-    <div style="background:var(--input);border:1px solid var(--line);border-radius:14px;padding:13px">
-      <div style="font-size:11px;font-weight:800;margin-bottom:7px">👥 FROM CREATORS YOU FOLLOW</div>
-      {% for vibe in following_vibes|slice:":4" %}
-      <a href="{{ vibe.get_absolute_url }}" style="display:block;text-decoration:none;color:inherit;padding:5px 0;border-top:1px solid var(--line)">
-        <div style="font-size:11px;font-weight:700">{{ vibe.title }}</div>
-        <div style="font-size:10px;color:var(--muted);margin-top:2px">@{{ vibe.owner.username }} · {{ vibe.stars }} ★</div>
-      </a>
-      {% endfor %}
+      {% if following_vibes %}
+        <div class="today-loop__feed">
+          <div class="today-loop__feed-title">♻️ REMIX FROM YOUR CIRCLE</div>
+          {% for vibe in following_vibes|slice:":4" %}
+            <a href="{{ vibe.get_absolute_url }}" class="today-loop__item">
+              <div class="today-loop__item-title">{{ vibe.title }}</div>
+              <div class="today-loop__muted">@{{ vibe.owner.username }} · {{ vibe.stars }} ★ · remix this idea</div>
+            </a>
+          {% endfor %}
+        </div>
+      {% endif %}
     </div>
-    {% endif %}
-  </div>
   {% endif %}
 </section>
 {% endif %}
