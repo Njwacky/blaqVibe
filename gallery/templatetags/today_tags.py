@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from django import template
-from django.db.models import Q, Sum
+from django.db.models import Sum
 from django.utils import timezone
 
 register = template.Library()
