@@ -6,6 +6,10 @@ class GalleryConfig(AppConfig):
     name = 'gallery'
 
     def ready(self):
+        # Skills live in their own module so the growing product model file
+        # does not become a second monolith. Importing here registers them
+        # with Django's app registry before checks/migrations run.
+        from . import skill_models  # noqa: F401
         from django.db.models.signals import post_migrate
         post_migrate.connect(_seed_after_migrate, sender=self)
 
