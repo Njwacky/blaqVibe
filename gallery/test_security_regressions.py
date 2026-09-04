@@ -10,9 +10,10 @@ import json
 import os
 import subprocess
 import sys
+import uuid
 from unittest.mock import patch
 
-from django.core.cache import caches
+from django.core.cache import cache
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.conf import settings
 
@@ -181,38 +182,56 @@ class DownloadAndReportGateRegressionTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(AppReport.objects.filter(project=self.published, reason='spam').exists())
 
+def _unique_locmem(name):
+    """Fresh locmem cache backend for one test class (see AuthRateLimit below)."""
+    from django.core.cache.backends.locmem import LocMemCache  # noqa: F401  (import-string target)
+
+    return f'{name}-{uuid.uuid4().hex}'
+
+
 class AuthRateLimitRegressionTests(TestCase):
     """Finding #2 — login and password-reset are rate-limited per IP."""
 
+    # Rate-limit tests pin the locmem cache with a unique name per test class.
+    # A shared LOCATION (e.g. 'test-ratelimit') makes every class's counters
+    # collide in ONE process-wide dict: whichever rate-limit test runs first
+    # leaves residue behind that makes a later class's burst trip early OR
+    # never reach its ceiling — both flaky. test_security_scenarios hit this
+    # and invented unique aliases (ab-default/ab-ratelimit); a uuid does the
+    # same job without hand-managed names.
+    # NOTE: django-ratelimit reads settings.RATELIMIT_USE_CACHE through the
+    # 'ratelimit' cache *alias* (caches['ratelimit']), so every override still
+    # spells the alias 'ratelimit'; only the backend's LOCATION differs.
+    _ratelimit_cache_name = 'auth-sec-ratelimit'
+    _default_cache_name = 'auth-sec-default'
+
     def setUp(self):
-        # Hermetic locmem cache so the rate-limit counters never bleed from
-        # one machine's .env/Redis config or another test (see users/tests.py).
         self._caches = override_settings(
             RATELIMIT_ENABLE=True,
             RATELIMIT_USE_CACHE='ratelimit',
             CACHES={
-                'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'test-default'},
-                'ratelimit': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'test-ratelimit'},
+                'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+                            'LOCATION': _unique_locmem(self._default_cache_name)},
+                'ratelimit': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+                              'LOCATION': _unique_locmem(self._ratelimit_cache_name)},
             },
         )
         self._caches.enable()
         self.addCleanup(self._caches.disable)
-        self.addCleanup(lambda: caches['ratelimit'].clear())
-        self.addCleanup(lambda: caches['default'].clear())
-        # Start from a clean counter regardless of which test ran before this
-        # class. A shared locmem LOCATION across modules can otherwise leave
-        # residue that makes the 21st post exceed the ceiling early OR the
-        # counter not reach the ceiling at all — both make the assertion flaky.
-        caches['ratelimit'].clear()
-        caches['default'].clear()
         make_user('someone')  # real user so a good login is meaningful
 
     def test_login_post_is_rate_limited_at_20_per_minute(self):
-        # Rate is 20/m on POST only. 21 bad POSTs from one IP → 403 via
-        # handler403/safe_403 (the codebase's established block=True pattern).
-        last = None
-        for _ in range(21):
-            last = self.client.post('/accounts/login/', {'username': 'someone', 'password': 'wrong'})
+        # Rate is 20/m on POST only. django-ratelimit counts per wall-clock
+        # window (core._get_window jitters the edge by the IP), so a burst of
+        # slow POSTs can straddle a window boundary and get a fresh bucket
+        # mid-loop — with real time, "the 21st POST is blocked" is a coin
+        # flip (observed 1-in-8 failure on this very test). Pin the clock for
+        # the burst so all 21 land in ONE window; then the 21st must 403 via
+        # handler403/safe_403, the codebase's established block=True pattern.
+        with patch('django_ratelimit.core.time.time', return_value=1_900_000_000):
+            last = None
+            for _ in range(21):
+                last = self.client.post('/accounts/login/', {'username': 'someone', 'password': 'wrong'})
         self.assertEqual(last.status_code, 403)
 
     def test_login_get_is_not_rate_limited(self):
@@ -223,30 +242,35 @@ class AuthRateLimitRegressionTests(TestCase):
             self.assertEqual(response.status_code, 200)
 
     def test_password_reset_post_is_rate_limited_at_10_per_minute(self):
-        last = None
-        for _ in range(11):
-            last = self.client.post('/accounts/password_reset/', {'email': 'someone@test.com'})
+        # Same window-pinning rationale as the login test: 10/m POST ceiling,
+        # 11th POST in the same window must 403.
+        with patch('django_ratelimit.core.time.time', return_value=1_900_000_000):
+            last = None
+            for _ in range(11):
+                last = self.client.post('/accounts/password_reset/', {'email': 'someone@test.com'})
         self.assertEqual(last.status_code, 403)
+
 
 class CspReportRateLimitRegressionTests(TestCase):
     """Finding #8 — unauthenticated csp-report POST flood is bounded."""
+
+    # Unique locmem LOCATION per class — see AuthRateLimitRegressionTests.
+    _ratelimit_cache_name = 'csp-sec-ratelimit'
+    _default_cache_name = 'csp-sec-default'
 
     def setUp(self):
         self._caches = override_settings(
             RATELIMIT_ENABLE=True,
             RATELIMIT_USE_CACHE='ratelimit',
             CACHES={
-                'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'test-default'},
-                'ratelimit': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'test-ratelimit'},
+                'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+                            'LOCATION': _unique_locmem(self._default_cache_name)},
+                'ratelimit': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
+                              'LOCATION': _unique_locmem(self._ratelimit_cache_name)},
             },
         )
         self._caches.enable()
         self.addCleanup(self._caches.disable)
-        self.addCleanup(lambda: caches['ratelimit'].clear())
-        self.addCleanup(lambda: caches['default'].clear())
-        # Clean counter at start (see AuthRateLimitRegressionTests).
-        caches['ratelimit'].clear()
-        caches['default'].clear()
 
     def test_csp_report_accepts_legitimate_report(self):
         response = self.client.post(
@@ -257,9 +281,13 @@ class CspReportRateLimitRegressionTests(TestCase):
         self.assertEqual(response.status_code, 204)
 
     def test_csp_report_flood_is_rate_limited(self):
-        last = None
-        for _ in range(61):  # rate is 60/m
-            last = self.client.post('/csp-report/', data='{}', content_type='application/json')
+        # Pinned clock keeps all 61 posts in one window (see the auth tests):
+        # with real time a 61-POST loop can straddle a window boundary and
+        # legitimately end on 200 even though every window stayed ≤ 60/m.
+        with patch('django_ratelimit.core.time.time', return_value=1_900_000_000):
+            last = None
+            for _ in range(61):  # rate is 60/m
+                last = self.client.post('/csp-report/', data='{}', content_type='application/json')
         self.assertEqual(last.status_code, 403)
 
 @override_settings(RATELIMIT_ENABLE=False)
