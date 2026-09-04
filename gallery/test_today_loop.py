@@ -1,7 +1,6 @@
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AnonymousUser, User
 from django.test import RequestFactory, TestCase
 from django.template import Context, Template
-from django.utils import timezone
 
 from gallery.models import Notification
 from users.models import XPEvent
@@ -16,9 +15,7 @@ class TodayLoopTemplateTagTests(TestCase):
         ).render(Context({'request': request}))
 
     def test_anonymous_users_get_no_personal_loop(self):
-        user = User()
-        user.set_unusable_password()
-        output = self.render(user)
+        output = self.render(AnonymousUser())
         self.assertEqual(output.strip(), '')
 
     def test_authenticated_user_sees_momentum_and_inbox(self):
@@ -35,7 +32,7 @@ class TodayLoopTemplateTagTests(TestCase):
         self.assertIn('BLAQVIBES TODAY', output)
         self.assertIn('+20 XP', output)
         self.assertIn('1 new', output)
-        self.assertIn("Someone starred your vibe", output)
+        self.assertIn('Someone starred your vibe', output)
 
     def test_loop_is_scoped_to_the_current_user(self):
         user = User.objects.create_user(username='current', password='x')
