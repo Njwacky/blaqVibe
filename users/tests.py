@@ -1,3 +1,4 @@
+import uuid
 from datetime import timedelta
 from unittest.mock import patch
 
@@ -311,9 +312,14 @@ class ProfileAndFollowTests(TestCase):
         # at settings-import time, so a test that silently depends on whether
         # .env exists would pass on one machine and crash on another — a
         # hermetic test pins locmem.
+        # LOCATION must ALSO be unique per class: all rate-limit tests share
+        # ONE process-wide locmem dict when they reuse a literal like
+        # 'test-ratelimit', so whichever rate-limit test runs first leaves
+        # residue that makes a later class's burst trip early (or never reach
+        # its ceiling). A per-class uuid makes every suite order hermetic.
         CACHES={
-            'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'test-default'},
-            'ratelimit': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'test-ratelimit'},
+            'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': f'follow-default-{uuid.uuid4().hex}'},
+            'ratelimit': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': f'follow-ratelimit-{uuid.uuid4().hex}'},
         },
     )
     def test_follow_is_rate_limited(self):
@@ -494,9 +500,10 @@ class TipTests(TestCase):
     @override_settings(
         RATELIMIT_ENABLE=True,
         RATELIMIT_USE_CACHE='ratelimit',
+        # Unique LOCATION per class — see test_follow_is_rate_limited above.
         CACHES={
-            'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'tip-default'},
-            'ratelimit': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'tip-ratelimit'},
+            'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': f'tip-default-{uuid.uuid4().hex}'},
+            'ratelimit': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': f'tip-ratelimit-{uuid.uuid4().hex}'},
         },
     )
     def test_tip_is_rate_limited(self):
