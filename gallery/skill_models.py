@@ -87,3 +87,33 @@ class SkillUse(models.Model):
 
     def __str__(self):
         return f'@{self.user.username} used {self.skill.slug}'
+
+
+# Attribution bridge: an explicit "Use this skill" action reserves the next
+# project the builder creates for that skill. Only a recent unclaimed use can
+# attach, so an old click cannot unexpectedly label a later project. This keeps
+# the publish flow unchanged while making the skill -> build -> proof loop real.
+def _attach_skill_use(sender, instance, created, **kwargs):
+    if not created or not getattr(instance, 'owner_id', None):
+        return
+    from datetime import timedelta
+    from django.utils import timezone
+    use = (
+        SkillUse.objects.filter(
+            user_id=instance.owner_id,
+            project__isnull=True,
+            created_at__gte=timezone.now() - timedelta(hours=2),
+        )
+        .select_related('skill')
+        .order_by('-created_at')
+        .first()
+    )
+    if not use:
+        return
+    attached = SkillUse.objects.filter(pk=use.pk, project__isnull=True).update(project_id=instance.pk)
+    if attached:
+        Skill.objects.filter(pk=use.skill_id).update(projects_created=models.F('projects_created') + 1)
+
+
+from django.db.models.signals import post_save
+post_save.connect(_attach_skill_use, sender='gallery.AppProject', dispatch_uid='gallery.attach_skill_use')
