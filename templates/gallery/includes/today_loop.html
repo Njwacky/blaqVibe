@@ -1,89 +1,67 @@
 {% load static %}
 {% if today_enabled %}
-<link rel="stylesheet" href="{% static 'gallery/css/today-loop.css' %}?v=today-20260905">
+<link rel="stylesheet" href="{% static 'gallery/css/today-loop.css' %}?v=builder-20260905">
 <section class="today-loop" aria-labelledby="today-loop-title">
   <div class="today-loop__head">
     <div class="today-loop__head-copy">
-      <div>
-        <div class="today-loop__eyebrow">BLAQVIBES TODAY</div>
-        <h2 id="today-loop-title" class="today-loop__title">Build. Show. Remix. Repeat.</h2>
-        <div class="today-loop__sub">Your command center: see what happened, choose your next move, keep building.</div>
-      </div>
+      <div class="today-loop__eyebrow">BUILDER PULSE</div>
+      <h2 id="today-loop-title" class="today-loop__title">What are people building?</h2>
+      <div class="today-loop__sub">Projects first. Your progress stays useful, not noisy.</div>
     </div>
     {% if unread_notifications %}
       <a href="{% url 'notifications' %}" class="today-loop__signal">🔔 {{ unread_notifications }} new</a>
-    {% else %}
-      <span class="today-loop__signal today-loop__signal--quiet">You're caught up ✓</span>
     {% endif %}
   </div>
 
-  <div class="today-loop__grid">
-    <a href="{% if daily %}{% url 'challenge_detail' daily.tag %}{% else %}{% url 'challenge_list' %}{% endif %}" class="today-loop__card today-loop__card--mission">
-      <div class="today-loop__label today-loop__label--mission">🏆 TODAY'S MISSION</div>
-      {% if daily %}
-        <div class="today-loop__value">{{ daily.title }}</div>
-        <div class="today-loop__muted">{{ daily.bounty_stars }} ★ · {{ daily.submission_count|default:0 }} entered</div>
-      {% else %}
-        <div class="today-loop__value">Find a challenge</div>
-        <div class="today-loop__muted">Build something small today.</div>
-      {% endif %}
-    </a>
-
-    <div class="today-loop__card">
-      <div class="today-loop__stats">
-        <span class="today-loop__label">⚡ YOUR MOMENTUM</span>
-        <b class="today-loop__xp">+{{ weekly_xp }} XP</b>
-      </div>
-      <div class="today-loop__value">{{ rank.name }} creator</div>
-      <div class="today-loop__muted">{{ week_stars }} stars · {{ week_comments }} comments · {{ week_reviews }} reviews this week</div>
-    </div>
-
-    <a href="{% if my_next_vibe %}{{ my_next_vibe.get_absolute_url }}{% else %}{% url 'publish' %}{% endif %}" class="today-loop__card">
-      <div class="today-loop__label">🚀 YOUR LATEST VIBE</div>
-      {% if my_next_vibe %}
-        <div class="today-loop__value">{{ my_next_vibe.title }}</div>
-        <div class="today-loop__muted">★ {{ my_next_vibe.stars }} · {{ my_vibes|length }} published vibe{{ my_vibes|length|pluralize }}</div>
-      {% else %}
-        <div class="today-loop__value">Ship your first vibe</div>
-        <div class="today-loop__muted">Your creator loop starts with one published project.</div>
-      {% endif %}
-    </a>
+  <div class="today-loop__actions">
+    <a href="{% url 'publish' %}" class="today-loop__primary">＋ Build something</a>
+    {% if daily %}<a href="{% url 'challenge_detail' daily.tag %}" class="today-loop__secondary">Join today's challenge</a>{% endif %}
   </div>
 
-  <div class="today-loop__next">
-    <div class="today-loop__next-copy">
-      <span class="today-loop__next-label">NEXT MOVE</span>
-      <a href="{{ next_action_url }}" class="today-loop__next-link">{{ next_action }} →</a>
+  {% if discovery_vibes %}
+    <div class="today-loop__section-head">
+      <span>RECENTLY BUILT</span><span>Fresh projects from the network</span>
     </div>
-    <span class="today-loop__next-badge">KEEP MOVING</span>
-  </div>
+    <div class="today-loop__projects">
+      {% for vibe in discovery_vibes|slice:":5" %}
+        <a href="{{ vibe.get_absolute_url }}" class="today-loop__project">
+          <div class="today-loop__project-title">{{ vibe.title }}</div>
+          <div class="today-loop__project-meta">@{{ vibe.owner.username }} · ★ {{ vibe.stars }}</div>
+          <div class="today-loop__project-cta">View project →</div>
+        </a>
+      {% endfor %}
+    </div>
+  {% endif %}
 
-  {% if recent_notifications or following_vibes %}
+  {% if following_vibes or my_next_vibe %}
     <div class="today-loop__feeds">
-      {% if recent_notifications %}
+      {% if following_vibes %}
         <div class="today-loop__feed">
-          <div class="today-loop__feed-title">🔔 WHAT HAPPENED</div>
-          {% for n in recent_notifications|slice:":3" %}
-            <a href="{{ n.url|default:'#' }}" class="today-loop__item">
-              <div class="today-loop__item-title">{{ n.title }}</div>
-              {% if n.body %}<div class="today-loop__muted">{{ n.body|truncatechars:70 }}</div>{% endif %}
+          <div class="today-loop__feed-title">♻️ WORTH REMIXING</div>
+          {% for vibe in following_vibes|slice:":3" %}
+            <a href="{{ vibe.get_absolute_url }}" class="today-loop__item">
+              <div class="today-loop__item-title">{{ vibe.title }}</div>
+              <div class="today-loop__muted">@{{ vibe.owner.username }} · ★ {{ vibe.stars }} · remix the idea</div>
             </a>
           {% endfor %}
         </div>
       {% endif %}
 
-      {% if following_vibes %}
+      {% if my_next_vibe %}
         <div class="today-loop__feed">
-          <div class="today-loop__feed-title">♻️ REMIX FROM YOUR CIRCLE</div>
-          {% for vibe in following_vibes|slice:":4" %}
-            <a href="{{ vibe.get_absolute_url }}" class="today-loop__item">
-              <div class="today-loop__item-title">{{ vibe.title }}</div>
-              <div class="today-loop__muted">@{{ vibe.owner.username }} · {{ vibe.stars }} ★ · remix this idea</div>
-            </a>
-          {% endfor %}
+          <div class="today-loop__feed-title">YOUR LATEST PROJECT</div>
+          <a href="{{ my_next_vibe.get_absolute_url }}" class="today-loop__item">
+            <div class="today-loop__item-title">{{ my_next_vibe.title }}</div>
+            <div class="today-loop__muted">★ {{ my_next_vibe.stars }} · keep shipping</div>
+          </a>
         </div>
       {% endif %}
     </div>
   {% endif %}
+
+  <div class="today-loop__footer">
+    <span>Build → Show → Remix → Compete</span>
+    <a href="{% url 'challenge_list' %}">See more ways to build →</a>
+  </div>
 </section>
 {% endif %}
