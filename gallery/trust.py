@@ -102,9 +102,6 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
-# --------------------------------------------------------------------------
-# Tiers — the entire public vocabulary of the badge.
-# --------------------------------------------------------------------------
 TRUST_VERIFIED = 'verified'
 TRUST_SCANNED = 'scanned'
 TRUST_UNKNOWN = 'unknown'
@@ -117,17 +114,6 @@ TRUST_CHOICES = [
     (TRUST_UNKNOWN, 'Unknown — no complete scan evidence'),
 ]
 
-# Fixed presentation table. Server-rendered only; nothing in here is ever
-# user-supplied, so a creator cannot style or spoof their way to a ✓.
-# 5 Whys (4 points) on why a table and not template conditionals:
-# 1. One source of truth for web, API label, and emails — three surfaces
-#    cannot drift apart if they all read TRUST_META.
-# 2. Titles are plain static strings → nothing user-controlled ever enters
-#    a title="" attribute (no tooltip injection).
-# 3. A test asserts TRUST_META keys == TRUST_TIERS == model choices, so a
-#    tier added without copy fails the build, not the user's trust.
-# 4. If the fails-if happens (tier renamed), templates keep rendering the
-#    old key's copy — degrade to 'unknown' is impossible to miss.
 TRUST_META = {
     TRUST_VERIFIED: {
         'label': 'Checked',
@@ -149,20 +135,12 @@ TRUST_META = {
     },
 }
 
-# Ranking multiplier per tier. Verified may reorder equals (+8%); it can
-# never out-rank genuinely better content. See WHY 5 above.
 TRUST_MULTIPLIER = {
     TRUST_VERIFIED: 1.08,
     TRUST_SCANNED: 1.03,
     TRUST_UNKNOWN: 1.00,
 }
 
-# Keys whose presence proves the pipeline produced evidence for this row.
-# 4 points: (1) whitelist → future report keys can't fake "pipeline ran";
-# (2) each key is written by a different pipeline step, so any one proves
-# the chain reached this project; (3) all are backend-written, none can be
-# set through a form; (4) if a key is renamed, absence degrades to
-# 'unknown' — a missing badge, never a wrong one.
 _EVIDENCE_KEYS = ('clamav', 'secrets', 'nolo_review', 'dep_audit', 'snippet_scan')
 
 
@@ -183,8 +161,6 @@ def _virus_check(project, report):
         if clamav == 'clean':
             return True, 'clean'
         if clamav == 'disabled':
-            # Site operator turned ClamAV off — honest tier is 'scanned',
-            # never 'verified': we did NOT check, so we do not claim it.
             return False, 'scanner_disabled'
         return False, 'scanner_missing'
     except Exception:
@@ -199,9 +175,6 @@ def _secrets_check(project, report):
         if getattr(project, 'zip_file', None):
             found = (report or {}).get('secrets') or []
             return (not found), ('clean' if not found else 'secrets_found')
-        # Snippet: check the stored code fields directly. Import here so
-        # this module never imports models/validators at load time
-        # (models.py imports this module — circular otherwise).
         from .validators import SECRET_PATTERNS
         for field in ('js_code', 'html_code', 'css_code'):
             text = getattr(project, field, '') or ''
@@ -225,9 +198,6 @@ def _deps_check(project, report):
     try:
         rep = report or {}
         if not getattr(project, 'zip_file', None):
-            # Snippet: no manifest can exist, so the check is vacuously
-            # true — evidence that the row was examined comes from the
-            # 'snippet_scan' key (see snippet_evidence below).
             return True, 'snippet_no_deps'
         audit = rep.get('dep_audit') or {}
         if rep.get('unknown_deps'):
@@ -236,15 +206,11 @@ def _deps_check(project, report):
             return False, 'vulnerable_deps'
         if audit.get('ran'):
             return True, audit.get('reason') or 'ok'
-        # No evidence either way (legacy rows scanned before dep_audit
-        # existed): do not claim the check — 'scanned', not 'verified'.
         return False, 'not_audited'
     except Exception:
         return False, 'check_failed'
 
 
-# Human sentences for the detail page / tooltip "read". Fixed table — a
-# reason_key can never inject text, filenames, or secret material.
 _REASON_TEXT = {
     'clean': 'Passed',
     'snippet_no_zip': 'Nothing to scan (no ZIP)',
@@ -345,8 +311,6 @@ def apply_trust_grade(project, save=True):
         project.trust_graded_at = now
         if save:
             project.save(update_fields=['trust', 'trust_graded_at'])
-        # Progression rides the verdict, not the view: whichever path got a
-        # vibe to 'verified' (pipeline, edit rescan, backfill) pays once.
         _award_verified_xp(project, grade)
         return grade
     except Exception:
@@ -419,8 +383,6 @@ def snippet_evidence(project, save=True):
             text = getattr(project, field, '') or ''
             for pat in SECRET_PATTERNS:
                 if pat.search(text):
-                    # Field NAME only — the token itself is never stored,
-                    # never rendered, never logged.
                     hits.append(field)
                     break
         report['snippet_scan'] = {'checked': True, 'secrets_found': bool(hits), 'fields_flagged': hits}

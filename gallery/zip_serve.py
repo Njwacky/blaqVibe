@@ -28,8 +28,6 @@ def serve_named_zip(file_field, download_name):
 def serve_project_zip(project, user=None, ip=''):
     if not project.zip_file:
         raise Http404
-    # One served ZIP = one clone, logged append-only for the admin charts
-    # (source='zip') and counted on the project in the same code path.
     from .git_daemon import record_clone
     record_clone(project, user, 'zip', ip)
     return serve_named_zip(project.zip_file, f'{project.slug}.zip')
@@ -94,8 +92,6 @@ def upload_file_info(project) -> dict:
             info['size_bytes'] = 0
         info['size_human'] = _human_bytes(info['size_bytes'])
     else:
-        # Snippet upload — measure the pasted code so the creator still sees
-        # "what did I just send" while it is checked.
         info['is_snippet'] = True
         try:
             total = sum(len((getattr(project, f, '') or '').encode('utf-8'))
@@ -146,7 +142,6 @@ def scan_progress(project) -> dict:
             return 'active'
         return 'pending'
 
-    # Uploaded — always done once the row exists.
     steps = [{
         'key': 'uploaded',
         'label': 'Uploaded',
@@ -155,8 +150,6 @@ def scan_progress(project) -> dict:
     }]
 
     if is_snippet:
-        # Snippets skip the queue entirely (see publish view): a fast regex
-        # secrets sweep, then either auto-publish or hold for review.
         steps.append({
             'key': 'checks',
             'label': 'Safety checks',
@@ -166,7 +159,6 @@ def scan_progress(project) -> dict:
             'state': state_for(not held, active=False, blocked=held),
         })
     else:
-        # Virus scan
         virus_done = quarantined or has_secrets or published or scanner_off
         steps.append({
             'key': 'virus',
@@ -178,7 +170,6 @@ def scan_progress(project) -> dict:
                                active=not virus_done,
                                blocked=quarantined or scanner_off),
         })
-        # Secret scan
         secret_done = published or has_secrets or quarantined
         steps.append({
             'key': 'secrets',
@@ -190,7 +181,6 @@ def scan_progress(project) -> dict:
                                      blocked=has_secrets)),
         })
 
-    # Publish
     steps.append({
         'key': 'publish',
         'label': 'Go live',
@@ -201,10 +191,6 @@ def scan_progress(project) -> dict:
                            blocked=False),
     })
 
-    # A checklist reads clearest with a single "in progress" step: keep the
-    # FIRST active/pending step active and demote any later actives to
-    # pending, so progress feels sequential instead of "everything at once".
-    # (Blocked and done states are never touched.)
     seen_active = False
     for step in steps:
         if step['state'] == 'active':
@@ -213,7 +199,6 @@ def scan_progress(project) -> dict:
             else:
                 seen_active = True
 
-    # Where in the queue? Only meaningful while genuinely waiting.
     queue_position = 0
     if not published and not held:
         try:

@@ -81,8 +81,6 @@ class GitGateTests(TestCase):
 
     def test_git_token_works_as_password(self):
         token = self.buyer.profile.rotate_git_token()
-        # Token authenticates the user; the paid gate then says 403 because
-        # no trade exists — passing 401 proves the token was accepted.
         resp = self.info_refs(self.paid, username='gitbuyer', password=token)
         self.assertEqual(resp.status_code, 403)
 
@@ -120,8 +118,6 @@ class GitGateTests(TestCase):
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT=GIT_MEDIA, SEED_DEMO=False)
 class GitLiveTests(LiveServerTestCase):
-    # TransactionTestCase flushes the DB after every test, so fixtures must
-    # live in setUp (class-level rows would be gone by the second test).
     def setUp(self):
         self.owner = make_user('liveowner')
         self.buyer = make_user('livebuyer')
@@ -147,7 +143,6 @@ class GitLiveTests(LiveServerTestCase):
         self.assertTrue(os.path.exists(os.path.join(target, 'app.py')))
         with open(os.path.join(target, 'app.py')) as fh:
             self.assertIn('print("v1")', fh.read())
-        # A real clone POSTed an upload-pack: one logged git clone.
         self.assertTrue(CloneEvent.objects.filter(project=self.project, source='git').exists())
         self.project.refresh_from_db()
         self.assertGreaterEqual(self.project.clones, 1)
@@ -156,16 +151,13 @@ class GitLiveTests(LiveServerTestCase):
         paid = make_project(self.owner, self.cat, slug='live-paid', title='Live Paid', star_cost=3)
         paid.zip_file.save('livepaid.zip', make_zip_file({'secret.py': 'X = 1\n'}), save=True)
         url = f'{self.live_server_url}/git/liveowner/live-paid.git'
-        # Anonymous: 401 challenge, no credentials to retry with.
         with self.assertRaises(HTTPUnauthorized):
             porcelain.clone(url, '/tmp/blaqvibes-git-paid-anon', errstream=io.BytesIO())
-        # Credentialed but not unlocked: authenticated, then 403.
         with self.assertRaises(GitProtocolError):
             porcelain.clone(
                 url, '/tmp/blaqvibes-git-paid-denied', errstream=io.BytesIO(),
                 username='livebuyer', password='pass12345',
             )
-        # Owner credentials pass the gate.
         target = '/tmp/blaqvibes-git-paid-owner'
         shutil.rmtree(target, ignore_errors=True)
         porcelain.clone(
@@ -190,11 +182,7 @@ class GitLiveTests(LiveServerTestCase):
                 errstream=io.BytesIO(),
             )
         self.project.refresh_from_db()
-        # Push re-enters the scan queue; without ClamAV it must stay
-        # pending — never auto-publish (fail-closed).
         self.assertIn(self.project.status, ('pending', 'published'))
-        # The old ZIP is archived as a version snapshot and the project's
-        # current ZIP is the pushed tree.
         self.assertGreaterEqual(AppVersion.objects.filter(project=self.project).count(), 1)
         with zipfile.ZipFile(self.project.zip_file) as zf:
             self.assertIn('pushed.py', zf.namelist())
@@ -222,8 +210,6 @@ class GitLiveTests(LiveServerTestCase):
         with porcelain.open_repo_closing(repo) as r:
             porcelain.add(r, paths=['deploy.sh'])
             porcelain.commit(r, message=b'blocked payload', author=b'X <x@x.x>', committer=b'X <x@x.x>')
-            # Our 400 arrives where the client expected an unpack status line,
-            # so dulwich surfaces it as a protocol error (same as a 403 does).
             with self.assertRaises(GitProtocolError):
                 porcelain.push(
                     r, self.url, 'refs/heads/main:refs/heads/main',
@@ -237,8 +223,6 @@ class GitLiveTests(LiveServerTestCase):
         with zipfile.ZipFile(self.project.zip_file) as zf:
             self.assertNotIn('deploy.sh', zf.namelist())
             self.assertIn('app.py', zf.namelist())
-        # The part that makes this fail-closed instead of merely inconsistent:
-        # a fresh clone must not see the refused bytes.
         retried = '/tmp/blaqvibes-git-push-blocked-again'
         self._clone(retried, username='liveowner', password='pass12345')
         self.assertFalse(os.path.exists(os.path.join(retried, 'deploy.sh')))
@@ -253,8 +237,6 @@ class GitLiveTests(LiveServerTestCase):
         with porcelain.open_repo_closing(repo) as r:
             porcelain.add(r, paths=['evil.py'])
             porcelain.commit(r, message=b'x', author=b'X <x@x.x>', committer=b'X <x@x.x>')
-            # 403 surfaces as a protocol error to the git client (a
-            # SendPackError is a GitProtocolError subclass — accept both).
             with self.assertRaises(GitProtocolError):
                 porcelain.push(
                     r, self.url, 'refs/heads/main:refs/heads/main',
@@ -265,13 +247,11 @@ class GitLiveTests(LiveServerTestCase):
         self.assertEqual(AppVersion.objects.filter(project=self.project).count(), versions_before)
 
     def test_reclone_after_push_sees_history(self):
-        # Owner clone of a pushed vibe must show the pushed commits.
         self.test_push_updates_project_and_rescans()
         target = '/tmp/blaqvibes-git-reclone'
         self._clone(target, username='liveowner', password='pass12345')
         self.assertTrue(os.path.exists(os.path.join(target, 'pushed.py')))
         with porcelain.open_repo_closing(target) as r:
-            # The initial snapshot commit + the pushed commit(s).
             count = sum(1 for _ in r.get_walker())
             self.assertGreaterEqual(count, 2)
 
@@ -323,9 +303,6 @@ class GitPushPipelineTests(TestCase):
         big = _Repo([entry(i) for i in range(MAX_FILES_PER_EXPORT + 5)])
         with self.assertRaises(PushRejected):
             exported(big)
-        # THE regression: with `count=[0]` as a default argument, the counter
-        # above survived this call and every later push in the process was
-        # refused as 'too large' forever.
         self.assertEqual(exported(_Repo([entry(0)])), ['f0.py'])
 
     def test_push_cap_counts_bytes_not_content_length(self):
@@ -336,8 +313,6 @@ class GitPushPipelineTests(TestCase):
         self.assertEqual(len(stream.read()), 1024)
         self.assertTrue(stream.oversize, 'a cut body must be reported, not parsed as a short pack')
 
-        # And an exactly-at-limit push is legitimate traffic: a cap that
-        # rejects it gets switched off by the next person who hits it.
         stream = _BoundedBodyStream(io.BytesIO(b'A' * 1024), 1024)
         self.assertEqual(len(stream.read()), 1024)
         self.assertFalse(stream.oversize)

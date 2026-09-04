@@ -49,14 +49,13 @@ class HealthProbeTests(TestCase):
         fake_client.ping.assert_called_once()
 
     def test_healthz_survives_maintenance_mode(self):
-        SiteSettings.get().save()  # ensure row exists
+        SiteSettings.get().save()
         settings = SiteSettings.get()
         settings.maintenance = True
         settings.save()
         try:
             self.assertEqual(self.client.get('/healthz').status_code, 200)
             self.assertEqual(self.client.get('/readyz').status_code, 200)
-            # But the actual site is walled off with 503.
             self.assertEqual(self.client.get('/').status_code, 503)
         finally:
             settings.maintenance = False

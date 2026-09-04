@@ -17,7 +17,6 @@ class AnalyzeCodeTests(TestCase):
         findings = analyze_code(js='var x = document.getElementByID("a");')
         titles = [f['title'] for f in findings]
         self.assertTrue(any('getElementByID' in t for t in titles))
-        # The typo is an error-level finding and sorts first.
         self.assertEqual(findings[0]['level'], 'error')
 
     def test_flags_unbalanced_js_braces(self):
@@ -45,7 +44,6 @@ class AnalyzeCodeTests(TestCase):
         self.assertFalse(any(f['level'] == 'error' for f in findings))
 
     def test_never_raises_on_garbage(self):
-        # Must be robust to weird input — a broken analyser must not crash.
         self.assertIsInstance(analyze_code(html='<<<>>>', js='(((', css='}}}'), list)
 
 
@@ -62,7 +60,6 @@ class WriteReadmeTests(TestCase):
         md, source = write_readme(title='My App', description='Does a thing',
                                   js='localStorage.setItem("a", 1);')
         self.assertEqual(source, 'heuristic')
-        # The publish form requires a '# ' heading and >= 100 chars.
         self.assertIn('# ', md)
         self.assertGreaterEqual(len(md.strip()), 100)
 
@@ -90,7 +87,6 @@ class NoloAssistApiTests(TestCase):
         self.assertIn('summary', payload)
 
     def test_fix_api_is_public(self):
-        # No login required — a beginner tinkering before signup needs help.
         resp = self.client.post('/nolo/fix/', data=json.dumps({'js': 'var x=1;'}),
                                 content_type='application/json')
         self.assertEqual(resp.status_code, 200)

@@ -28,12 +28,8 @@ from .models import AppProject, Challenge
 
 logger = logging.getLogger(__name__)
 
-# The rotation anchor. Any fixed past date works: what matters is that
-# (today - EPOCH).days is the same number on every process, so everyone
-# derives the same prompt for the same day without talking to each other.
 EPOCH = date(2026, 1, 1)
 
-# Small, finishable, kind-diverse prompts. Rotate by day.
 DAILY_POOL = [
     {'title': 'Build a calculator', 'kind': 'webapp',
      'description': 'A calculator that actually works: +, −, ×, ÷, a clear button, and keyboard support.'},
@@ -148,8 +144,6 @@ def settle_past_challenges(limit=7):
         for challenge in open_ended:
             entries = leaderboard(challenge, limit=1)
             if not entries:
-                # Nothing was submitted: close the day out quietly instead
-                # of leaving it as a promise that never resolves.
                 challenge.is_active = False
                 challenge.save(update_fields=['is_active'])
                 continue

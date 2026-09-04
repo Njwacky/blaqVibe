@@ -23,8 +23,6 @@ from django.db import migrations
 
 def backfill(apps, schema_editor):
     AppProject = apps.get_model('gallery', 'AppProject')
-    # Import the pure logic, not the concrete models — historical models
-    # are a different class, so anything touching model methods would break.
     from gallery.kind_detect import detect_kind
     from gallery.interest import compute_appeal
     from gallery.taxonomy import preview_mode_for

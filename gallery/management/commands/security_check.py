@@ -24,7 +24,7 @@ from django.core.management.base import BaseCommand
 
 DEV_SECRET_KEY = 'django-insecure-blaqvibes-dev-key-change-in-prod-07070A'
 DEV_HOST_SUFFIXES = ('.e2b.app', '.e2b.dev', 'localhost', '127.0.0.1', '0.0.0.0', 'testserver')
-MIN_HSTS_SECONDS = 1_555_200  # 180 days
+MIN_HSTS_SECONDS = 1_555_200
 
 
 class Command(BaseCommand):
@@ -63,8 +63,6 @@ class Command(BaseCommand):
         if options['strict']:
             blocking += warnings
         if not production:
-            # Dev boxes legitimately carry a dev key and no HSTS; say so once,
-            # loudly, so a green run is never mistaken for a hardened deploy.
             self.stdout.write(self.style.WARNING(
                 '  dev posture: hardening gates are off by design here. '
                 'Re-run with --as-production to see what this config would do on a public host.'
@@ -82,7 +80,6 @@ class Command(BaseCommand):
         clean = host.lstrip('.').lower()
         return any(clean == suffix.lstrip('.') or clean.endswith(suffix) for suffix in DEV_HOST_SUFFIXES)
 
-    # --- findings ----------------------------------------------------------
     def collect(self, *, production, dev=False):
         errors, warnings = [], []
         add = (lambda msg: errors.append(msg)) if production else (lambda msg: warnings.append(msg))
@@ -123,10 +120,6 @@ class Command(BaseCommand):
         elif production and not hosts:
             add('ALLOWED_HOSTS is empty — Django only tolerates that with DEBUG on.')
         elif production and all(self._is_dev_host(h) for h in hosts):
-            # Not an error: a sandbox host really is a throwaway. It is worth a
-            # line, because a deploy that only answers to *.e2b.app is either the
-            # preview box (fine) or a public box whose real host never got added
-            # (then every visitor sees DisallowedHost and the fix gets reverted).
             warnings.append(
                 'every ALLOWED_HOSTS entry is a dev/preview host '
                 f'({", ".join(sorted(hosts))}) — this process does not answer to a public hostname.'
@@ -151,8 +144,6 @@ class Command(BaseCommand):
         if not getattr(settings, 'RATELIMIT_ENABLE', True):
             add('RATELIMIT_ENABLE is off — every @ratelimit decorator is currently decorative.')
 
-        # Object storage: privacy is a private bucket + signed URLs. A custom
-        # domain turns every FileField.url into a public object.
         if getattr(settings, 'AWS_S3_CUSTOM_DOMAIN', ''):
             add('AWS_S3_CUSTOM_DOMAIN is set — django-storages emits unsigned public URLs for '
                 'every upload, including paid ZIPs.')
@@ -162,7 +153,6 @@ class Command(BaseCommand):
             add(f"AWS_DEFAULT_ACL={settings.AWS_DEFAULT_ACL!r} — canned ACLs are how the media bucket goes public.")
 
         if production and dev:
-            # Only reachable via --as-production: explains why the list is long.
             warnings.append('audited as production, but this process is a dev posture '
                             '(DEBUG=1 or DJANGO_LOCAL_DEV=1).')
         return errors, warnings

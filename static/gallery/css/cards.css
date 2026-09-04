@@ -1,10 +1,3 @@
-/* ── Shared card components ────────────────────────────────────────────
-   The feed and detail pages used to hard-code these styles inline per
-   template. This file gives them one home, theme-aware (uses the --*
-   palette from blaqvibes.css), so dark/light mode and future redesigns
-   stay consistent. */
-
-/* Feed grid card · <a class="card vibe-card"> */
 .vibe-card { display: block; color: inherit; }
 .vibe-card__body { padding: 12px; }
 .vibe-card__title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
@@ -12,7 +5,6 @@
 .vibe-card__meta a { color: var(--link); }
 .vibe-card__tags { display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
 
-/* Coloured badge variant of .badge (base is in blaqvibes.css) */
 .badge--accent { background: var(--accent-soft-bg); color: var(--accent-text); }
 .badge--success {
   background: color-mix(in srgb, var(--success-bg) 70%, transparent);
@@ -21,8 +13,6 @@
 .badge--muted { background: var(--input); border: 1px solid var(--line); color: var(--muted); }
 .badge--warning { border: 1px solid var(--warning-border); color: var(--warning-text); background: transparent; }
 
-/* Mini "app screenshot" used when a vibe has no thumbnail (feed). Themed
-   instead of the old hard-coded #fff box so it reads on the dark canvas. */
 .app-mock {
   width: 100%;
   height: 100%;
@@ -62,7 +52,6 @@
   font-size: 10px;
 }
 
-/* Browser chrome that wraps a live preview (detail page). */
 .mock-browser { display: flex; flex-direction: column; }
 .mock-browser__bar {
   height: 40px;
@@ -97,7 +86,6 @@
   display: block;
 }
 
-/* "No live preview" placeholder (detail page) — previously hard-coded white. */
 .mock-preview {
   height: 320px;
   background: var(--surface-subtle);
@@ -122,7 +110,6 @@
 }
 .mock-preview__note { font-size: 11px; color: var(--muted); margin-top: 8px; }
 
-/* Detail page: download / git clipboard bar + info panels. */
 .clipboard {
   display: flex;
   gap: 8px;
@@ -163,11 +150,10 @@
 .detail-actions .js-fork-form .btn-ghost,
 .detail-actions .js-save-form .btn-ghost { flex: 0 0 auto; }
 .detail-actions .js-copy-snippet { flex: 0 0 auto; }
-/* Primary download/CTA buttons stretch to fill the row; the rest stay
-   natural-width (star / fork / save / copy). */
+
 .detail-actions .btn-violet,
 .detail-actions .btn-ghost--success { flex: 1; justify-content: center; text-align: center; }
-/* Green call-to-action variant (Run preview / Browse files). */
+
 .btn-ghost--success {
   background: var(--success-action);
   color: var(--on-accent);
@@ -175,10 +161,8 @@
 }
 .btn-ghost--success:hover { filter: brightness(1.08); }
 
-/* Full-width primary ghost button (e.g. the secondary ZIP download). */
 .detail-actions .btn-ghost--primary { flex: 1; justify-content: center; text-align: center; }
 
-/* "Launch this vibe" callout (detail page, owner only). */
 .launch-next {
   display: flex;
   gap: 10px;
@@ -217,7 +201,6 @@
   margin-top: 2px;
 }
 
-/* Inline code command list (git push instructions). */
 .code-block {
   background: var(--surface-subtle);
   border: 1px solid var(--line);
@@ -230,7 +213,6 @@
 }
 .code-block .clipboard__cmd { display: inline; }
 
-/* Info panels on the detail page (margin-top comes from the template). */
 .detail-panel {
   margin-top: 12px;
   background: var(--bg);
@@ -252,13 +234,11 @@
 .detail-panel__head--link { color: var(--link); }
 .detail-panel__body { font-size: 12px; line-height: 1.6; margin-top: 4px; }
 
-/* Download / git card on the detail page. */
 .download-card { margin: 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 12px; padding: 12px; }
 .download-card__counts { font-size: 11px; color: var(--warning-text); }
 .git-note { font-size: 11px; font-family: JetBrains Mono, monospace; color: var(--muted); }
 .git-note a { color: var(--link); }
 
-/* Small helper widths used by the download/git rows. */
 .row { display: flex; gap: 8px; }
 .row--between { justify-content: space-between; }
 .mt-6 { margin-top: 6px; }

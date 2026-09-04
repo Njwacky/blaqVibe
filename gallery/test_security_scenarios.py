@@ -64,9 +64,6 @@ class Scenario1_PrivateProjectLeaks(TestCase):
         self._assert_hidden(body)
 
     def test_search_excludes_non_published(self):
-        # The search box echoes the query back into the page, so the *title*
-        # itself is expected in the HTML. What must never appear is the
-        # card: the slug, or a link to the vibe's detail page.
         for p in self.hidden:
             body = self.client.get(f'/?q={p.title}').content.decode()
             self.assertNotIn(p.slug, body, p.title)
@@ -152,7 +149,6 @@ class Scenario2_PullRequestLeak(TestCase):
 
     def test_pr_id_cannot_be_swapped_to_another_project(self):
         other_target = make_project(self.target_owner, self.cat, title='Other Target')
-        # Same PR id, different project: the row must not be found through it.
         self.assertEqual(
             self.client.get(f'/app/{other_target.slug}/prs/{self.pr.id}/view/').status_code, 404)
 
@@ -242,7 +238,7 @@ class Scenario3_DownloadBypass(TestCase):
         self.client.force_login(self.thief)
         response = self.client.get(
             f'/app/{self.project.slug}/versions/{version.id}/download/')
-        self.assertEqual(response.status_code, 302)  # bounced to the paywall
+        self.assertEqual(response.status_code, 302)
         self.assertIn('/app/', response.url)
 
     def test_buyer_keeps_download_while_the_vibe_is_being_rescanned(self):
@@ -260,8 +256,8 @@ class Scenario3_DownloadBypass(TestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)
         body = b''.join(response.streaming_content)
-        self.assertIn(b'index.html', body)   # the scanned version…
-        self.assertNotIn(b'evil.py', body)   # …never the unchecked one
+        self.assertIn(b'index.html', body)
+        self.assertNotIn(b'evil.py', body)
 
     def test_unscanned_bytes_are_never_served_to_a_stranger(self):
         self.project.status = 'pending'
@@ -348,8 +344,6 @@ class Scenario5_Idor(TestCase):
         for url in (f'/app/{self.alice_vibe.slug}/edit/',
                     f'/app/{self.alice_vibe.slug}/stats/'):
             self.assertEqual(self.client.get(url).status_code, 404, url)
-        # delete is POST-only: a GET is a 405 from require_POST before the
-        # view ever runs, and the POST is a 404 because the vibe isn't Bob's.
         self.assertEqual(self.client.get(f'/app/{self.alice_vibe.slug}/delete/').status_code, 405)
         self.assertEqual(self.client.post(f'/app/{self.alice_vibe.slug}/delete/').status_code, 404)
         self.assertTrue(AppProject.objects.filter(pk=self.alice_vibe.pk).exists())
@@ -432,7 +426,7 @@ class Scenario7_RoleEscalation(TestCase):
         self.user = make_user('plain')
         self.mod = make_user('mod', role='moderator')
         self.admin = make_user('admin', role='admin')
-        self.staff = make_user('staff')  # is_staff but role=user
+        self.staff = make_user('staff')
         self.staff.is_staff = True
         self.staff.save(update_fields=['is_staff'])
 
@@ -514,11 +508,11 @@ class Scenario8_EconomyRaces(TestCase):
         from gallery.economy import toggle_project_star
         self.project.stars = 0
         self.project.save(update_fields=['stars'])
-        toggle_project_star(self.buyer, self.project)   # star
-        toggle_project_star(self.buyer, self.project)   # unstar
+        toggle_project_star(self.buyer, self.project)
+        toggle_project_star(self.buyer, self.project)
         AppProject.objects.filter(pk=self.project.pk).update(stars=0)
-        toggle_project_star(self.buyer, self.project)   # star again
-        toggle_project_star(self.buyer, self.project)   # unstar again
+        toggle_project_star(self.buyer, self.project)
+        toggle_project_star(self.buyer, self.project)
         self.project.refresh_from_db()
         self.assertGreaterEqual(self.project.stars, 0)
 
@@ -581,9 +575,6 @@ class Scenario9_GitAuth(TestCase):
         self.assertEqual(response.status_code, 401)
 
     def test_unauthorized_collaborator_cannot_push(self):
-        # Wrong password -> 401 (unauthenticated). Right password for a user
-        # who is NOT the owner/co-owner -> 403: git answers "authenticated,
-        # not permitted", so the client knows not to retry credentials.
         response = self.client.get(self.repo + 'info/refs?service=git-receive-pack',
                                    **self._basic(self.other.username, 'StrongPass123!'))
         self.assertEqual(response.status_code, 403)
@@ -594,7 +585,7 @@ class Scenario9_GitAuth(TestCase):
         response = self.client.get(self.repo + 'info/refs?service=git-receive-pack',
                                    **self._basic(self.owner.username, token))
         self.assertNotEqual(response.status_code, 401)
-        self.owner.profile.rotate_git_token()  # revoked
+        self.owner.profile.rotate_git_token()
         response = self.client.get(self.repo + 'info/refs?service=git-receive-pack',
                                    **self._basic(self.owner.username, token))
         self.assertEqual(response.status_code, 401)
@@ -685,8 +676,6 @@ class Scenario10_UploadAndZipSafety(TestCase):
         vibe = make_project(make_user('snip'), make_category(), title='Snippet Vibe',
                             html_code='<script>alert(1)</script>')
         response = self.client.get(f'/app/{vibe.slug}/snippet/')
-        # Top-level access must be refused (403) rather than executing the
-        # author's JS in the site's own origin.
         self.assertEqual(response.status_code, 403)
 
     def test_uploaded_file_preview_does_not_execute(self):
@@ -731,7 +720,7 @@ class AntiAbuseRateLimitTests(TestCase):
         url = f'/app/{self.project.slug}/ai-readme/generate/'
         with mock.patch('gallery.ai_readme.generate_ai_readme', return_value='# hi'):
             last = None
-            for _ in range(11):  # rate is 10/h
+            for _ in range(11):
                 last = self.client.post(url)
             self.assertEqual(last.status_code, 403)
 

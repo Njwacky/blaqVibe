@@ -130,8 +130,6 @@ def estimate_tokens(text: str) -> int:
     plain = str(text)
     if len(plain) < LONG_INPUT_ALERT_CHARS:
         return max(1, ceil(len(plain) / _CHARS_PER_TOKEN))
-    # Long input: punishment for punctuation is meaningful because code and
-    # JSON have a much higher token-per-char ratio than prose.
     punct = len(re.findall(r'[\W_]+', plain))
     base = ceil(len(plain) / _CHARS_PER_TOKEN)
     return max(1, int(base * (1.0 + _CODE_PUNCT_WEIGHT * min(1.0, punct / max(1, len(plain))))))
@@ -162,8 +160,6 @@ def _collapse_blank_lines(text: str) -> str:
 
 
 def _compact_prose_spaces(text: str) -> str:
-    # Collapse runs of spaces to one. Do NOT touch indentation/newlines so we
-    # stay safe for code; this only runs in non-code mode on prose.
     return re.sub(r'(?<!\n)\s{2,}(?!\n)', ' ', text)
 
 
@@ -190,7 +186,6 @@ def _truncate_to_budget(text: str, max_chars: int, *, preserve_code: bool) -> st
         return text
     if preserve_code:
         cut = text[:max_chars]
-        # For code we cut on a line boundary, never inside a token.
         if '\n' in cut:
             cut = cut.rsplit('\n', 1)[0]
     else:
@@ -256,8 +251,6 @@ def optimize_prompt(
         raw = (text or '')
         raw_system = (system or '')
 
-        # Before numbers are for the input side only (output is controlled
-        # separately by max_tokens in the model call).
         before_user_tokens = estimate_tokens(raw)
         before_system_tokens = estimate_tokens(raw_system)
 
@@ -329,10 +322,6 @@ def optimize_prompt(
             'warnings': warnings,
         }
     except Exception as exc:
-        # A prompt manager must never take the chat service down. The other
-        # approach, when a transformation cannot be explained safely, is to
-        # return the original bytes with a warning and let the model call cap
-        # its own output.
         logger.exception('optimize_prompt failed: %s', exc)
         raw = text or ''
         return {

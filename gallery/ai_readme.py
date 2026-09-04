@@ -5,7 +5,6 @@ def generate_ai_readme(project):
     """Backend only, crush silently, no JS. Uses Gemini/Groq if keys, else heuristic template."""
     try:
         heuristic = f"# {project.title}\n{project.short_description}\n\n## What is this?\nThis vibe has {project.file_count} files. Tech: {project.tech_stack or '—'}.\n\n## How to Run\n```bash\npip install -r requirements.txt\npython manage.py runserver\n```\n\n## Features\n- {', '.join(list(project.language_stats.keys())[:3]) if project.language_stats else 'See file tree'}\n"
-        # Try Gemini
         gemini_key = os.getenv("GEMINI_API_KEY", "")
         if gemini_key:
             try:
@@ -19,7 +18,6 @@ def generate_ai_readme(project):
                     return txt.strip()[:5000]
             except Exception as e:
                 logger.warning(f"Gemini readme failed: {e}")
-        # Try Groq
         groq_key = os.getenv("GROQ_API_KEY", "")
         if groq_key:
             try:

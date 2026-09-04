@@ -131,19 +131,14 @@ from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
-# --- Budget & guards -------------------------------------------------------
-# One window, one counter in the cache. Per-process under locmem, shared
-# under Redis — either way the worst case is a small multiple of MAX.
 BUCKET_KEY = 'dep_check_bucket'
 BUCKET_WINDOW_SECONDS = 3600
-DEFAULT_BUDGET = 120          # registry requests per hour, env-tunable
-PER_PROJECT_CAP = 20          # names checked per upload
+DEFAULT_BUDGET = 120
+PER_PROJECT_CAP = 20
 CACHE_TTL_SECONDS = 24 * 60 * 60
 HTTP_TIMEOUT = 5
 
-# PEP 503 normalisation for PyPI names (- . _ are equivalent, case-blind).
 _PEP503 = re.compile(r'[-_.]+')
-# The "certainly a name" prefix of a requirements line.
 _REQ_NAME = re.compile(r'^([A-Za-z0-9][A-Za-z0-9._-]*)')
 
 
@@ -173,7 +168,7 @@ def _budget_spend():
         cache.set(BUCKET_KEY, raw, BUCKET_WINDOW_SECONDS)
         return raw['count'] <= _budget_max()
     except Exception:
-        return False  # broken cache → buy nothing, flag nothing
+        return False
 
 
 def _http_status(url, timeout=HTTP_TIMEOUT):
@@ -207,8 +202,8 @@ def _exists(eco, name):
     except Exception:
         pass
     status = _http_status(_registry_url(eco, name))
-    exists = status != 404          # None/200/5xx/anything → treat as real
-    offline = status is None        # network-level failure → stop the run
+    exists = status != 404
+    offline = status is None
     try:
         if not offline:
             cache.set(key, exists, CACHE_TTL_SECONDS)
@@ -217,7 +212,6 @@ def _exists(eco, name):
     return exists, offline
 
 
-# --- Manifest parsers (pure, never raise) ----------------------------------
 
 def npm_deps_from_manifest(path):
     """Dependency names from a package.json (deps, dev, peer, optional)."""
@@ -243,8 +237,8 @@ def pip_deps_from_requirements(path):
             for line in fh:
                 line = line.strip()
                 if not line or line.startswith('#') or line.startswith('-'):
-                    continue                      # blank / comment / option / -e / -r
-                line = line.split(';')[0].strip()  # drop env markers
+                    continue
+                line = line.split(';')[0].strip()
                 m = _REQ_NAME.match(line)
                 if m:
                     names.add(m.group(1))
@@ -253,7 +247,6 @@ def pip_deps_from_requirements(path):
         return []
 
 
-# --- Entry point ------------------------------------------------------------
 
 def check_dependencies(deps):
     """Existence-check a project's dependency names.
@@ -283,11 +276,9 @@ def check_dependencies(deps):
                 break
             exists, offline = _exists(eco, name)
             if offline:
-                # Circuit breaker: one network failure ends the run — a
-                # blackholed DNS must not cost 20 × timeout of queue time.
                 result['reason'] = 'offline'
                 break
-            if not exists:                      # explicit 404 only
+            if not exists:
                 result['flagged'].append(f'{eco}:{name}')
             result['checked'] += 1
         if result['reason'] == 'ok' and len(pairs) > PER_PROJECT_CAP:

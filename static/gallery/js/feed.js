@@ -1,12 +1,5 @@
-/* Feed page — hero terminal typing loop */
 const terminalBody = document.getElementById('terminalBody');
 
-/* Frosted filter bar — the .filter-bar is position: sticky, so once the page
-   scrolls far enough it pins and cards slide underneath it. The glass state
-   (.is-stuck, styled in blaqvibes.css) turns it translucent + backdrop-blurred so the content
-   passing under reads as frosted glass instead of a flat opaque slab. The
-   sticky offset differs per breakpoint (64px mobile / 12px desktop rail), so
-   read it from the computed style instead of hard-coding. */
 const filterBar = document.querySelector('.filter-bar');
 if (filterBar) {
   let ticking = false;

@@ -7,8 +7,6 @@ def extras(request):
             unread = request.user.notifications.filter(is_read=False).count()
         except Exception:
             unread = 0
-        # One count only for staff, so the nav badge is free to show. Reads
-        # an indexed row set; never performed on a public cache-key path.
         try:
             if user.profile.is_moderator():
                 from .models import AppReport
@@ -33,8 +31,6 @@ def extras(request):
         nolo_backend = configured_ai_backend()
     except Exception:
         nolo_backend = 'heuristic'
-    # Site-level toggles that every template needs (pwa_enabled for the
-    # SW registration, etc.). Read once, available everywhere.
     pwa_enabled = True
     try:
         from users.models import SiteSettings

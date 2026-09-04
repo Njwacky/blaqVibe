@@ -86,27 +86,17 @@ class Command(BaseCommand):
         out.parent.mkdir(parents=True, exist_ok=True)
         tmp = out.with_suffix(out.suffix + '.tmp')
 
-        # NAME is a Path in settings.py (BASE_DIR / 'db.sqlite3'); anything
-        # Path-like must be stringified before startswith / uri quoting.
         name = str(self.db.get('NAME', '') or '')
         if not name or name.startswith(':memory:') or name.startswith('file:'):
-            # Fail closed: an in-memory DB cannot be snapshotted from a file,
-            # and sqlite3.Connection.backup() against Django's shared-cache
-            # test connection DEADLOCKS inside an open transaction. A backup
-            # that hangs is worse than no backup — it blocks cron forever.
             raise CommandError(
                 'Cannot snapshot an in-memory SQLite database. Run the app '
                 'with a file-backed DATABASE_URL (or NAME) to use backup_db.'
             )
 
-        # Back it up through a SEPARATE read-only connection so the snapshot
-        # never shares locks with the live connection, and a backup can run
-        # while the app is writing (SQLite serializes readers, giving a
-        # consistent image via the online backup API).
         source = sqlite3.connect(f'file:{name}?mode=ro', uri=True)
         target = sqlite3.connect(tmp)
         try:
-            source.backup(target)  # consistent snapshot, safe under writes
+            source.backup(target)
         finally:
             target.close()
             source.close()

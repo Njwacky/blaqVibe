@@ -1,4 +1,3 @@
-# Real git daemon: per-user revocable git credential (hashed at rest).
 
 from django.db import migrations, models
 

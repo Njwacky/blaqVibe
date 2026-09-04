@@ -18,8 +18,6 @@ from django.conf import settings
 
 from gallery.models import AppReport, AppVersion, PullRequest, Star
 
-# Reuse the shared helpers from gallery.tests so the regression suite
-# exercises the exact same fixtures the rest of the app tests use.
 from gallery.tests import make_category, make_project, make_user, make_zip_file
 
 
@@ -30,7 +28,7 @@ class PullRequestVisibilityRegressionTests(TestCase):
     def setUp(self):
         self.cat = make_category()
         self.owner = make_user('owner')
-        self.buyer = make_user('buyer')          # fork owner / PR author
+        self.buyer = make_user('buyer')
         self.stranger = make_user('stranger')
         self.mod = make_user('mod', role='moderator')
 
@@ -92,11 +90,6 @@ class PullRequestVisibilityRegressionTests(TestCase):
         self.assertEqual(response.status_code, 200)
 
     def test_fork_network_climb_to_pending_original_404_for_stranger(self):
-        # A published fork can point at an original that has since re-queued
-        # (pending). fork_network follows the forked_from chain up to that
-        # root; a stranger must not be handed the pending original's metadata
-        # — it is the same "guessed slug must not be confirmable" rule as the
-        # direct pending-root case.
         original = make_project(self.owner, self.cat, title='Now-pending original', status='pending')
         pubfork = make_project(self.buyer, self.cat, title='Published fork',
                                forked_from=original, status='published')
@@ -126,8 +119,6 @@ class ProfileStarsVisibilityRegressionTests(TestCase):
         self.cat = make_category()
         self.owner = make_user('owner')
         self.stranger = make_user('stranger')
-        # Realistic lifecycle: the vibe was once published (so it could be
-        # starred) and has since been re-queued — status flips to 'pending'.
         self.pending = make_project(self.owner, self.cat, title='Secret pending vibe', star_cost=0)
         self.pending.zip_file.save('pending.zip', make_zip_file({'app.py': 'x=1\n'}), save=True)
         Star.objects.create(user=self.owner, project=self.pending)
@@ -189,8 +180,6 @@ class AuthRateLimitRegressionTests(TestCase):
     """Finding #2 — login and password-reset are rate-limited per IP."""
 
     def setUp(self):
-        # Hermetic locmem cache so the rate-limit counters never bleed from
-        # one machine's .env/Redis config or another test (see users/tests.py).
         self._caches = override_settings(
             RATELIMIT_ENABLE=True,
             RATELIMIT_USE_CACHE='ratelimit',
@@ -203,25 +192,17 @@ class AuthRateLimitRegressionTests(TestCase):
         self.addCleanup(self._caches.disable)
         self.addCleanup(lambda: caches['ratelimit'].clear())
         self.addCleanup(lambda: caches['default'].clear())
-        # Start from a clean counter regardless of which test ran before this
-        # class. A shared locmem LOCATION across modules can otherwise leave
-        # residue that makes the 21st post exceed the ceiling early OR the
-        # counter not reach the ceiling at all — both make the assertion flaky.
         caches['ratelimit'].clear()
         caches['default'].clear()
-        make_user('someone')  # real user so a good login is meaningful
+        make_user('someone')
 
     def test_login_post_is_rate_limited_at_20_per_minute(self):
-        # Rate is 20/m on POST only. 21 bad POSTs from one IP → 403 via
-        # handler403/safe_403 (the codebase's established block=True pattern).
         last = None
         for _ in range(21):
             last = self.client.post('/accounts/login/', {'username': 'someone', 'password': 'wrong'})
         self.assertEqual(last.status_code, 403)
 
     def test_login_get_is_not_rate_limited(self):
-        # GET must stay open so a bot cannot 403 the login form itself out
-        # from under a classroom/NAT. GET is not counted (method='POST').
         for _ in range(25):
             response = self.client.get('/accounts/login/')
             self.assertEqual(response.status_code, 200)
@@ -249,7 +230,6 @@ class CspReportRateLimitRegressionTests(TestCase):
         self.addCleanup(self._caches.disable)
         self.addCleanup(lambda: caches['ratelimit'].clear())
         self.addCleanup(lambda: caches['default'].clear())
-        # Clean counter at start (see AuthRateLimitRegressionTests).
         caches['ratelimit'].clear()
         caches['default'].clear()
 
@@ -263,7 +243,7 @@ class CspReportRateLimitRegressionTests(TestCase):
 
     def test_csp_report_flood_is_rate_limited(self):
         last = None
-        for _ in range(61):  # rate is 60/m
+        for _ in range(61):
             last = self.client.post('/csp-report/', data='{}', content_type='application/json')
         self.assertEqual(last.status_code, 403)
 
@@ -305,7 +285,6 @@ class SecureProxyHeaderDefaultsTests(SimpleTestCase):
             'DJANGO_SETTINGS_MODULE': 'blaqvibes.settings',
             'DJANGO_LOCAL_DEV': '1',
             'SECRET_KEY': 'test-secret',
-            # Neutralise the preview host so we test the flag alone.
             'E2B_SANDBOX': '0',
             'DJANGO_PREVIEW': '0',
             'DJANGO_BEHIND_TLS_PROXY': behind,

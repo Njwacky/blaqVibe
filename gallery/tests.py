@@ -36,7 +36,6 @@ def make_user(username, password='pass12345', **profile_kwargs):
         email=f'{username}@test.com',
     )
     profile = user.profile
-    # Tests model legitimate users: verified email (trading requires it).
     profile_kwargs.setdefault('email_verified', True)
     for key, value in profile_kwargs.items():
         setattr(profile, key, value)
@@ -335,8 +334,6 @@ class RemainingHoleTests(TestCase):
         self.assertEqual(pr.status, 'merged')
         self.assertTrue(self.project.files.filter(path='new.py').exists())
         versions_after_first_merge = self.project.versions.count()
-        # A replay of a completed PR must not create another snapshot or
-        # re-queue/overwrite the target.
         response = self.client.post(f'/app/{self.project.slug}/prs/{pr.id}/', {'action': 'merge'})
         self.assertEqual(response.status_code, 302)
         self.assertEqual(self.project.versions.count(), versions_after_first_merge)
@@ -419,8 +416,8 @@ class StarsEconomyTests(TestCase):
         self.client.post(f'/app/{self.project.slug}/star/')
         self.owner.profile.refresh_from_db()
         self.project.refresh_from_db()
-        self.assertEqual(self.owner.profile.stars_balance, 5)  # wallet untouched
-        self.assertEqual(self.project.stars, 1)                # reputation moved
+        self.assertEqual(self.owner.profile.stars_balance, 5)
+        self.assertEqual(self.project.stars, 1)
         self.client.post(f'/app/{self.project.slug}/star/')
         self.owner.profile.refresh_from_db()
         self.project.refresh_from_db()
@@ -432,11 +429,10 @@ class StarsEconomyTests(TestCase):
         from users.models import StarEvent
         self.client.login(username='buyer', password='pass12345')
         for _ in range(3):
-            self.client.post(f'/app/{self.project.slug}/star/')   # star
-            self.client.post(f'/app/{self.project.slug}/star/')   # unstar
+            self.client.post(f'/app/{self.project.slug}/star/')
+            self.client.post(f'/app/{self.project.slug}/star/')
         self.owner.profile.refresh_from_db()
         self.assertEqual(self.owner.profile.stars_balance, 5)
-        # And no ledger rows were written for any of it.
         self.assertFalse(
             StarEvent.objects.filter(user=self.owner).exclude(reason='welcome').exists()
         )
@@ -458,7 +454,6 @@ class StarsEconomyTests(TestCase):
         """sum(StarEvent.delta) == stars_balance must hold after a trade."""
         from users.models import StarEvent
         from users.wallet import ledger_balance
-        # Give the test wallets matching opening rows so the invariant holds.
         StarEvent.objects.create(user=self.buyer, delta=10, reason='admin_adjust', ref='test-open')
         StarEvent.objects.create(user=self.owner, delta=5, reason='admin_adjust', ref='test-open')
         self.client.login(username='buyer', password='pass12345')
@@ -697,8 +692,6 @@ class PromptEconomyTests(SimpleTestCase):
         self.assertTrue(plan['user_truncated'])
         self.assertLessEqual(len(plan['text']), 500)
         if plan['text']:
-            # The cut must be on a line boundary, so the retained text keeps
-            # complete lines rather than half a token.
             self.assertGreaterEqual(plan['text'].count('\n'), 1)
 
     def test_should_enable_prefix_cache_only_for_large_prefix(self):
@@ -709,8 +702,6 @@ class PromptEconomyTests(SimpleTestCase):
     def test_optimize_prompt_fallback_keeps_text_when_transform_fails(self):
         from unittest.mock import patch
         from gallery.prompt_economy import optimize_prompt
-        # Force the internal helper to explode; optimization must degrade to the
-        # original bytes rather than raise.
         with patch('gallery.prompt_economy._strip_crlf', side_effect=RuntimeError('boom')):
             plan = optimize_prompt('keep me   safe', user_budget_chars=300)
         self.assertEqual(plan['text'], 'keep me   safe')
@@ -1137,7 +1128,7 @@ class LaunchGuideTests(TestCase):
             with self.subTest(slug=guide['slug']):
                 raw = guide.get('last_reviewed', '')
                 self.assertTrue(raw, f'{guide["slug"]} has no last_reviewed')
-                date.fromisoformat(raw)  # raises on garbage
+                date.fromisoformat(raw)
 
     def test_guide_pages_expose_review_status(self):
         from gallery.launch_views import _review_status
@@ -1238,7 +1229,7 @@ class ComparisonMatrixTests(TestCase):
     def test_enrich_skips_malformed_guides_without_crashing(self):
         """A guide dict missing fields the template needs must be skipped, not fatal."""
         from gallery.comparison import enrich_comparison_groups
-        guide_by_slug = {'cloudflare-pages': {'icon': 'only-icon.svg'}}  # no slug/name/pace
+        guide_by_slug = {'cloudflare-pages': {'icon': 'only-icon.svg'}}
         groups = enrich_comparison_groups(guide_by_slug)
         self.assertEqual(sum(len(x['rows']) for x in groups), 0)
 
@@ -1310,7 +1301,6 @@ class FrameworkCommandTests(TestCase):
         slugs = [e['slug'] for e in matched]
         self.assertIn('django', slugs)
         self.assertIn('fastapi', slugs)
-        # Never empty
         self.assertTrue(matched)
 
     def test_unmatched_guide_falls_back_to_full_table(self):
@@ -1734,7 +1724,6 @@ class WelcomeGrantTests(TestCase):
         user.profile.refresh_from_db()
         self.assertEqual(user.profile.stars_balance, WELCOME_STARS)
         self.assertEqual(StarEvent.objects.filter(user=user, reason='welcome').count(), 1)
-        # Replaying the link never pays twice.
         token2 = default_token_generator.make_token(user)
         self.client.get(f'/accounts/verify/{uid}/{token2}/')
         user.profile.refresh_from_db()
@@ -1781,15 +1770,12 @@ class DeleteLifecycleTests(TestCase):
         self.client.post(f'/app/{self.project.slug}/delete/')
         self.project.refresh_from_db()
         self.assertEqual(self.project.status, 'removed')
-        # Receipt survives.
         self.assertTrue(Trade.objects.filter(buyer=self.buyer, project=self.project).exists())
-        # Buyer still downloads.
         self.client.logout()
         self.client.login(username='buyer', password='pass12345')
         download = self.client.get(f'/app/{self.project.slug}/download/')
         self.assertEqual(download.status_code, 200)
         self.assertEqual(download['Content-Type'], 'application/zip')
-        # But the public page is gone.
         page = self.client.get(f'/app/{self.project.slug}/')
         self.assertEqual(page.status_code, 404)
 
@@ -1829,7 +1815,6 @@ class DeleteLifecycleTests(TestCase):
         self.project.refresh_from_db()
         self.assertEqual(self.project.owner.username, GHOST_USERNAME)
         self.assertEqual(self.project.status, 'removed')
-        # Buyer keeps the download; the receipt names a NULL seller now.
         trade = Trade.objects.get(buyer=self.buyer, project=self.project)
         self.assertIsNone(trade.seller)
         self.client.login(username='buyer', password='pass12345')
@@ -2033,9 +2018,6 @@ class ChallengeBountyLedgerTests(TestCase):
         ).exists())
 
 
-# ===========================================================================
-# Program-kind classification, honest previews, appeal scoring, taste feed.
-# ===========================================================================
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class TaxonomyTests(TestCase):
@@ -2263,8 +2245,8 @@ class ClassifyTests(TestCase):
         self.assertEqual(parsed['kind'], 'other')
         parsed = _parse_llm_json('sure! {"kind": "Games", "confidence": 2, "appeal": 500}')
         self.assertEqual(parsed['kind'], 'game')
-        self.assertEqual(parsed['confidence'], 1.0)   # clamped
-        self.assertEqual(parsed['appeal'], 100.0)     # clamped
+        self.assertEqual(parsed['confidence'], 1.0)
+        self.assertEqual(parsed['appeal'], 100.0)
 
     def test_llm_budget_caps_calls_per_minute(self):
         """The flood guard: a spam wave cannot fan out into unbounded calls."""
@@ -2475,7 +2457,6 @@ class TasteLearningTests(TestCase):
         from gallery import taste
         api = self._project('api_backend', 'Boring API')
         game = self._project('game', 'Fun game')
-        # Make the game objectively *less* appealing so only taste can lift it.
         AppProject.objects.filter(pk=api.pk).update(appeal_score=80)
         AppProject.objects.filter(pk=game.pk).update(appeal_score=50)
 
@@ -2689,7 +2670,7 @@ class KindApiTests(TestCase):
         AppProject.objects.filter(pk=project.pk).update(kind='game', preview_mode='files')
         data = json.loads(self.client.get('/api/v1/apps/').content)
         row = data['results'][0]
-        self.assertEqual(row['kind'], 'snippet')          # legacy meaning intact
+        self.assertEqual(row['kind'], 'snippet')
         self.assertEqual(row['program_kind'], 'game')
         self.assertEqual(row['preview'], 'files')
         self.assertFalse(row['can_run_preview'])
@@ -2872,10 +2853,9 @@ class CoOwnerSplitTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.owner.profile.refresh_from_db()
         self.buyer.profile.refresh_from_db()
-        self.assertEqual(self.owner.profile.stars_balance, 9)   # 5 + 4
-        self.assertEqual(self.buyer.profile.stars_balance, 6)   # 10 - 4
+        self.assertEqual(self.owner.profile.stars_balance, 9)
+        self.assertEqual(self.buyer.profile.stars_balance, 6)
         self.assertEqual(Trade.objects.filter(buyer=self.buyer, project=self.project).count(), 1)
-        # Buyer still unlocks the ZIP.
         download = self.client.get(f'/app/{self.project.slug}/download/')
         self.assertEqual(download.status_code, 200)
 
@@ -2886,13 +2866,12 @@ class CoOwnerSplitTests(TestCase):
         self.owner.profile.refresh_from_db()
         self.partner.profile.refresh_from_db()
         self.buyer.profile.refresh_from_db()
-        self.assertEqual(self.owner.profile.stars_balance, 7)    # 5 + 2
-        self.assertEqual(self.partner.profile.stars_balance, 2)  # 0 + 2
-        self.assertEqual(self.buyer.profile.stars_balance, 6)    # 10 - 4
+        self.assertEqual(self.owner.profile.stars_balance, 7)
+        self.assertEqual(self.partner.profile.stars_balance, 2)
+        self.assertEqual(self.buyer.profile.stars_balance, 6)
         rows = list(Trade.objects.filter(buyer=self.buyer, project=self.project))
         self.assertEqual(len(rows), 2)
-        self.assertEqual(sum(r.cost for r in rows), 4)           # zero-sum
-        # Replay must not pay twice.
+        self.assertEqual(sum(r.cost for r in rows), 4)
         self._trade()
         self.assertEqual(Trade.objects.filter(buyer=self.buyer, project=self.project).count(), 2)
         self.owner.profile.refresh_from_db()
@@ -2915,9 +2894,6 @@ class CoOwnerSplitTests(TestCase):
             sorted(r.cost for r in rows), [1, 2, 2],
             f'largest-remainder must hit 2/2/1, got {sorted(r.cost for r in rows)}',
         )
-        # Every wallet reconciles with its ledger — the zero-sum invariant.
-        # (Opening admin_adjust rows mirror the balances make_user set
-        # directly, so sum(deltas) == balance holds before and after.)
         from users.models import StarEvent
         from users.wallet import ledger_balance
         openings = {self.owner: 5, self.partner: 0, self.partner2: 0}
@@ -2936,7 +2912,7 @@ class CoOwnerSplitTests(TestCase):
         self.assertEqual(sorted(r.cost for r in rows), [2, 2])
         self.assertFalse(Trade.objects.filter(buyer=self.buyer, seller=self.owner).exists())
         self.owner.profile.refresh_from_db()
-        self.assertEqual(self.owner.profile.stars_balance, 5)  # untouched
+        self.assertEqual(self.owner.profile.stars_balance, 5)
 
     def test_management_rejects_sum_over_100(self):
         ProjectCoOwner.objects.create(project=self.project, user=self.partner, share_percent=70)
@@ -2951,9 +2927,9 @@ class CoOwnerSplitTests(TestCase):
         self.client.login(username='owner', password='pass12345')
         ProjectCoOwner.objects.create(project=self.project, user=self.partner, share_percent=30)
         url = f'/app/{self.project.slug}/co-owners/add/'
-        self.client.post(url, {'username': 'owner', 'share_percent': 10})       # owner is the remainder
-        self.client.post(url, {'username': 'partner', 'share_percent': 10})     # duplicate
-        self.client.post(url, {'username': 'nobody-here', 'share_percent': 10}) # unknown
+        self.client.post(url, {'username': 'owner', 'share_percent': 10})
+        self.client.post(url, {'username': 'partner', 'share_percent': 10})
+        self.client.post(url, {'username': 'nobody-here', 'share_percent': 10})
         self.assertEqual(ProjectCoOwner.objects.filter(project=self.project).count(), 1)
 
     def test_add_remove_flow_and_notification(self):
@@ -2963,13 +2939,12 @@ class CoOwnerSplitTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertTrue(ProjectCoOwner.objects.filter(project=self.project, user=self.partner, share_percent=50).exists())
         self.assertTrue(Notification.objects.filter(user=self.partner, kind='co_owner').exists())
-        # Remove — share returns to the owner.
         response = self.client.post(f'/app/{self.project.slug}/co-owners/{self.partner.id}/remove/')
         self.assertEqual(response.status_code, 302)
         self.assertFalse(ProjectCoOwner.objects.filter(project=self.project, user=self.partner).exists())
         self._trade()
         self.owner.profile.refresh_from_db()
-        self.assertEqual(self.owner.profile.stars_balance, 9)  # full 4 back to owner
+        self.assertEqual(self.owner.profile.stars_balance, 9)
 
     def test_non_owner_cannot_manage(self):
         self.client.login(username='partner', password='pass12345')
@@ -2982,11 +2957,11 @@ class CoOwnerSplitTests(TestCase):
     def test_co_owner_account_deletion_cascades_share_back(self):
         ProjectCoOwner.objects.create(project=self.project, user=self.partner, share_percent=50)
         partner_id = self.partner.pk
-        self.partner.delete()  # leaves the platform; pk becomes None afterwards
+        self.partner.delete()
         self.assertFalse(ProjectCoOwner.objects.filter(project=self.project, user_id=partner_id).exists())
         self._trade()
         rows = list(Trade.objects.filter(buyer=self.buyer, project=self.project))
-        self.assertEqual(len(rows), 1)  # only the owner is left
+        self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0].cost, 4)
         self.owner.profile.refresh_from_db()
         self.assertEqual(self.owner.profile.stars_balance, 9)
@@ -3009,12 +2984,6 @@ class CoOwnerSplitTests(TestCase):
         self.assertIn('2 ★', partner_note.title)
 
 
-# ==========================================================================
-# Trust badge — the pipeline-written public verdict (gallery.trust).
-# Every guarantee of the badge's 5 Whys has a test here: the writer rule,
-# the reset rule, the unfakeable rule, the capped ranking boost, and the
-# "nobody gets robbed" story.
-# ==========================================================================
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class TrustBadgeTests(TestCase):
     def setUp(self):
@@ -3030,7 +2999,6 @@ class TrustBadgeTests(TestCase):
             'dep_audit': {'ran': True, 'reason': 'ok'},
         }
 
-    # ---- pure grading ---------------------------------------------------
     def test_clean_zip_project_grades_verified(self):
         from gallery.trust import trust_grade, TRUST_VERIFIED
         p = make_project(self.owner, self.cat,
@@ -3049,7 +3017,7 @@ class TrustBadgeTests(TestCase):
 
     def test_legacy_report_without_dep_evidence_is_not_verified(self):
         from gallery.trust import trust_grade, TRUST_SCANNED
-        report = {'clamav': 'clean', 'secrets': []}  # pre-badge row
+        report = {'clamav': 'clean', 'secrets': []}
         p = make_project(self.owner, self.cat,
                          zip_file=make_zip_file({'index.html': 'x'}),
                          scan_report=report)
@@ -3110,10 +3078,9 @@ class TrustBadgeTests(TestCase):
     def test_grade_is_pure_and_never_raises(self):
         from gallery.trust import trust_grade, TRUST_UNKNOWN
         from types import SimpleNamespace
-        broken = SimpleNamespace(status=None)  # no slug, no scan_report
+        broken = SimpleNamespace(status=None)
         self.assertEqual(trust_grade(broken), TRUST_UNKNOWN)
 
-    # ---- the writer rule -------------------------------------------------
     def test_apply_trust_grade_writes_and_stamps(self):
         from gallery.trust import apply_trust_grade, TRUST_VERIFIED
         p = make_project(self.owner, self.cat,
@@ -3132,16 +3099,12 @@ class TrustBadgeTests(TestCase):
         from django.utils import timezone
         from datetime import timedelta
         p = make_project(self.owner, self.cat, scan_report=self._clean_zip_report())
-        p.trust_graded_at = timezone.now() + timedelta(hours=1)  # future stamp
+        p.trust_graded_at = timezone.now() + timedelta(hours=1)
         p.save()
         written = apply_trust_grade(p)
-        self.assertEqual(written, TRUST_UNKNOWN)  # refused, current value kept
+        self.assertEqual(written, TRUST_UNKNOWN)
 
-    # ---- the pipeline end to end ----------------------------------------
     def test_publish_flow_grades_a_clean_snippet_verified(self):
-        # The publish view trusts snippets from creators with >=3 published
-        # vibes (same precondition as PublishClassificationTests); newer
-        # creators' snippets wait for human review.
         for i in range(3):
             make_project(self.owner, self.cat, title=f'Prior vibe {i}')
         data = {
@@ -3168,7 +3131,7 @@ class TrustBadgeTests(TestCase):
         held = make_project(self.owner, self.cat, title='Held snippet',
                             status='pending', html_code='<p>ok</p>', js_code='let x = 1;')
         from gallery.trust import snippet_evidence
-        snippet_evidence(held)  # what the publish view ran before queueing
+        snippet_evidence(held)
         self.client.force_login(mod)
         response = self.client.post(f'/moderation/{held.slug}/', {'action': 'approve'}, follow=True)
         self.assertEqual(response.status_code, 200)
@@ -3186,7 +3149,6 @@ class TrustBadgeTests(TestCase):
         self.assertEqual(p.status, 'pending')
         self.assertEqual(p.trust, 'unknown')
 
-    # ---- the reset rule (nobody gets robbed) -----------------------------
     def test_content_change_resets_a_verified_badge(self):
         """The bait-and-switch defence: a buyer traded for a ✓ vibe, the
         owner then swaps the bytes — the badge must drop before any buyer
@@ -3196,7 +3158,7 @@ class TrustBadgeTests(TestCase):
                          zip_file=make_zip_file({'index.html': 'x'}),
                          scan_report=self._clean_zip_report())
         self.assertEqual(apply_trust_grade(p), 'verified')
-        invalidate_trust(p)  # what edit_vibe / git push / PR merge call
+        invalidate_trust(p)
         p.refresh_from_db()
         self.assertEqual(p.trust, 'unknown')
 
@@ -3211,7 +3173,6 @@ class TrustBadgeTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, '✓ Checked')
 
-    # ---- the unfakeable rule ----------------------------------------------
     def test_publish_form_has_no_trust_field(self):
         self.assertNotIn('trust', AppUploadForm.base_fields)
 
@@ -3233,11 +3194,6 @@ class TrustBadgeTests(TestCase):
         self.assertEqual(response.status_code, 200)
         p = AppProject.objects.get(title='Spoof attempt')
         p.refresh_from_db()
-        # The POSTed tier can never land — that is the whole point of the
-        # test. What replaced it: a snippet whose code matches a secret
-        # pattern is HELD for review rather than published with a lower
-        # tier, so the verdict is 'unknown' (a pending row is never
-        # badged) and the creator is told what to remove.
         self.assertNotEqual(p.trust, 'verified')
         self.assertIn(p.trust, ('unknown', 'scanned'))
         self.assertEqual(p.status, 'pending')
@@ -3256,7 +3212,6 @@ class TrustBadgeTests(TestCase):
         self.assertEqual(row['trust_label'], 'Checked')
         self.assertNotIn('scan_report', row)
 
-    # ---- presentation table ------------------------------------------------
     def test_meta_table_covers_exactly_the_tiers(self):
         from gallery.trust import TRUST_META, TRUST_TIERS
         field_choices = {c[0] for c in AppProject._meta.get_field('trust').choices}
@@ -3266,7 +3221,7 @@ class TrustBadgeTests(TestCase):
     def test_reasons_are_fixed_strings_and_never_leak_filenames(self):
         from gallery.trust import trust_reasons
         report = self._clean_zip_report()
-        report['secrets'] = ['supersecretfile.py']  # must NOT reach the page
+        report['secrets'] = ['supersecretfile.py']
         p = make_project(self.owner, self.cat,
                          zip_file=make_zip_file({'a': 'b'}), scan_report=report)
         reasons = trust_reasons(p)
@@ -3276,15 +3231,14 @@ class TrustBadgeTests(TestCase):
         self.assertNotIn('.py', joined)
         for r in reasons:
             self.assertIn(r['ok'], (True, False))
-            self.assertTrue(r['detail'])  # every row says something safe
+            self.assertTrue(r['detail'])
 
-    # ---- ranking: reorder equals, never buy rank ---------------------------
     def test_verified_boosts_identical_content(self):
         from gallery.interest import compute_appeal
         from gallery.trust import TRUST_VERIFIED, trust_multiplier
         base = make_project(self.owner, self.cat, title='Base', scan_report={})
         verified = make_project(self.owner, self.cat, title='Boosted',
-                                scan_report={})  # identical in every way
+                                scan_report={})
         verified.trust = TRUST_VERIFIED
         self.assertAlmostEqual(
             compute_appeal(verified) / compute_appeal(base),
@@ -3306,7 +3260,6 @@ class TrustBadgeTests(TestCase):
         strong.trust = 'unknown'
         self.assertGreater(compute_appeal(strong), compute_appeal(weak))
 
-    # ---- the public read ----------------------------------------------------
     def test_trust_legend_page_renders(self):
         response = self.client.get('/trust/')
         self.assertEqual(response.status_code, 200)
@@ -3325,18 +3278,12 @@ class TrustBadgeTests(TestCase):
         self.assertContains(detail, 'What does this mean?')
 
 
-# ==========================================================================
-# Slopsquatting check (gallery.dep_check) + the "Checked only" feed filter.
-# The registry check flags AI-invented package names; the filter lets a
-# buyer browse only what the pipeline verified.
-# ==========================================================================
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class DepCheckTests(TestCase):
     def setUp(self):
         from django.core.cache import cache
         cache.clear()
 
-    # ---- pure parsers -----------------------------------------------------
     def test_npm_manifest_parser_reads_every_dependency_section(self):
         from gallery.dep_check import npm_deps_from_manifest
         import json, tempfile, os
@@ -3384,7 +3331,6 @@ class DepCheckTests(TestCase):
         finally:
             os.unlink(path)
 
-    # ---- registry lookups: cache, verdicts, breaker ------------------------
     def test_registry_results_are_cached_per_name(self):
         from gallery import dep_check
         calls = []
@@ -3398,7 +3344,7 @@ class DepCheckTests(TestCase):
 
     def test_only_an_explicit_404_counts_as_missing(self):
         from gallery import dep_check
-        for status in (200, 500, 403, None):  # None = network failure
+        for status in (200, 500, 403, None):
             with mock.patch.object(dep_check, '_http_status', return_value=status):
                 exists, offline = dep_check._exists('npm', f'pkg-{status}')
                 self.assertTrue(exists, f'status {status} must not flag')
@@ -3451,7 +3397,6 @@ class DepCheckTests(TestCase):
         out = dep_check.check_dependencies({'npm': [], 'pip': []})
         self.assertEqual(out['reason'], 'no_deps')
 
-    # ---- end to end through the real scan task -----------------------------
     def _fake_status(self, url, timeout=5):
         return 404 if ('not-a-real-pkg-zzz' in url or 'fake-pkg-abc' in url) else 200
 
@@ -3471,11 +3416,9 @@ class DepCheckTests(TestCase):
         p.refresh_from_db()
         self.assertEqual(p.scan_report.get('unknown_deps'), ['npm:fake-pkg-abc'])
         self.assertEqual(p.scan_report.get('dep_exist_check', {}).get('reason'), 'ok')
-        # The row is still pending (finalize publishes it), and pending rows
-        # are 'unknown' by design — the cap shows once it publishes:
         p.status = 'published'
         p.save(update_fields=['status'])
-        self.assertEqual(trust_grade(p), 'scanned')  # capped — the badge reacts
+        self.assertEqual(trust_grade(p), 'scanned')
 
     def test_vuln_scan_flags_a_fake_pip_dependency(self):
         from gallery import dep_check
@@ -3491,7 +3434,7 @@ class DepCheckTests(TestCase):
             vulnerability_scan.run(project_id=p.id)
         p.refresh_from_db()
         self.assertEqual(p.scan_report.get('unknown_deps'), ['pip:not-a-real-pkg-zzz'])
-        p.status = 'published'  # pending rows are 'unknown' by design
+        p.status = 'published'
         p.save(update_fields=['status'])
         joined = ' '.join(r['detail'] for r in trust_reasons(p))
         self.assertIn('possible fake package', joined)
@@ -3545,10 +3488,10 @@ class TrustFilterTests(TestCase):
         """Nothing verified → the filter shows an EMPTY grid, not a quiet
         refill with unverified vibes. Absence is the honest answer."""
         from gallery.trust import invalidate_trust
-        invalidate_trust(self.verified)  # nothing verified anymore
+        invalidate_trust(self.verified)
         response = self.client.get('/', {'trust': 'verified', 'q': ''})
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Publish your first vibe')  # empty state
+        self.assertContains(response, 'Publish your first vibe')
         self.assertNotContains(response, 'FilterVerifiedOne')
         self.assertNotContains(response, 'FilterUnknownOne')
 
@@ -3574,11 +3517,6 @@ class TrustFilterTests(TestCase):
         self.assertIn(self.unknown.slug, slugs)
 
 
-# ==========================================================================
-# Marketing copy — the three promises on the feed (value strip, hero stat,
-# meta description, footer). Every claim is pinned to something the code
-# really does: a claim that stops being true is a bug, not marketing.
-# ==========================================================================
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class MarketingCopyTests(TestCase):
     """Each test names the feature that makes the claim true."""
@@ -3590,14 +3528,13 @@ class MarketingCopyTests(TestCase):
         self.owner = make_user('marketer')
 
     def test_value_strip_promises_render_and_link_the_standard(self):
-        # "Scanned before the feed" is true: gallery.trust + the scan chain.
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '🛡️ Scanned before the feed')
-        self.assertContains(response, 'Read the standard →')      # /trust/ link
-        self.assertContains(response, '★ Stars never expire')     # ledger, no expiry
-        self.assertContains(response, '🇿🇦 Priced in Rands')      # price_zar + payouts
-        self.assertContains(response, '10 ★ = R1')                # economy.py rate
+        self.assertContains(response, 'Read the standard →')
+        self.assertContains(response, '★ Stars never expire')
+        self.assertContains(response, '🇿🇦 Priced in Rands')
+        self.assertContains(response, '10 ★ = R1')
 
     def test_logged_in_users_still_see_the_promises(self):
         self.client.force_login(self.owner)
@@ -3610,7 +3547,6 @@ class MarketingCopyTests(TestCase):
         self.assertContains(response, 'Every vibe is scanned before it reaches your feed')
 
     def test_footer_carries_the_promises_on_every_page(self):
-        # Any page inheriting base.html — the legend page is a cheap proxy.
         response = self.client.get('/trust/')
         self.assertContains(response, '★ Stars never expire')
 
@@ -3619,10 +3555,8 @@ class MarketingCopyTests(TestCase):
         constants — if the economy ever changes, this breaks BEFORE the
         marketing lies."""
         from users.models import MIN_PAYOUT_STARS, MAX_PAYOUT_STARS
-        self.assertEqual(MIN_PAYOUT_STARS, 500)          # "min 500 ★" on the feed
-        self.assertEqual(MAX_PAYOUT_STARS, 50000)        # R5 000 cap, human-sized EFT
-        # 500 ★ = R50 (the comment on MIN_PAYOUT_STARS) ⇒ 10 ★ = R1,
-        # exactly the rate the value strip states.
+        self.assertEqual(MIN_PAYOUT_STARS, 500)
+        self.assertEqual(MAX_PAYOUT_STARS, 50000)
         self.assertEqual(MIN_PAYOUT_STARS // 50, 10)
 
 
@@ -3651,8 +3585,6 @@ class CredentialFileBlockTests(TestCase):
             validate_zip(upload)
 
     def test_env_example_is_still_allowed(self):
-        # The blocklist must not become so broad that a documented example file
-        # (which is how a project tells you WHICH secrets to set) gets rejected.
         validate_zip(make_zip_file({'app.py': 'print(1)\n', '.env.example': 'API_KEY=\n'}))
 
     def test_extract_gate_refuses_them_too(self):
@@ -3660,9 +3592,6 @@ class CredentialFileBlockTests(TestCase):
         import shutil
         import tempfile
         from gallery.validators import safe_extract_zip
-        # `.npmrc` FIRST on purpose: extraction writes member by member, so an
-        # ordering that put the good file before the refusal would write it. The
-        # promise under test is 'the blocked file never reaches the disk'.
         raw = make_zip_bytes({'.npmrc': 'registry=http://attacker\n', 'app.py': 'print(1)\n'})
         tmp = tempfile.mkdtemp()
         dest = os.path.join(tmp, 'out')
@@ -3700,8 +3629,6 @@ class DependencyAuditIsolationTests(TestCase):
                     'numpy==1.26.4 ; python_version>="3.9"',
                 ]))
             self.assertEqual(safe_pip_pins(path), ['requests==2.31.0', 'numpy==1.26.4'])
-            # A manifest made only of directives yields NO pins: the audit is then
-            # reported as not-run instead of silently 'clean'.
             with open(path, 'w') as fh:
                 fh.write('--index-url http://attacker/simple\n-e .\n')
             self.assertIsNone(safe_pip_pins(path))
@@ -3760,7 +3687,6 @@ class DependencyAuditIsolationTests(TestCase):
                            'PAYSTACK_SECRET_KEY', 'ANTHROPIC_API_KEY', 'SENTRY_DSN'):
                 self.assertNotIn(secret, env)
             self.assertTrue(env['HOME'].startswith(cwd) or os.path.realpath(root) != env['HOME'])
-            # and the honesty contract: no tool means not-run, never 'audited'.
             self.assertFalse(outcome['dep_audit']['ran'])
 
     def test_npm_without_lockfile_is_not_audited(self):
@@ -3811,9 +3737,6 @@ class LocalDevPostureTests(SimpleTestCase):
         for key, value in env.items():
             if value is None:
                 child.pop(key, None)
-        # CI exports DJANGO_TEST=1 for the whole job. This test asks what a plain
-        # process decides, so the test-runner hint has to leave the environment —
-        # otherwise every case here would read as dev posture and prove nothing.
         child.pop('DJANGO_TEST', None)
         child.setdefault('SECRET_KEY', 'x' * 60)
         code = 'import blaqvibes.settings as s; print(f"{int(s.LOCAL_DEV)}{int(s.DEBUG)}")'
@@ -3830,8 +3753,6 @@ class LocalDevPostureTests(SimpleTestCase):
         self.assertEqual(self._posture(DEBUG='1', VIRTUAL_ENV=None, DJANGO_LOCAL_DEV=None), '11')
 
     def test_the_explicit_flag_beats_debug(self):
-        # `DJANGO_LOCAL_DEV=0` is an operator saying "this box faces the public
-        # internet" — the venv heuristic used to outrank exactly that.
         self.assertEqual(self._posture(DEBUG='1', DJANGO_LOCAL_DEV='0'), '01')
 
     def test_the_explicit_flag_turns_dev_mode_on_without_debug(self):
@@ -3895,9 +3816,6 @@ class SecurityCheckCommandTests(SimpleTestCase):
         self.assertIn('SEED_DEMO', output)
 
     def test_dev_posture_warns_but_never_blocks(self):
-        # A dev box carries the dev key and no HSTS by design; the command must
-        # say so out loud (so a green run is not mistaken for a hardened deploy)
-        # while still exiting 0.
         failed, output = self._run(DEBUG=True, LOCAL_DEV=True, SECURE_SSL_REDIRECT=False,
                                    SECURE_HSTS_SECONDS=0, X_FRAME_OPTIONS='SAMEORIGIN',
                                    SESSION_COOKIE_SECURE=False, CSRF_COOKIE_SECURE=False,

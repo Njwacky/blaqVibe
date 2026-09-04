@@ -1,5 +1,3 @@
-/* Publish pages (wizard + side panel layout) */
-
 .step {
   width: 32px;
   height: 32px;
@@ -33,8 +31,6 @@ input[type="checkbox"] {
   width: auto;
 }
 
-/* Desktop has the left sidebar (no top bar), so the workspace fills the full
-   viewport height; on mobile the sticky top nav (~64px) sits above it. */
 .publish-shell {
   display: grid;
   grid-template-columns: 240px 1fr 320px;

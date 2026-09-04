@@ -4,7 +4,6 @@ from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils.text import slugify
 
-# Price ceilings — see the 5 Whys on AppProject.star_cost.
 MAX_STAR_COST = 5
 MAX_PRICE_ZAR = 9999
 
@@ -37,10 +36,6 @@ class Tag(models.Model):
     def __str__(self): return self.name
 
 class AppProject(models.Model):
-    # 'removed' is the soft-delete state: gone from feed/search/detail for
-    # strangers, but buyers who paid (Trade/Sale) keep their download.
-    # 5 Whys: Why a status, not a boolean? The status field already gates
-    # every list and view — one more state rides every existing filter.
     STATUS_CHOICES = [
         ('pending','Pending Scan/Review'),
         ('published','Published'),
@@ -66,20 +61,7 @@ class AppProject(models.Model):
     thumbnail = models.ImageField(upload_to='thumbnails/', blank=True, null=True)
     file_tree = models.JSONField(default=dict, blank=True)
     file_count = models.PositiveIntegerField(default=0)
-    language_stats = models.JSONField(default=dict, blank=True)  # {'Python':68,'JavaScript':22}
-    # Price caps are MODEL validators, not widget attributes. 5 Whys:
-    # 1. Why cap at all? `max=5` on the HTML widget is decoration — a stray
-    #    digit in a crafted POST (or a typo in a script) used to store
-    #    9999 ★ and the vibe became permanently unbuyable.
-    # 2. Why a model validator and not a form-only check? Every writer
-    #    (publish form, edit form, admin, a future API) goes through
-    #    full_clean() or the ModelForm, so one declaration guards them all.
-    # 3. Why 5? The published tiers are Bronze 1 / Silver 3 / Gold 5; the
-    #    whole UI and the copy ("0=free, 2=Bronze") are written against them.
-    # 4. Why 9999 ZAR and not a smaller ceiling? It is a sane upper bound for
-    #    an indie vibe, and Paystack's own limits apply long before ours.
-    # 5. Why not silently clamp? A clamped price hides a mistake the creator
-    #    still believes they set. Rejecting is honest and reversible.
+    language_stats = models.JSONField(default=dict, blank=True)
     star_cost = models.PositiveIntegerField(
         default=0,
         validators=[MaxValueValidator(MAX_STAR_COST)],
@@ -92,8 +74,8 @@ class AppProject(models.Model):
     )
     ai_readme = models.TextField(blank=True, help_text="AI-generated README, backend only")
     forked_from = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='forks')
-    scan_report = models.JSONField(default=dict, blank=True)  # backend only, never sent raw to JS
-    avg_rating = models.FloatField(default=0)  # cached from Reviews
+    scan_report = models.JSONField(default=dict, blank=True)
+    avg_rating = models.FloatField(default=0)
     review_count = models.PositiveIntegerField(default=0)
     views = models.PositiveIntegerField(default=0)
     clones = models.PositiveIntegerField(default=0)
@@ -101,18 +83,6 @@ class AppProject(models.Model):
     stars = models.PositiveIntegerField(default=0)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     is_featured = models.BooleanField(default=False)
-    # --- What kind of program is this? -----------------------------------
-    # 5 Whys: Why store the kind instead of deriving it per request?
-    # 1. Discovery has to FILTER and SORT on it; a Python-derived value
-    #    cannot be a WHERE clause or an ORDER BY.
-    # 2. Deriving it means re-reading the file list for every card on every
-    #    page view — 12 extra queries per feed page, forever.
-    # 3. The classifier may call an LLM. Deriving on read would put a paid
-    #    network call inside a page render.
-    # 4. A stored value is auditable: kind_source/kind_evidence say who
-    #    decided and why, so a wrong badge can be argued with.
-    # 5. It is also correctable — a creator edit or a moderator override
-    #    writes the field, and everything downstream follows immediately.
     kind = models.CharField(
         max_length=20, choices=KIND_CHOICES, default=DEFAULT_KIND, db_index=True,
         help_text='What sort of program this is — auto-detected, creator can override.',
@@ -127,37 +97,13 @@ class AppProject(models.Model):
     )
     kind_confidence = models.FloatField(default=0)
     kind_evidence = models.JSONField(default=list, blank=True)
-    # Honest capability, computed at classify time — never a guess in a template.
     preview_mode = models.CharField(
         max_length=12, choices=PREVIEW_MODES, default='files',
         help_text=('snippet = inline HTML runs in the sandboxed iframe. '
                    'static_zip = a static site in the ZIP runs there too. '
                    'files = file list + README only.'),
     )
-    # Which document inside a static_zip is the entry to assemble+run. Stored
-    # for the same reason preview_mode is: the runner view must not re-scan the
-    # archive on every hit, and a wrong entry is correctable by a rescan.
-    # 5 Whys: Why store the path, not re-derive it in the runner view?
-    # 1. detect_static_runnable already walked the file list at classify time;
-    #    re-walking the ZIP on every preview request is I/O we already paid.
-    # 2. The value the badge (preview_mode) was decided from and the value the
-    #    runner opens must be the SAME file, or the badge could promise a run
-    #    the runner cannot deliver.
-    # 3. It is auditable: a moderator can see which file we treat as the entry.
-    # 4. It is correctable — a rescan or edit rewrites it, like every other
-    #    pipeline-written field.
-    # 5. Blank is the honest default: no runnable entry means no static run.
     static_entry = models.CharField(max_length=500, blank=True, default='')
-    # --- Trust badge -------------------------------------------------------
-    # Public verdict derived from scan evidence by gallery.trust. Stored for
-    # the same 4-point reasons `kind` is stored: (1) the feed must filter and
-    # sort on it in SQL; (2) deriving per card would re-run regex scans on
-    # every page view; (3) a stored verdict is auditable — trust_graded_at
-    # says when it was decided; (4) it is correctable — the pipeline rewrites
-    # it on every rescan and any content change resets it to unknown.
-    # WRITER RULE: only gallery.trust.apply_trust_grade (pipeline) and
-    # invalidate_trust (content change) may write this field. Never a form,
-    # never the API, never a template — that is what makes it unfakeable.
     trust = models.CharField(
         max_length=10, choices=TRUST_CHOICES, default=TRUST_UNKNOWN, db_index=True,
         help_text='verified | scanned | unknown — pipeline-written only, see gallery.trust.',
@@ -178,8 +124,6 @@ class AppProject(models.Model):
         strings only — no filenames, no secret values, nothing user-typed."""
         from .trust import trust_reasons as _trust_reasons
         return _trust_reasons(self)
-    # Global "how interesting is this" score, 0-100. Recomputed by a task,
-    # never inside a request. See gallery.interest.
     appeal_score = models.FloatField(default=0, db_index=True)
     appeal_updated_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -191,9 +135,6 @@ class AppProject(models.Model):
             models.Index(fields=['status']),
             models.Index(fields=['status', '-created_at']),
             models.Index(fields=['status', '-stars']),
-            # Feed ordering is always "published rows, best first" — a
-            # composite index keeps that a range scan instead of a sort of
-            # the whole table once there are tens of thousands of vibes.
             models.Index(fields=['status', '-appeal_score'], name='gallery_app_status_appeal_idx'),
             models.Index(fields=['status', 'kind', '-appeal_score'], name='gallery_app_kind_appeal_idx'),
         ]
@@ -213,16 +154,12 @@ class AppProject(models.Model):
                 except Exception:
                     import logging
                     logging.getLogger(__name__).exception('readme render failed')
-            # html_code is stored raw and only rendered inside a sandboxed iframe.
-            # Bleach-on-save guts real snippet dashboards.
-            # Sanitize ai_prompt — many prompt fields, must be checked
             if self.ai_prompt:
                 try:
                     from .prompt_sanitize import sanitize_prompt
                     self.ai_prompt = sanitize_prompt(self.ai_prompt)
                 except Exception:
                     pass
-            # Also sanitize tech_stack and short_description for prompt-like injection
             if self.tech_stack:
                 try:
                     import bleach
@@ -233,15 +170,6 @@ class AppProject(models.Model):
                     import bleach
                     self.short_description = bleach.clean(self.short_description, tags=[], strip=True)[:260]
                 except Exception: pass
-            # Auto language detect (crush silently). Reads through the
-            # storage API so it works on local disk AND S3/R2 — FieldFile.path
-            # raises NotImplementedError on remote backends.
-            # 5 Whys: Why check the toggle here and not in the upload form?
-            # save() is the single entry point for every code path that
-            # creates or updates a project (publish, edit, fork, git push).
-            # Gating here means every path respects the user's choice. Why
-            # default True? Auto-detect is the primary discovery signal for
-            # trading; manual tech_stack only is a power-user opt-out.
             if self.zip_file and not self.language_stats:
                 try:
                     if getattr(self.owner.profile, 'auto_language', True):
@@ -256,7 +184,6 @@ class AppProject(models.Model):
         return reverse('app_detail', args=[self.slug])
     def __str__(self): return self.title
 
-    # --- Kind helpers (templates + API read these, never a raw string) ---
     @property
     def kind_meta(self):
         return kind_meta(self.kind)
@@ -327,8 +254,6 @@ class Comment(models.Model):
     def save(self, *args, **kwargs):
         from .sanitizers import render_markdown_inline
         from .profanity import contains_profanity
-        # Defense in depth: a shell/admin write that skipped the form must
-        # still never render the words. The raw body stays for moderators.
         if contains_profanity(self.body):
             self.is_hidden = True
             self.body_html = (
@@ -365,10 +290,6 @@ class AppReport(models.Model):
     user = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     reason = models.CharField(max_length=20, choices=REASON_CHOICES, default='other')
     details = models.CharField(max_length=500, blank=True)
-    # Report lifecycle. Before this existed a report row was just a row:
-    # moderator opened /admin/dashboard/, saw it, and the closing action
-    # (if any) happened in the moderator's head. Status + outcome make the
-    # triage explicit and auditable end-to-end.
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='open', db_index=True)
     outcome = models.CharField(max_length=12, choices=OUTCOME_CHOICES, default='', blank=True)
     handled_by = models.ForeignKey(
@@ -544,8 +465,6 @@ class Review(models.Model):
             from .prompt_sanitize import sanitize_prompt
             from .profanity import contains_profanity
             self.text = sanitize_prompt(self.text)[:1000]
-            # Rating can stay; the words cannot. The form already rejects
-            # the POST — this is the ORM/admin backstop.
             if contains_profanity(self.text):
                 self.text = ''
         except Exception: pass
@@ -590,10 +509,6 @@ class BattleVote(models.Model):
         unique_together = ('user','battle')
     def __str__(self): return f"{self.user} voted {self.choice} on {self.battle_id}"
 
-# Deploy model removed. 5 Whys: Why delete instead of keep? It promised
-# "Running" live deployments that never existed — the view only redirected
-# to the in-app preview. Dead capability code is a lie in the schema; when
-# real hosting ships it gets a real model designed for it.
 
 class Season(models.Model):
     number = models.PositiveIntegerField(unique=True)
@@ -651,7 +566,6 @@ class Notification(models.Model):
         ('payout', 'Payout'),
         ('git_push', 'Git push'),
         ('report', 'Report'),
-        # Added with the retention work: the social half of the loop.
         ('star', 'Star'),
         ('fork', 'Fork'),
         ('milestone', 'Milestone'),
@@ -713,9 +627,6 @@ class KindAffinity(models.Model):
        dormant user's row is decayed correctly the moment they return.
     """
 
-    # Weights per interaction. Ordered by how much intent each one proves:
-    # downloading (or paying for) something is a far stronger statement than
-    # scrolling past its card.
     EVENT_WEIGHTS = {
         'view': 1.0,
         'preview': 2.0,
@@ -725,10 +636,9 @@ class KindAffinity(models.Model):
         'fork': 5.0,
         'download': 5.0,
         'trade': 8.0,
-        'publish': 6.0,   # what you build is what you are into
-        'pick': 10.0,     # explicit "I like games" from onboarding
+        'publish': 6.0,
+        'pick': 10.0,
     }
-    # Score halves after this many days without reinforcement.
     HALF_LIFE_DAYS = 30.0
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='kind_affinities')

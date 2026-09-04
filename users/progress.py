@@ -35,8 +35,6 @@ from .models import Achievement, XPEvent
 
 logger = logging.getLogger(__name__)
 
-# XP per reason. Tuning these changes future grants only — stored rows keep
-# the amount they were paid at (see XPEvent 5 Whys #5).
 XP_BY_REASON = {
     'publish': 20,
     'star_received': 2,
@@ -50,8 +48,6 @@ XP_BY_REASON = {
     'challenge_win': 40,
 }
 
-# Repeatable actions: max grants per reason per UTC day. Anything not listed
-# is bounded by its `ref` alone (one project, one trade, one PR).
 DAILY_CAPS = {
     'comment_given': 5,
     'review_given': 3,
@@ -67,9 +63,6 @@ LEVELS = [
     (2000, 'Elite Creator'),
 ]
 
-# Badge table — server-side only. `check` receives the User and returns a
-# bool; it must be cheap (one or two indexed counts) because
-# sync_achievements may run after any qualifying write.
 ACHIEVEMENTS = [
     {'slug': 'first_project', 'label': 'First Project', 'icon': '🚀',
      'desc': 'Published your first vibe.', 'check': lambda u: _published(u) >= 1},
@@ -98,7 +91,6 @@ ACHIEVEMENTS = [
 ACHIEVEMENTS_BY_SLUG = {a['slug']: a for a in ACHIEVEMENTS}
 
 
-# --- fact helpers (all import gallery lazily: gallery imports users) ------
 
 def _published(user):
     from gallery.models import AppProject
@@ -140,7 +132,6 @@ def _remixes(user):
     return AppProject.objects.filter(owner=user, forked_from__isnull=False).count()
 
 
-# --- XP ------------------------------------------------------------------
 
 def award_xp(user, reason, ref=''):
     """Grant XP once for one real thing. Returns True when it was paid now.
@@ -167,7 +158,6 @@ def award_xp(user, reason, ref=''):
             XPEvent.objects.create(user=user, amount=amount, reason=reason, ref=(ref or '')[:120])
         return True
     except IntegrityError:
-        # Same (user, reason, ref) — already paid. Idempotent by design.
         return False
     except Exception:
         logger.exception('award_xp failed user=%s reason=%s', getattr(user, 'pk', None), reason)
@@ -270,7 +260,7 @@ def award(user, reason, ref='', notify=True):
         new_badges = []
     if notify and new_badges:
         from gallery.notify import notify as _notify
-        for slug in new_badges[:3]:  # never flood the inbox
+        for slug in new_badges[:3]:
             badge = ACHIEVEMENTS_BY_SLUG.get(slug)
             if not badge:
                 continue

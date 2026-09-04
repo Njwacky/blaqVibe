@@ -1,5 +1,3 @@
-/* Launch pad — cinematic destination router. Scoped to .launch-shell. */
-
 .launch-shell {
   --launch-accent: #A78BFA;
   --launch-hot: #C4F04D;
@@ -17,15 +15,10 @@
   padding: clamp(28px, 4vw, 64px) 0 88px;
   position: relative;
   isolation: isolate;
-  /* The decorative glow blobs below sit at right:-220px / left:-280px and
-     used to stretch the page past the viewport, which broke the sticky
-     navbar (page panned sideways and the nav no longer spanned the page).
-     `clip` (not `hidden`) trims them at the shell without creating a scroll
-     container, so the sticky guide aside keeps working. */
+
   overflow-x: clip;
 }
-/* The launch palette doubles as text in several places. Light mode needs
-   darker text variants instead of the neon values designed for a dark canvas. */
+
 [data-theme="light"] .launch-shell {
   --launch-accent: #6D28D9;
   --launch-hot: #3F6212;
@@ -104,7 +97,6 @@
   font: 700 11px JetBrains Mono, monospace;
 }
 
-/* ── Hub hero ── */
 .launch-hero {
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(260px, .85fr);
@@ -256,7 +248,6 @@
   to { transform: rotate(calc(var(--i) * 60deg + 360deg)) translate(112px) rotate(calc(var(--i) * -60deg - 360deg)); }
 }
 
-/* ── Shared cards ── */
 .launch-card {
   scroll-margin-top: 84px;
   margin-top: 18px;
@@ -310,7 +301,6 @@
 }
 .launch-warning a { color: var(--launch-accent); text-decoration: underline; }
 
-/* ── Artifact picker ── */
 .launch-artifact-groups { display: grid; gap: 22px; margin-top: 22px; }
 .launch-artifacts {
   display: grid;
@@ -420,7 +410,6 @@
 .launch-picker__clear[hidden] { display: none; }
 .launch-noscript { margin-top: 14px; color: var(--muted); font-size: 11px; line-height: 1.55; }
 
-/* ── Chooser ── */
 .launch-chooser {
   display: grid;
   grid-template-columns: minmax(180px, .4fr) minmax(0, 1fr);
@@ -455,7 +444,6 @@
 .launch-chooser__grid b { font-size: 13px; }
 .launch-chooser__grid span { color: var(--muted); font-size: 11px; line-height: 1.4; }
 
-/* ── Destination board ── */
 .launch-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 20px; }
 .launch-filters a {
   padding: 9px 15px;
@@ -645,7 +633,6 @@
 .launch-section-head > a { color: var(--muted); font-size: 12px; }
 .launch-section-head > a:hover { color: var(--launch-accent); }
 
-/* ── Compare before you choose (hub matrix) ── */
 .launch-compare { margin-top: 70px; }
 .launch-compare__groups { display: grid; gap: 10px; margin-top: 22px; }
 .launch-compare-group {
@@ -773,7 +760,6 @@
 .launch-rules__card b { font-size: 14px; }
 .launch-rules__card p { margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.6; }
 
-/* ── Individual guide ── */
 .launch-guide-shell { padding-top: 24px; }
 .launch-breadcrumb { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: 12px; }
 .launch-breadcrumb a:hover { color: var(--launch-accent); }
@@ -1135,7 +1121,6 @@
 .launch-aside-note b { font-size: 12px; }
 .launch-aside-note p { margin-top: 4px; color: var(--muted); font-size: 11px; line-height: 1.6; }
 
-/* ── Find your framework's command (sidebar reference) ── */
 .launch-framework-ref { padding: 16px; border-radius: 16px; }
 .launch-framework-ref h2 { font-size: 13px; margin: 4px 0 6px; }
 .launch-framework-ref__intro { color: var(--muted); font-size: 11px; line-height: 1.6; margin-bottom: 10px; }
@@ -1224,8 +1209,6 @@
 .launch-related__grid b { margin-top: 3px; font-size: 12px; line-height: 1.4; }
 .launch-related__grid i { color: var(--launch-accent); font-style: normal; }
 
-/* Local destination artwork. Brand marks sit on stable, high-contrast tiles so
-   black/white official assets remain legible in both BlaqVibes themes. */
 .launch-brand {
   display: grid;
   place-items: center;
@@ -1332,10 +1315,6 @@
   .launch-related__grid { grid-template-columns: 1fr; }
 }
 
-/* Vertical sidebar — the launch pages' sticky offsets were sized for the old
-   64px horizontal top bar. With the nav moved to a left rail there is nothing
-   overlapping the top of the content, so anchors and the TOC would otherwise
-   stop ~80px too low and leave a dead gap under every jump link. */
 @media (min-width: 901px) {
   .launch-card,
   .launch-steps,

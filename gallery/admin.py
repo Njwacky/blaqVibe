@@ -7,9 +7,6 @@ class ProjectCoOwnerAdmin(admin.ModelAdmin):
     list_display = ('project', 'user', 'share_percent', 'created_at')
     search_fields = ('project__slug', 'user__username')
     list_filter = ('share_percent',)
-    # Support tool only: the app validates Σ ≤ 100 through CoOwnerForm; the
-    # CheckConstraint guards per-row bounds. No add/edit shortcuts here that
-    # could bypass the sum rule — inline editing is disabled.
     def has_change_permission(self, request, obj=None):
         return False
 
@@ -33,11 +30,6 @@ class AppProjectAdmin(admin.ModelAdmin):
     search_fields = ('title','owner__username','tech_stack')
     prepopulated_fields = {'slug': ('title',)}
     inlines = [AppFileInline]
-    # `trust` is the single field only the trust pipeline (gallery/trust.py)
-    # may write — it is the "this passed the human + scanner gauntlet"
-    # signal that the marketplace ranks on. Letting a superuser hand-edit it
-    # in admin bypasses the pipeline, so it is read-only here. Status, scan
-    # results and prices flow through the scan/publish actions, not admin.
     readonly_fields = ('trust',)
 
 @admin.register(Comment)

@@ -41,23 +41,18 @@ import re
 
 logger = logging.getLogger(__name__)
 
-# --- Budgets (why: an assembled document is built in-request; keep it bounded).
-MAX_ENTRY_BYTES = 512 * 1024          # a hand-written index.html over 512 KB is not a vibe
-MAX_INLINE_TEXT_BYTES = 512 * 1024    # a single css/js file
-MAX_INLINE_IMAGE_BYTES = 512 * 1024   # a single image → data URI
-MAX_TOTAL_ASSEMBLED = 6 * 1024 * 1024 # whole assembled document
-MAX_INLINE_ASSETS = 60                # stop after N resolved assets
+MAX_ENTRY_BYTES = 512 * 1024
+MAX_INLINE_TEXT_BYTES = 512 * 1024
+MAX_INLINE_IMAGE_BYTES = 512 * 1024
+MAX_TOTAL_ASSEMBLED = 6 * 1024 * 1024
+MAX_INLINE_ASSETS = 60
 
-# Extensions that make an archive "client-side" (why: presence of these and
-# absence of a build step is what "runs in a browser" means).
 _STATIC_EXT = {
     '.html', '.htm', '.css', '.js', '.mjs', '.json', '.svg', '.png', '.jpg',
     '.jpeg', '.gif', '.webp', '.ico', '.bmp', '.avif', '.woff', '.woff2',
     '.ttf', '.otf', '.eot', '.map', '.txt', '.md', '.xml', '.csv', '.wasm',
     '.mp3', '.wav', '.ogg', '.mp4', '.webm',
 }
-# Files that mean "this needs a build or a server before it runs" (why: raw
-# JSX/TS/Vue/py/php do not execute from a ZIP; claiming a live run would lie).
 _BUILD_MARKERS = {
     'package.json', 'vite.config.js', 'vite.config.ts', 'webpack.config.js',
     'next.config.js', 'svelte.config.js', 'angular.json', 'requirements.txt',
@@ -98,7 +93,6 @@ def detect_static_runnable(paths):
         files = [p.replace('\\', '/').lstrip('/') for p in (paths or []) if p and not p.endswith('/')]
         if not files:
             return False, ''
-        # A build marker anywhere means "needs build/host", not runnable.
         lower = {f.lower() for f in files}
         base_lower = {posixpath.basename(f) for f in lower}
         if base_lower & _BUILD_MARKERS:
@@ -108,12 +102,10 @@ def detect_static_runnable(paths):
         if not html_files:
             return False, ''
 
-        # Mostly-static check: count files that would need a build/server.
         build_like = sum(1 for f in files if _ext(f) in _BUILD_EXT)
         if build_like and build_like * 2 >= len(files):
             return False, ''
 
-        # Pick the entry: root index.html → any index.html → shallowest html.
         def depth(f):
             return f.count('/')
 
@@ -156,7 +148,6 @@ def _resolve(base_dir, ref):
     if not ref:
         return None
     low = ref.lower()
-    # Leave remote / data / anchor / protocol-relative refs alone.
     if low.startswith(('http://', 'https://', 'data:', 'mailto:', 'tel:', '//', '#', 'javascript:')):
         return None
     ref = ref.split('#', 1)[0].split('?', 1)[0]
@@ -227,11 +218,9 @@ def _inline_stylesheets(html, zf, base_dir, budget):
             return tag
         budget['total'] += len(css)
         budget['assets'] += 1
-        # Neutralise a stray closing tag so the CSS cannot break out of <style>.
         css = css.replace('</style', '<\\/style')
         return f'<style data-inlined-from="{href}">\n{css}\n</style>'
 
-    # <link ... rel="stylesheet" ... href="...">  (attr order-independent)
     pattern = re.compile(
         r'<link\b(?=[^>]*\brel\s*=\s*["\']?stylesheet["\']?)[^>]*?\bhref\s*=\s*["\'](?P<url>[^"\']+)["\'][^>]*>',
         re.IGNORECASE,
@@ -257,7 +246,6 @@ def _inline_scripts(html, zf, base_dir, budget):
             return tag
         budget['total'] += len(js)
         budget['assets'] += 1
-        # Preserve type="module" so ES-module scripts still behave.
         is_module = bool(re.search(r'type\s*=\s*["\']?module["\']?', tag, re.IGNORECASE))
         type_attr = ' type="module"' if is_module else ''
         js = js.replace('</script', '<\\/script')
@@ -290,7 +278,6 @@ def _inline_images(html, zf, base_dir, budget):
         b64 = base64.b64encode(data).decode('ascii')
         return f'{prefix}{quote}data:{mime};base64,{b64}{quote}{suffix}'
 
-    # src="..." and href="..." for icons; keep the surrounding attribute intact.
     pattern = re.compile(
         r'(?P<pre>\b(?:src|href)\s*=\s*)(?P<q>["\'])(?P<url>[^"\']+)(?P=q)(?P<post>)',
         re.IGNORECASE,

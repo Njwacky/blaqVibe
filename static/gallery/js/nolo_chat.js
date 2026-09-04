@@ -1,6 +1,3 @@
-/* Nolo Chat — send prompts to the nolo_chat_api endpoint.
-   API URL + CSRF token are server-rendered into data attributes on
-   #nolo-chat-input-row (this file carries no template tags). */
 (function () {
   const inputRow = document.getElementById('nolo-chat-input-row');
   const sendBtn = document.getElementById('nolo-chat-send');

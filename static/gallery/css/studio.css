@@ -1,4 +1,3 @@
-/* BlaqVibes Studio — editor + live preview layout. */
 .studio-wrap { max-width: 1240px; margin: 0 auto; padding: 14px 16px 40px; }
 
 .studio-topbar {
@@ -23,7 +22,6 @@
 }
 @media (max-width: 860px) { .studio-grid { grid-template-columns: 1fr; } }
 
-/* Editors */
 .studio-editors {
   display: flex; flex-direction: column;
   background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
@@ -44,7 +42,6 @@
   background: var(--bg); color: var(--text);
 }
 
-/* Preview */
 .studio-preview {
   display: flex; flex-direction: column;
   background: var(--card); border: 1px solid var(--line); border-radius: 14px; overflow: hidden;
@@ -61,8 +58,6 @@
 .studio-preview-label.is-locked { color: var(--warning-text); }
 #studio-frame { flex: 1; width: 100%; min-height: 52vh; border: 0; background: #fff; }
 
-/* Locked preview — no iframe in the anonymous HTML. This panel is the
-   honest stand-in: write stays open, run waits for an account. */
 .studio-preview-lock {
   flex: 1;
   min-height: 52vh;
@@ -111,7 +106,6 @@
 }
 .studio-preview-lock-tips li { margin: 6px 0 0 18px; }
 
-/* Nolo review panel */
 .studio-nolo {
   margin-top: 14px; background: var(--card); border: 1px solid var(--line);
   border-radius: 14px; padding: 16px 18px;
@@ -130,17 +124,10 @@
 .studio-finding.warning { border-left-color: #f59e0b; }
 .studio-finding.info { border-left-color: #38bdf8; }
 
-/* Hidden means hidden. The `hidden` attribute's `display:none` lives in the
- * browser's UA stylesheet, so ANY author rule that sets `display` on an
- * element (like `.studio-drawer { display: grid }`) silently beats it —
- * the drawer then covers the whole screen from page load and the × button
- * appears broken. Every element studio.js toggles with `.hidden` needs this
- * guard. */
 .studio-drawer[hidden],
 .studio-nolo[hidden],
 .studio-code[hidden] { display: none !important; }
 
-/* Publish drawer */
 .studio-drawer {
   position: fixed; inset: 0; z-index: 60;
   background: rgba(2, 6, 23, .55); display: grid; place-items: center; padding: 18px;
@@ -160,10 +147,9 @@
 .studio-errors { background: var(--danger-bg); border: 1px solid var(--danger-border); color: var(--danger-text); padding: 10px; border-radius: 10px; font-size: 13px; margin-bottom: 10px; }
 .studio-publish-btn { width: 100%; margin-top: 18px; text-align: center; justify-content: center; display: inline-flex; }
 .studio-cancel-btn { width: 100%; margin-top: 8px; text-align: center; justify-content: center; display: inline-flex; }
-/* Stop the page behind the drawer from scrolling with the wheel. */
+
 body.studio-drawer-open { overflow: hidden; }
 
-/* Make the form controls fill the drawer nicely. */
 .studio-drawer-card input[type="text"],
 .studio-drawer-card input:not([type]),
 .studio-drawer-card select,

@@ -190,18 +190,8 @@ def resolve_report(report: AppReport, actor, decision: str, note: str = '') -> d
                     'message': f'This report was already {locked.status.lower()} by @{locked.handled_by.username if locked.handled_by else "someone"}.',
                     'outcome': locked.outcome,
                 }
-            # Capture the project object once, under a row lock. A hard
-            # delete will cascade the report rows away, so we never
-            # re-query it afterwards; the in-memory object keeps
-            # slug/owner enough for audit + notification after the project
-            # row is gone. Locking prevents a concurrent owner edit from
-            # racing our quarantine (or a concurrent owner delete from
-            # racing our admin action).
             project = AppProject.objects.select_for_update().select_related('owner').get(pk=locked.project_id)
 
-            # Resolve the content first: what happens to the vibe decides
-            # what the report "outcome" truly was (a "remove" on an unpaid
-            # vibe still hard-deletes, because no receipt needs keeping).
             project_message = ''
             outcome = OUTCOME_BY_DECISION[decision]
             if decision in ('quarantine', 'remove', 'delete'):
@@ -214,18 +204,9 @@ def resolve_report(report: AppReport, actor, decision: str, note: str = '') -> d
             locked.handled_by = actor
             locked.handled_at = timezone.now()
             locked.note = (note or '')[:500]
-            # A hard delete cascades the report row (and all its siblings);
-            # saving after a cascade would be a no-op UPDATE that can never
-            # read back. Skip the write when the project row is already gone.
             if AppProject.objects.filter(pk=project.pk).exists():
                 locked.save(update_fields=['status', 'outcome', 'handled_by', 'handled_at', 'note'])
 
-            # A moderating action on a vibe answers every open report about
-            # that vibe; leaving them "open" makes the queue lie after the
-            # content is already gone (or held). Do it inside the same
-            # transaction so the queue never shows a half-resolved state.
-            # On a hard delete the cascade already removed them; the update
-            # is a no-op, which is honest.
             _autoresolve_open_siblings(project, actor, outcome, note)
 
             from users.models import AdminLog
@@ -273,7 +254,7 @@ def _apply_project_action(project: AppProject, actor, decision: str, report: App
        their content; emailing "your report was dismissed" would teach
        people to spam the system for attention.
     """
-    owner = project.owner  # in-memory; safe to read after a hard delete
+    owner = project.owner
 
     if decision == 'quarantine':
         AppProject.objects.filter(pk=project.pk).update(
@@ -292,8 +273,6 @@ def _apply_project_action(project: AppProject, actor, decision: str, report: App
         )
         return {'outcome': 'quarantined', 'message': ' The vibe is now quarantined.'}
 
-    # Tell the owner before the content may be deleted; remove_project can
-    # cascade the row and the project object as an ORM query.
     notify(
         owner,
         'report',
@@ -301,7 +280,7 @@ def _apply_project_action(project: AppProject, actor, decision: str, report: App
         'Moderators removed this vibe. If this is a mistake, contact support with your receipt where applicable.',
         '/my-vibes/',
     )
-    outcome = remove_project(project)  # 'deleted' or 'removed'
+    outcome = remove_project(project)
     return {
         'outcome': 'removed' if outcome == 'removed' else 'deleted',
         'message': f' The vibe was {"removed" if outcome == "removed" else "deleted"}.',

@@ -1,6 +1,5 @@
 :root {
-  /* The desktop rail can be resized from 180–380px. --nav-offset becomes
-     zero while collapsed, without forgetting the user's chosen width. */
+
   --nav-w: 230px;
   --nav-offset: var(--nav-w);
 }
@@ -121,16 +120,15 @@ input, select, textarea { accent-color: var(--violet); }
 .nav-links a .bv-icon,
 .nav-menu a .bv-icon { margin-right: 2px; }
 .nav-menu a .nav-badge { margin-left: auto; }
-/* Current page — the rail is persistent, so it has to say where you are. */
+
 .nav-links > a[aria-current="page"] { color: var(--text); font-weight: 700; }
-/* Keyboard focus must stay visible against both themes. */
+
 .nav :is(a, button):focus-visible {
   outline: 2px solid var(--violet);
   outline-offset: 2px;
   border-radius: 8px;
 }
-/* Skip link — with a persistent sidebar, keyboard users would otherwise
-   tab the whole rail on every page before reaching the content. */
+
 .skip-link {
   position: absolute;
   left: -9999px;
@@ -158,10 +156,9 @@ input, select, textarea { accent-color: var(--violet); }
   font-size: 16px;
 }
 .nav-burger { display: none; }
-/* The resizable edge is desktop-only. It is enabled in the desktop media
-   query after the sidebar itself becomes fixed. */
+
 .nav-resizer { display: none; }
-/* Avatar menu — the account chrome lives here, not in the top bar. */
+
 .nav-user { position: relative; }
 .nav-user-btn {
   display: inline-flex;
@@ -246,14 +243,11 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
 .profile-social-chip--canvas { color: var(--accent-text); background: color-mix(in srgb, var(--accent-soft-bg) 55%, var(--card)); border-color: color-mix(in srgb, var(--accent-border) 45%, var(--line)); }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-weight: 700; transition: .25s; z-index: 999; }
 .toast.show { transform: translateX(-50%) translateY(0); }
-/* Centering for the PWA popovers lives here (not inline) so the desktop
-   sidebar rule below can re-centre them over the content column. */
+
 #pwa-install-banner, #pwa-ios-hint { left: 50%; transform: translateX(-50%); }
 .vibe-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
 .hero-grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 20px; align-items: center; }
-/* minmax(0, …) stops a wide child (e.g. a pre/code block or long URL)
-   from blowing the track past the viewport — the classic mobile bug that
-   pans the page sideways and makes the sticky nav stop spanning the screen. */
+
 .detail-layout { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, .95fr); gap: 16px; }
 .page { max-width: 1280px; margin: 0 auto; padding: 16px 20px; }
 .auth-wrap { max-width: 440px; margin: 40px auto; padding: 20px; }
@@ -278,31 +272,7 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   place-items: center;
   padding: 10px;
 }
-/* --- Feed filter bar ------------------------------------------------------
-   5 Whys: why were there huge gaps between the controls, and why this
-   exact arrangement?
-   1. Why the holes? `.filter-bar input { flex:1; min-width:180px }` matched
-      the two CHECKBOXES too, so each 15px toggle stretched into a 180px+
-      strip inside its label — ~380px of dead space on top of the search
-      field's own grow, spreading every control apart.
-   2. Why fix the selectors instead of just shrinking the gap? The ballooning
-      was a selector bug, not a spacing choice. Scoping the grow to
-      .filter-search and giving checkboxes their own compact rule removes
-      the dead space at the source — the 8px gap rhythm was never wrong.
-   3. Why reorder to search → selects → toggles → actions? The old order
-      interleaved a checkbox between the field and the dropdowns, so each
-      flex-wrap line broke at a random control. Grouping like controls
-      gives every wrap line the same rhythm and reads left→right as
-      "what" → "bucket" → "switches" → "go".
-   4. Why margin-left:auto on .filter-actions? Leftover row space has to
-      collect somewhere; pinning the buttons to the right edge puts it in
-      ONE predictable place (next to the submit) instead of between
-      controls, and the search field stays the only element that grows.
-   5. Why a 2-column grid under 640px instead of flex-wrap? On a phone,
-      wrap leaves orphaned controls per row (and wrapped sticky bars grow
-      tall enough to eat the screen). Fixed tracks — search full-width,
-      category|kind, sort full-width, both toggles, actions full-width —
-      are deterministic: same rows every time, no holes, smallest height. */
+
 .filter-bar {
   margin-top: 16px;
   display: flex;
@@ -316,9 +286,7 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   position: sticky;
   top: 64px;
   z-index: 30;
-  /* Frosted state (feed.js adds .is-stuck once the bar is pinned and cards
-     start sliding underneath): translucent glass + backdrop blur instead of
-     the flat opaque slab. Transitions make the freeze/unfreeze feel smooth. */
+
   transition:
     background-color .25s ease,
     border-color .25s ease,
@@ -332,13 +300,11 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   border-color: color-mix(in srgb, var(--accent-border) 35%, var(--line));
   box-shadow: var(--shadow);
 }
-/* No backdrop-filter support (old browsers / reduced-transparency OS
-   settings): keep the bar opaque so text above cards stays readable. */
+
 @supports not ((backdrop-filter: blur(2px)) or (-webkit-backdrop-filter: blur(2px))) {
   .filter-bar.is-stuck { background: var(--bg); }
 }
-/* Field+dropdown chrome is scoped AWAY from checkboxes (Why #1): only text
-   inputs and selects get the padded input look. */
+
 .filter-bar input[type="text"],
 .filter-bar select {
   background: var(--input);
@@ -348,12 +314,10 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   color: var(--text);
   font-size: 13px;
 }
-/* The search field is the bar's ONLY grower (Why #2) — it eats the leftover
-   row so nothing else drifts apart. */
+
 .filter-bar .filter-search { flex: 1 1 200px; min-width: 150px; }
 .filter-bar select { flex: 0 1 auto; }
-/* Checkboxes: compact themed toggles — accent-color carries the brand violet
-   through the native box in both themes, no padding/border impersonation. */
+
 .filter-bar input[type="checkbox"] {
   flex: none;
   width: 15px;
@@ -371,7 +335,7 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   cursor: pointer;
 }
 .filter-check:hover { color: var(--text); }
-/* Actions pin right (Why #4); btnW/btnG already carry the 8px/14px padding. */
+
 .filter-actions { display: inline-flex; gap: 8px; margin-left: auto; }
 .filter-actions .btnW, .filter-actions .btnG { white-space: nowrap; }
 @media (max-width: 640px) {
@@ -379,11 +343,10 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   .filter-bar .filter-search,
   .filter-bar select[name="sort"],
   .filter-bar .filter-actions { grid-column: 1 / -1; }
-  /* Full-width actions row: thumb-sized targets splitting the row. */
+
   .filter-actions .btnW, .filter-actions .btnG { flex: 1; }
 }
-/* Vertical navbar — on desktop the nav is a fixed full-height sidebar on
-   the left; below 900px it falls back to the burger/stacked mobile layout. */
+
 @media (min-width: 901px) {
   .nav {
     position: fixed;
@@ -399,8 +362,7 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
     padding: 18px 14px;
     border-bottom: none;
     border-right: 1px solid var(--line);
-    /* The sidebar itself must never scroll as a whole — the brand stays
-       pinned at the top and only the link list scrolls (see .nav-links). */
+
     overflow: hidden;
   }
   body {
@@ -411,7 +373,7 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
     transition: width .2s ease, transform .2s ease;
   }
   :root[data-nav-collapsed="true"] .nav { transform: translateX(-100%); }
-  /* Keep the full 36px expand button visible when the sidebar is hidden. */
+
   :root[data-nav-collapsed="true"] .nav-resizer { left: 12px; }
   .nav-resizer {
     display: block;
@@ -466,14 +428,13 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   :root[data-nav-resizing="true"] .nav,
   :root[data-nav-resizing="true"] .nav-resizer { transition: none; }
   :root[data-nav-resizing="true"] body { cursor: ew-resize; user-select: none; }
-  /* Brand and the theme/burger row stay fixed at the top of the rail. */
+
   .nav > .logo, .nav-actions { flex: none; }
   .nav-actions { margin-left: 0; }
-  /* The burger is a mobile-only affordance; the rail is always expanded. */
+
   .nav-burger { display: none; }
   .nav-links {
-    /* Own scroll region: a signed-in user with a long avatar menu can no
-       longer push Logout past the bottom of the viewport unreachably. */
+
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
@@ -482,7 +443,7 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
     align-items: stretch;
     gap: 6px;
     flex-wrap: nowrap;
-    /* Room for the scrollbar so it never sits on top of the labels. */
+
     padding-right: 2px;
     scrollbar-width: thin;
   }
@@ -495,13 +456,13 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   .nav-links .btn-violet, .nav-links .btn-ghost, .nav-links .btn-white { justify-content: flex-start; }
   .nav-user { width: 100%; }
   .nav-user-btn { width: 100%; justify-content: flex-start; border-radius: 10px; padding: 6px 10px 6px 6px; }
-  /* The username can grow to the rail width now there is no row to share. */
+
   .nav-user-name { max-width: none; flex: 1; text-align: left; }
-  /* The avatar dropdown opens inline inside the sidebar instead of floating. */
+
   .nav-menu { position: static; min-width: 0; box-shadow: none; margin-top: 4px; }
-  /* Sticky elements no longer sit below a 64px top bar. */
+
   .filter-bar { top: 12px; }
-  /* Center viewport-fixed elements on the content area, not the viewport. */
+
   .toast, #pwa-install-banner, #pwa-ios-hint { left: calc(50% + var(--nav-offset) / 2); }
 }
 @media (max-width: 900px) {
@@ -514,15 +475,14 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
     flex-direction: column;
     align-items: stretch;
     padding: 8px 0 4px;
-    /* The open burger panel scrolls internally instead of running off the
-       bottom of a short phone viewport with Logout out of reach. */
+
     max-height: calc(100vh - 72px);
     overflow-y: auto;
     overscroll-behavior: contain;
   }
   .nav-links.open { display: flex; }
   .nav-links a, .nav-links .btn-violet, .nav-links .btn-ghost, .nav-links .btn-white { justify-content: flex-start; }
-  /* On mobile the burger already stacks everything; render the menu inline. */
+
   .nav-user { width: 100%; }
   .nav-user-btn { width: 100%; justify-content: flex-start; border-radius: 10px; }
   .nav-menu { position: static; min-width: 0; box-shadow: none; margin-top: 4px; }
@@ -536,12 +496,6 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
 }
 @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(.8)} }
 
-/* --- Awaiting-approval panel (app_detail) ---------------------------------
-   Why a full panel instead of the old one-line banner? A just-uploaded vibe
-   sat on a page that looked frozen: one status word, no file details, no
-   sense of progress. This panel names the file, its size and count, shows the
-   exact pipeline stages, and where it sits in the queue — so "why did it
-   stop?" answers itself. detail.js keeps every piece in sync as it polls. */
 .scan-panel {
   max-width: 1280px;
   margin: 12px auto 0;
@@ -647,17 +601,11 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   .scan-flow { display: none; }
 }
 
-/* --- Styled display names (users/models.NAME_* whitelists) ----------------
-   5 Whys: why classes here and not inline styles? Animation needs
-   @keyframes, which an inline style attribute cannot carry; and classes are
-   versioned with the theme, respect prefers-reduced-motion, and work in
-   every context (header, follower lists, tips) with em-based scaling. */
 .styled-name { font-weight: 800; }
 .name-size-lg { font-size: 1.22em; }
 .name-size-xl { font-size: 1.5em; }
 .namefx-glow { text-shadow: 0 0 10px currentColor, 0 0 26px currentColor; }
-/* Anime shine: a light band sweeping across the letters. currentColor keeps
-   the chosen color while the band reads white — one class, any color. */
+
 .namefx-shine {
   background: linear-gradient(100deg, currentColor 30%, #fff 50%, currentColor 70%);
   background-size: 200% 100%;
@@ -670,7 +618,7 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
 @keyframes bv-name-shine { to { background-position: -200% 0; } }
 .namefx-chroma { animation: bv-name-chroma 6s linear infinite; }
 @keyframes bv-name-chroma { 0% { filter: hue-rotate(0deg); } 100% { filter: hue-rotate(360deg); } }
-/* Rainbow: animated gradient text — the loudest flex, same gate as the rest. */
+
 .namefx-rainbow {
   background: linear-gradient(90deg, #f5c518, #ef4444, #7C3AED, #22d3ee, #34d399, #f5c518);
   background-size: 300% 100%;
@@ -684,24 +632,6 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   .namefx-shine, .namefx-chroma, .namefx-rainbow { animation: none; }
 }
 
-/* --- People-style picker (Edit Profile) ----------------------------------
-   5 Whys: why ONE dropdown list, not a grid of cards?
-   1. The picker lives on Edit Profile next to the bio/avatar form — a
-      21-card grid crowded the page into a showroom; a <select> keeps it
-      a form. The option text carries the label + blurb.
-   2. The styles display did not die with the cards: the live Preview
-      span beside the dropdown re-renders the real composed classes on
-      every change, from the same server whitelists as the renderer.
-   3. A native <select> is keyboard- and screen-reader-ready with zero
-      JS — no radio clipping, no focus management to get wrong.
-   4. The flourish classes below still apply wherever the name renders
-      (profile header, follower lists, tips) — picking is dropdown-only,
-      displaying stays class-based and versioned with the theme. */
-
-/* --- Twenty people-style flourishes (users/models.NAME_PERSONAS) ---------
-   Letter-spacing, case, italic, small-caps, skew, extra glow. These
-   compose WITH namefx-* (shine still clips the fill; shadows remain).
-   No user-typed CSS. An unknown slug never reaches this file. */
 .namepersona-coder {
   letter-spacing: 0.04em;
   font-variant-ligatures: none;
@@ -782,12 +712,6 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
 }
 .namepersona-mystic { letter-spacing: 0.14em; font-style: italic; }
 
-/* --- Polish layer: micro-interactions + depth -----------------------------
-   The missing "cool": buttons, cards and inputs had zero hover/focus states,
-   so the UI felt static. Everything below is theme-aware (CSS vars) and
-   honors prefers-reduced-motion at the bottom of the section. */
-
-/* Buttons — hover lift + tinted glow, pressed feel on :active. */
 .btn-violet, .btn-ghost, .btn-white, .btnV, .btnG, .btnW {
   transition: transform .15s ease, box-shadow .2s ease, background .2s ease,
     border-color .2s ease, color .2s ease, filter .2s ease;
@@ -806,11 +730,9 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
 .btn-violet:active, .btn-ghost:active, .btn-white:active,
 .btnV:active, .btnG:active, .btnW:active { transform: translateY(0) scale(.985); }
 
-/* Icon buttons (theme toggle, burger) — match the avatar pill hover. */
 .icon-btn { transition: border-color .18s ease, background .18s ease, color .18s ease; }
 .icon-btn:hover { border-color: var(--violet); color: var(--text); }
 
-/* Clickable cards — lift + violet ring; thumbnail zooms inside overflow:hidden. */
 a.card { transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
 a.card:hover, a.card:focus-visible {
   transform: translateY(-3px);
@@ -821,14 +743,12 @@ a.card:hover, a.card:focus-visible {
 a.card .card-thumb { transition: transform .35s ease; }
 a.card:hover .card-thumb { transform: scale(1.045); }
 
-/* Inputs — violet focus ring for keyboard and mouse alike. */
 input:focus-visible, select:focus-visible, textarea:focus-visible {
   outline: none;
   border-color: var(--violet);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--violet) 26%, transparent);
 }
 
-/* Ambient depth — two faint violet glows behind the content, per-theme alpha. */
 :root, [data-theme="dark"] { --glow-strong: 13%; --glow-soft: 8%; }
 [data-theme="light"] { --glow-strong: 9%; --glow-soft: 6%; }
 body::before {
@@ -842,7 +762,6 @@ body::before {
     radial-gradient(560px 420px at -12% 34%, color-mix(in srgb, var(--violet) var(--glow-soft), transparent), transparent 72%);
 }
 
-/* Thin theme-aware scrollbars. */
 html { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 38%, transparent) transparent; }
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }

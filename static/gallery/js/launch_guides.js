@@ -34,8 +34,6 @@
         await navigator.clipboard.writeText(text);
         return true;
       } catch (error) {
-        // Browser permission policies can reject Clipboard API access. The
-        // legacy selection path still works in some of those environments.
       }
     }
     return copyWithFallback(text);
@@ -156,7 +154,6 @@
       try {
         window.history.replaceState(null, "", url);
       } catch (error) {
-        // History updates are cosmetic; the deck still works without them.
       }
     }
 
@@ -180,8 +177,6 @@
         updateUrl("");
       });
     }
-
-    // Reconcile server-rendered state (e.g. after a category chip reload).
     const initial = currentArtifact();
     apply(initial ? initial.dataset.artifact : "");
   }
@@ -222,7 +217,6 @@
           JSON.stringify(boxes.filter((box) => box.checked).map((box) => box.value)),
         );
       } catch (error) {
-        // Storage can be disabled or full. The visible checklist still works.
       }
     };
 

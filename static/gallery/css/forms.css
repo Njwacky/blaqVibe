@@ -24,20 +24,18 @@ input[type="checkbox"] { width: auto; }
   font-weight: 700;
   cursor: pointer;
 }
-/* Provider surfaces are intentionally fixed brand colors; each foreground is
-   paired with that surface so it remains readable in either site theme. */
+
 .btn-social-google { border-color: #DADCE0; background: #FFFFFF; color: #202124; }
 .btn-social-github { border-color: #30363D; background: #161B22; color: #FFFFFF; }
 .btn-social-facebook { border-color: #1877F2; background: #1877F2; color: #FFFFFF; }
 
-/* --- Password show/hide toggle (pwd-toggle.js) --- */
 .pwd-field {
   position: relative;
   display: flex;
   align-items: center;
 }
 .pwd-field input {
-  padding-right: 42px;       /* leave room for the eye button */
+  padding-right: 42px;
 }
 .pwd-toggle {
   position: absolute;

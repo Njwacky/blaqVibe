@@ -8,10 +8,6 @@
   const banner = document.getElementById('scan-banner');
   const scanText = document.getElementById('scan-text');
   const scanUrl = banner ? banner.dataset.scanUrl : null;
-
-  // Keep the rich waiting panel (headline, file details, queue position and
-  // the stage checklist) in sync with each poll — so the page never looks
-  // frozen while a vibe is being checked.
   function renderProgress(p){
     if(!p) return;
     const headline = document.getElementById('scan-headline');

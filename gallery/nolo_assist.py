@@ -32,9 +32,6 @@ logger = logging.getLogger(__name__)
 
 MAX_CODE_LEN = 12000
 
-# Small, stable system blocks for each Nolo skill. They sit at the front of
-# the model input and never change; the pasted user code goes last so provider
-# prompt caching can reuse the instruction prefix across requests.
 NOLO_FIX_SYSTEM_PROMPT = (
     'You are Nolo, a kind beginner-friendly web debugger. '
     'Explain the most likely fix in 3-5 short sentences. '
@@ -45,10 +42,6 @@ NOLO_README_SYSTEM_PROMPT = (
     'Return plain markdown only with a # title, ## What is this?, ## Features and ## How to run sections. '
     'Keep it under 200 words. Do not invent features the code lacks.'
 )
-# Hard budget for pasted code. It is deliberately smaller than the 36k chars a
-# user can paste so the model only reads the most relevant slice instead of
-# paying for every whitespace byte. Curious why the exact figure? See
-# gallery/prompt_economy.py and NOLO_CODE_PROMPT_BUDGET_CHARS in .env.example.
 NOLO_CODE_PROMPT_BUDGET = 8000
 
 
@@ -70,11 +63,7 @@ def _code_budget():
         return NOLO_CODE_PROMPT_BUDGET
 
 
-# --------------------------------------------------------------------------- #
-# Skill 1: Fix my code
-# --------------------------------------------------------------------------- #
 
-# Void elements never need a closing tag — don't flag them as "unclosed".
 _VOID_TAGS = {
     'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link',
     'meta', 'param', 'source', 'track', 'wbr',
@@ -84,7 +73,6 @@ _VOID_TAGS = {
 def _check_html(html, findings):
     if not html.strip():
         return
-    # Unbalanced tags — a classic reason "nothing shows up".
     open_tags = re.findall(r'<([a-zA-Z][a-zA-Z0-9]*)\b[^>]*?(?<!/)>', html)
     close_tags = re.findall(r'</([a-zA-Z][a-zA-Z0-9]*)\s*>', html)
     from collections import Counter
@@ -98,7 +86,6 @@ def _check_html(html, findings):
                 'detail': f'Found {n} opening <{tag}> but {closed.get(tag, 0)} closing </{tag}>. '
                           f'An unclosed tag often makes the rest of the page disappear.',
             })
-    # Stray inline event handlers are fine, but a common typo is onclick without ().
     if re.search(r'onclick\s*=\s*["\'][a-zA-Z_]\w*["\']', html):
         findings.append({
             'level': 'info',
@@ -111,7 +98,6 @@ def _check_html(html, findings):
 def _check_css(css, findings):
     if not css.strip():
         return
-    # Braces balance — an extra/missing brace silently kills the rest of a stylesheet.
     opens, closes = css.count('{'), css.count('}')
     if opens != closes:
         findings.append({
@@ -125,7 +111,6 @@ def _check_css(css, findings):
 def _check_js(js, findings):
     if not js.strip():
         return
-    # Bracket / paren / brace balance.
     for open_c, close_c, name in (('{', '}', 'curly braces'), ('(', ')', 'parentheses'), ('[', ']', 'square brackets')):
         o, c = js.count(open_c), js.count(close_c)
         if o != c:
@@ -135,22 +120,18 @@ def _check_js(js, findings):
                 'detail': f'{o} “{open_c}” vs {c} “{close_c}”. A missing {name[:-1]} throws a SyntaxError '
                           f'and stops the whole script from running.',
             })
-    # getElementByID — the single most common beginner typo (correct: getElementById).
     if 'getElementByID' in js:
         findings.append({
             'level': 'error',
             'title': 'Typo: getElementByID',
             'detail': 'JavaScript is case-sensitive — it is document.getElementById (lower-case “d” at the end).',
         })
-    # querySelector missing the # or . selector prefix is common but not detectable safely; skip.
-    # Assignment inside an if — usually meant ===.
     if re.search(r'\bif\s*\([^)=!<>]*[^=!<>]=[^=][^)]*\)', js):
         findings.append({
             'level': 'info',
             'title': 'Single = inside an if (…)',
             'detail': 'if (x = 5) assigns instead of comparing. Use == or === to compare values.',
         })
-    # DOM access with no readiness guard — a top-level getElementById can run before the element exists.
     if re.search(r'document\.(getElementById|querySelector)', js) and \
        'DOMContentLoaded' not in js and 'defer' not in js:
         findings.append({
@@ -160,7 +141,6 @@ def _check_js(js, findings):
                       'Put the script at the end of <body>, or wrap it in '
                       'document.addEventListener("DOMContentLoaded", () => { … }).',
         })
-    # console.log left in — gentle nudge, not an error.
     if 'console.log' in js:
         findings.append({
             'level': 'info',
@@ -210,18 +190,11 @@ def fix_code(html='', css='', js='', error='', allow_llm=True):
             from .nolo_ai import configured_ai_backend, get_nolo_ai_answer
             if configured_ai_backend() != 'heuristic':
                 found_txt = '\n'.join(f"- [{f['level']}] {f['title']}: {f['detail']}" for f in findings) or '- (no obvious issues found by static checks)'
-                # Keep instruction text OUT of the user payload: it is part of
-                # the stable system prefix in NOLO_FIX_SYSTEM_PROMPT. Only the
-                # user's data and the static findings travel as dynamic bytes.
                 prompt = (
                     f"Reported error: {error or '(none given)'}\n\n"
                     f"HTML:\n{html or '(none)'}\n\nCSS:\n{css or '(none)'}\n\nJS:\n{js or '(none)'}\n\n"
                     f"Static checks already found:\n{found_txt}"
                 )
-                # Route through the token-economy layer with a code-aware
-                # budget: the stable instructions go first, the user code goes
-                # last, and a big paste is cut at a line boundary rather than
-                # burned as input tokens.
                 reply, source = get_nolo_ai_answer(
                     prompt,
                     system_text=NOLO_FIX_SYSTEM_PROMPT,
@@ -233,7 +206,6 @@ def fix_code(html='', css='', js='', error='', allow_llm=True):
         except Exception:
             logger.exception('fix_code LLM lift failed')
 
-    # Heuristic summary — honest, useful, no fake model.
     if findings and any(f['level'] in ('error', 'warning') for f in findings):
         summary = ("I found a few likely problems — see the list below, most-likely first. "
                    "Fix the red/orange ones and refresh the preview.")
@@ -246,9 +218,6 @@ def fix_code(html='', css='', js='', error='', allow_llm=True):
     return summary, findings, 'heuristic'
 
 
-# --------------------------------------------------------------------------- #
-# Skill 2: Write my README
-# --------------------------------------------------------------------------- #
 
 def _detect_features(html, css, js):
     """Human-readable feature bullets inferred from the code. No network."""
@@ -287,14 +256,10 @@ def write_readme(title='', description='', html='', css='', js='', tech='', allo
         try:
             from .nolo_ai import configured_ai_backend, get_nolo_ai_answer
             if configured_ai_backend() != 'heuristic':
-                # The markdown contract lives in NOLO_README_SYSTEM_PROMPT; the
-                # user payload is only the project facts and source samples.
                 prompt = (
                     f"Title: {title}\nOne-liner: {description or '(none)'}\nTech: {tech or 'HTML/CSS/JS'}\n\n"
                     f"HTML:\n{html[:2000]}\n\nJS:\n{js[:2000]}"
                 )
-                # Same code-aware token budget as fix_code: system first, the
-                # pasted source last, capped before it reaches the model.
                 reply, source = get_nolo_ai_answer(
                     prompt,
                     system_text=NOLO_README_SYSTEM_PROMPT,
@@ -306,7 +271,6 @@ def write_readme(title='', description='', html='', css='', js='', tech='', allo
         except Exception:
             logger.exception('write_readme LLM lift failed')
 
-    # Heuristic README — genuinely structured, not a stub.
     feats = _detect_features(html, css, js)
     if not feats:
         feats = ['A small, self-contained web page']

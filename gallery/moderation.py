@@ -46,8 +46,6 @@ def reports_queue(request):
         .select_related('project', 'project__owner', 'user', 'user__profile')
         .order_by('-created_at')
     )
-    # One row per open report, but annotate how many open reports the
-    # project has so a moderator can spot patterns without joining by hand.
     open_counts = dict(
         AppReport.objects
         .filter(status='open')
@@ -58,8 +56,6 @@ def reports_queue(request):
     open_list = list(open_reports)
     for report in open_list:
         report.project_open_count = open_counts.get(report.project_id, 1)
-        # A vote "resolved" is not a dismissal of the other open reports;
-        # if the vibe is already gone, close the whole project group.
         report.project_status = report.project.status
 
     handled = (
@@ -123,9 +119,6 @@ def moderation_action(request, slug):
     if action == 'approve':
         project.status = 'published'
         project.save(update_fields=['status'])
-        # Human approval is a publish path too — grade from the recorded
-        # evidence (snippet_scan for snippets, the scan chain for ZIPs) so
-        # a moderator-approved vibe carries the same badge machinery.
         try:
             from .trust import apply_trust_grade
             apply_trust_grade(project)
@@ -141,8 +134,6 @@ def moderation_action(request, slug):
     elif action == 'delete':
         if not request.user.profile.is_admin():
             return render(request, '403.html', status=403)
-        # Same rule as owner deletes: paid vibes soft-delete so buyers keep
-        # their receipts and downloads; unpaid vibes hard-delete.
         from .lifecycle import remove_project
         remove_project(project)
         return redirect('moderation_queue')

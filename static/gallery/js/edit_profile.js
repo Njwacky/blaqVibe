@@ -1,8 +1,3 @@
-/* Edit Profile — live name-style preview.
-   The maps come from the SERVER whitelists via json_script
-   (#name-style-maps), so the preview can never show a style the renderer
-   would refuse. 5 Whys: why preview with the real maps? A preview that lies
-   (hand-written JS mirrors) sells a 20★ style that saves differently. */
 (function () {
   const mapsEl = document.getElementById('name-style-maps');
   const preview = document.getElementById('name-style-preview');

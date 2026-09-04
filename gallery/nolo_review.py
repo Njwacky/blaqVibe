@@ -1,7 +1,6 @@
 import os, logging, json, re
 logger = logging.getLogger(__name__)
 
-# 5 Whys: Why heuristic fallback? No OPENAI_API_KEY in dev → still give value, crush silently.
 
 def heuristic_review(project):
     """Backend only, no JS, no LLM key needed — checks for quality signals."""
@@ -27,7 +26,6 @@ def heuristic_review(project):
             fixes.append("Declare tech stack (e.g., Django, React)")
         if project.language_stats:
             pros.append(f"Languages: {', '.join(project.language_stats.keys())}")
-        # Check for requirements
         try:
             has_req = any("requirements" in p.lower() for p in (project.file_tree or {}).keys()) or "requirements" in readme.lower()
             if has_req:
@@ -37,7 +35,6 @@ def heuristic_review(project):
                 fixes.append("Add requirements.txt or package.json")
         except Exception: pass
         score = max(0, min(10, score))
-        # Ensure 3 fixes max, 3 pros
         return {"score": score, "fixes": fixes[:3], "pros": pros[:3], "source": "heuristic"}
     except Exception as e:
         logger.exception(f"heuristic_review crush: {e}")
@@ -47,7 +44,6 @@ def nolo_review(project):
     """Try Gemini (free) first, then Groq (free, fastest), then OpenAI, then heuristic — crush silently, backend only."""
     try:
         heuristic = heuristic_review(project)
-        # 1. Try Gemini free first
         gemini_key = os.getenv("GEMINI_API_KEY", "")
         if gemini_key:
             try:
@@ -63,7 +59,6 @@ def nolo_review(project):
                     return {"score": int(data.get("score", heuristic["score"])), "fixes": data.get("fixes", heuristic["fixes"])[:3], "pros": data.get("pros", heuristic["pros"])[:3], "source": "gemini"}
             except Exception as e:
                 logger.warning(f"Gemini review failed, try Groq/OpenAI/heuristic: {e}")
-        # 2. Try Groq (free, fastest) — placeholder, wire when you add GROQ_API_KEY
         groq_key = os.getenv("GROQ_API_KEY", "")
         if groq_key:
             try:
@@ -78,7 +73,6 @@ def nolo_review(project):
                     return {"score": int(data.get("score", heuristic["score"])), "fixes": data.get("fixes", heuristic["fixes"])[:3], "pros": data.get("pros", heuristic["pros"])[:3], "source": "groq"}
             except Exception as e:
                 logger.warning(f"Groq review failed, try OpenAI/heuristic: {e}")
-        # 3. Try OpenAI
         api_key = os.getenv("OPENAI_API_KEY", "")
         if api_key:
             try:

@@ -4,54 +4,29 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
 
-# --- Name style whitelists (rendered by Profile.name_style_css) ------------
-# 5 Whys: Why slugs + a dict, never the user's raw CSS?
-# 1. Why not accept "font-family:..." from the user? style attributes are
-#    HTML — a crafted value can break out of the attribute or smuggle
-#    url()/expression() payloads. bleach cannot sanitize CSS reliably.
-# 2. Why render from OUR dict then? The template prints the OUTPUT of these
-#    dicts only; an unknown slug falls back to the default via .get().
-#    Nothing user-typed ever reaches the page as CSS.
-# 3. Why no external font URLs (Google Fonts per-user)? CSP stays strict,
-#    the PWA stays offline-friendly, and a request per user per pageview is
-#    a privacy leak for zero benefit — the stacks below ship with the OS
-#    or the site's own two font files.
-# 4. Why em-based size classes, not a px value? A styled name renders on the
-#    profile header (18px context) and in follower lists (14px context).
-#    A stored px would be wrong in one of them; em scales with context and
-#    xl is capped so nobody shrinks their name to invisible or fills a page.
-# 5. Why is "rainbow" a class, not a color? It is a gradient + animation —
-#    CSS classes in blaqvibes.css, versioned with the rest of the theme,
-#    respecting prefers-reduced-motion. An inline style cannot do that
-#    without smuggling keyframes, which is exactly what rule 1 bans.
 NAME_FONTS = {
-    'classic': '',                                    # inherit — free default
-    'grotesk': '"Space Grotesk","Inter",sans-serif',  # site display face
+    'classic': '',
+    'grotesk': '"Space Grotesk","Inter",sans-serif',
     'mono': '"JetBrains Mono",ui-monospace,Menlo,monospace',
     'serif': 'Georgia,"Times New Roman",serif',
     'rounded': 'ui-rounded,"Segoe UI",Verdana,sans-serif',
 }
 NAME_COLORS = {
-    'default': '',          # inherit — free default
-    'violet': '#7C3AED',    # brand
+    'default': '',
+    'violet': '#7C3AED',
     'gold': '#f5c518',
     'cyan': '#22d3ee',
     'crimson': '#ef4444',
     'emerald': '#34d399',
-    'rainbow': '',          # animated gradient class, not a hex
+    'rainbow': '',
 }
 NAME_SIZES = {'md': '', 'lg': 'name-size-lg', 'xl': 'name-size-xl'}
 NAME_FX = {
-    'none': '',            # free default
+    'none': '',
     'glow': 'namefx-glow',
-    'shine': 'namefx-shine',   # animated light sweep — the "anime" flex
-    'chroma': 'namefx-chroma', # slow hue rotation
+    'shine': 'namefx-shine',
+    'chroma': 'namefx-chroma',
 }
-# Pretty labels for the picker (users/forms.py). Choices are built FROM the
-# whitelists so the form can never offer — or accept — a slug the renderer
-# does not know. 5 Whys: why not hand-write <option>s in the template?
-# Hand-written options drift; a slug in the HTML the renderer drops silently
-# becomes a paid no-op and a support ticket.
 NAME_FONT_LABELS = {
     'classic': 'Classic (default)', 'grotesk': 'Space Grotesk',
     'mono': 'JetBrains Mono', 'serif': 'Serif', 'rounded': 'Rounded',
@@ -67,64 +42,6 @@ NAME_FX_LABELS = {
     'shine': 'Anime shine (animated)', 'chroma': 'Chroma shift (animated)',
 }
 
-# --- Twenty named people-styles --------------------------------------------
-# Classic is the free default (already on every Profile). It is NOT one of
-# the twenty — counting it would advertise a 20th look that costs nothing
-# and does nothing. The twenty are Coder, Glamour, Charmer, Strict and
-# sixteen more. Each recipe is a packed NAME_* tuple + a versioned CSS class.
-#
-# 5 Whys — twenty named people-styles (each Why has four points):
-# 1. Why people-types instead of another pile of fonts?
-#    a. A font slug is a technical knob. "Coder" / "Glamour" is a character
-#       people recognise on a follower list without opening Settings.
-#    b. Twenty recipes reuse the existing NAME_* whitelist — no new CSS
-#       injection surface, no new font files, no new wallet.
-#    c. A named look is the flex the 20★ burn is supposed to buy. "I am
-#       the Coder" is louder than "I picked JetBrains Mono".
-#    d. The four requested types (coder, glamour, charmer, strict) plus
-#       sixteen more fill one scannable dropdown list — a named look is
-#       one choice, not a four-dropdown puzzle.
-# 2. Why a slug + recipe dict, never a user-typed class name?
-#    a. Same rule as NAME_FONTS: the template prints OUR class
-#       (`namepersona-coder`), never the posted string.
-#    b. An unknown slug degrades to Classic — the renderer and the writer
-#       share compose_name_style, so a tampered DB row cannot invent a class.
-#    c. Extra flourish (tracking, small-caps, skew) lives in versioned CSS
-#       next to namefx-*, so prefers-reduced-motion and theme tokens stay
-#       one file.
-#    d. A recipe that pointed at a font we do not whitelist would be a paid
-#       no-op. compose_name_style only accepts NAME_* slugs; tests assert
-#       every recipe is on-whitelist.
-# 3. Why does picking a people-style fill font / color / size / fx?
-#    a. Without that, a no-JS POST would save persona=coder on top of the
-#       default dropdowns and the look would not match the style they picked.
-#    b. The four dropdowns stay as a fine-tune for Classic mixes; the
-#       people-style list is the primary picker, the four dropdowns are
-#       the escape hatch.
-#    c. Filling the four fields means the existing renderer (inline
-#       font/color + size/fx classes) still works if an old CSS cache is
-#       missing the persona class.
-#    d. Ledger refs record both the persona and the four slugs, so a
-#       support ticket can replay the exact look.
-# 4. Why does a fine-tune that no longer matches the recipe clear the
-#    persona back to Classic?
-#    a. Leaving namepersona-coder on a gold-serif mix would lie: the
-#       picker said Coder, the page shows something else.
-#    b. The extra class (uppercase, skew) would fight a custom mix the
-#       user just chose — Classic + mix is the honest custom path.
-#    c. Matching a recipe again (or posting defaults + a people-style, the
-#       no-JS path) re-applies that recipe, so clearing is reversible
-#       without a second wallet.
-#    d. One compose_name_style decides this on write AND on read, so the
-#       Edit Profile preview, the profile, and the stored row cannot drift.
-# 5. Why twenty, and why is Classic not one of the twenty?
-#    a. Classic is the free default everyone already has; counting it as a
-#       people-style would pad the list with a no-op.
-#    b. Twenty is a full dropdown list without a wall of cards.
-#    c. Each of the twenty burns the same 20★ as a hand-mixed style — no
-#       secret premium tier, no second price.
-#    d. Adding a 21st later is a dict entry + a CSS class + a test; the
-#       form choices are built FROM this dict so the picker cannot drift.
 NAME_PERSONAS = {
     'classic': {
         'label': 'Classic',
@@ -462,8 +379,6 @@ class Profile(models.Model):
     twitter = models.CharField(max_length=80, blank=True)
     canvas_url = models.URLField(blank=True, help_text="Public canvas/portfolio board URL (Koboyo, Figma, Miro, etc.)")
     avatar = models.ImageField(upload_to='avatars/', blank=True, null=True)
-    # 0 by default. The 5 ★ welcome grant is paid once, when the email is
-    # verified (users.wallet.grant_welcome_stars) — signup alone mints nothing.
     stars_balance = models.PositiveIntegerField(default=0, help_text="Stars to trade — verify your email for the welcome grant, earn more when people trade your vibes")
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='user', help_text="Admin role — backend only, never in JS")
     is_pro = models.BooleanField(default=False, help_text="Pro plan — can see who viewed your vibes, AI README, money")
@@ -476,20 +391,6 @@ class Profile(models.Model):
     allow_trading = models.BooleanField(default=True, help_text="If off, your vibes are free (0 ★)")
     email_on_trade = models.BooleanField(default=True)
     email_on_review = models.BooleanField(default=True)
-    # --- In-app notification preferences ---------------------------------
-    # 5 Whys: why per-kind switches instead of one "notifications" switch?
-    # 1. An inbox that cannot be tuned is an inbox people mute at the OS
-    #    level, and then the one notification that matters is lost too.
-    # 2. Why server-side and not a JS-only hide? A hidden toast still
-    #    writes a row and still costs a query; a preference stops the write.
-    # 3. Why default on? The whole retention loop depends on the creator
-    #    learning that somebody touched their work.
-    # 4. Why not email per kind? Email volume is a bigger commitment; the
-    #    two email switches above stay as they are.
-    # 5. Why is the check in gallery.views._notify_project_owner and not in
-    #    notify()? notify() is also used for things a user MUST see
-    #    (payouts, quarantine, reports). Preferences apply to the social
-    #    kinds only.
     notify_on_star = models.BooleanField(default=True)
     notify_on_fork = models.BooleanField(default=True)
     notify_on_follow = models.BooleanField(default=True)
@@ -501,24 +402,12 @@ class Profile(models.Model):
     allow_prs = models.BooleanField(default=True)
     allow_comments = models.BooleanField(default=True)
     allow_reviews = models.BooleanField(default=True)
-    # --- Name style (users/rename.py is the only writer) ------------------
-    # Stored as whitelisted slugs, rendered via NAME_* dicts — never raw CSS.
     name_font = models.CharField(max_length=20, default='classic')
     name_color = models.CharField(max_length=20, default='default')
     name_size = models.CharField(max_length=4, default='md')
     name_fx = models.CharField(max_length=20, default='none')
-    # Named people-style (coder / glamour / …). Classic is the free default.
-    # users/rename.set_name_style is the only writer; compose_name_style is
-    # the only reader. Unknown slugs coerce to classic.
     name_persona = models.CharField(max_length=20, default='classic')
     last_rename_at = models.DateTimeField(null=True, blank=True, help_text='Set by rename_user — the 30-day cooldown anchor')
-    # Git daemon credential for social-login users (no password on file).
-    # ONLY the SHA-256 lives here; the plaintext is shown once at rotate.
-    # 5 Whys: Why a token at all? `git push` uses Basic auth — GitHub/Gmail
-    # users have no usable Django password. Why hash it? A credential at
-    # rest in plaintext is a breach waiting for a DB dump. Why sha256 not
-    # bcrypt? It is high-entropy (token_urlsafe) and compared with
-    # compare_digest; bcrypt's strength is against low-entropy secrets.
     git_token_hash = models.CharField(max_length=64, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
@@ -538,11 +427,6 @@ class Profile(models.Model):
             return False
         return True
 
-    # 5 Whys: Why do these delegate to the User, not a Profile field?
-    # Follow rows point at User on both ends (follower/following); the
-    # related managers ('followers'/'following') live on User. A version of
-    # followers_count that read self.followers crashed with AttributeError,
-    # so both counts go through user.* — the single source of truth.
     def followers_count(self): return self.user.followers.count()
     def following_count(self): return self.user.following.count()
     def vibes_count(self): return self.user.projects.filter(status='published').count()
@@ -561,12 +445,6 @@ class Profile(models.Model):
         self.save(update_fields=['git_token_hash'])
         return token
     def stars_received(self):
-        # Memoised for the life of this instance (one request). A single
-        # page renders a creator's totals in three or four places — the
-        # profile header, the owner card, the co-owner row — and each one
-        # used to run its own SUM(). Writers (stars, trades) bump rows with
-        # F() and never re-read these totals in the same request, so the
-        # cached value cannot be stale on the page that computed it.
         if getattr(self, '_stars_received_cache', None) is None:
             from django.db.models import Sum
             self._stars_received_cache = self.user.projects.aggregate(s=Sum('stars'))['s'] or 0
@@ -575,7 +453,6 @@ class Profile(models.Model):
         from gallery.ranks import contributor_bonus
         return contributor_bonus(self.user)
 
-    # --- Styled name rendering (read-side of the NAME_* / NAME_PERSONAS) --
     def _composed_name_style(self):
         """Same composer the writer uses — a bad slug can never leak CSS."""
         return compose_name_style(
@@ -629,9 +506,6 @@ class AdminLog(models.Model):
         ordering = ['-created_at']
 
 
-# The one-time welcome grant, paid when the email is verified — not at signup.
-# 5 Whys: Why on verify, not signup? Signup is free and scriptable; a mailbox
-# is the first scarce resource we can bind currency to.
 WELCOME_STARS = 5
 
 
@@ -716,24 +590,14 @@ class Tip(models.Model):
         return f'@{self.sender} → @{self.recipient} {self.amount}★'
 
 
-# --- Star → ZAR cash-out rules (users/payouts.py is the only writer) -------
-# 5 Whys: Why constants here? The rate and minimum are money policy; keeping
-# them next to the ledger they debit means anyone touching the money path
-# trips over them first. Why whole-ZAR only? Paystack amounts are integer
-# cents; a fractional rate would round differently per request size and the
-# frozen amount_zar would stop matching what a creator was quoted.
-STARS_PER_ZAR = 10          # 10 ★ = R1
-MIN_PAYOUT_STARS = 500      # R50 — below this a bank transfer fee eats the payout
-MAX_PAYOUT_STARS = 50000    # R5 000 per request — one human-sized EFT, not a whale exit
+STARS_PER_ZAR = 10
+MIN_PAYOUT_STARS = 500
+MAX_PAYOUT_STARS = 50000
 
-# --- Identity money rules (users/rename.py is the only writer) -------------
-# PUBG rule: a name is not free to change. Pro accounts carry a rename card;
-# everyone else burns stars. These are money policy next to the ledger they
-# debit, same rule as the payout constants above.
-RENAME_COST_STARS = 100     # a rename card — 10× the welcome grant, not farmable
-STYLE_COST_STARS = 20       # restyle your display name — cosmetic sink
-RENAME_COOLDOWN_DAYS = 30   # PUBG-style cooldown: one rename per window, no exceptions
-RENAME_RESERVE_DAYS = 90    # your old name stays reserved (anti-impersonation)
+RENAME_COST_STARS = 100
+STYLE_COST_STARS = 20
+RENAME_COOLDOWN_DAYS = 30
+RENAME_RESERVE_DAYS = 90
 
 
 class UsernameHistory(models.Model):

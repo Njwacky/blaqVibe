@@ -1,6 +1,3 @@
-/* Pre-paint bootstrap — apply saved appearance and sidebar geometry before
-   first paint. Shared by base.html, the standalone error pages, and the
-   snippet preview blocked page. Must stay a blocking head script. */
 try {
   var t = localStorage.getItem('blaq-theme');
   if (t !== 'light' && t !== 'dark') t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';

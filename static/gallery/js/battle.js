@@ -1,4 +1,3 @@
-/* Battle page — swipe right/left → next battle — mobile only, desktop uses buttons */
 try {
   const wrap = document.getElementById('battle-swipe');
   if (wrap) {

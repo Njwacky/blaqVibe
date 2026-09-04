@@ -1,8 +1,4 @@
-{% comment %}Server-rendered bar chart for a [(date, count)] series with a
-precomputed `max` (see gallery.analytics._series_with_max). No JS, no chart
-library, no third-party request — the same reason the admin dashboard draws
-its own charts. An empty series renders an honest flat row, not a decorative
-curve. (Django's {# #} cannot span lines, so this uses {% comment %}.){% endcomment %}{% if series %}
+{% if series %}
 <div style="display:flex;align-items:flex-end;gap:2px;height:64px">
   {% for item in series %}
     <div title="{{ item.0|date:'M j' }}: {{ item.1 }}"

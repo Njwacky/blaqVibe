@@ -21,9 +21,6 @@ from .comparison import enrich_comparison_groups
 
 logger = logging.getLogger(__name__)
 
-# A guide older than this many days is flagged as stale in the UI and by the
-# check_guide_reviews management command. The docs/LAUNCH_GUIDE.md checklist
-# asks for a quarterly review, so 90 days is the natural ceiling.
 REVIEW_MAX_AGE_DAYS = 90
 
 
@@ -57,8 +54,6 @@ def _review_status(guide):
     return {"days_since": days, "is_outdated": days > REVIEW_MAX_AGE_DAYS, "missing": False}
 
 
-# Markers taken from official-doc claims already in the guides. Used only to
-# surface a visual "high-stakes" flag — the step copy itself is unchanged.
 _HIGH_RISK_MARKERS = (
     "secret",
     "private key",

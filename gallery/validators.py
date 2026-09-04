@@ -5,17 +5,10 @@ from django.conf import settings
 logger = logging.getLogger(__name__)
 
 MAX_ZIP_SIZE = getattr(settings, 'BLAQVIBES_MAX_ZIP_MB', 100) * 1024 * 1024
-MAX_FILES = getattr(settings, 'BLAQVIBES_MAX_FILES', 1000)  # stricter: 1000 not 2000
-MAX_TOTAL_UNCOMPRESSED = 200 * 1024 * 1024  # 200MB, not 500MB
-MAX_COMPRESSION_RATIO = 100  # file_size / compress_size >100 = bomb
+MAX_FILES = getattr(settings, 'BLAQVIBES_MAX_FILES', 1000)
+MAX_TOTAL_UNCOMPRESSED = 200 * 1024 * 1024
+MAX_COMPRESSION_RATIO = 100
 MAX_FILENAME_LEN = 255
-# Two reasons a path part is refused outright:
-#   * bulk that hides a bomb (node_modules, venv, __pycache__, __MACOSX)
-#   * CREDENTIALS AND TOOL CONFIG — a `.env` next to the code is how a
-#     developer's keys travel, and `.npmrc`/`.pypirc`/`.netrc`/`.gitconfig` are
-#     read by the very tools the scan worker runs (see gallery/dep_audit), so an
-#     uploaded one can redirect an audit to an attacker endpoint. Private keys
-#     by their conventional filenames never belong in a public vibe.
 BLOCKED_NAMES = {
     'node_modules', '__pycache__', '.git', 'venv', '.venv', '.env', '__MACOSX',
     '.DS_Store', '.ssh', '.aws',
@@ -24,13 +17,6 @@ BLOCKED_NAMES = {
     'id_rsa', 'id_dsa', 'id_ecdsa', 'id_ed25519',
 }
 BLOCKED_EXT = {'.exe','.dll','.so','.dylib','.sh','.bat','.bin','.o','.a'}
-# A subset of BLOCKED_NAMES that is *build output*, not a credential. They
-# get their own error message: the beginner fix ("delete the folder and
-# re-zip") is different from the security fix ("rotate that key").
-# 5 Whys: why not one message for both? Because the single biggest upload
-# failure is an ordinary vibe-coded folder that contains node_modules/ —
-# and an error that says "credentials" sends that person to check their
-# keys instead of their folder. Same block, different instruction.
 BULK_NAMES = {'node_modules', '__pycache__', 'venv', '.venv', '__MACOSX', '.DS_Store'}
 SECRET_PATTERNS = [
     re.compile(r'sk_live_[0-9a-zA-Z]+'),
@@ -39,17 +25,14 @@ SECRET_PATTERNS = [
     re.compile(r'ghp_[A-Za-z0-9_]{36}'),
 ]
 
-# 5 Whys: Why not just check '..'? Symlink + absolute + // + \ + commonpath bypass it. Why not just sum? Ratio bomb: 1KB compressed -> 10GB. Why not just count? 1999 * 300KB = 600MB still passes but symlink does.
 
 def _is_symlink(zip_info):
-    # External attr high 16 bits is file mode; symlink is 0o120000
     try:
         return (zip_info.external_attr >> 16) & 0o170000 == 0o120000
     except Exception:
         return False
 
 def validate_zip(file):
-    # 1. Size and type — crush silently, raise ValidationError
     try:
         if not file.name.lower().endswith('.zip'):
             raise ValidationError("Only .zip files allowed.")
@@ -65,7 +48,6 @@ def validate_zip(file):
 
     try:
         with zipfile.ZipFile(file) as z:
-            # Test for bad zip
             bad = z.testzip()
             if bad:
                 raise ValidationError(f"Corrupted file in ZIP: {bad}")
@@ -84,19 +66,14 @@ def validate_zip(file):
             for info in infos:
                 name = info.filename
 
-                # 2. Path traversal — full check, not just '..'
-                # Block absolute, Windows, drive, //, \
                 if not name:
                     raise ValidationError("Empty filename in ZIP.")
                 if len(name) > MAX_FILENAME_LEN:
                     raise ValidationError(f"Filename too long: {name[:50]}...")
-                # Normalize separators
                 norm = name.replace('\\', '/')
                 if norm.startswith('/') or norm.startswith('//') or ':/' in norm or norm.startswith('\\\\'):
                     raise ValidationError(f"Absolute path not allowed: {name}")
-                # Use commonpath to detect traversal
                 try:
-                    # Resolve against /tmp/safe
                     safe_base = os.path.abspath("/tmp/safe")
                     target = os.path.abspath(os.path.join(safe_base, norm))
                     if os.path.commonpath([safe_base]) != os.path.commonpath([safe_base, target]):
@@ -112,11 +89,6 @@ def validate_zip(file):
                     raise ValidationError(f"Path traversal '..' in: {name}")
                 for part in parts:
                     if part in BULK_NAMES:
-                        # Distinct copy for the *common* beginner case. A
-                        # vibe-coded folder almost always contains
-                        # node_modules/ or .venv/; telling that person
-                        # "credentials never go in a vibe" is a wrong
-                        # diagnosis they cannot act on. Name the fix.
                         raise ValidationError(
                             f"“{part}/” is in your ZIP. Delete that folder and zip the "
                             f"project again — it is build output, not your app "
@@ -136,26 +108,21 @@ def validate_zip(file):
                     if part in ('.ssh', '.aws'):
                         raise ValidationError(f"Blocked hidden file: {name}")
 
-                # 3. Symlink check
                 if _is_symlink(info):
                     raise ValidationError(f"Symlink not allowed in ZIP: {name} — would allow /etc/passwd")
 
-                # 4. Extension block
                 _, ext = os.path.splitext(name)
                 if ext.lower() in BLOCKED_EXT:
                     raise ValidationError(f"Blocked file type {ext}: {name}")
 
-                # 5. Zip bomb — size + ratio + count
                 try:
                     total_uncompressed += info.file_size
                     if total_uncompressed > MAX_TOTAL_UNCOMPRESSED:
                         raise ValidationError(f"Uncompressed total >{MAX_TOTAL_UNCOMPRESSED//(1024*1024)}MB — possible zip bomb. Total {total_uncompressed//(1024*1024)}MB")
-                    # Compression ratio: file_size / compress_size
                     if info.compress_size > 0:
                         ratio = info.file_size / max(1, info.compress_size)
                         if ratio > MAX_COMPRESSION_RATIO and info.file_size > 1024*1024:
                             raise ValidationError(f"High compression ratio {ratio:.0f}x for {name} ({info.file_size//1024}KB → {info.compress_size//1024}KB) — possible bomb")
-                    # Single file too large
                     if info.file_size > 50*1024*1024:
                         raise ValidationError(f"Single file too large {info.file_size//(1024*1024)}MB: {name} — max 50MB per file")
                 except ValidationError:
@@ -163,7 +130,6 @@ def validate_zip(file):
                 except Exception as e:
                     logger.warning(f"zip bomb check failed for {name}: {e}")
 
-            # Final total check
             if total_uncompressed == 0:
                 raise ValidationError("ZIP has no content (all directories).")
 
@@ -305,4 +271,3 @@ def safe_extract_zip(zip_path, dest_dir):
                     pass
                 raise ValueError(f'path traversal after write: {info.filename}')
     return dest
-

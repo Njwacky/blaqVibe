@@ -33,21 +33,12 @@ def _serialize(project):
         'star_cost': int(project.star_cost or 0),
         'price_zar': int(project.price_zar or 0),
         'url': project.get_absolute_url(),
-        # Legacy key: packaging, not program type. Kept for existing clients.
         'kind': 'full_app' if project.zip_file else 'snippet',
         'program_kind': project.kind,
         'program_kind_label': project.kind_label,
         'preview': project.preview_mode,
         'can_run_preview': project.can_run_preview,
         'appeal_score': round(float(project.appeal_score or 0), 2),
-        # Trust tier — the public verdict string, never the backend
-        # scan_report (which holds secret filenames and audit detail).
-        # 4 points: (1) add-only change keeps the API backwards compatible;
-        # (2) the tier is the same value the website badge renders, so API
-        # consumers cannot see a different trust story than the site;
-        # (3) 'trust_label' gives non-dev consumers a printable word;
-        # (4) pipeline-written only, so the API can never be asked to
-        # change it — read-only by construction.
         'trust': project.trust,
         'trust_label': project.trust_meta['label'],
     }
@@ -61,12 +52,6 @@ def api_apps(request):
     valid = {k['value'] for k in PROGRAM_KINDS}
     if program in valid:
         qs = qs.filter(kind=program)
-    # Trust filter — same whitelist rule as the website feed ('verified' |
-    # 'scanned'; anything else is ignored). 4 points: (1) API consumers get
-    # the same instruction the site honours — no divergent trust story;
-    # (2) add-only parameter, existing consumers are unaffected; (3) rides
-    # the trust db_index so the endpoint stays a range scan; (4) an empty
-    # result set is an honest answer, never silently refilled.
     trust = (request.GET.get('trust') or '').strip().lower()
     if trust in ('verified', 'scanned'):
         qs = qs.filter(trust=trust)

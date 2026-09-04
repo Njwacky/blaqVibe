@@ -1,6 +1,3 @@
-/* BlaqVibes — show/hide password toggle (eye icon)
-   Auto-wraps every <input type="password"> on the page with a toggle button.
-   No dependencies; safe to include on any auth page. */
 (function () {
   const EYE_OPEN =
     '<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" ' +
@@ -17,7 +14,6 @@
 
   function init() {
     document.querySelectorAll('input[type="password"]').forEach(function (input) {
-      // Avoid double-init if the script loads twice
       if (input.parentElement && input.parentElement.classList.contains('pwd-field')) return;
 
       var wrap = document.createElement('div');

@@ -17,7 +17,6 @@ from users.security import AccountPasswordChangeView, AccountPasswordResetConfir
 
 @never_cache
 def serve_sw(request):
-    # Serve SW at /sw.js with scope / — backend, no secrets, crush silently
     try:
         return FileResponse(open(settings.BASE_DIR / 'static' / 'sw.js', 'rb'), content_type='application/javascript')
     except Exception:
@@ -26,7 +25,6 @@ def serve_sw(request):
 
 
 def serve_robots(request):
-    # Serve robots.txt — plain text, no secrets. Collected from static/.
     try:
         return FileResponse(open(settings.BASE_DIR / 'static' / 'robots.txt', 'rb'), content_type='text/plain')
     except Exception:
@@ -37,18 +35,6 @@ handler404 = 'gallery.views.safe_404'
 handler403 = 'gallery.views.safe_403'
 handler500 = 'gallery.views.safe_500'
 
-# BlaqVibes owns login/signup (they are Django auth views, not allauth ones),
-# but allauth's own pages reverse the names `account_login`/`account_signup`
-# when they render "back to sign in" links. Without these aliases every
-# allauth-rendered page — the social signup form, the cancelled page, the
-# authentication-error page — dies with NoReverseMatch instead of rendering.
-# Same URL, same view, second name: no duplicate route, no redirect hop.
-# Credential-guessing surface. Every other write endpoint carries a
-# @ratelimit; login and password-reset are the two that gate *accounts*, so
-# they are bounded too (per IP, POST only). block=True raises Ratelimited
-# (a PermissionDenied) → handler403 → safe_403, the same friendly page the
-# rest of the site shows. GET stays unlimited so a bot cannot 403 the login
-# form itself out from under a classroom/NAT.
 login_view = ratelimit(key='ip', rate='20/m', method='POST')(
     auth_views.LoginView.as_view(
         template_name='registration/login.html',
@@ -56,9 +42,6 @@ login_view = ratelimit(key='ip', rate='20/m', method='POST')(
     )
 )
 
-# Reset-email bombing + password-set brute force: same ceiling. The email
-# form can't leak whether an address exists (Django's generic response), but
-# an unbounded POST loop still costs one email each — bound it.
 password_reset_view = ratelimit(key='ip', rate='10/m', method='POST')(
     auth_views.PasswordResetView.as_view(
         template_name='registration/password_reset_form.html',
@@ -105,7 +88,6 @@ def social_provider_urls():
             _require_configured_provider(slug, pattern)
             for pattern in module.urlpatterns
         ]
-        # No namespace: allauth reverses these as plain `github_callback`.
         patterns.append(path('accounts/social/', include(guarded)))
     return patterns
 

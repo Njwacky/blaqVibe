@@ -23,8 +23,6 @@ from http import cookies as http_cookies
 
 from django.shortcuts import render
 
-# Python 3.11's Morsel does not know Partitioned (CHIPS). Register it once
-# so Set-Cookie can carry the flag browsers need for a third-party iframe.
 http_cookies.Morsel._reserved.setdefault('partitioned', 'Partitioned')
 http_cookies.Morsel._flags.add('partitioned')
 
@@ -53,9 +51,6 @@ class PreviewEmbedMiddleware:
     def __call__(self, request):
         response = self.get_response(request)
         embed_host = host_needs_embed_cookies(request)
-        # Only the e2b preview host. Production (blaqvibes.co.za) and
-        # laptop localhost keep Lax cookies and X-Frame-Options — this
-        # middleware must never weaken the real site.
         if not embed_host:
             return response
         from django.conf import settings
@@ -94,9 +89,6 @@ class MaintenanceModeMiddleware:
     def __call__(self, request):
         path = request.path_info
 
-        # Always allow static/media assets (the 503 page itself needs CSS),
-        # the real admin panel, the honeypot admin, and login/signup/password
-        # reset so superadmins can authenticate during a maintenance window.
         if (
             path.startswith('/static/')
             or path.startswith('/media/')
@@ -107,8 +99,6 @@ class MaintenanceModeMiddleware:
             or path.startswith('/accounts/password')
             or path.startswith('/accounts/verify')
             or path.startswith('/accounts/reset')
-            # Ops probes stay live through a maintenance window: the LB and
-            # alerting must see "up" while humans see the 503 page.
             or path in ('/healthz', '/readyz')
         ):
             return self._get_response(request)
@@ -117,12 +107,6 @@ class MaintenanceModeMiddleware:
             from users.models import SiteSettings
             site = SiteSettings.get()
             if site.maintenance:
-                # Superadmins bypass the maintenance wall so they can
-                # resolve the issue without needing a separate login flow.
-                # getattr: this middleware sits AFTER AuthenticationMiddleware
-                # in MIDDLEWARE (that placement is required — see settings.py),
-                # but a request must never 500 the wall because a user object
-                # is missing.
                 user = getattr(request, 'user', None)
                 if (
                     user is not None

@@ -213,7 +213,6 @@ class ProfileAndFollowTests(TestCase):
             stars=stars,
         )
 
-    # --- Profile page ---
 
     def test_profile_page_renders_for_anonymous(self):
         owner = self._make_user('maker')
@@ -230,11 +229,11 @@ class ProfileAndFollowTests(TestCase):
 
     def test_profile_shows_rank_and_star_stats(self):
         owner = self._make_user('ranker')
-        self._make_project(owner, 'Star magnet', stars=12)  # 10 => Silver
+        self._make_project(owner, 'Star magnet', stars=12)
         response = self.client.get('/u/ranker/')
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Silver')       # rank pill
-        self.assertContains(response, '12 ★')          # stars earned stat
+        self.assertContains(response, 'Silver')
+        self.assertContains(response, '12 ★')
 
     def test_own_profile_shows_pending_vibes(self):
         owner = self._make_user('builder')
@@ -254,7 +253,6 @@ class ProfileAndFollowTests(TestCase):
         self.assertContains(response, 'Public one')
         self.assertNotContains(response, 'Hidden one')
 
-    # --- Creator-name links from discovery surfaces ---
 
     def test_feed_links_creator_names_to_profiles(self):
         owner = self._make_user('feedstar')
@@ -268,7 +266,6 @@ class ProfileAndFollowTests(TestCase):
         response = self.client.get(project.get_absolute_url())
         self.assertContains(response, '/u/publisher/')
 
-    # --- Follow ---
 
     def test_follow_toggle_and_unfollow(self):
         fan = self._make_user('fan')
@@ -280,7 +277,7 @@ class ProfileAndFollowTests(TestCase):
         self.assertEqual(response.json()['followers'], 1)
         self.assertTrue(Follow.objects.filter(follower=fan, following=star).exists())
 
-        response = self.client.post('/u/starlet/follow/')  # toggle off
+        response = self.client.post('/u/starlet/follow/')
         self.assertFalse(response.json()['following'])
         self.assertEqual(response.json()['followers'], 0)
         self.assertFalse(Follow.objects.filter(follower=fan, following=star).exists())
@@ -294,7 +291,7 @@ class ProfileAndFollowTests(TestCase):
     def test_follow_requires_login(self):
         self._make_user('target')
         response = self.client.post('/u/target/follow/')
-        self.assertEqual(response.status_code, 302)  # redirect to login
+        self.assertEqual(response.status_code, 302)
         self.assertIn('/accounts/login', response.url)
 
     def test_follow_creates_notification(self):
@@ -309,21 +306,12 @@ class ProfileAndFollowTests(TestCase):
     @override_settings(
         RATELIMIT_ENABLE=True,
         RATELIMIT_USE_CACHE='ratelimit',
-        # 5 Whys: Why pin the cache here? The rate-limit cache follows
-        # REDIS_URL from .env at settings-import time. A test that silently
-        # depends on whether .env exists (Redis up or down) would pass on
-        # one machine and crash on another — a hermetic test pins locmem.
         CACHES={
             'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'test-default'},
             'ratelimit': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'test-ratelimit'},
         },
     )
     def test_follow_is_rate_limited(self):
-        # 5 Whys: Why assert 403, not 429? This codebase's ratelimit pattern
-        # (django-ratelimit 4.x, block=True) raises Ratelimited, which Django
-        # maps through handler403 to the site's friendly safe_403 page — the
-        # same behaviour publish/comments/battles have. Follow must not be
-        # the odd one out.
         self._make_user('bot')
         self._make_user('t1')
         self._make_user('t2')
@@ -334,7 +322,6 @@ class ProfileAndFollowTests(TestCase):
             last = self.client.post(f'/u/{target}/follow/')
         self.assertEqual(last.status_code, 403)
 
-    # --- Tabs ---
 
     def test_followers_tab_lists_followers(self):
         fan = self._make_user('fan')
@@ -342,7 +329,7 @@ class ProfileAndFollowTests(TestCase):
         Follow.objects.create(follower=fan, following=star)
         response = self.client.get('/u/starlet/?tab=followers')
         self.assertContains(response, 'fan')
-        self.assertContains(response, 'Follow')  # card button for the fan
+        self.assertContains(response, 'Follow')
 
     def test_following_tab_lists_following(self):
         fan = self._make_user('fan')
@@ -357,7 +344,7 @@ class ProfileAndFollowTests(TestCase):
         p_new = self._make_project(user, 'Starred recently')
         p_old = self._make_project(user, 'Starred long ago')
         Star.objects.create(user=user, project=p_old)
-        Star.objects.create(user=user, project=p_new)  # newest first
+        Star.objects.create(user=user, project=p_new)
         response = self.client.get('/u/stargiver/?tab=stars')
         self.assertEqual(response.status_code, 200)
         content = response.content.decode()
@@ -387,10 +374,9 @@ class TipTests(TestCase):
             user.profile.email_verified = True
             user.profile.save(update_fields=['email_verified'])
             from users.wallet import grant_welcome_stars
-            grant_welcome_stars(user)  # real wallet path -> 5★
+            grant_welcome_stars(user)
         return user
 
-    # --- Wallet moves ---
 
     def test_tip_moves_stars_and_writes_ledger(self):
         from gallery.models import Notification
@@ -402,12 +388,12 @@ class TipTests(TestCase):
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertTrue(data['ok'])
-        self.assertEqual(data['balance'], 2)  # 5 - 3
+        self.assertEqual(data['balance'], 2)
 
         sender.profile.refresh_from_db()
         recipient.profile.refresh_from_db()
         self.assertEqual(sender.profile.stars_balance, 2)
-        self.assertEqual(recipient.profile.stars_balance, 8)  # 5 + 3
+        self.assertEqual(recipient.profile.stars_balance, 8)
 
         tip = Tip.objects.get()
         self.assertEqual(tip.sender, sender)
@@ -415,25 +401,21 @@ class TipTests(TestCase):
         self.assertEqual(tip.amount, 3)
         self.assertEqual(tip.message, 'Love your games!')
 
-        # Ledger: one spend, one earn, same ref — zero-sum.
         spend = StarEvent.objects.get(user=sender, reason='tip_spend')
         earn = StarEvent.objects.get(user=recipient, reason='tip_earn')
         self.assertEqual(spend.delta, -3)
         self.assertEqual(earn.delta, 3)
         self.assertEqual(spend.ref, f'tip:{tip.pk}')
         self.assertEqual(earn.ref, f'tip:{tip.pk}')
-        # Wallet and ledger reconcile — the discipline the ledger exists for.
         self.assertTrue(recipient.profile.stars_balance == 8)
         from users.wallet import ledger_balance
         self.assertEqual(ledger_balance(recipient), 8)
 
-        # Notification to the recipient.
         self.assertTrue(Notification.objects.filter(user=recipient, kind='tip').exists())
 
     def test_tip_rejects_insufficient_balance(self):
         self._make_user('broke')
         self._make_user('rich')
-        # Burn the 5★ grant down to 1★ via a ledgered admin-style adjust.
         from users.models import StarEvent
         from django.db.models import F
         user = User.objects.get(username='broke')
@@ -467,7 +449,7 @@ class TipTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn('email', response.json()['error'].lower())
         sender.profile.refresh_from_db()
-        self.assertEqual(sender.profile.stars_balance, 0)  # nothing moved
+        self.assertEqual(sender.profile.stars_balance, 0)
 
     def test_tip_requires_login(self):
         self._make_user('target3')
@@ -475,10 +457,6 @@ class TipTests(TestCase):
         self.assertEqual(response.status_code, 302)
 
     def test_tip_message_is_sanitized(self):
-        # bleach tags=[] strip=True removes tag MARKUP but hoists inner text
-        # (same policy as Profile.bio). What must never survive is a live
-        # element or a javascript: URL — Django's template autoescape then
-        # renders any leftover text inert.
         self._make_user('sani')
         self._make_user('receivy2')
         self.client.login(username='sani', password='pass12345')
@@ -489,10 +467,7 @@ class TipTests(TestCase):
         self.assertNotIn('<a', stored)
         self.assertNotIn('<script', stored)
         self.assertNotIn('javascript:', stored)
-        self.assertIn('Hi', stored)  # hoisted text is fine — it renders escaped
-        # The profile page must not contain the live XSS vector either
-        # (the site's own <script> tags are fine — only the injection must
-        # be absent).
+        self.assertIn('Hi', stored)
         page = self.client.get('/u/receivy2/')
         self.assertNotContains(page, 'javascript:')
 
@@ -514,7 +489,6 @@ class TipTests(TestCase):
             last = self.client.post(f'/u/victim{i % 3}/tip/', {'amount': '1'})
         self.assertEqual(last.status_code, 403)
 
-    # --- UI surfaces ---
 
     def test_profile_shows_recent_tips(self):
         self._make_user('giver')
@@ -562,14 +536,14 @@ class ChartTests(TestCase):
 
     def test_activity_chart_renders_earned_and_spent_bars(self):
         user = self._user_with_balance('chartstar', 6)
-        self._ledger(user, 3, 'tip_earn', days_ago=0)      # earned today
-        self._ledger(user, -2, 'trade_spend', days_ago=1)  # spent yesterday
+        self._ledger(user, 3, 'tip_earn', days_ago=0)
+        self._ledger(user, -2, 'trade_spend', days_ago=1)
         self.client.login(username='chartstar', password='pass12345')
         response = self.client.get('/payout/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '<svg')
-        self.assertContains(response, '#10B981')  # earned bar fill
-        self.assertContains(response, '#EF4444')  # spent bar fill
+        self.assertContains(response, '#10B981')
+        self.assertContains(response, '#EF4444')
         self.assertContains(response, '>earned<')
         self.assertContains(response, '>spent<')
         self.assertContains(response, 'Stars earned vs spent, last 14 days')
@@ -583,7 +557,7 @@ class ChartTests(TestCase):
 
     def test_charts_ignore_events_outside_window(self):
         user = self._user_with_balance('oldie', 0)
-        self._ledger(user, 9, 'tip_earn', days_ago=20)  # outside 14-day window
+        self._ledger(user, 9, 'tip_earn', days_ago=20)
         self.client.login(username='oldie', password='pass12345')
         response = self.client.get('/payout/')
         self.assertContains(response, 'No wallet activity in the last 14 days')
@@ -592,9 +566,9 @@ class ChartTests(TestCase):
         user = self._user_with_balance('steady', 5)
         self.client.login(username='steady', password='pass12345')
         response = self.client.get('/payout/')
-        self.assertContains(response, '<polyline')       # the line exists
+        self.assertContains(response, '<polyline')
         self.assertContains(response, 'Wallet balance, last 14 days')
-        self.assertContains(response, '5★')              # end-dot label = real balance
+        self.assertContains(response, '5★')
 
     def test_balance_chart_empty_state_when_nothing_real(self):
         user = self._user_with_balance('zero', 0)
@@ -621,7 +595,6 @@ class ChartTests(TestCase):
         response = self.client.get('/payout/')
         self.assertNotContains(response, '<script>alert(1)</script>')
         self.assertNotContains(response, 'javascript:')
-        # The payload still exists in the DB — it was just rendered escaped.
         self.assertContains(response, '&lt;script&gt;alert(1)&lt;/script&gt;')
 
 
@@ -699,10 +672,6 @@ class PayoutTests(TestCase):
         profile.email_verified = True
         profile.stars_balance = 1000
         profile.save(update_fields=['email_verified', 'stars_balance'])
-        # Seed the wallet through the ledger, not just the integer — the
-        # balance must always be explainable by StarEvent rows
-        # (users.wallet.wallet_reconciles). 'backfill' is the honest
-        # reason for pre-existing balances.
         StarEvent.objects.create(user=self.creator, delta=1000, reason='backfill', ref='test-setup')
         self.admin = User.objects.create_user('moneyadmin', password='pass12345', email='m@test.com')
         self.admin.profile.role = 'admin'
@@ -801,7 +770,7 @@ class PayoutTests(TestCase):
         self.assertEqual(payout.status, 'paid')
         self.assertEqual(payout.reviewed_by, self.admin)
         self.creator.profile.refresh_from_db()
-        self.assertEqual(self.creator.profile.stars_balance, 500)  # hold stands, no mint
+        self.assertEqual(self.creator.profile.stars_balance, 500)
         self.assertTrue(AdminLog.objects.filter(action='payout_pay').exists())
 
     def test_double_decide_is_refused(self):
@@ -810,7 +779,6 @@ class PayoutTests(TestCase):
         payout = Payout.objects.get(user=self.creator)
         self.client.login(username='moneyadmin', password='pass12345')
         self.client.post(f'/admin/payouts/{payout.pk}/decide/', {'action': 'pay'})
-        # A second click (double-submit, stale tab) must not refund a paid row.
         from users.payouts import PayoutError, decide_payout
         with self.assertRaises(PayoutError):
             decide_payout(self.admin, payout.pk, 'reject')
@@ -830,7 +798,7 @@ class PayoutTests(TestCase):
         self.client.login(username='cashout', password='pass12345')
         response = self.client.get('/payout/')
         self.assertContains(response, 'Cash out stars')
-        self.assertContains(response, '500')  # minimum in the form label
+        self.assertContains(response, '500')
 
     def test_admin_queue_lists_open_payout(self):
         self.client.login(username='cashout', password='pass12345')
@@ -838,7 +806,7 @@ class PayoutTests(TestCase):
         self.client.login(username='moneyadmin', password='pass12345')
         response = self.client.get('/admin/payouts/')
         self.assertContains(response, '500 ★ → R50')
-        self.assertContains(response, '1234567890')  # money admins see full digits
+        self.assertContains(response, '1234567890')
 
 
 class PaystackTransferTests(TestCase):
@@ -883,10 +851,10 @@ class PaystackTransferTests(TestCase):
         self.assertEqual(code, 'TRF_99')
         self.payout.refresh_from_db()
         self.assertEqual(self.payout.provider_ref, 'TRF_99')
-        self.assertEqual(self.payout.status, 'requested')  # transfer ≠ payment
+        self.assertEqual(self.payout.status, 'requested')
         sent = [call.kwargs['json'] for call in post.call_args_list]
         self.assertEqual(sent[1]['recipient'], 'RCP_1')
-        self.assertEqual(sent[1]['amount'], 5000)  # R50 in cents
+        self.assertEqual(sent[1]['amount'], 5000)
 
     @override_settings(PAYSTACK_SECRET_KEY='sk_test_123')
     def test_unknown_bank_is_refused_not_guessed(self):

@@ -49,12 +49,6 @@ from .models import (
     compose_name_style,
 )
 
-# Never registrable — by signup OR rename. 5 Whys: Why a shared list and not
-# a signup-only check? "admin"/"support"/"nolo" phishing works wherever the
-# name can appear, and a rename is a second registration. One list, both
-# gates, no drift. Why these words? Official-sounding (admin, staff,
-# security), brand (blaqvibes, nolo), and money-path (billing, payouts)
-# handles are the three phishing templates that actually work.
 RESERVED_USERNAMES = frozenset({
     'admin', 'administrator', 'root', 'system', 'official', 'team',
     'staff', 'moderator', 'mod', 'support', 'help', 'security',
@@ -92,16 +86,10 @@ def validate_new_username(user, new_username) -> str:
         raise RenameError('Type the new username you want.')
     if len(new) < 3:
         raise RenameError('Username must be at least 3 characters.')
-    # Why an explicit max? UnicodeUsernameValidator checks charset only —
-    # the 150 cap is a FORM-level rule. rename_user is callable without any
-    # form (admin tool, API), so the cap lives here too. Fail-closed.
     if len(new) > 150:
         raise RenameError('Username must be 150 characters or fewer.')
     if new.lower() == user.username.lower():
         raise RenameError(f'@{new} is already your username.')
-    # Same charset gate as signup: UnicodeUsernameValidator + the public
-    # language gate. Why both? The validator stops injection-shaped names
-    # ("a b<c>"); the profanity gate stops the words bleach cannot see.
     try:
         UnicodeUsernameValidator()(new)
     except Exception:
@@ -112,16 +100,10 @@ def validate_new_username(user, new_username) -> str:
         validate_public_text(new, allow_blank=False)
     except Exception:
         raise RenameError('That username is not allowed. Please pick another.')
-    # Why iexact, not exact? Django's UserCreationForm rejects case-only
-    # duplicates at signup ("Nolo" vs "nolo"); a rename must not become the
-    # side door around that rule.
     if User.objects.filter(username__iexact=new).exclude(pk=user.pk).exists():
         raise RenameError(f'@{new} is already taken.')
     if new.lower() in RESERVED_USERNAMES:
         raise RenameError('That username is reserved — pick another.')
-    # Reservation window: the handle was someone's identity recently, so it
-    # is not free bait. The owner's OWN old name is exempt (taking your own
-    # name back impersonates nobody) — but the 30-day cooldown still applies.
     cutoff = timezone.now() - timedelta(days=RENAME_RESERVE_DAYS)
     clash = (
         UsernameHistory.objects.filter(

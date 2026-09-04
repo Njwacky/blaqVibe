@@ -7,16 +7,6 @@ from .taxonomy import UPLOAD_KIND_CHOICES, coerce_kind
 
 class AppUploadForm(forms.ModelForm):
     zip_file = forms.FileField(required=False, validators=[validate_zip])
-    # 5 Whys — why offer the creator a kind picker at all when we auto-detect?
-    # 1. Detection reads filenames; the creator read their own intent.
-    # 2. Why default to blank (auto)? Most uploads are obvious, and a
-    #    required dropdown is one more thing between a person and publishing.
-    # 3. Why a fixed choice list, not free text? An off-taxonomy value is
-    #    unfilterable and unlearnable (see gallery/taxonomy.py).
-    # 4. Why not let them set preview_mode too? Whether our sandbox can run
-    #    it is a fact about us, not a preference — see taxonomy.preview_mode_for.
-    # 5. Why keep it on edit as well? A creator who sees a wrong badge needs
-    #    a way to fix it that is not "email support".
     creator_kind = forms.ChoiceField(
         choices=UPLOAD_KIND_CHOICES,
         required=False,
@@ -72,12 +62,6 @@ class AppUploadForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        # 5 Whys: why skip the "provide a ZIP or snippet" error when the ZIP
-        # field already has one? The creator DID provide a ZIP — ours was
-        # rejected for a specific reason (node_modules, .env, too many files).
-        # Tacking on "Provide either a ZIP file or HTML snippet" reads as
-        # "we didn't get your file" and buries the real, fixable reason under
-        # a second error that is not true. One failure, one instruction.
         if self.errors.get('zip_file'):
             return cleaned
         zipf = cleaned.get('zip_file')

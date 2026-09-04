@@ -66,7 +66,6 @@ def split_shares(project, total):
     co = list(project.co_owners.select_related('user').order_by('id'))
     used = sum(c.share_percent for c in co)
     if used > 100:
-        # Defensive only — the app never allows this state.
         return [(project.owner, total)]
     entries = [(project.owner, 100 - used)]
     entries += [(c.user, c.share_percent) for c in co]
@@ -83,7 +82,6 @@ def split_shares(project, total):
         base[u] = q
         given += q
     remainder = total - given
-    # Largest fractional remainder first; ties break by stable order.
     for u, _q, r, order in sorted(quotas, key=lambda t: (-t[2], t[3])):
         if remainder <= 0:
             break
@@ -137,15 +135,7 @@ def trade_for_download(buyer, project):
 
     try:
         with transaction.atomic():
-            # Lock the PROJECT row first: co-owner shares can change while a
-            # trade is mid-flight. Locking serializes "edit the split" vs
-            # "pay out" so the distribution always matches the current team.
             locked = AppProject.objects.select_for_update().get(pk=project.pk)
-            # Re-check under the lock. The old schema-level unique
-            # (buyer, project) is gone (co-owner splits need one Trade row
-            # per recipient), so the project row is now the serialization
-            # point: a concurrent first-purchase waits on this lock, sees
-            # the rows we insert, and returns them instead of paying twice.
             existing_locked = Trade.objects.filter(buyer=buyer, project=locked).first()
             if existing_locked:
                 return existing_locked
@@ -158,13 +148,6 @@ def trade_for_download(buyer, project):
                     f'Need {cost} ★ to trade for “{project.title}” — you have {buyer_p.stars_balance} ★. '
                     'Earn stars by publishing vibes that get traded.'
                 )
-            # One Trade + ledger row PER RECIPIENT (owner + each co-owner).
-            # 5 Whys: why not one row with multiple sellers? Trade.seller is
-            # a single FK used by ranks, payout dashboard, trading history
-            # and ledger refs. Per-recipient rows keep every existing query
-            # correct unchanged — each person's "sold" list shows exactly
-            # their share. Lock order follows split_shares (owner first, then
-            # co-owners by id) so concurrent trades never deadlock.
             shares = split_shares(locked, cost)
             if not shares:
                 raise TradeError('No recipient for this trade. Try again.')
@@ -179,8 +162,6 @@ def trade_for_download(buyer, project):
                     cost=share,
                 )
                 trades.append(t)
-                # Ledger INSIDE the same transaction as the balance moves —
-                # a crash cannot leave money the ledger can't explain.
                 StarEvent.objects.create(
                     user=recipient, delta=share, reason='trade_earn',
                     ref=f'trade:{t.pk}:{locked.slug}',

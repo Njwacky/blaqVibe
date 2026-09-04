@@ -59,8 +59,6 @@ class ProfileForm(forms.ModelForm):
         return validate_public_text(twitter)
 
     def clean_canvas_url(self):
-        # URLField already validates http(s) shape; trimming here keeps the
-        # profile chip neat and avoids persisting accidental whitespace.
         return (self.cleaned_data.get('canvas_url') or '').strip()
 
     def clean_avatar(self):
@@ -85,8 +83,6 @@ class TipForm(forms.Form):
     message = forms.CharField(required=False, max_length=200)
 
     def clean_message(self):
-        # Same bleach policy as bio: no tags, stripped, hard cap.
-        # Then the public-language gate — a tip note shows on the profile.
         note = bleach.clean(self.cleaned_data.get('message', ''), tags=[], strip=True)[:200]
         return validate_public_text(note)
 
@@ -142,13 +138,6 @@ class SignUpForm(UserCreationForm):
         if not username:
             raise forms.ValidationError("Username is required.")
         if username.lower() in RESERVED_USERNAMES:
-            # 5 Whys: why here too, not just at rename? "admin"/"support" /
-            # "nolo" phishing works wherever the handle can appear, and
-            # signup is the FIRST place it can appear. One shared list
-            # (users/rename.py) gates both doors — no drift.
-            # Why mention sign-in? Operators try to *register* as admin
-            # with a placeholder password, get this error, and report
-            # "admin login never works." Point them at the real door.
             raise forms.ValidationError(
                 "That username is reserved. Sign in if you already have "
                 "an operator account, or pick another name."
@@ -217,29 +206,12 @@ class StyledAuthenticationForm(AuthenticationForm):
     }))
 
     def clean(self):
-        # Settings promise email login (ACCOUNT_LOGIN_METHODS has 'email'),
-        # but stock AuthenticationForm only tries User.USERNAME_FIELD. Without
-        # this, typing admin@blaqvibes.co.za + the correct password still
-        # fails — the "my admin account never works" support ticket. Resolve
-        # a single matching email to its username before auth runs. An unknown
-        # address falls through to the normal (failing) path, so the error
-        # message never leaks whether an email is registered.
-        #
-        # An AMBIGUOUS address must be blocked here, not left to fall through.
-        # allauth's AuthenticationBackend sits in AUTHENTICATION_BACKENDS and
-        # ACCOUNT_LOGIN_METHODS includes 'email', so authenticate() resolves
-        # emails on its own and returns whichever match it finds first — login
-        # for a shared address silently becomes a coin flip between accounts.
         username = self.cleaned_data.get('username', '')
         if username and '@' in username:
             matches = list(User.objects.filter(email__iexact=username)[:2])
             if len(matches) == 1:
                 self.cleaned_data['username'] = matches[0].username
             elif len(matches) > 1:
-                # Raise the stock invalid-credentials error verbatim: identical
-                # wording and code to the bad-password path, so an ambiguous
-                # address is indistinguishable from a wrong one and still does
-                # not reveal that the address is registered.
                 raise forms.ValidationError(
                     self.error_messages['invalid_login'],
                     code='invalid_login',
@@ -402,4 +374,3 @@ class NameStyleForm(forms.Form):
         if value not in NAME_PERSONAS:
             raise forms.ValidationError('Pick a people-style from the list.')
         return value
-

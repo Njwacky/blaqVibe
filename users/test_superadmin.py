@@ -47,12 +47,10 @@ class CreateSuperadminTest(TestCase):
         self.assertEqual(User.objects.filter(username='admin').count(), 1)
 
     def test_repairs_half_configured_superadmin(self):
-        # The exact state `createsuperuser` leaves behind: Django flags set,
-        # app role still 'user' — the "it never works" account.
         u = User.objects.create_user('admin', 'admin@blaqvibes.co.za', PW)
         u.is_staff = u.is_superuser = True
         u.save()
-        self.assertEqual(u.profile.role, 'user')  # precondition
+        self.assertEqual(u.profile.role, 'user')
         call_command('create_superadmin', username='admin',
                      email='admin@blaqvibes.co.za', password=PW)
         u.refresh_from_db()
@@ -81,8 +79,6 @@ class CreateSuperadminTest(TestCase):
 class EmailLoginTest(TestCase):
     def setUp(self):
         u = User.objects.create_user('admin', 'admin@blaqvibes.co.za', PW)
-        # The post_save receiver on User already created a Profile, so a bare
-        # create() here raises IntegrityError on users_profile.user_id.
         Profile.objects.update_or_create(
             user=u, defaults={'role': 'superadmin', 'email_verified': True})
         self.client = Client()
@@ -180,13 +176,11 @@ class DemoStaffAndPlaceholderPasswordTest(TestCase):
         self.assertEqual(blaq.profile.stars_balance, 0)
         self.assertEqual(blaq.profile.role, 'user')
         self.assertFalse(User.objects.filter(username='nolo.ai').exists())
-        # …and the documented password cannot sign in as them.
         r = self.client.post('/accounts/login/', follow=True,
                              data={'username': 'blaq', 'password': 'blaq12345'})
         self.assertFalse(r.wsgi_request.user.is_authenticated)
 
     def test_createsuperuser_admin_is_repaired_so_placeholder_password_works(self):
-        # The operator's exact leftover: createsuperuser + admin / youpwassword.
         u = User.objects.create_user('admin', 'admin@blaqvibes.co.za', 'youpwassword')
         u.is_staff = u.is_superuser = True
         u.save()

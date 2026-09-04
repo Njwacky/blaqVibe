@@ -90,7 +90,6 @@ def activity_chart(days, max_val):
             f'<text x="{x:.1f}" y="{CHART_H - 6}" text-anchor="middle" font-size="8" '
             f'fill="var(--muted)">{d["date"].day}</text>'
         )
-    # Legend (top-right).
     parts.append('<g font-size="9" fill="var(--muted)">')
     parts.append(
         f'<rect x="{CHART_W - PAD_R - 120}" y="{PAD_T}" width="8" height="8" rx="2" '
@@ -134,7 +133,6 @@ def balance_chart(trend, min_bal, max_bal):
         f'<polyline points="{" ".join(points)}" fill="none" stroke="var(--link)" '
         f'stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>'
     )
-    # End dot + final value label (the current balance).
     last_x = PAD_L + (len(trend) - 1) * slot + slot / 2
     last_y = y_for(trend[-1])
     parts.append(f'<circle cx="{last_x:.1f}" cy="{last_y:.1f}" r="3" fill="var(--link)"/>')
@@ -146,22 +144,6 @@ def balance_chart(trend, min_bal, max_bal):
     return ''.join(parts)
 
 
-# --- Admin dashboard builders ------------------------------------------------
-# 5 Whys (why these live here, sharing the earnings chart's math):
-# 1. Why reuse this module? The axis/scale/gridline decisions are already
-#    tested and CSS-variable aware; two chart engines would drift.
-# 2. Why generic builders instead of one function per metric? The admin
-#    dashboard charts ~6 time series; a parameterised builder keeps each
-#    metric a data-shape problem, not a drawing problem.
-# 3. Why does every builder return None on all-zero input? Same rule as
-#    the earnings charts: an empty axes box would read "the site did
-#    nothing" when the truth is "we only started logging this recently".
-#    The caller renders an honest empty state.
-# 4. Why is user text (vibe titles) escaped here? These SVGs are injected
-#    with |safe in the template; the ONLY trusted path to |safe is
-#    escaping at the boundary where user text enters the markup.
-# 5. Why no third-party chart lib? The site ships zero third-party JS and
-#    must work with JS disabled — see the module docstring.
 
 def daily_bars_chart(label, days, series, stacked=True, fmt=str):
     """Vertical bars per day for one or more series.
@@ -202,13 +184,11 @@ def daily_bars_chart(label, days, series, stacked=True, fmt=str):
                 )
             if not stacked:
                 y_cursor = BASE_Y
-        # Month tick on the 1st, day number otherwise.
         tick = d.strftime('%b') if d.day == 1 or (i == 0 and len(days) <= 7) else str(d.day)
         parts.append(
             f'<text x="{x:.1f}" y="{CHART_H - 6}" text-anchor="middle" font-size="8" '
             f'fill="var(--muted)">{escape(tick)}</text>'
         )
-    # Legend.
     parts.append('<g font-size="9" fill="var(--muted)">')
     lx = CHART_W - PAD_R - 8
     for s in reversed(series):

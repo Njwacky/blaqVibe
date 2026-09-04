@@ -15,21 +15,6 @@ from gallery.models import AppProject, AppReport, CloneEvent, ScanJob, Trade
 
 DAYS = 14
 
-# 5 Whys on the dashboard's data rules:
-# 1. Why chart append-only logs (CloneEvent, Trade, ScanJob, date_joined)
-#    instead of cumulative counters? Cumulative ints have no history — a
-#    "clones/day" line drawn from them would be a lie (same rule as the
-#    earnings charts). Only rows with timestamps get charted.
-# 2. Why is "quarantine rate" jobs-with-an-outcome / not all uploads? A
-#    scan that never concluded (still queued/scanning) is not data about
-#    the app, it is data about the queue.
-# 3. Why server-rendered SVG? Same as earnings: zero third-party JS, works
-#    with JS disabled, testable as markup.
-# 4. Why 14 days? Long enough to see a trend, short enough to stay
-#    readable; the earnings page already proved the shape.
-# 5. Why does an all-zero series render "no data yet" instead of an empty
-#    axis? Honesty — a brand-new install would otherwise look like a dead
-#    platform. Charts start when the logs start.
 
 
 def _fmt(v):
@@ -71,7 +56,6 @@ def admin_dashboard(request):
         'total_clones': AppProject.objects.aggregate(n=Sum('clones'))['n'] or 0,
     }
 
-    # Quarantine rate over scans WITH a conclusive outcome.
     scan_q = ScanJob.objects.filter(status='quarantined').count()
     scan_clean = ScanJob.objects.filter(status='clean').count()
     stats['quarantine_rate'] = round(scan_q / (scan_q + scan_clean) * 100, 1) if (scan_q + scan_clean) else None
@@ -161,8 +145,6 @@ def admin_dashboard(request):
         bar_color='#8B5CF6',
     )
 
-    # Open first, then handled; the dashboard should show the work, not the
-    # archive. We keep it small (10) because the triage page owns the detail.
     recent_reports = (
         AppReport.objects
         .select_related('project', 'project__owner', 'user', 'handled_by')
@@ -188,7 +170,6 @@ def set_role(request, username):
     if role not in ('user','moderator','admin','superadmin'):
         messages.error(request, "Invalid role")
         return redirect('manage_roles')
-    # Prevent demoting self
     if user == request.user and role != 'superadmin':
         messages.error(request, "You cannot demote yourself")
         return redirect('manage_roles')
@@ -197,7 +178,6 @@ def set_role(request, username):
     profile.role = role
     try:
         profile.save(update_fields=['role'])
-        # Audit log — backend only
         try:
             AdminLog.objects.create(actor=request.user, action='set_role', target=f"@{user.username}: {old}→{role}")
         except Exception: pass
@@ -213,11 +193,6 @@ def audit_log(request):
     return render(request, 'users/audit_log.html', {'logs': logs, 'trades': trades})
 
 
-# --- Payouts — the money queue (users/payouts.py holds the rules) ----------
-# 5 Whys: Why is this admin-facing, not moderator-facing? Only admins+
-# may move real money; moderators handle content. Why are full account
-# numbers shown here? An admin typing an EFT needs them — this page is
-# role-gated and the public side only ever sees the masked digits.
 
 @admin_required
 def payout_queue(request):
@@ -242,9 +217,6 @@ def payout_decide(request, payout_id):
     action = request.POST.get('action', '')
     note = request.POST.get('note', '')
 
-    # "Pay with Paystack" starts a REAL transfer and records its code, but
-    # the row only flips to paid when the admin confirms — transfers can
-    # fail or wait on OTP for days (never-pretend money rule).
     if action == 'transfer':
         from gallery.payments import initiate_payout_transfer, paystack_enabled
         payout = get_object_or_404(Payout, pk=payout_id, status='requested')

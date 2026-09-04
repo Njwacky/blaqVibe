@@ -1,8 +1,3 @@
-/* Battle pages (Vibe Battles + Leaderboard) */
-
-/* Full-height battle shell. Desktop has the left sidebar (no top bar), so the
-   shell takes the whole viewport; on mobile the sticky top nav (~64px) still
-   sits above it, so subtract that. dvh tracks mobile browser chrome. */
 .battle-shell { height: 100vh; height: 100dvh; display: flex; flex-direction: column; overflow: hidden; }
 
 @media (max-width: 900px) {
@@ -23,8 +18,6 @@
   }
 }
 
-/* Two-column ranking grids stack on phones — otherwise the columns blow
-   past the viewport and the page pans sideways under the nav. */
 @media (max-width: 720px) {
   .lb-grid { grid-template-columns: 1fr !important; }
 }

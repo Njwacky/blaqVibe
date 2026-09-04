@@ -54,7 +54,6 @@ def grant_welcome_stars(user) -> bool:
             )
             return True
     except Exception:
-        # Never break login/verify over the grant; the next verify retries it.
         logger.exception('welcome grant failed for user=%s', getattr(user, 'pk', None))
         return False
 

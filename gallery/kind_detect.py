@@ -29,17 +29,8 @@ import re
 
 from .taxonomy import DEFAULT_KIND, KIND_VALUES, coerce_kind
 
-# ---------------------------------------------------------------------------
-# Signal tables. Weight scale is deliberately coarse:
-#   5 = near-proof (a Unity ProjectSettings folder, an .apk)
-#   3 = strong (manifest.json, requirements + Dockerfile)
-#   2 = supporting (tech_stack mentions "phaser")
-#   1 = weak (the word "game" in the README)
-# ---------------------------------------------------------------------------
 
-# Exact file/dir names, matched on the basename of shallow paths.
 _NAME_SIGNALS = {
-    # game
     'projectsettings': [('game', 5)],
     'projectversion.txt': [('game', 5)],
     'project.godot': [('game', 5)],
@@ -48,7 +39,6 @@ _NAME_SIGNALS = {
     'game.js': [('game', 3)],
     'gamemanager.cs': [('game', 4)],
     'pubspec.yaml': [('mobile_app', 4)],
-    # mobile
     'androidmanifest.xml': [('mobile_app', 5)],
     'build.gradle': [('mobile_app', 4)],
     'build.gradle.kts': [('mobile_app', 4)],
@@ -57,17 +47,14 @@ _NAME_SIGNALS = {
     'app.json': [('mobile_app', 2)],
     'capacitor.config.json': [('mobile_app', 4)],
     'capacitor.config.ts': [('mobile_app', 4)],
-    # desktop
     'main.qml': [('desktop_app', 4)],
     'tauri.conf.json': [('desktop_app', 5)],
     'electron.js': [('desktop_app', 4)],
     'electron-builder.yml': [('desktop_app', 5)],
     'forge.config.js': [('desktop_app', 4)],
-    # extension
     'manifest.json': [('extension', 2)],
     'content_script.js': [('extension', 4)],
     'background.js': [('extension', 2)],
-    # api / backend
     'manage.py': [('api_backend', 4)],
     'wsgi.py': [('api_backend', 4)],
     'asgi.py': [('api_backend', 4)],
@@ -81,23 +68,18 @@ _NAME_SIGNALS = {
     'procfile': [('api_backend', 2)],
     'artisan': [('api_backend', 4)],
     'nest-cli.json': [('api_backend', 4)],
-    # ai / ml
     'train.py': [('ai_ml', 4)],
     'model.py': [('ai_ml', 2)],
     'inference.py': [('ai_ml', 4)],
     'requirements-gpu.txt': [('ai_ml', 3)],
-    # data
     'dashboard.py': [('data_viz', 3)],
     'streamlit_app.py': [('data_viz', 4)],
-    # cli
     'cli.py': [('cli_tool', 3)],
     '__main__.py': [('cli_tool', 2)],
-    # library
     'setup.py': [('library', 3)],
     'pyproject.toml': [('library', 1)],
     'cargo.toml': [('library', 1)],
     'rollup.config.js': [('library', 2)],
-    # static / web
     'index.html': [('static_site', 2)],
     'next.config.js': [('web_app', 3)],
     'next.config.mjs': [('web_app', 3)],
@@ -110,7 +92,6 @@ _NAME_SIGNALS = {
     'package.json': [('web_app', 1)],
 }
 
-# Directory names anywhere in a shallow path.
 _DIR_SIGNALS = {
     'assets': [('game', 1)],
     'sprites': [('game', 4)],
@@ -128,7 +109,6 @@ _DIR_SIGNALS = {
     'android': [('mobile_app', 3)],
 }
 
-# File extensions.
 _EXT_SIGNALS = {
     '.unity': [('game', 5)],
     '.prefab': [('game', 5)],
@@ -156,7 +136,6 @@ _EXT_SIGNALS = {
     '.html': [('static_site', 1)],
 }
 
-# Words in title / description / tech stack / README. Word-boundary matched.
 _TEXT_SIGNALS = {
     'game': [('game', 3)],
     'games': [('game', 3)],
@@ -274,8 +253,6 @@ _LANGUAGE_SIGNALS = {
     'Ruby': [('api_backend', 1)],
 }
 
-# Max evidence a single source may contribute, so a README that repeats
-# "game" forty times cannot outvote the actual file tree.
 _TEXT_CAP_PER_TERM = 1
 _MAX_PATHS = 400
 
@@ -346,7 +323,6 @@ def score_kinds(project):
         segments = path.split('/')
         base = segments[-1]
         depth = len(segments) - 1
-        # Depth discount: root-level evidence is worth more than nested.
         factor = 1.0 if depth == 0 else 0.6
         if base not in seen_names:
             seen_names.add(base)
@@ -389,31 +365,14 @@ def score_kinds(project):
                 if share >= 0.15:
                     _add(scores, evidence, kind, weight * share * 2, f'{lang} {int(share*100)}%')
 
-    # Shape corrections — cheap facts that override keyword noise.
     has_html = bool((getattr(project, 'html_code', '') or '').strip())
     has_zip = bool(getattr(project, 'zip_file', None))
     if has_html and not has_zip:
-        # A pasted HTML/CSS/JS snippet cannot BE a backend, a mobile app or
-        # a desktop program — whatever its README talks about.
-        #
-        # 5 Whys:
-        # 1. Why damp instead of trusting the words? A landing page for a
-        #    SaaS legitimately says "backend" and "API" in its copy; the
-        #    words describe the product's subject, not the artifact.
-        # 2. Why not ban those kinds outright for snippets? A creator may
-        #    still explicitly pick one, and creator_kind must always win.
-        # 3. Why is the artifact more reliable than the prose? Because we
-        #    can verify the artifact; the prose is unverifiable marketing.
-        # 4. Why 0.25 rather than 0? A trace keeps the runner-up ordering
-        #    meaningful, so confidence still reflects genuine ambiguity.
-        # 5. Why only when there is no ZIP? A ZIP alongside the snippet may
-        #    genuinely contain the server; then the words may be right.
         from .taxonomy import KIND_BY_VALUE
         for kind in list(scores):
             if not KIND_BY_VALUE.get(kind, {}).get('web_native', False):
                 scores[kind] *= 0.25
                 evidence.append((kind, 0, 'browser snippet, not a shippable backend'))
-        # A pasted snippet is by construction something the browser runs.
         _add(scores, evidence, 'web_app', 2, 'HTML snippet')
         if re.search(r'\b(canvas|requestanimationframe|keydown|score)\b', (project.html_code or '').lower()
                      + ' ' + (getattr(project, 'js_code', '') or '').lower()):
@@ -437,10 +396,6 @@ def detect_kind(project):
         ranked = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
         top_kind, top_score = ranked[0]
         runner_up = ranked[1][1] if len(ranked) > 1 else 0.0
-        # Confidence blends absolute evidence with the margin over #2.
-        # Why both? A lone weak signal (score 1, nothing else) is not
-        # confident just because nothing competes with it, and a strong
-        # signal that ties with another kind is genuinely ambiguous.
         strength = min(1.0, top_score / 8.0)
         margin = (top_score - runner_up) / top_score if top_score else 0.0
         confidence = round(max(0.0, min(1.0, 0.55 * strength + 0.45 * margin)), 3)
@@ -448,7 +403,6 @@ def detect_kind(project):
             why for kind, _w, why in
             sorted((e for e in evidence if e[0] == top_kind), key=lambda e: -e[1])
         ]
-        # de-dupe, keep order
         seen, ordered = set(), []
         for why in top_evidence:
             if why not in seen:

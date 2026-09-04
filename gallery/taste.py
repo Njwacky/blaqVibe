@@ -36,27 +36,8 @@ from .taxonomy import KIND_VALUES, coerce_kind
 
 logger = logging.getLogger(__name__)
 
-# A view of the same project by the same user inside this window is ignored.
 VIEW_DEDUPE_SECONDS = 300
-# Personalisation only kicks in once there is at least this much signal —
-# below it we would be reordering the feed on a coin flip.
 MIN_SIGNAL_EVENTS = 2
-# How strongly affinity may reorder the feed, relative to appeal_score (0-100).
-#
-# 5 Whys on the value:
-# 1. Why cap it at all? An uncapped boost makes the feed a single-kind echo
-#    chamber — a game lover would never be shown anything else again.
-# 2. Why exactly half the appeal scale? It is the only non-arbitrary point:
-#    a favourite kind can beat anything in the *better half* of the catalog,
-#    and still loses to something outstanding in a kind they ignore.
-# 3. Why not a small nudge like 10? Then taste would only ever reorder
-#    near-ties, and the user's actual request — games in front — would not
-#    visibly happen.
-# 4. Why is it a constant and not per-user? A user with more history is not
-#    entitled to a more distorted feed, only a more accurate one; the
-#    normalisation in normalized_affinities already handles history size.
-# 5. Why apply it multiplied by the normalised score? A second-favourite
-#    kind should get part of the lift, not all of it or none.
 MAX_AFFINITY_BOOST = 50.0
 
 
@@ -88,8 +69,6 @@ def record(user, kind, event, project=None):
             kind = kind.kind
         kind = coerce_kind(kind)
 
-        # Don't learn from your own vibes' views — an author refreshing
-        # their page is not evidence of taste, it is anxiety.
         if project is not None and getattr(project, 'owner_id', None) == getattr(user, 'id', None):
             if event != 'publish':
                 return False
@@ -107,8 +86,6 @@ def record(user, kind, event, project=None):
                 defaults={'score': weight, 'events': 1, 'last_event': event},
             )
             if not created:
-                # Decay the stored value to now *before* adding, so old
-                # score and new event are on the same time base.
                 row.score = _decayed(row.score, row.updated_at, now) + weight
                 row.events = (row.events or 0) + 1
                 row.last_event = event

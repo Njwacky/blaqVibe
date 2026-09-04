@@ -26,7 +26,6 @@ except ImportError:  # pragma: no cover - django-storages is a required dep
 
 logger = logging.getLogger(__name__)
 
-# None = do not send a canned ACL (R2-safe). Privacy is bucket policy + signed URLs.
 PRIVATE_S3_OPTIONS = {
     'default_acl': None,
     'querystring_auth': True,
@@ -86,7 +85,7 @@ def is_s3_enabled():
         from users.models import SiteSettings
         return SiteSettings.get().r2_enabled
     except Exception:
-        return True  # on error, trust the env var
+        return True
 
 
 def get_presigned_url(s3_key, expires=300, filename=None):

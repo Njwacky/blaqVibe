@@ -1,13 +1,3 @@
-// Star tipping — shared by the profile page and app-detail pages.
-// External JS, no inline secrets. Same CSRF-header pattern as follow.
-// Pairs with the _tip_button.html / _tip_panel.html includes: the button
-// carries data-username + data-csrf, the panel holds the amount/message
-// inputs. The Recent-tips section is profile-only; every reference to it
-// is guarded so app-detail pages work unchanged.
-// 5 Whys: Why a separate file instead of living inside profile.js?
-// The tip button now ships on app-detail pages too, which never load
-// profile.js (follow logic is profile-only). A page should only load the
-// JS it needs.
 (function(){
   const tipBtn = document.getElementById('tip-btn');
   const tipPanel = document.getElementById('tip-panel');
@@ -19,9 +9,6 @@
   tipBtn.addEventListener('click', function(){
     tipPanel.style.display = tipPanel.style.display === 'none' ? 'block' : 'none';
   });
-
-  // Presets fill the amount input; the backend is the source of truth for
-  // bounds (1–1000), the presets are just UX shortcuts.
   document.querySelectorAll('.js-tip-preset').forEach(function(b){
     b.addEventListener('click', function(){
       const input = document.getElementById('tip-amount');
@@ -54,13 +41,9 @@
     .then(d=>{
       sendBtn.disabled = false;
       if(d.ok){
-        // Update "Your balance" so the next tip is honest.
         const bal = document.getElementById('tip-balance');
         if(bal) bal.textContent = 'Your balance: ' + d.balance + ' ★';
         tipPanel.style.display = 'none';
-        // Prepend the new tip to Recent tips without a page reload —
-        // built with textContent, never innerHTML, so a message can't
-        // inject markup even if a future sanitizer gap appeared.
         const listEl = document.getElementById('recent-tips-list');
         const totalEl = document.getElementById('tips-total');
         if(listEl){

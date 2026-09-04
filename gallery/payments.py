@@ -82,26 +82,6 @@ def _authorization_headers():
     }
 
 
-# --- Transfers — creator cash-outs (users/payouts.py owns the Payout row) --
-# 5 Whys:
-# 1. Why look up the bank code at transfer time instead of a hardcoded SA
-#    bank list? Codes change and a wrong code sends money to the wrong
-#    bank. GET /bank?currency=ZAR is Paystack's own list — the same one
-#    its dashboard uses to validate.
-# 2. Why match on a normalised name? Creators type "capitec bank",
-#    "CAPITEC", "Capitec Bank Ltd". Comparing alphanumerics-only,
-#    lowercase, with contains fallback, matches all of those without a
-#    60-entry dropdown we would have to maintain.
-# 3. Why recipient + transfer instead of a single call? That IS the
-#    Paystack Transfers API: create a reusable recipient, then transfer
-#    to it. Two calls, two receipts (recipient_code + transfer_code).
-# 4. Why does a successful response still not mark the Payout paid?
-#    Transfers are async — pending OTP, approval, or the bank. Only a
-#    human confirming real money moved flips the row (never-pretend
-#    rule; see users/payouts.decide_payout).
-# 5. Why raise instead of returning None on failure? The admin queue
-#    must show the exact reason ("bank code not found", "insufficient
-#    balance") — a swallowed failure looks like a sent EFT.
 
 def _normalise_bank(name: str) -> str:
     return ''.join(c for c in (name or '').lower() if c.isalnum())

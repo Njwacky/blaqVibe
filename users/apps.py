@@ -6,9 +6,6 @@ class UsersConfig(AppConfig):
     name = 'users'
 
     def ready(self):
-        # Registers the socialaccount signal receivers. Imported here (not at
-        # module import) because they touch models, which are not loaded yet
-        # when Django builds the app registry.
         from . import signals  # noqa: F401
         from django.db.models.signals import post_migrate
         post_migrate.connect(_provision_after_migrate, sender=self)

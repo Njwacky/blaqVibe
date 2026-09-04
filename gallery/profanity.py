@@ -42,10 +42,7 @@ PUBLIC_LANGUAGE_ERROR = (
     'vulgar, abusive, or hateful language.'
 )
 
-# Whole-token list. Keep compounds here ("asshole") rather than the short
-# stem "ass" — "class" / "pass" / "asset" must stay publishable.
 _BLOCKED_WORDS = frozenset({
-    # English expletives / sexual abuse
     'fuck', 'fucker', 'fuckers', 'fucking', 'fucked', 'fuckhead',
     'fuk', 'fck', 'fvck', 'phuck',
     'motherfucker', 'motherfuckers', 'motherfucking',
@@ -67,15 +64,11 @@ _BLOCKED_WORDS = frozenset({
     'tosser',
     'blowjob', 'handjob', 'handjobs',
     'jizz',
-    # Slurs — racial, homophobic, ableist. No "reclaimed use" exception
-    # on a public gallery: a stranger did not consent to read them.
     'nigger', 'niggers', 'nigga', 'niggas', 'negro',
     'faggot', 'faggots', 'fag', 'fags',
     'tranny', 'shemale',
     'retard', 'retards', 'retarded',
     'kike', 'spic', 'chink', 'gook', 'wetback',
-    # South Africa — this product is Durban-first. The worst local slurs
-    # and everyday Afrikaans abuse belong on the same list.
     'kaffir', 'kaffirs', 'kaffer', 'kaffers',
     'poes', 'poeslik',
     'doos',
@@ -85,14 +78,12 @@ _BLOCKED_WORDS = frozenset({
     'naai',
 })
 
-# Multi-word phrases that never appear as a single token.
 _BLOCKED_PHRASES = (
     'son of a bitch',
     'piece of shit',
     'piece of kak',
 )
 
-# Common lookalikes used to dodge a list. Applied AFTER NFKC.
 _HOMOGLYPHS = str.maketrans({
     'а': 'a', 'е': 'e', 'о': 'o', 'і': 'i', 'ѕ': 's',
     'с': 'c', 'р': 'p', 'у': 'y', 'х': 'x', 'ԁ': 'd',
@@ -100,9 +91,6 @@ _HOMOGLYPHS = str.maketrans({
     'α': 'a', 'ε': 'e', 'ο': 'o', 'ι': 'i',
 })
 
-# Leetspeak / decoration. Digits that also appear in real words are
-# mapped only when we are building the *lookup* form of a token, and
-# we still require the collapsed form to be an exact blocked word.
 _LEET = str.maketrans({
     '0': 'o',
     '1': 'i',
@@ -129,8 +117,6 @@ def _fold(text: str) -> str:
     text = text.translate(_HOMOGLYPHS)
     text = text.lower()
     text = text.translate(_LEET)
-    # Punctuation / stars / underscores become spaces so "f.u.c.k"
-    # and "f*ck" tokenise instead of surviving as one unknown blob.
     text = _NON_LETTER.sub(' ', text)
     return text
 
@@ -168,9 +154,6 @@ def _merge_single_letters(tokens: list[str]) -> list[str]:
     return merged
 
 
-# Words that are never a legitimate prefix/infix of a longer token.
-# "fuckyou" and "shithead2" must fail; "cocktail" and "dickens" must not,
-# so "cock"/"dick" stay whole-token only.
 _STICKY = frozenset({
     'fuck', 'fuk', 'fck', 'fvck', 'phuck',
     'shit',
@@ -190,8 +173,6 @@ def _token_is_blocked(token: str) -> bool:
     candidates = {token, _collapse_repeats(token), _fully_collapse(token)}
     if candidates & _BLOCKED_WORDS:
         return True
-    # Prefix only. Infix would ban Scunthorpe (contains "cunt") and
-    # cocktail is already safe because "cock" is not sticky.
     for form in candidates:
         for bad in _STICKY:
             if form == bad or form.startswith(bad):
@@ -214,8 +195,6 @@ def contains_profanity(text: str | None) -> bool:
         tokens = _merge_single_letters(folded.split())
         return any(_token_is_blocked(tok) for tok in tokens)
     except Exception:
-        # A crash in the filter must not fail-open (that would publish
-        # the words). Fail closed: treat unparseable input as unclean.
         return True
 
 

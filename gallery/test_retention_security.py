@@ -50,7 +50,7 @@ class BattleVisibilityTests(TestCase):
         body = self.client.get('/battle/history/').content.decode()
         self.assertNotIn('Battle Beta', body)
         self.assertNotIn('@bat_other', body)
-        self.assertNotIn('Battle Alpha', body)  # neither card may show
+        self.assertNotIn('Battle Alpha', body)
         self.client.force_login(self.stranger)
         body = self.client.get('/battle/history/').content.decode()
         self.assertNotIn('Battle Beta', body)
@@ -59,7 +59,6 @@ class BattleVisibilityTests(TestCase):
         self._hide_b('pending')
         body = self.client.get('/battle/history/').content.decode()
         self.assertNotIn('Battle Beta', body)
-        # Alpha alone must not be shown as a battle (a battle is two vibes).
         self.assertNotIn('Battle Alpha', body)
 
     def test_history_still_shows_when_both_vibes_are_public(self):
@@ -71,7 +70,7 @@ class BattleVisibilityTests(TestCase):
         self._hide_b('removed')
         self.client.force_login(self.other)
         body = self.client.get('/battle/history/').content.decode()
-        self.assertIn('Battle Beta', body)  # owner keeps visibility
+        self.assertIn('Battle Beta', body)
 
     def test_moderator_can_review_a_battle_with_a_removed_vibe(self):
         self._hide_b('removed')
@@ -81,8 +80,6 @@ class BattleVisibilityTests(TestCase):
 
     def test_battle_page_never_returns_a_hidden_battle(self):
         self._hide_b('removed')
-        # A previously-voted battle must be excluded for a stranger too; the
-        # direct route renders the current battle, so just assert no leak.
         body = self.client.get('/battle/').content.decode()
         self.assertNotIn('Battle Beta', body)
         self.assertNotIn('Battle Alpha', body)
@@ -116,7 +113,7 @@ class NotificationControlsTests(TestCase):
         self.client.force_login(self.alice)
         response = self.client.post(f'/inbox/{self.n1.id}/read/')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()['unread'], 0)  # n1 just read; n2 already read
+        self.assertEqual(response.json()['unread'], 0)
         self.n1.refresh_from_db()
         self.assertTrue(self.n1.is_read)
 
@@ -141,7 +138,6 @@ class NotificationControlsTests(TestCase):
         self.assertEqual(response.json()['unread'], 0)
         self.n1.refresh_from_db()
         self.assertTrue(self.n1.is_read)
-        # Bob's row is untouched.
         self.bob_note.refresh_from_db()
         self.assertFalse(self.bob_note.is_read)
 
@@ -199,9 +195,6 @@ class StarEndpointGateTests(TestCase):
         self.project = make_project(self.owner, self.cat, title='Starred vibe')
 
     def test_anonymous_get_redirects_to_login(self):
-        # login_required runs before require_POST, so an anonymous GET is a
-        # login redirect (not a 405) — same as toggle_bookmark. The point is
-        # it never reaches the wallet/star write.
         response = self.client.get(f'/app/{self.project.slug}/star/')
         self.assertEqual(response.status_code, 302)
         self.assertIn('/accounts/login/', response.url)
@@ -260,15 +253,10 @@ class AdminTrustWritabilityTests(TestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         body = response.content.decode()
-        # The field is present, but inside Django's readonly container — it
-        # cannot be submitted as an editable value.
         self.assertIn('field-trust', body)
         self.assertIn('readonly', body)
 
     def test_admin_post_cannot_change_trust(self):
-        # Craft a full admin change POST from the object's current values
-        # (as the admin form would), but try to set trust to the "best"
-        # value. Because trust is readonly the submitted value is ignored.
         admin = User.objects.create_superuser('trust_admin2', 'trust2@test.com', 'pass12345')
         self.client.force_login(admin)
         market = make_project(self.owner, self.cat, title='Market Vibe')
@@ -286,7 +274,7 @@ class AdminTrustWritabilityTests(TestCase):
             'star_cost': market.star_cost,
             'price_zar': market.price_zar,
             'zip_file': '',
-            'trust': 99,  # must be ignored
+            'trust': 99,
             '_save': 'Save',
         }
         self.client.post(url, post)

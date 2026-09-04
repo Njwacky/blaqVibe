@@ -1,5 +1,3 @@
-# Nolo Compare — Backend only, no judgment, just facts side-by-side
-# 5 Whys: Why not LLM? LLM judges. Why backend extraction? Markdown is spec, parse features deterministically.
 
 def extract_features(project):
     try:
@@ -15,7 +13,7 @@ def extract_features(project):
                 features.append(label)
         return sorted(set(features))
     except Exception:
-        return []  # crush silently
+        return []
 
 def compare_apps(a, b):
     try:
@@ -43,4 +41,4 @@ def compare_apps(a, b):
         }
         return {'a': ia, 'b': ib, 'diff': diff}
     except Exception:
-        return {'a': {}, 'b': {}, 'diff': {'only_in_a':[],'only_in_b':[],'common':[]}}  # crush silently
+        return {'a': {}, 'b': {}, 'diff': {'only_in_a':[],'only_in_b':[],'common':[]}}

@@ -38,7 +38,7 @@
 
   {% if scan_progress %}
   <div class="scan-body">
-    {# What did I just upload? — so the page never feels blank while waiting #}
+
     <div class="scan-file" id="scan-file">
       <span class="scan-file-icon">{% if scan_progress.file.is_snippet %}📝{% else %}🗜️{% endif %}</span>
       <div class="scan-file-meta">
@@ -56,7 +56,6 @@
       {% endif %}
     </div>
 
-    {# The exact stages, so the creator knows why the page is "stopped" #}
     <ol class="scan-steps" id="scan-steps">
       {% for step in scan_progress.steps %}
       <li class="scan-step scan-step--{{ step.state }}" data-key="{{ step.key }}">

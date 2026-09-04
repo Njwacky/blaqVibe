@@ -73,9 +73,6 @@ def remove_project(project) -> str:
             locked.delete()
             return 'deleted'
     except ProtectedError:
-        # A Sale/Trade landed between the check and the delete (e.g. a
-        # Paystack webhook). The PROTECT constraint caught it — money now
-        # exists, so soft-delete instead.
         with transaction.atomic():
             locked = AppProject.objects.select_for_update().get(pk=project.pk)
             return _soft(locked)

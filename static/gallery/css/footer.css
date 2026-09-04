@@ -1,4 +1,3 @@
-/* Global footer */
 .site-footer {
   margin-top: 72px;
   border-top: 1px solid var(--line);
@@ -26,32 +25,13 @@
 }
 .site-footer__logo span { color: var(--launch-text); font-size: 18px; }
 .site-footer__brand p { margin-top: 11px; color: var(--muted); font-size: 12px; line-height: 1.65; }
-/* --- Link columns ---------------------------------------------------------
-   5 Whys: why 4 columns and these breakpoints (Contact column added)?
-   1. Why change the grid at all? .site-footer__links was a fixed
-      repeat(3, …) — a 4th <div> would wrap alone onto a second row,
-      stretched full-width, breaking the one-row footer rhythm.
-   2. Why fixed tracks, not auto-fit? The four groups are a known,
-      stable set (Explore / Build / Access / Contact). Fixed tracks keep
-      every column the same width at every viewport; auto-fit would
-      re-flow groups into unpredictable rows as links get added.
-   3. Why 2 columns at ≤800px, not 4? Between 601–800px the brand block
-      stacks above, leaving ~750px; four columns there (~160px each,
-      minus gaps) wrap the longer labels ("Moderation queue", the email
-      address). Two columns keep labels on one line.
-   4. Why keep 2 columns at ≤600px instead of stacking? Four short groups
-      stack into a very tall phone footer; 2×2 halves the height and the
-      12px links still fit half a phone width.
-   5. Why drop the old `div:last-child` full-width span? It existed to
-      centre attention on the 3rd (role-aware) column at phone widths.
-      With four groups a lone full-width Contact row reads as a mistake;
-      a balanced 2×2 needs no special case. */
+
 .site-footer__links { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; }
 .site-footer__links > div { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; }
 .site-footer__links h2 { margin-bottom: 3px; color: var(--text); font: 700 10px/1 Inter, sans-serif; letter-spacing: .11em; text-transform: uppercase; }
 .site-footer__links a { color: var(--muted); font-size: 12px; line-height: 1.4; transition: color .18s ease; }
 .site-footer__links a:hover { color: var(--text); }
-/* Long contact strings (the email address) must never blow a track sideways. */
+
 .site-footer__links a { overflow-wrap: anywhere; }
 .site-footer__role {
   display: inline-flex;

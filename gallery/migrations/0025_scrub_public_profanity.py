@@ -71,7 +71,6 @@ def _scrub(apps, schema_editor):
 
 
 def _noop(apps, schema_editor):
-    # Irreversible on purpose: we will not put the words back.
     return
 
 

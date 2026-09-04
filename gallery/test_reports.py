@@ -77,13 +77,11 @@ class ReportCreationTests(TestCase):
         )
         self.assertEqual(response.status_code, 302)
         self.assertTrue(AppReport.objects.filter(project=self.project, reason='spam').exists())
-        # Every moderator-bearing staff member gets an inbox row.
         for staff in (self.mod, self.admin):
             self.assertTrue(
                 Notification.objects.filter(user=staff, kind='report').exists(),
                 f'{staff.username} should be notified about the report.',
             )
-        # A regular owner should not be notified about a report on themselves.
         self.assertFalse(Notification.objects.filter(user=self.owner, kind='report').exists())
 
     def test_duplicate_report_from_same_user_within_24h_is_deduped(self):
@@ -174,7 +172,7 @@ class ReportResolutionTests(TestCase):
         response = self._post(report, self.mod, 'delete')
         self.assertEqual(response.status_code, 302)
         report.refresh_from_db()
-        self.assertEqual(report.status, 'open')  # refused, still open
+        self.assertEqual(report.status, 'open')
         self.assertTrue(AppProject.objects.filter(pk=self.project.pk).exists())
 
     def test_admin_delete_unpaid_vibe_hard_deletes_and_audits(self):
@@ -182,7 +180,6 @@ class ReportResolutionTests(TestCase):
         response = self._post(report, self.admin, 'delete', 'Confirmed malware.')
         self.assertEqual(response.status_code, 302)
         self.assertFalse(AppProject.objects.filter(pk=self.project.pk).exists())
-        # Cascade removed the report, but the audit row can prove the act.
         self.assertFalse(AppReport.objects.filter(pk=report.pk).exists())
         self.assertTrue(
             self.admin.admin_logs.filter(action='report_delete', target=self.project.slug).exists()
@@ -205,7 +202,6 @@ class ReportResolutionTests(TestCase):
         sibling.refresh_from_db()
         self.assertEqual(report.status, 'resolved')
         self.assertEqual(report.outcome, 'removed')
-        # The sibling was auto-resolved; the queue can never re-flag a gone vibe.
         self.assertEqual(sibling.status, 'resolved')
         self.assertEqual(sibling.outcome, 'removed')
 
@@ -215,7 +211,6 @@ class ReportResolutionTests(TestCase):
         report.refresh_from_db()
         response = self._post(report, self.admin, 'delete')
         report.refresh_from_db()
-        # First resolution stands; a second request cannot flip the outcome.
         self.assertEqual(response.status_code, 302)
         self.assertEqual(report.status, 'ignored')
         self.assertEqual(report.outcome, 'no_action')

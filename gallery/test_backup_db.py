@@ -45,7 +45,6 @@ class BackupDbTests(SimpleTestCase):
             self.assertTrue(out.exists())
             conn = sqlite3.connect(out)
             try:
-                # The snapshot is a real, openable database containing our row.
                 (ok,) = conn.execute('PRAGMA integrity_check').fetchone()
                 self.assertEqual(ok, 'ok')
                 (title,) = conn.execute(

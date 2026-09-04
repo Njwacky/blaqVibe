@@ -9,9 +9,9 @@ import zipfile
 
 logger = logging.getLogger(__name__)
 
-MAX_DIFF_FILES = 10          # cap common-file content diffs to keep page small
-MAX_FILE_BYTES = 512 * 1024  # skip binary / huge files
-MAX_DIFF_LINES = 400         # cap unified diff lines per file
+MAX_DIFF_FILES = 10
+MAX_FILE_BYTES = 512 * 1024
+MAX_DIFF_LINES = 400
 
 
 def _read_text(zf, name):
@@ -80,8 +80,6 @@ def diff_file_content(source_zip_path, target_zip_path, path, added, removed, co
         result['truncated'] = truncated
         return result
 
-    # PR direction: target (original) -> source (fork). "a/" is the current
-    # target content, "b/" is what it becomes after the merge.
     sm = difflib.SequenceMatcher(a=tgt_lines, b=src_lines, autojunk=False)
     unified = list(difflib.unified_diff(
         tgt_lines, src_lines, fromfile=f'a/{path}', tofile=f'b/{path}',
@@ -111,7 +109,6 @@ def diff_projects(source, target):
     def flat_files(proj):
         if proj.files.exists():
             return list(proj.files.values_list('path', flat=True))
-        # Flatten file_tree dict as a fallback
         out = []
 
         def walk(d, prefix=''):
@@ -151,7 +148,6 @@ def diff_projects(source, target):
                 else:
                     unchanged.append(d)
 
-    # Any common files beyond the diff cap are reported as unchanged.
     remaining = common_paths[MAX_DIFF_FILES:]
     unchanged.extend({'path': p, 'status': 'unchanged', 'additions': 0,
                       'deletions': 0, 'lines': [], 'truncated': False}

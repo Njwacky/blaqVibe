@@ -28,9 +28,6 @@ kind string.
    same three opens are noise.
 """
 
-# preview values:
-#   'snippet' — can run in the sandboxed iframe when html_code is present
-#   'files'   — file list + README only; there is no way to run it here
 PROGRAM_KINDS = (
     {
         'value': 'game',
@@ -97,9 +94,6 @@ PROGRAM_KINDS = (
         'web_native': False,
     },
     {
-        # web_native: a dashboard is very often exactly an HTML page with
-        # charts in it, so a pasted snippet claiming to be one is credible —
-        # unlike a snippet claiming to be an Android app.
         'value': 'data_viz',
         'label': 'Data / dashboard',
         'icon': '📊',
@@ -154,7 +148,6 @@ KIND_CHOICES = tuple((k['value'], k['label']) for k in PROGRAM_KINDS)
 KIND_BY_VALUE = {k['value']: k for k in PROGRAM_KINDS}
 DEFAULT_KIND = 'other'
 
-# Kinds a creator may pick by hand on the publish form, plus auto-detect.
 UPLOAD_KIND_CHOICES = (('', 'Auto-detect (recommended)'),) + KIND_CHOICES
 
 PREVIEW_MODES = (
@@ -163,16 +156,6 @@ PREVIEW_MODES = (
     ('files', 'File list + README only'),
 )
 
-# The two modes that really execute in the sandboxed iframe. Kept as one
-# tuple so the model, the feed filter, and the API agree on "runnable".
-# 5 Whys: Why a named set instead of `in ('snippet','static_zip')` inline?
-# 1. Three call sites (model.can_run_preview, feed runnable filter, API)
-#    must mean the same thing or the badge, the filter, and the JSON drift.
-# 2. Adding a future runnable mode (e.g. wasm) is one edit here, not three.
-# 3. It documents intent: "these run, 'files' does not" is the whole rule.
-# 4. A typo in one inline literal would silently drop a mode from a filter;
-#    a shared constant fails loudly if renamed.
-# 5. Tests can import the exact set instead of re-hardcoding the literals.
 RUNNABLE_PREVIEW_MODES = ('snippet', 'static_zip')
 
 
@@ -188,7 +171,6 @@ def coerce_kind(value):
     v = str(value).strip().lower().replace('-', '_').replace(' ', '_')
     if v in KIND_BY_VALUE:
         return v
-    # Tolerate the handful of near-misses an LLM actually produces.
     aliases = {
         'games': 'game',
         'gaming': 'game',
@@ -274,5 +256,4 @@ def preview_mode_for(kind, has_html, has_zip, static_runnable=False):
         return 'static_zip'
     if has_zip:
         return 'files'
-    # Neither: the upload form rejects this, but be defensive.
     return 'files'

@@ -29,7 +29,6 @@ still apply).
    those links valid and lets tests target one starter deterministically.
 """
 
-# Bumped when a starter's code changes, so the Studio cache-busts its assets.
 STARTERS_VERSION = "2026-08-30"
 
 

@@ -1,8 +1,6 @@
 from django.db.models import Q, F, Case, When, Value, IntegerField
 from django.db import connection
 
-# 5 Whys Search v3 — Why very well? 1k vibes, typo "dashbord", ranking by title > stack > readme, trending + rank bonus.
-# Postgres: SearchVector + TrigramSimilarity + GIN. SQLite: scored icontains with title weight.
 
 def search_projects(qs, q, sort='newest', user=None):
     """Filter + order the feed.
@@ -22,7 +20,6 @@ def search_projects(qs, q, sort='newest', user=None):
     5. Because the fall-through is explicit: an unknown or unsupported sort
        lands on the same '-created_at' it always did.
     """
-    # Base sort if no query
     if not q:
         if sort == 'foryou':
             from .taste import personalized_order
@@ -33,10 +30,6 @@ def search_projects(qs, q, sort='newest', user=None):
         if sort == 'clones':
             return qs.order_by('-clones', '-created_at')
         if sort == 'trending':
-            # Trending = the global interest score, which already blends
-            # engagement with a freshness decay (see gallery/interest.py).
-            # Why not raw stars? Stars never decay, so page one would be
-            # frozen forever and nothing new could ever be discovered.
             return qs.order_by('-appeal_score', '-stars', '-created_at')
         return qs.order_by('-created_at')
 
@@ -44,24 +37,18 @@ def search_projects(qs, q, sort='newest', user=None):
     q_lower = q.lower()
     terms = [t for t in q_lower.split() if len(t) >= 2]
 
-    # Postgres path — full-text + trigram
     if connection.vendor == 'postgresql':
         try:
             from django.contrib.postgres.search import SearchVector, SearchQuery, SearchRank, TrigramSimilarity
             vector = SearchVector('title', weight='A') + SearchVector('short_description', weight='B') + SearchVector('tech_stack', weight='B') + SearchVector('readme', weight='C')
             query = SearchQuery(q, search_type='plain')
-            # Trigram for typo
             qs = qs.annotate(
                 rank=SearchRank(vector, query),
                 sim_title=TrigramSimilarity('title', q),
                 sim_stack=TrigramSimilarity('tech_stack', q),
             ).filter(Q(rank__gte=0.1) | Q(sim_title__gt=0.2) | Q(sim_stack__gt=0.2))
-            # Combined score: rank*2 + trigram
             qs = qs.annotate(combined=F('rank')*2 + F('sim_title') + F('sim_stack'))
-            # Apply sort
             if sort == 'foryou':
-                # Relevance first (they typed a query), taste as the
-                # tie-breaker — a search is an instruction, taste is a guess.
                 from .taste import personalized_order
                 qs, _norm = personalized_order(qs.order_by(), user, base_field='appeal_score')
                 qs = qs.order_by('-combined', '-personal_score', '-created_at')
@@ -76,9 +63,6 @@ def search_projects(qs, q, sort='newest', user=None):
         except Exception as e:
             pass
 
-    # Fallback: SQLite/MySQL — scored icontains (very well without Postgres)
-    # Score: title 10, short_description 5, tech_stack 5, readme 1, tag 3
-    # We annotate via Case/When, then order by score
     scored = qs.annotate(
         score_title=Case(When(title__icontains=q, then=Value(10)), default=Value(0), output_field=IntegerField()),
         score_short=Case(When(short_description__icontains=q, then=Value(5)), default=Value(0), output_field=IntegerField()),
@@ -86,13 +70,10 @@ def search_projects(qs, q, sort='newest', user=None):
         score_readme=Case(When(readme__icontains=q, then=Value(1)), default=Value(0), output_field=IntegerField()),
     ).annotate(score=F('score_title')+F('score_short')+F('score_stack')+F('score_readme'))
 
-    # Term-level: each term adds
     for term in terms:
         scored = scored.filter(Q(title__icontains=term) | Q(short_description__icontains=term) | Q(tech_stack__icontains=term) | Q(readme__icontains=term) | Q(tags__name__icontains=term) | Q(category__name__icontains=term))
 
-    # Distinct because tags join
     scored = scored.distinct()
-    # Rank: score desc, then sort
     if sort == 'foryou':
         from .taste import personalized_order
         scored, _norm = personalized_order(scored.order_by(), user, base_field='appeal_score')
@@ -106,7 +87,6 @@ def search_projects(qs, q, sort='newest', user=None):
     else:
         scored = scored.order_by('-score', '-created_at')
 
-    # Typo fallback: if no results, try contains per term with OR (not AND)
     if not scored.exists() and terms:
         q_or = Q()
         for term in terms:
@@ -114,7 +94,6 @@ def search_projects(qs, q, sort='newest', user=None):
         fallback = qs.filter(q_or).distinct().order_by('-stars')
         if fallback.exists():
             return fallback
-        # SQLite typo: difflib close match on title words (e.g., dashbord -> dashboard)
         import difflib, re
         from .models import AppProject as _AppProject
         all_text = " ".join(_AppProject.objects.filter(status='published').values_list('title', flat=True)) + " " + " ".join(_AppProject.objects.filter(status='published').values_list('tech_stack', flat=True))

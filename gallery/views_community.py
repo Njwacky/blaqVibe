@@ -77,7 +77,6 @@ def nolo_compare(request):
         result = compare_apps(a, b)
         return JsonResponse(result)
     except Exception as e:
-        # crush silently — log, return safe error
         import logging
         logging.getLogger(__name__).exception(f"nolo compare crush: {e}")
         return JsonResponse({'error': 'Compare failed silently', 'a':{},'b':{},'diff':{}}, status=500)
@@ -257,9 +256,6 @@ def studio(request, slug=''):
         raise Http404
 
     if request.method == 'POST':
-        # Reuse the single publish path so every rule (validate, scan,
-        # classify, trust) applies to Studio output too. publish() itself
-        # enforces login + the 5/h upload rate limit.
         from .views import publish as publish_view
         return publish_view(request)
 
@@ -294,10 +290,6 @@ def studio(request, slug=''):
 @ratelimit(key='user', rate='5/h', method='POST')
 def create_pr(request, slug):
     """Create Pull Request from fork to its original — backend checks forked_from."""
-    # Ownership is resolved BEFORE the try: Http404 is an Exception, so the
-    # broad catch-all below used to swallow it and answer 302 for a fork
-    # that isn't the caller's. A 404 is the honest answer — it neither
-    # confirms the slug exists nor leaks that the row is someone else's.
     source = get_object_or_404(AppProject, slug=slug, owner=request.user)
     try:
         if getattr(request, 'limited', False):
@@ -310,7 +302,6 @@ def create_pr(request, slug):
         if not getattr(target.owner.profile, 'allow_prs', True):
             messages.error(request, "This creator disabled pull requests.")
             return redirect(source.get_absolute_url())
-        # Must be open PR not already open for this source
         if PullRequest.objects.filter(source=source, target=target, status='open').exists():
             messages.info(request, "PR already open for this fork")
             return redirect(target.get_absolute_url())
@@ -376,19 +367,6 @@ def pr_detail(request, slug, pr_id):
     for strangers — the same rule every other content read enforces via
     user_can_see_project. The owner/moderator can still review it.
     """
-    # Gate OUTSIDE the crush try/except. The fallback below must only render
-    # the page for callers who already passed this check — otherwise an
-    # Http404 raised here would be swallowed by `except Exception` and the
-    # fallback's ungated re-fetch would hand the diff to a stranger anyway.
-    #
-    # Who may read a PR diff when the source fork is still pending?
-    #   - the fork owner (user_can_see_project → owner),
-    #   - a moderator (user_can_see_project → moderator),
-    #   - the TARGET's owner — opening a PR against their vibe is an explicit
-    #     invitation to review, and pr_action lets exactly that user merge it.
-    # Note we must NOT check user_can_see_project on pr.target here: the
-    # target is published (gated above), so that would be True for everyone
-    # and would silently reopen the hole.
     target = get_object_or_404(AppProject, slug=slug, status='published')
     pr = get_object_or_404(PullRequest, id=pr_id, target=target)
     allowed = user_can_see_project(request.user, pr.source)
@@ -400,7 +378,6 @@ def pr_detail(request, slug, pr_id):
     try:
         from .diff import diff_projects
         diff = diff_projects(pr.source, pr.target)
-        # Nolo diff
         from .nolo import compare_apps
         nolo_diff = compare_apps(pr.source, pr.target)['diff']
         nolo_review = (pr.source.scan_report or {}).get('nolo_review')
@@ -447,11 +424,7 @@ def pr_action(request, slug, pr_id):
                 finally:
                     source.zip_file.close()
             else:
-                # A snippet PR must not keep the target's old ZIP attached.
                 target.zip_file = None
-            # PRs can contain a snippet rather than a ZIP. Copy the executable
-            # source as well as archive metadata; otherwise a "merged" snippet
-            # only changed the README and never changed the app people run.
             target.html_code = source.html_code
             target.css_code = source.css_code
             target.js_code = source.js_code
@@ -459,9 +432,6 @@ def pr_action(request, slug, pr_id):
             target.file_count = source.file_count
             target.readme = source.readme
             target.tech_stack = source.tech_stack
-            # Merged PR replaces the target's bytes — reset the trust badge
-            # with the same write (gallery.trust WHY 4). The re-queued scan
-            # re-earns it from the merged content only.
             try:
                 from .trust import invalidate_trust
                 invalidate_trust(target, save=False)
@@ -503,17 +473,11 @@ def battle(request):
     try:
         from .models import VibeBattle, AppProject
         import random
-        # Pick 2 random published vibes, not same, exclude own if logged in
         qs = AppProject.objects.filter(status='published')
         if qs.count() < 2:
             return render(request, 'gallery/battle.html', {'battle': None})
-        # Try to find a battle not voted by this user
         if request.user.is_authenticated:
             voted_ids = request.user.battle_votes.values_list('battle_id', flat=True)
-            # A battle is a view of two vibes; if either has since gone
-            # non-public it must not be surfaced to this person (same rule as
-            # every other content read). One helper, applied to every battle
-            # this page could otherwise render.
             available = [
                 b for b in VibeBattle.objects.exclude(id__in=voted_ids)
                 .select_related('vibe_a__owner', 'vibe_b__owner')
@@ -542,11 +506,7 @@ def battle_leaderboard(request):
     try:
         from .models import VibeBattle, AppProject
         from django.db.models import Count, F
-        # Top vibes by battle wins — count wins per vibe
-        # Simple: top by stars (battle wins already +5 stars) + battle_wins annotation
-        # Compute wins per vibe via Python (at scale, use annotation)
         vibes = list(AppProject.objects.filter(status='published').order_by('-stars')[:10])
-        # Annotate battle_wins for display
         for v in vibes:
             wins = VibeBattle.objects.filter(vibe_a=v, votes_a__gt=F('votes_b')).count() + VibeBattle.objects.filter(vibe_b=v, votes_b__gt=F('votes_a')).count()
             v.battle_wins = wins
@@ -573,10 +533,6 @@ def battle_history(request):
     try:
         from .models import VibeBattle, BattleVote
         my_votes = []
-        # The history page is public — it must never render a battle whose
-        # vibes have since gone non-public (same rule as the battle page).
-        # Fetch a slightly larger window, filter with the one visibility
-        # helper, then cap the visible count.
         recent = [
             b for b in VibeBattle.objects.select_related('vibe_a__owner', 'vibe_b__owner')
             .order_by('-created_at')[:30]
@@ -599,14 +555,7 @@ def battle_history(request):
 @require_POST
 @ratelimit(key='user', rate='30/h', method='POST')
 def vote_battle(request, battle_id):
-    # Visibility + object lookup are resolved BEFORE the try. Http404 is an
-    # Exception, and the broad catch-all below would swallow it and answer a
-    # 302 — which both confirms the battle exists and hides the refusal from
-    # the caller. Same anti-pattern create_pr was fixed for.
     battle = get_object_or_404(VibeBattle, id=battle_id)
-    # You cannot vote on a battle you cannot see: if either vibe has since
-    # gone non-public, the battle is no longer a real contest (and a
-    # stranger must not confirm its existence via a vote).
     if not _battle_visible(request.user, battle):
         raise Http404
     try:
@@ -617,7 +566,6 @@ def vote_battle(request, battle_id):
         if BattleVote.objects.filter(user=request.user, battle=battle).exists():
             messages.info(request, "You already voted on this battle")
             return redirect('battle')
-        # Cannot vote on own vibe
         if battle.vibe_a.owner == request.user or battle.vibe_b.owner == request.user:
             messages.error(request, "Can't vote on your own vibe")
             return redirect('battle')
@@ -651,8 +599,6 @@ def run_vibe(request, slug):
        never drift.
     """
     project = get_object_or_404(AppProject, slug=slug, status='published')
-    # An inline snippet always runs; a static-site ZIP runs when the
-    # classifier found its entry. Both land on the sandboxed preview shell.
     if (project.html_code or '').strip():
         return redirect('preview', slug=slug)
     if project.preview_mode == 'static_zip' and (project.static_entry or '').strip():
@@ -662,9 +608,6 @@ def run_vibe(request, slug):
     messages.error(request, "Nothing to preview — no snippet or files.")
     return redirect(project.get_absolute_url())
 
-# deploy_view removed with the Deploy model. 5 Whys: Why kill the route?
-# It promised a live deployment and delivered a redirect — a lie in the URL
-# space. Old /deploy/<token>/ links now 404 honestly.
 
 @require_POST
 @ratelimit(key='ip', rate='20/h', method='POST')
@@ -696,10 +639,6 @@ def copy_increment(request, slug):
 def challenge_list(request):
     from .models import Challenge
     from django.utils import timezone
-    # A challenge every day, with or without the AI generator: the pool is
-    # derived from the date, so simply loading this page materialises it.
-    # Settling here too means a finished day pays its winner the first time
-    # anybody looks, with no Celery beat required.
     try:
         from .daily import ensure_daily_challenge, settle_past_challenges
         ensure_daily_challenge()
@@ -720,7 +659,6 @@ def challenge_list(request):
 @login_required
 @require_POST
 def generate_challenges(request):
-    # Superadmin only — AI drafts 3 challenges, deduped, is_active=False
     try:
         if not request.user.profile.is_superadmin():
             return render(request, '403.html', status=403)
@@ -737,7 +675,6 @@ def generate_challenges(request):
 @login_required
 @require_POST
 def approve_challenge(request, tag):
-    # Superadmin approves draft → is_active=True
     try:
         if not request.user.profile.is_superadmin():
             return render(request, '403.html', status=403)
@@ -757,10 +694,7 @@ def challenge_detail(request, tag):
     from .models import Challenge
     from gallery.models import AppProject
     challenge = get_object_or_404(Challenge, tag=tag)
-    # Ranked, not just listed: a challenge page is a scoreboard. Highest
-    # stars first, earliest publish as the tie-break (see daily.settle).
     submissions = AppProject.objects.filter(tags__slug=challenge.tag, status='published').select_related('owner').order_by('-stars', 'created_at')
-    # Also include pending for owner/admin view?
     if request.user.is_authenticated and (request.user.profile.is_admin() if hasattr(request.user, 'profile') else False):
         submissions = AppProject.objects.filter(tags__slug=challenge.tag).select_related('owner').order_by('-stars', 'created_at')
     return render(request, 'gallery/challenge_detail.html', {'challenge': challenge, 'submissions': submissions})

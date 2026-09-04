@@ -39,9 +39,7 @@ from .taxonomy import DEFAULT_KIND, KIND_VALUES, coerce_kind, preview_mode_for
 
 logger = logging.getLogger(__name__)
 
-# Below this heuristic confidence the row is worth an LLM call.
 LLM_CONFIDENCE_FLOOR = 0.55
-# Hard ceiling on LLM classification calls per minute, process-wide.
 LLM_CALLS_PER_MINUTE = 30
 _BUCKET_KEY = 'blaqvibes:kind-llm-bucket'
 
@@ -102,12 +100,10 @@ def _take_budget():
         try:
             used = cache.incr(key)
         except ValueError:
-            # Key expired between add() and incr() — start a fresh window.
             cache.set(key, 1, 120)
             return True
         return used <= limit
     except Exception:
-        # A broken cache must not silently unlock unlimited spend.
         logger.warning('kind LLM budget check failed — skipping LLM')
         return False
 
@@ -299,19 +295,6 @@ def classify_project(project, allow_llm=True, save=True):
 
     verdict['kind'] = coerce_kind(verdict.get('kind'))
 
-    # Can a ZIP actually run in the sandbox? Only if it is a static site.
-    # 5 Whys: Why decide this in the classifier and not the runner view?
-    # 1. preview_mode (the badge) and the runner must agree on ONE verdict;
-    #    computing it in two places invites a card that says "runnable" and a
-    #    preview that shows nothing.
-    # 2. The classifier already runs off the request path (scan queue / edit),
-    #    so the file-list walk costs queue time, not page time.
-    # 3. The file list is the only evidence — a build marker means "needs a
-    #    build/host", a real index.html means "opens in a browser".
-    # 4. Storing static_entry here means the runner opens exactly the file the
-    #    badge was decided from.
-    # 5. Snippets skip this entirely (html_code wins), so no ZIP is read for a
-    #    pure-snippet publish.
     static_runnable = False
     static_entry = ''
     if not (getattr(project, 'html_code', '') or '').strip() and getattr(project, 'zip_file', None):

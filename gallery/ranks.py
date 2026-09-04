@@ -1,4 +1,3 @@
-# 5 Whys: Why stars → rank? Incentive to publish quality. Why bonus for trending? High stars = appears 1st.
 RANKS = [
     (0, 'Bronze', 0, 0),
     (10, 'Silver', 10, 5),
@@ -14,11 +13,6 @@ def get_rank(total_stars):
     return {'threshold': rank[0], 'name': rank[1], 'discount': rank[2], 'bonus': rank[3]}
 
 def contributor_bonus(user):
-    # Memoised on the user instance for one request: `rank()` is rendered
-    # beside every creator name on a page, and each call used to run two
-    # aggregates (SUM(stars) + SUM(trade.cost)). Both inputs move only via
-    # F() updates from write paths that never render this in the same
-    # request, so the cached rank cannot disagree with the page.
     cached = getattr(user, '_rank_cache', None)
     if cached is not None:
         return cached

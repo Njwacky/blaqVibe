@@ -1,5 +1,3 @@
-# Real git daemon + admin dashboard charts: append-only clone log and the
-# 'git_push' notification kind.
 
 import django.db.models.deletion
 from django.conf import settings

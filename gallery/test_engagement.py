@@ -264,8 +264,6 @@ class AnalyticsTests(TestCase):
         VibeView.objects.create(project=self.project, viewer=self.stranger)
         CloneEvent.objects.create(project=self.project, user=self.stranger)
         Star.objects.create(project=self.project, user=self.stranger)
-        # Lifetimes live on the project row (denormalised); the VibeView /
-        # CloneEvent rows are what the 1-day and 7-day windows read.
         AppProject.objects.filter(pk=self.project.pk).update(views=7, clones=3, stars=1)
         self.project.refresh_from_db()
 
@@ -292,8 +290,8 @@ class AnalyticsTests(TestCase):
         other_project = published_zip(make_project(self.stranger, self.cat, title='Not Yours'))
         Star.objects.create(project=other_project, user=self.owner)
         stats = creator_stats(self.owner)
-        self.assertEqual(stats['published'], 1)  # only Stats Vibe is the owner's
-        self.assertEqual(stats['stars_total'], 1)  # the stranger's star is not ours
+        self.assertEqual(stats['published'], 1)
+        self.assertEqual(stats['stars_total'], 1)
 
     def test_stats_page_is_owner_only(self):
         self.client.force_login(self.stranger)
@@ -341,7 +339,7 @@ class ProgressTests(TestCase):
         award(self.user, 'publish', ref='test:1')
         after_first = progress_for(self.user)['xp']
         self.assertEqual(after_first, before + XP_BY_REASON['publish'])
-        award(self.user, 'publish', ref='test:1')  # same ref → no double count
+        award(self.user, 'publish', ref='test:1')
         self.assertEqual(progress_for(self.user)['xp'], after_first)
 
     def test_daily_caps_stop_farming(self):
@@ -479,9 +477,6 @@ class PersonalisedHomeTests(TestCase):
         other = make_user('fy-other')
         webapp = published_zip(make_project(other, self.cat, title='Webapp Vibe', kind='web_app'))
         cli = published_zip(make_project(make_user('fy-cli'), self.cat, title='CLI Vibe', kind='cli_tool'))
-        # Only the other user has a webapp history; our ranking must not copy
-        # it. (No project: taste deliberately ignores events on your own
-        # vibes — an author refreshing their page is not evidence of taste.)
         taste.record(other, webapp.kind, 'download')
         taste.record(other, webapp.kind, 'star')
         self.assertEqual(taste.top_kinds(self.user, limit=3), [])
@@ -551,8 +546,8 @@ class QueryBudgetTests(TestCase):
         before = self._queries(f'/app/{vibes[0].slug}/')
         self.assertLessEqual(before, 45)
         profile = self.owner.profile
-        first = profile.stars_received()   # warms the cache (1 aggregate)
-        rank = profile.rank()              # warms the cache (2 aggregates)
+        first = profile.stars_received()
+        rank = profile.rank()
         with self.assertNumQueries(0):
             self.assertEqual(profile.stars_received(), first)
             self.assertEqual(profile.rank(), rank)
@@ -604,8 +599,6 @@ class DailyChallengeJobTests(TestCase):
         self.assertEqual(
             StarEvent.objects.filter(user=self.author, reason='challenge_bounty').count(), 1)
 
-        # Second run must not pay twice — a cron that fires twice is not a
-        # bug in the cron, it is a bug in the job.
         call_command('daily_challenge', verbosity=0)
         self.assertEqual(
             StarEvent.objects.filter(user=self.author, reason='challenge_bounty').count(), 1)

@@ -33,9 +33,6 @@ def backfill(apps, schema_editor):
                 reason='backfill',
                 ref='opening-balance',
             ))
-        # Block a retroactive welcome payment for anyone who could still
-        # trigger the grant (verified already, or has any balance from the
-        # old 5-★-at-signup era).
         if profile.email_verified or profile.stars_balance:
             events.append(StarEvent(
                 user_id=profile.user_id,

@@ -118,9 +118,6 @@ def enrich_comparison_groups(guide_by_slug):
         rows = []
         for row in group["rows"]:
             guide = guide_by_slug.get(row["slug"])
-            # A guide missing any field the template needs is treated like a
-            # missing guide: skip the row, keep the hub alive, let the tests
-            # catch the data typo.
             if guide is None:
                 continue
             if not all(k in guide for k in ("slug", "name", "icon", "pace")):

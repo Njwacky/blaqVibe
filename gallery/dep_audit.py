@@ -40,8 +40,6 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# A manifest line we are willing to hand to a resolver at all: exact pin, no
-# flags, no URLs, no path/editable references, no ranges.
 _PYPI_PIN = re.compile(r'^([A-Za-z0-9][A-Za-z0-9._-]{0,199})==([A-Za-z0-9][A-Za-z0-9._+!-]{0,99})$')
 _NPM_NAME = re.compile(r'^(?:@[A-Za-z0-9._-]{1,39}/)?[A-Za-z0-9._-]{1,214}$')
 _NPM_VERSION = re.compile(r'^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.\-+]{1,60})?$')
@@ -51,10 +49,8 @@ MAX_PINS = 400
 MAX_RESULTS = 10
 AUDIT_TIMEOUT = int(os.getenv('SCAN_AUDIT_TIMEOUT', '45'))
 
-# Our own endpoints. Never derived from the scanned tree.
 PYPI_JSON_ROOT = 'https://pypi.org/'
 NPM_REGISTRY = 'https://registry.npmjs.org/'
-# Directories that are never the project's real manifest, only dependency noise.
 _SKIP_DIRS = {'node_modules', '.git', '__pycache__', '.venv', 'venv', '.npm-cache'}
 
 
@@ -63,7 +59,6 @@ def tools_enabled() -> bool:
     return os.getenv('SCAN_AUDIT_TOOLS', '1').strip().lower() not in ('0', 'false', 'no', 'off')
 
 
-# --- manifest discovery ------------------------------------------------------
 
 def find_manifests(root):
     """(package_json, package_lock, requirements_txt) — first of each, capped.
@@ -114,11 +109,9 @@ def safe_pip_pins(requirements_path):
     for raw in text.splitlines():
         line = raw.split('#', 1)[0].strip()
         if not line or line.startswith('-'):
-            # `-r other.txt`, `-e .`, `--index-url …`, `--extra-index-url …`:
-            # never followed, never passed on. An @-include too.
             ignored += 1 if line else 0
             continue
-        line = line.split(';', 1)[0].strip()          # drop env markers
+        line = line.split(';', 1)[0].strip()
         match = _PYPI_PIN.match(line)
         if match is None:
             ignored += 1
@@ -166,7 +159,6 @@ def safe_npm_deps(package_json_path):
     return out
 
 
-# --- isolated execution ------------------------------------------------------
 
 def _clean_env(isolated: str) -> dict:
     """A config-free environment: HOME, npmrc and pip conf point at our temp dir.
@@ -202,7 +194,6 @@ def _prepare_isolation():
         'package-lock=false\n',
         encoding='utf-8',
     )
-    # Empty on purpose: pip reads it and finds no index-url, no extra-index.
     Path(isolated, 'pip.conf').write_text('[global]\nindex-url = https://pypi.org/simple\n', encoding='utf-8')
     return isolated
 
@@ -223,8 +214,6 @@ def audit_pip(pins, isolated):
     req_file.write_text('\n'.join(pins) + '\n', encoding='utf-8')
     cmd = [
         'pip-audit', '-r', str(req_file),
-        # --no-deps: no resolution, so nothing is downloaded or built.
-        # --disable-pip: metadata comes from PyPI's JSON API, not pip.
         '--no-deps', '--disable-pip',
         '--cache-dir', str(Path(isolated, 'pa-cache')),
         '-f', 'json',
@@ -239,7 +228,6 @@ def audit_pip(pins, isolated):
         logger.exception('pip-audit invocation failed')
         return [], False, 'failed'
     if result.returncode not in (0, 1):
-        # 0 = clean, 1 = advisories found; anything else is the tool failing.
         return [], False, f'exit_{result.returncode}'
     try:
         data = json.loads((result.stdout or b'[]').decode('utf-8', errors='ignore') or '[]')
@@ -247,7 +235,6 @@ def audit_pip(pins, isolated):
         return [], False, 'unparsable'
     deps = data.get('dependencies') if isinstance(data, dict) else data
     if deps is None:
-        # An empty payload is what a tool that never looked at anything prints.
         return [], False, 'unparsable'
     names = []
     for dep in deps or []:
@@ -271,7 +258,6 @@ def audit_npm(package_json_path, lock_path, isolated):
     if not pins:
         return [], False, 'no_manifests'
     if not lock_path:
-        # `npm install`-shaped resolution is exactly what we refuse to do.
         return [], False, 'no_lockfile'
     audit_dir = Path(isolated, 'npm-project')
     audit_dir.mkdir(parents=True, exist_ok=True)
@@ -280,8 +266,6 @@ def audit_npm(package_json_path, lock_path, isolated):
         {'name': 'blaqvibes-scan', 'version': '0.0.0', 'dependencies': deps},
         indent=2,
     ), encoding='utf-8')
-    # Copy the lockfile only after checking it parses and pins registry hosts we
-    # do not use; `--package-lock-only` reads it, never installs from it.
     lock_text = _read_limited(lock_path)
     if lock_text is None:
         return [], False, 'unparsable'
@@ -304,8 +288,6 @@ def audit_npm(package_json_path, lock_path, isolated):
         logger.exception('npm audit invocation failed')
         return [], False, 'failed'
     if result.returncode not in (0, 1):
-        # 1 is 'advisories found', 0 is clean; 2+ (EBADLOCK, ENOTFOUND, ...) is a
-        # failed audit. Silence is never reported as a pass.
         return [], False, f'exit_{result.returncode}'
     try:
         data = json.loads((result.stdout or b'{}').decode('utf-8', errors='ignore') or '{}')
@@ -317,13 +299,9 @@ def audit_npm(package_json_path, lock_path, isolated):
     if not isinstance(vulns, dict):
         vulns = data.get('advisories') if isinstance(data.get('advisories'), dict) else None
     if vulns is None:
-        # No report object at all: npm answered with an error payload.
         return [], False, 'unparsable'
     names = [str(name) for name in list(vulns.keys())[:MAX_RESULTS]]
     if not names and not isinstance(data.get('metadata'), dict):
-        # A clean answer with no metadata block is what `npm audit` prints when
-        # it never resolved a tree (empty lockfile, no network). Calling that a
-        # pass would hand a project an 'audited, 0 known CVEs' tick for free.
         return [], False, 'empty_report'
     return names, True, 'ok'
 

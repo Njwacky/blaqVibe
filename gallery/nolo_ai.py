@@ -7,10 +7,6 @@ from .prompt_economy import optimize_prompt, should_enable_prefix_cache
 
 logger = logging.getLogger(__name__)
 
-# Real Nolo system instructions. Every word earns its place: this block is
-# intentionally short and *stable*, because a short, unchanged prefix is what
-# makes prompt caching cheap across many requests. Dynamic user text goes in
-# the user message at the end.
 NOLO_SYSTEM_PROMPT = (
     'You are Nolo on BlaqVibes. Answer the question only. '
     'Stay concise, plain text, under 120 words. '
@@ -85,9 +81,6 @@ def get_nolo_ai_answer(prompt, *, system_text=None, budget_chars=None, preserve_
             import google.generativeai as genai
             genai.configure(api_key=gemini_key)
             model_kwargs = {'model': _env('GEMINI_MODEL') or 'gemini-1.5-flash'}
-            # system_instruction is supported on the versions pinned in
-            # requirements.txt; if a deployment pins an older one it simply
-            # falls through to the other backends rather than pretending.
             try:
                 model_kwargs['system_instruction'] = plan['system']
             except Exception:
@@ -156,9 +149,6 @@ def _claude_answer(api_key: str, prompt_text: str, system_text: str) -> str:
         'max_tokens': _max_output_tokens(240),
         'messages': [{'role': 'user', 'content': prompt_text}],
     }
-    # Prompt caching: put the stable system block first and ask the provider to
-    # cache it *only* when it is large enough to be honoured. A short prefix is
-    # still sent as a plain string — never a cache hint that can error.
     if system_text:
         if should_enable_prefix_cache(system_text):
             body['system'] = [

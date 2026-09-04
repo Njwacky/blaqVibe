@@ -20,6 +20,5 @@ def render_readme(md_text: str) -> str:
     return _clean(html)
 
 def render_markdown_inline(md_text: str) -> str:
-    # For comments — allow limited markdown
     html = markdown.markdown(md_text or "", extensions=['fenced_code'])
     return _clean(html)

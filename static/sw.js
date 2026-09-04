@@ -1,9 +1,4 @@
-// BlaqVibes SW — static and HTML requests are network-first so installed PWAs
-// receive layout fixes immediately while retaining an offline fallback.
-// No secrets in JS — no S3 keys, no scan_report.
-// Bump this whenever the app shell changes; activation removes older caches.
 const CACHE = 'blaqvibes-v5-footer-contact';
-// Account-specific pages — never cache (they contain per-user data).
 const PRIVATE_PREFIXES = [
   '/my-vibes/', '/inbox/', '/saved/', '/settings/', '/payout/',
   '/trades/', '/moderation/', '/blaq-admin', '/admin/',
@@ -30,11 +25,7 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const req = e.request;
   const url = new URL(req.url);
-  // Only handle same-origin GET
   if(req.method !== 'GET' || url.origin !== location.origin) return;
-  // Static -> network first. Django/WhiteNoise fingerprints production
-  // assets, but local and previously installed PWAs can request stable URLs.
-  // Cache-first kept an obsolete top navbar forever after the sidebar shipped.
   if(url.pathname.startsWith('/static/')){
     e.respondWith((async () => {
       try {
@@ -52,15 +43,12 @@ self.addEventListener('fetch', e => {
     })());
     return;
   }
-  // HTML -> network first, fallback to cache, then safe page
   if(req.headers.get('accept')?.includes('text/html')){
-    // Never cache account-specific pages — they contain per-user data.
     if(PRIVATE_PREFIXES.some(p => url.pathname.startsWith(p))){
       e.respondWith(fetch(req));
       return;
     }
     e.respondWith(fetch(req).then(res=>{
-      // Don't cache 404/403 as success — but cache 200
       if(res.ok) { const clone=res.clone(); caches.open(CACHE).then(c=>c.put(req, clone)); }
       return res;
     }).catch(()=>caches.match(req).then(r=>r || caches.match('/oops/').then(r2=>r2 || Response.error()))));

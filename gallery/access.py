@@ -47,10 +47,6 @@ def effective_star_cost(project) -> int:
 
 
 def effective_price_zar(project) -> int:
-    # 5 Whys: a ZAR-only vibe must not stay locked when cards are off.
-    # Why lock? price_zar > 0. Why can't they pay? no PAYSTACK_SECRET_KEY.
-    # Why no star fallback? star_cost may be 0. Why is that a fake paywall?
-    # Because we hide Buy and still refuse the ZIP. Treat ZAR as 0 until cards work.
     try:
         from .payments import paystack_enabled
         if not paystack_enabled():
@@ -63,9 +59,6 @@ def effective_price_zar(project) -> int:
 def user_can_download(user, project) -> bool:
     status = getattr(project, "status", None)
     if status == "removed":
-        # Soft-deleted vibe: only the owner and people who already PAID
-        # keep the ZIP. No new unlocks, no free downloads — the listing
-        # is gone; existing receipts (Trade/Sale) still honour access.
         if not getattr(project, "zip_file", None):
             return False
         if not getattr(user, "is_authenticated", False):
@@ -76,32 +69,12 @@ def user_can_download(user, project) -> bool:
             Trade.objects.filter(buyer=user, project=project).exists()
             or Sale.objects.filter(buyer=user, project=project).exists()
         )
-    # Quarantined means the scanner found something: nobody downloads that,
-    # not even a buyer. A receipt is a promise about *their* purchase, not a
-    # licence to serve flagged bytes to anybody's machine.
     if status == "quarantined":
         return False
     if not getattr(project, "zip_file", None):
         return False
     if getattr(user, "is_authenticated", False) and user.pk == project.owner_id:
         return True
-    # 5 Whys — why does a receipt outrank the rescan state?
-    # 1. Why does this matter? An edit (or a `git push`) moves a vibe back
-    #    to pending while it is re-scanned. Under the old rule a buyer's
-    #    download broke for the whole rescan — and forever if the scanner
-    #    was unavailable. They paid; the outage was not theirs.
-    # 2. Why not just keep serving the pending bytes? Because those bytes
-    #    have not been scanned yet. The download view therefore serves the
-    #    last *scanned* version (see last_scanned_version), never the
-    #    un-checked archive.
-    # 3. Why check the receipt before the price? A free vibe that is
-    #    mid-rescan has no receipt, so it correctly stays locked for a
-    #    stranger; only paid access survives the pipeline.
-    # 4. Why not allow moderators? Review happens in the moderation queue
-    #    and on the detail page; a download is not a review tool.
-    # 5. Why is 'removed' handled above and 'quarantined' refused here?
-    #    Removal is the creator's choice, quarantine is the scanner's;
-    #    the first must not punish buyers, the second must protect them.
     if status == "pending" and getattr(user, "is_authenticated", False):
         if (
             Trade.objects.filter(buyer=user, project=project).exists()

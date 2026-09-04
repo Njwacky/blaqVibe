@@ -1,23 +1,3 @@
-/* BlaqVibes Studio — in-browser editor. Write always; run only when signed in.
- *
- * 5 Whys (mirrored from gallery/views_community.studio):
- * 1. Why srcdoc in a sandboxed iframe, not a server round-trip per keystroke?
- *    `<iframe sandbox="allow-scripts" srcdoc>` is an opaque origin — the
- *    user's in-progress code cannot read cookies or the parent DOM — so we
- *    can run it instantly, locally, with zero latency and zero server load.
- * 2. Why NOT allow-same-origin on the frame? That would give the previewed
- *    code our origin (cookies, storage). allow-scripts alone keeps it opaque.
- * 3. Why require login to RUN, not to write? Writing is text. Running HTML/JS
- *    executes in the visitor's browser. The iframe is omitted from anonymous
- *    HTML so DevTools cannot conjure a runner the server never sent.
- * 4. Why not abort the whole script when `#studio-frame` is missing?
- *    Anonymous visitors still need tabs, drafts, Nolo, and the publish
- *    drawer. Only `render()` no-ops without a live frame.
- * 5. Why persist the draft in sessionStorage? Sign-in is a full navigation.
- *    Without a local draft, "you can write without an account" deletes the
- *    work at the conversion moment. sessionStorage dies with the tab;
- *    the server never stores anonymous code.
- */
 (function () {
   'use strict';
 
@@ -31,19 +11,15 @@
     css: document.getElementById('ed-css'),
     js: document.getElementById('ed-js'),
   };
-  // Editors must keep working even when the preview iframe was never sent.
   if (!ed.html) return;
 
   var frame = document.getElementById('studio-frame');
-  // Both the server flag AND the element have to be present. Flipping
-  // canPreview in DevTools cannot conjure an iframe that was never sent.
   var previewLive = canPreview && !!frame;
 
   function buildDocument() {
     var css = ed.css ? ed.css.value : '';
     var js = ed.js ? ed.js.value : '';
     var html = ed.html ? ed.html.value : '';
-    // One self-contained document — same shape as a published snippet.
     return (
       '<!DOCTYPE html><html><head><meta charset="utf-8">' +
       '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
@@ -56,7 +32,6 @@
 
   function render() {
     if (!previewLive) return;
-    // srcdoc keeps the frame at an opaque origin (no allow-same-origin).
     frame.srcdoc = buildDocument();
   }
 
@@ -82,7 +57,7 @@
       if (payload.length > DRAFT_MAX) return;
       sessionStorage.setItem(draftKey, payload);
     } catch (e) {
-      /* quota / private mode — writing still works, just no restore */
+
     }
   }
 
@@ -103,8 +78,6 @@
     if (timer) clearTimeout(timer);
     timer = setTimeout(render, 350);
   }
-
-  // Tabs: show one editor pane at a time.
   var tabs = document.querySelectorAll('.studio-tab');
   tabs.forEach(function (tab) {
     tab.addEventListener('click', function () {
@@ -115,13 +88,9 @@
       });
     });
   });
-
-  // Live preview as you type (no-ops when the iframe was never sent).
   ['html', 'css', 'js'].forEach(function (k) {
     if (ed[k]) ed[k].addEventListener('input', scheduleRender);
   });
-
-  // Tab key inserts two spaces instead of leaving the textarea.
   ['html', 'css', 'js'].forEach(function (k) {
     if (!ed[k]) return;
     ed[k].addEventListener('keydown', function (e) {
@@ -137,11 +106,8 @@
 
   var runBtn = document.getElementById('studio-run');
   if (runBtn && previewLive) runBtn.addEventListener('click', render);
-
-  // Publish drawer open/close.
   var drawer = document.getElementById('studio-publish');
   var openBtn = document.getElementById('studio-open-publish');
-  // Anything marked data-close-drawer closes it: the × and the Cancel button.
   var closeBtns = document.querySelectorAll('[data-close-drawer]');
   var lastFocused = null;
 
@@ -150,9 +116,6 @@
     lastFocused = document.activeElement;
     drawer.hidden = false;
     document.body.classList.add('studio-drawer-open');
-    // Land on the first field, not the close button — Enter should not be able
-    // to dismiss the drawer by accident.
-    // (Skip the hidden csrf/code mirrors — focusing one does nothing.)
     var first = drawer.querySelector('input:not([type="hidden"]), select, textarea')
       || drawer.querySelector('button');
     if (first && first.focus) first.focus();
@@ -161,23 +124,18 @@
     if (!drawer) return;
     drawer.hidden = true;
     document.body.classList.remove('studio-drawer-open');
-    // Hand focus back so a keyboard user is not stranded inside a hidden box.
     if (lastFocused && lastFocused.focus) lastFocused.focus();
   }
   if (openBtn) openBtn.addEventListener('click', openDrawer);
   closeBtns.forEach(function (b) { b.addEventListener('click', closeDrawer); });
-  // Click the dark backdrop (but not the card inside it) to dismiss.
   if (drawer) drawer.addEventListener('click', function (e) {
     if (e.target === drawer) closeDrawer();
   });
-  // Escape always gets you out — of the drawer, then of Nolo's panel.
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape' && e.key !== 'Esc') return;
     if (drawer && !drawer.hidden) { closeDrawer(); return; }
     if (noloBox && !noloBox.hidden) noloBox.hidden = true;
   });
-
-  // --- Nolo: fix my code ---------------------------------------------------
   var noloBox = document.getElementById('studio-nolo');
   var noloSummary = document.getElementById('studio-nolo-summary');
   var noloFindings = document.getElementById('studio-nolo-findings');
@@ -239,8 +197,6 @@
     });
   }
   if (noloClose) noloClose.addEventListener('click', function () { if (noloBox) noloBox.hidden = true; });
-
-  // --- Nolo: write my README ----------------------------------------------
   var readmeBtn = document.getElementById('studio-readme');
   if (readmeBtn) {
     readmeBtn.addEventListener('click', function () {
@@ -269,8 +225,6 @@
       });
     });
   }
-
-  // On submit, copy the live editors into the hidden fields the form sends.
   var form = document.getElementById('studio-form');
   if (form) {
     form.addEventListener('submit', function () {

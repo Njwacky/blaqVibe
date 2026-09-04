@@ -13,9 +13,6 @@ import os
 def init_sentry() -> None:
     dsn = os.getenv('SENTRY_DSN', '').strip()
     if not dsn:
-        # Do not initialize a dummy Sentry client in local/dev. Even with no DSN
-        # the Django/WSGI integrations wrap exception handling, and on Python
-        # 3.13 old SDKs can crash while trying to report another crash.
         return
 
     try:
@@ -31,5 +28,4 @@ def init_sentry() -> None:
         )
         print('Sentry enabled')
     except Exception as e:
-        # Observability must never stop the app from booting.
         print(f'Sentry not enabled: {e}')

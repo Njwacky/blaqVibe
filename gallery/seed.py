@@ -23,8 +23,6 @@ logger = logging.getLogger(__name__)
 
 HTML_DIR = Path(settings.BASE_DIR) / 'real_templates' / 'html'
 
-# The documented local password. Kept in ONE place so the README, the tests and
-# the seeder cannot drift apart into three different known credentials.
 DEMO_PASSWORD = 'blaq12345'
 MODERATOR_PASSWORD = 'thando12345'
 
@@ -191,7 +189,6 @@ def _body_html(path: Path) -> str:
     raw = path.read_text(encoding='utf-8')
     match = re.search(r'<body[^>]*>(.*)</body>', raw, re.I | re.S)
     body = match.group(1).strip() if match else raw
-    # Tailwind classes need the CDN inside the sandboxed iframe.
     if 'cdn.tailwindcss.com' not in body:
         body = '<script src="https://cdn.tailwindcss.com"></script>\n' + body
     return body
@@ -215,15 +212,10 @@ def _ensure_user(username: str, password: str, stars: int = 5, *,
         if usable_password:
             user.set_password(password)
         else:
-            # No documented password to log in with (and Django refuses to
-            # authenticate an unusable-password account at all).
             user.set_unusable_password()
         user.save()
     profile, _ = Profile.objects.get_or_create(user=user)
     updates = []
-    # Only set the starter balance on first create — never reset a live wallet.
-    # Ledger the demo balance too: sum(StarEvent.delta) == stars_balance must
-    # hold for every wallet, seeded ones included.
     if created and wallet:
         profile.stars_balance = stars
         updates.append('stars_balance')
@@ -232,7 +224,6 @@ def _ensure_user(username: str, password: str, stars: int = 5, *,
             StarEvent.objects.create(
                 user=user, delta=stars, reason='admin_adjust', ref='seed-demo',
             )
-        # Demo accounts count as verified — trading requires a verified email.
         if not profile.email_verified:
             profile.email_verified = True
             updates.append('email_verified')
@@ -242,10 +233,6 @@ def _ensure_user(username: str, password: str, stars: int = 5, *,
             updates.append(key)
     if updates:
         profile.save(update_fields=list(dict.fromkeys(updates)))
-    # Demo staff need the Django flags the admin dashboard / Django admin
-    # also look at. Role alone is the BlaqVibes gate; is_staff opens
-    # /blaq-admin-secure/. Never flip these in production seed (roles are
-    # only passed from _ensure_demo_staff, which is LOCAL_DEV-gated).
     role = profile_kwargs.get('role')
     flag_fields = []
     if role == 'superadmin':
@@ -438,22 +425,12 @@ def seed_demo():
     cats = _categories()
     created = _seed_snippets(owner, cats)
     created += _seed_zip_app(owner, cats)
-    # Label and score the demo catalog too. Why? A fresh install would
-    # otherwise show every demo vibe as kind='other' with appeal 0, which
-    # looks exactly like the discovery feature being broken. Heuristic only:
-    # seeding must work offline and cost nothing.
     try:
         from .classify import classify_project
         from .interest import refresh_project
         for project in AppProject.objects.filter(status='published'):
             classify_project(project, allow_llm=False)
             refresh_project(project)
-            # Trust badge for demo snippets — the REAL regex secrets check
-            # (gallery.trust.snippet_evidence), not a hardcoded pass, so the
-            # demo catalog shows the badge exactly as production computes
-            # it. Demo ZIPs stay 'unknown' honestly: they never went
-            # through the ClamAV queue in a seed run, and a badge that
-            # claims an unrun check is the thing the badge exists to stop.
             try:
                 if not project.zip_file:
                     from .trust import snippet_evidence

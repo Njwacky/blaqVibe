@@ -75,7 +75,6 @@ class RenameRuleTests(TestCase):
     def setUp(self):
         self.user = make_user('coder', stars=RENAME_COST_STARS)
 
-    # --- the happy paths -------------------------------------------------
 
     def test_non_pro_pays_stars_and_burns_them(self):
         history = rename_user(self.user, 'coderprime')
@@ -88,7 +87,6 @@ class RenameRuleTests(TestCase):
         self.assertEqual(burn.delta, -RENAME_COST_STARS)
         self.assertIn('coder', burn.ref)
         self.assertIn('coderprime', burn.ref)
-        # Burned, not moved: no other account received anything.
         self.assertFalse(
             StarEvent.objects.exclude(user=self.user).filter(reason='trade_earn').exists()
         )
@@ -108,7 +106,6 @@ class RenameRuleTests(TestCase):
         self.user.profile.refresh_from_db()
         self.assertEqual(self.user.profile.stars_balance, ledger_balance(self.user))
 
-    # --- the money wall ----------------------------------------------------
 
     def test_welcome_grant_cannot_afford_a_card(self):
         """5 ★ welcome < 100 ★ card — a throwaway farm renames nothing."""
@@ -118,10 +115,9 @@ class RenameRuleTests(TestCase):
         self.assertIn('Pro', ctx.exception.message)
         self.assertEqual(poor.username, 'poor')
         poor.profile.refresh_from_db()
-        self.assertEqual(poor.profile.stars_balance, 5)  # nothing charged
+        self.assertEqual(poor.profile.stars_balance, 5)
         self.assertFalse(StarEvent.objects.filter(user=poor, reason='rename_spend').exists())
 
-    # --- the cooldown wall (PUBG rule) --------------------------------------
 
     def test_cooldown_blocks_second_rename_even_with_stars_and_pro(self):
         rename_user(self.user, 'coderprime')
@@ -132,7 +128,6 @@ class RenameRuleTests(TestCase):
             rename_user(self.user, 'coderx')
         self.assertIn('cooldown', ctx.exception.message.lower())
         self.assertEqual(self.user.username, 'coderprime')
-        # Exactly one ledger burn — the blocked attempt charged nothing.
         self.assertEqual(
             StarEvent.objects.filter(user=self.user, reason='rename_spend').count(), 1
         )
@@ -142,14 +137,13 @@ class RenameRuleTests(TestCase):
         Profile.objects.filter(user=self.user).update(
             last_rename_at=timezone.now() - timedelta(days=RENAME_COOLDOWN_DAYS + 1)
         )
-        top_up(self.user, RENAME_COST_STARS)  # a second card, ledgered
-        history = rename_user(self.user, 'coderx')  # own old name 'coder' also freed
+        top_up(self.user, RENAME_COST_STARS)
+        history = rename_user(self.user, 'coderx')
         self.assertEqual(history.new_username, 'coderx')
 
     def test_cooldown_remaining_is_none_before_first_rename(self):
         self.assertIsNone(cooldown_remaining(self.user.profile))
 
-    # --- impersonation walls -------------------------------------------------
 
     def test_cannot_take_existing_name_case_insensitive(self):
         other = make_user('Nolo')
@@ -161,7 +155,7 @@ class RenameRuleTests(TestCase):
         for word in ('admin', 'support', 'blaqvibes', 'Nolo'.lower()):
             with self.assertRaises(RenameError, msg=word):
                 rename_user(self.user, word)
-        self.assertTrue(RESERVED_USERNAMES)  # the list itself is wired
+        self.assertTrue(RESERVED_USERNAMES)
 
     def test_old_username_reserved_for_others(self):
         rename_user(self.user, 'coderprime')
@@ -180,7 +174,7 @@ class RenameRuleTests(TestCase):
             created_at=timezone.now() - timedelta(days=RENAME_RESERVE_DAYS + 1)
         )
         stranger = make_user('stranger', stars=RENAME_COST_STARS)
-        history = rename_user(stranger, 'coder')  # freed after the window
+        history = rename_user(stranger, 'coder')
         self.assertEqual(history.new_username, 'coder')
 
     def test_owner_can_reclaim_own_old_name_after_cooldown(self):
@@ -189,10 +183,9 @@ class RenameRuleTests(TestCase):
             last_rename_at=timezone.now() - timedelta(days=RENAME_COOLDOWN_DAYS + 1)
         )
         top_up(self.user, RENAME_COST_STARS)
-        rename_user(self.user, 'coder')  # own reservation exempts self
+        rename_user(self.user, 'coder')
         self.assertEqual(self.user.username, 'coder')
 
-    # --- validation walls ------------------------------------------------------
 
     def test_same_name_rejected(self):
         with self.assertRaises(RenameError):
@@ -214,7 +207,6 @@ class RenameRuleTests(TestCase):
             rename_user(self.user, 'admin')
         self.assertFalse(UsernameHistory.objects.exists())
 
-    # --- link-rot fix ------------------------------------------------------
 
     def test_old_profile_url_redirects_to_new(self):
         rename_user(self.user, 'coderprime')
@@ -229,14 +221,12 @@ class RenameRuleTests(TestCase):
         )
         top_up(self.user, RENAME_COST_STARS)
         rename_user(self.user, 'coderx')
-        # The FIRST old name must land on the live username, not the stale B.
         response = self.client.get('/u/coder/')
         self.assertTrue(response['Location'].endswith('/u/coderx/'))
 
     def test_unknown_username_still_404s(self):
         self.assertEqual(self.client.get('/u/ghost-user/').status_code, 404)
 
-    # --- the views end-to-end -----------------------------------------------
 
     def test_rename_view_charges_and_redirects(self):
         self.client.login(username='coder', password='pass12345')
@@ -310,17 +300,17 @@ class NameStyleTests(TestCase):
         _, changed = set_name_style(self.user, 'mono', 'rainbow', 'lg', 'chroma')
         self.assertTrue(changed)
         self.user.profile.refresh_from_db()
-        self.assertEqual(self.user.profile.stars_balance, STYLE_COST_STARS)  # untouched
+        self.assertEqual(self.user.profile.stars_balance, STYLE_COST_STARS)
         self.assertFalse(StarEvent.objects.filter(reason='style_spend').exists())
 
     def test_reset_to_default_is_free(self):
-        set_name_style(self.user, 'grotesk', 'gold', 'xl', 'shine')  # paid
+        set_name_style(self.user, 'grotesk', 'gold', 'xl', 'shine')
         self.user.profile.stars_balance = 0
         self.user.profile.save(update_fields=['stars_balance'])
         profile, changed = set_name_style(self.user, 'classic', 'default', 'md', 'none')
         self.assertTrue(changed)
         profile.refresh_from_db()
-        self.assertEqual(profile.stars_balance, 0)  # free, even with 0 ★
+        self.assertEqual(profile.stars_balance, 0)
 
     def test_same_style_is_free_no_op(self):
         set_name_style(self.user, 'grotesk', 'gold', 'lg', 'glow')
@@ -340,7 +330,6 @@ class NameStyleTests(TestCase):
         profile, _changed = set_name_style(
             self.user, 'papyrus', 'hotpink', 'xxl', 'matrix', persona='not-a-person',
         )
-        # Unknown slugs are STORED as defaults — a tampered POST buys nothing.
         self.assertEqual(profile.name_font, 'classic')
         self.assertEqual(profile.name_color, 'default')
         self.assertEqual(profile.name_size, 'md')
@@ -524,7 +513,6 @@ class NameStyleTests(TestCase):
         self.assertNotContains(response, 'persona-card')
         for slug, meta in NAME_PERSONAS.items():
             self.assertContains(response, meta['label'])
-        # Preview maps (styles display) carry every flourish class.
         for slug in people_style_slugs():
             self.assertContains(response, f'namepersona-{slug}')
 

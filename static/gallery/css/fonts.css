@@ -1,7 +1,3 @@
-/* Self-hosted fonts — no external Google Fonts request, so first paint is not
-   blocked on a third-party CDN. WOFF2 latin subsets only (the weights the app
-   actually uses). fonts.css lives at /static/gallery/css/, so ../fonts/
-   resolves to /static/gallery/fonts/. */
 @font-face {
   font-family: 'Inter';
   font-style: normal;

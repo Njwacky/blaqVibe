@@ -49,9 +49,7 @@ def _db_ok():
             cursor.execute('SELECT 1')
             cursor.fetchone()
         return True, 'ok'
-    except Exception as exc:  # never let a probe 500 the probe
-        # The real error is logged server-side; the public payload must not
-        # carry host/port/db/user strings (see readiness below).
+    except Exception as exc:
         logger.exception('readiness database check failed')
         return False, 'unavailable'
 

@@ -25,8 +25,6 @@ from .launch_guides import ARTIFACT_ROUTES
 
 _ROUTE_VALUES = {route['value'] for route in ARTIFACT_ROUTES}
 
-# (artifact value, matcher) — first hit wins, most specific first.
-# Matchers get (basename_lower, full_path_lower) for each candidate file.
 
 
 def _name_is(*names):
@@ -42,7 +40,7 @@ def _ext_is(*exts):
 _DETECTORS = (
     ('aab', _ext_is('.aab')),
     ('apple', _ext_is('.xcarchive', '.ipa')),
-    ('extension', _name_is('manifest.json')),   # refined below: needs browser keys nearby? keep simple: manifest.json + no index.html handled by order
+    ('extension', _name_is('manifest.json')),
     ('flatpak', _ext_is('.flatpakref')),
     ('container', _name_is('dockerfile', 'docker-compose.yml', 'docker-compose.yaml', 'compose.yml', 'compose.yaml')),
     ('frontend', _name_is('package.json')),
@@ -61,7 +59,6 @@ def _candidate_paths(project):
     except Exception:
         pass
     if not paths and isinstance(project.file_tree, dict):
-        # Fallback: walk the stored tree one level deep.
         for name, child in project.file_tree.items():
             lname = str(name).lower()
             if child is None:
@@ -80,8 +77,6 @@ def detect_artifact(project):
     """
     try:
         if not project.zip_file:
-            # Pure snippets are already "live" in the preview; static-site
-            # guidance still fits if there is HTML to host.
             return 'static' if project.html_code else ''
         paths = _candidate_paths(project)
         if not paths:
@@ -89,12 +84,9 @@ def detect_artifact(project):
         pairs = [(p.rsplit('/', 1)[-1], p) for p in paths]
         for value, matcher in _DETECTORS:
             if value not in _ROUTE_VALUES:
-                continue  # guides table changed; skip silently, tests catch it
+                continue
             for base, path in pairs:
                 if matcher(base, path):
-                    # manifest.json alone is ambiguous (PWA vs extension):
-                    # call it an extension only when there is no index.html
-                    # (a PWA manifest ships beside its page).
                     if value == 'extension':
                         has_index = any(b in ('index.html', 'index.htm') for b, _ in pairs)
                         if has_index:

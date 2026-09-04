@@ -1,7 +1,6 @@
 import os, logging, re, difflib, json
 logger = logging.getLogger(__name__)
 
-# Curated fallback ideas for Durban vibe coders — if AI fails
 FALLBACK_IDEAS = [
     ("Spaza Shop Stock Tracker", "Build a spaza shop stock tracker — add, sell, low-stock alert. Zulu/English mix."),
     ("Taxi Rank Queue App", "Taxi rank queue — take number, see position, SMS when taxi ready."),
@@ -26,11 +25,9 @@ def is_duplicate(new_title, past_titles, cutoff=0.7):
     """Check if new_title is too similar to past — crush silently."""
     try:
         for past in past_titles:
-            # Simple difflib on lower
             ratio = difflib.SequenceMatcher(None, new_title.lower(), past.lower()).ratio()
             if ratio > cutoff:
                 return True
-            # Also check close match
             if difflib.get_close_matches(new_title.lower(), [past.lower()], n=1, cutoff=cutoff):
                 return True
         return False
@@ -52,7 +49,6 @@ Generate {n} NEW challenges. Each must be:
 Return ONLY JSON array: [{{"title":"...", "description":"...", "bounty_stars":10, "tag":"challenge-week-13"}}]
 Make them different from past and from each other.
 """
-    # Try Gemini
     gemini_key = os.getenv("GEMINI_API_KEY", "")
     if gemini_key:
         try:
@@ -73,7 +69,6 @@ Make them different from past and from each other.
         except Exception as e:
             logger.warning(f"Gemini challenge gen failed: {e}")
 
-    # Try Groq
     groq_key = os.getenv("GROQ_API_KEY", "")
     if groq_key:
         try:
@@ -93,7 +88,6 @@ Make them different from past and from each other.
         except Exception as e:
             logger.warning(f"Groq challenge gen failed: {e}")
 
-    # Fallback — curated list, deduped
     for title, desc in FALLBACK_IDEAS:
         if not is_duplicate(title, past_titles + [c['title'] for c in candidates]):
             tag = f"challenge-week-{len(past_titles)+len(candidates)+13}"
@@ -113,7 +107,6 @@ def create_draft_challenges():
         created = []
         from .profanity import contains_profanity
         for cand in cands:
-            # Check tag not exists
             if Challenge.objects.filter(tag=cand['tag']).exists():
                 continue
             if contains_profanity(cand.get('title')) or contains_profanity(cand.get('description')):
@@ -126,7 +119,7 @@ def create_draft_challenges():
                 tag=cand['tag'],
                 start=timezone.now(),
                 end=timezone.now()+timedelta(days=7),
-                is_active=False,  # draft, superadmin must approve
+                is_active=False,
                 created_by=None
             )
             created.append(ch)

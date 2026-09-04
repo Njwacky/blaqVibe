@@ -1,6 +1,3 @@
-/* Publish wizard — step navigation, ZIP validation/drag-drop, README
-   preview, and the XHR upload progress bar. No template tags inside:
-   everything reads from the DOM. */
 function goStep(n) {
   document.querySelectorAll('.wizard-step').forEach((el) => { el.style.display = 'none'; });
   document.querySelector('[data-step="' + n + '"]').style.display = 'block';
@@ -11,7 +8,6 @@ function goStep(n) {
     const ind = document.getElementById('step-ind-' + step);
     if (ind) ind.classList.toggle('on', step === n);
   });
-  // Update progress bars
   document.getElementById('bar-1').style.background = n >= 2 ? '#7C3AED' : 'var(--line)';
   document.getElementById('bar-2').style.background = n >= 3 ? '#7C3AED' : 'var(--line)';
   document.getElementById('step-ind-2').style.opacity = n >= 2 ? '1' : '.5';
@@ -92,7 +88,6 @@ function startAgain() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 }
-// Wizard nav buttons — no inline JS in the template; wire data attributes here.
 document.querySelectorAll('[data-wizard-step]').forEach((btn) => {
   btn.addEventListener('click', () => goStep(parseInt(btn.dataset.wizardStep, 10)));
 });

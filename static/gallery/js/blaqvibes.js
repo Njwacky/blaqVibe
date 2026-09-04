@@ -48,13 +48,10 @@ function copyText(t){
     if(burger){
       const links = document.getElementById('nav-links');
       const open = links ? links.classList.toggle('open') : false;
-      // Keep the button's state announced — screen readers otherwise never
-      // learn the panel opened, and the label stays stuck on "Open menu".
       burger.setAttribute('aria-expanded', open ? 'true' : 'false');
       burger.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
       return;
     }
-    // Avatar dropdown — toggle on the button, close on any outside click.
     const userBtn = e.target.closest('#nav-user-btn');
     const menu = document.getElementById('nav-menu');
     if(userBtn && menu){
@@ -73,8 +70,6 @@ function copyText(t){
   });
 })();
 
-/* Desktop sidebar resize/collapse control. Pointer events cover mouse, pen and
-   touch; keyboard users can focus the separator and use Left/Right arrows. */
 (function(){
   const root = document.documentElement;
   const rail = document.getElementById('nav-resizer');

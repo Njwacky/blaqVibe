@@ -74,18 +74,14 @@ from dulwich.web import HTTPGitApplication
 logger = logging.getLogger(__name__)
 
 def git_root() -> Path:
-    # Lazily resolved so override_settings(MEDIA_ROOT=...) in tests and
-    # runtime env changes always take effect (a module-level constant
-    # would freeze the first value).
     return Path(os.getenv('GIT_REPO_ROOT', str(Path(settings.MEDIA_ROOT) / 'git_repos')))
 PLATFORM_IDENTITY = b'BlaqVibes Upload <noreply@blaqvibes.co.za>'
 DEFAULT_BRANCH = b'refs/heads/main'
 MAX_PUSH_MB = int(os.getenv('GIT_MAX_PUSH_MB', '200'))
 REALM = 'BlaqVibes Git'
-MAX_FILES_PER_EXPORT = 20000  # same spirit as validators.MAX_FILES
+MAX_FILES_PER_EXPORT = 20000
 
 
-# --- model-level helpers ------------------------------------------------------
 
 def record_clone(project, user, source, ip=''):
     """One append-only CloneEvent + the `clones` counter bump.
@@ -130,7 +126,6 @@ def _ip_hash(ip):
     return hashlib.sha256(ip.encode('utf-8', 'ignore')).hexdigest()
 
 
-# --- repo cache ---------------------------------------------------------------
 
 def _repo_dir(project) -> Path:
     return git_root() / f'{project.slug}.git'
@@ -254,9 +249,6 @@ def ensure_repo(project):
                     return Repo(str(repo_path))
             except OSError:
                 pass
-        # Rebuild: one snapshot commit per stored version, oldest first,
-        # with the current ZIP as HEAD. This reconstructs upload/version
-        # history (and pushed content) even on a fresh instance.
         from .models import AppVersion
         versions = list(AppVersion.objects.filter(project=project).order_by('created_at'))
         chain = [
@@ -288,7 +280,6 @@ def ensure_repo(project):
                 logger.exception('repo snapshot commit failed %s', project.slug)
                 raise NotGitRepository(f'{project.slug}.git') from exc
         repo.refs.add_if_new(DEFAULT_BRANCH, head)
-        # Atomic swap: old repo stays reachable until the new one is fully built.
         stale = git_root() / f'{project.slug}.git.old.{os.getpid()}'
         if repo_path.exists():
             os.replace(repo_path, stale)
@@ -299,7 +290,6 @@ def ensure_repo(project):
         return Repo(str(repo_path))
 
 
-# --- auth ---------------------------------------------------------------------
 
 def _basic_user(request):
     """Resolve Basic credentials to a User: password OR git token.
@@ -323,7 +313,6 @@ def _basic_user(request):
     if user is None:
         return None
     if not user.is_active:
-        # Suspended accounts must not keep pushing through the daemon.
         return None
     if user.check_password(secret):
         return user
@@ -352,7 +341,6 @@ def _auth_required(message):
     return resp
 
 
-# --- push pipeline ------------------------------------------------------------
 
 class PushRejected(Exception):
     """A push whose content the site refused to adopt.
@@ -365,8 +353,6 @@ class PushRejected(Exception):
 
 
 def _push_limit_bytes() -> int:
-    # Read per call: `GIT_MAX_PUSH_MB` is an operator knob, and a module-level
-    # constant would freeze whatever the test process happened to import first.
     try:
         return max(1, int(os.getenv('GIT_MAX_PUSH_MB', str(MAX_PUSH_MB)))) * 1024 * 1024
     except (TypeError, ValueError):
@@ -426,7 +412,7 @@ class _BoundedBodyStream:
             chunk = self._inner.read() or b''
             if len(chunk) > room:
                 self.oversize = True
-                chunk = chunk[:room]      # hand over nothing past the cap
+                chunk = chunk[:room]
         else:
             chunk = self._inner.read(min(size, room)) or b''
             if size > room and len(chunk) >= room:
@@ -456,9 +442,6 @@ class _BoundedBodyStream:
         return line
 
     def __getattr__(self, item):
-        # seek/tell/raw passthroughs the WSGI server may probe for. Counting
-        # only happens in read/readline, so a passthrough cannot smuggle bytes
-        # past the cap unnoticed: dulwich's pack reader uses read().
         return getattr(self._inner, item)
 
 
@@ -479,9 +462,6 @@ def _export_head_zip(repo, tree_id, zf, prefix='', budget=None):
     5. Why count bytes as well as files? 20 000 files is not a limit when each
        may be 50 MB; the pair (files, bytes) is the actual bound.
     """
-    # [files, uncompressed bytes, byte ceiling]. The ceiling is read ONCE per
-    # push, so a 20 000-file tree costs one getenv instead of 20 000, and every
-    # entry of one export is measured against the same limit.
     budget = [0, 0, _push_limit_bytes()] if budget is None else budget
     for entry in repo.get_object(tree_id).items():
         name = entry.path.decode('utf-8', 'replace')
@@ -506,8 +486,6 @@ def _export_head_zip(repo, tree_id, zf, prefix='', budget=None):
         budget[1] += len(data)
         if budget[1] > budget[2]:
             raise PushRejected('pushed tree is too large to publish here')
-        # A symlink becomes a regular file holding the link text: git mode bits
-        # must never survive into the ZIP that safe_extract_zip later walks.
         zf.writestr(path, data)
 
 
@@ -530,7 +508,6 @@ def _pushed_zip_to_project_zip(repo, commit):
     try:
         validate_zip(upload)
     except Exception as exc:
-        # django.core.exceptions.ValidationError carries the useful sentence.
         messages = getattr(exc, 'messages', None)
         detail = (messages[0] if messages else str(exc)) or 'invalid content'
         raise PushRejected(f'pushed content rejected by the upload checks: {detail}') from exc
@@ -558,9 +535,6 @@ def _restore_head(project, old_head):
             if old_head:
                 repo.refs[DEFAULT_BRANCH] = old_head
             else:
-                # No branch to go back to: drop the ref. If the installed dulwich
-                # refuses this call we land in the except below, which deletes the
-                # whole cache — a heavier but strictly safer outcome.
                 try:
                     del repo.refs[DEFAULT_BRANCH]
                 except KeyError:
@@ -569,8 +543,6 @@ def _restore_head(project, old_head):
             repo.close()
     except Exception:
         logger.exception('could not roll back git ref for %s — dropping the cache', project.slug)
-        # If we cannot undo the ref, the cache is unvouchable: delete it so the
-        # next request rebuilds from the stored, scanned ZIPs.
         _discard_repo_cache(project)
 
 
@@ -617,18 +589,6 @@ def _after_push(request, project, user, old_head=None):
     from django.core.files.base import ContentFile
     from .models import AppVersion, ScanJob
 
-    # 'adopted' is the line between the two failure stories below, so it is set
-    # exactly where the database says the pushed bytes are now the project's.
-    # 5 Whys: why distinguish at all? 1. Because `_after_push` has one giant
-    # try/except and failures before and after that line mean opposite things.
-    # 2. What does pre-adoption failure mean? Nothing changed on the project; the
-    # ref moved, so the ref is what has to go back. 3. And post-adoption? The new
-    # ZIP and `status='pending'` are committed, so rolling the ref forward-and-
-    # back would make git and the site disagree about which bytes are live.
-    # 4. Why not raise in the second case? A 400 would tell the author to push
-    # again, creating a second version of content that is already published-pending.
-    # 5. Why is the degraded-but-adopted case safe? The vibe is `pending` with a
-    # queued ScanJob and a void trust badge, so nothing is live before it is read.
     adopted = False
     try:
         repo = Repo(str(_repo_dir(project)))
@@ -636,8 +596,6 @@ def _after_push(request, project, user, old_head=None):
             head = repo.refs[DEFAULT_BRANCH]
             short = head.decode('ascii')[:8]
             commit = repo.get_object(head)
-            # Same byte/entry caps and the same validators an upload runs
-            # through — one gate, both doors.
             zip_bytes = _pushed_zip_to_project_zip(repo, commit)
         finally:
             repo.close()
@@ -653,9 +611,6 @@ def _after_push(request, project, user, old_head=None):
                 changelog=f'pre-push snapshot (git {short})',
             )
             locked.zip_file = ContentFile(zip_bytes, name=f'{locked.slug}-{short}.zip')
-            # New bytes via git push = the old trust verdict is void until the
-            # pipeline re-scans (gallery.trust WHY 4). The reset rides the same
-            # save: one write, no window where new bytes wear an old tick.
             try:
                 from .trust import invalidate_trust
                 invalidate_trust(locked, save=False)
@@ -669,13 +624,8 @@ def _after_push(request, project, user, old_head=None):
             project.pk = locked.pk
         adopted = True
 
-        # The pushed state is now what the project serves, so write the marker
-        # immediately: leaving it stale makes the next clone rebuild the repo
-        # from the ZIP and throw away the history we just adopted.
         _write_marker(project)
 
-        # Preview file tree must reflect what is now current. A failure here is
-        # cosmetic (a stale tree), never a reason to reject an adopted push.
         try:
             from .ziputil import build_tree
             from .models import AppFile
@@ -690,7 +640,6 @@ def _after_push(request, project, user, old_head=None):
         except Exception:
             logger.exception('push tree rebuild failed %s', project.slug)
 
-        # Record what pushed, backend-only blob (no schema churn).
         report = project.scan_report or {}
         report['last_git_push'] = {
             'sha': head.decode('ascii'),
@@ -705,9 +654,6 @@ def _after_push(request, project, user, old_head=None):
             process_upload_pipeline.delay(project.pk)
         except Exception:
             logger.exception('push scan queue trigger failed %s', project.slug)
-            # The ScanJob row says 'queued', so the moderation queue still holds
-            # the vibe at 'pending' — the state is fail-safe, only the timing is
-            # late. Shout about it rather than letting it look like a live scan.
             report = project.scan_report or {}
             report['last_git_push']['scan_not_queued'] = True
             project.scan_report = report
@@ -732,9 +678,6 @@ def _after_push(request, project, user, old_head=None):
     except Exception as exc:
         logger.exception('post-push pipeline failed %s', getattr(project, 'slug', '?'))
         if adopted:
-            # The push IS the live-but-unscanned version: keep the refs (they
-            # match the stored ZIP) and let the queued ScanJob do its job. Say
-            # nothing to the client — a 400 here would invite a duplicate push.
             return None
         _restore_head(project, old_head)
         _notice_push_refused(
@@ -769,15 +712,12 @@ def _lock_project(project):
     return AppProject.objects.select_for_update().get(pk=project.pk)
 
 
-# --- WSGI bridge --------------------------------------------------------------
 
 class _ProjectBackend(Backend):
     def __init__(self, project):
         self.project = project
 
     def open_repository(self, path):
-        # dulwich passes the URL prefix (e.g. '/slug.git'); we already
-        # resolved and gated the project, so just hand back its repo.
         return ensure_repo(self.project)
 
 
@@ -813,9 +753,6 @@ def _run_wsgi(request, project, rest, body=None):
 
     app = HTTPGitApplication(_ProjectBackend(project))
     out = app(env, start_response)
-    # Iterate the WSGI iterable FIRST: the smart-protocol handlers stream
-    # through start_response's write() callback during iteration, so any
-    # join of body_parts must happen after the generator is consumed.
     out_body = b''.join(list(out))
     body = b''.join(body_parts) + out_body
     try:
@@ -825,7 +762,7 @@ def _run_wsgi(request, project, rest, body=None):
     resp = HttpResponse(body, status=code)
     for key, value in captured['headers']:
         if key.lower() == 'content-length':
-            continue  # Django computes it; a stale value would truncate.
+            continue
         resp.headers[key] = value
     return code, resp
 
@@ -843,10 +780,6 @@ def handle_git_request(request, username, slug, rest=''):
 
     service = request.GET.get('service', '')
 
-    # A bare GET on the repo root is a HUMAN in a browser, not a git
-    # client (git always starts at /info/refs or a service endpoint).
-    # Keep the old browser UX: bounce to the vibe page, where the unlock
-    # flow lives. Protocol requests get protocol answers (401/403) below.
     if request.method == 'GET' and not rest and not service:
         from .access import access_denied_message, user_can_download
         can_pull = user_can_download(request.user, project) or (
@@ -860,15 +793,6 @@ def handle_git_request(request, username, slug, rest=''):
 
     is_push = service == 'git-receive-pack' or rest.rstrip('/') == 'git-receive-pack'
 
-    # The push cap is enforced on BYTES, not on a header.
-    # 5 Whys: why is the old `if request.META.get('CONTENT_LENGTH')` check not
-    # enough? 1. Because a missing header skipped the check entirely. 2. Why is
-    # it missing? `git push` uploads chunked, and chunked has no Content-Length.
-    # 3. So what was capped? Only the pushes that no real client sends. 4. Why
-    # keep the header check then? It rejects a declared-size push before we
-    # buffer any of it. 5. Why is the stream wrapper the real fix? dulwich reads
-    # the pack from wsgi.input, so counting there bounds every framing — and if
-    # it truncates, receive-pack fails the ref update instead of storing it.
     limit = _push_limit_bytes()
     limit_mb = max(1, limit // (1024 * 1024))
     declared = request.META.get('CONTENT_LENGTH')
@@ -878,15 +802,13 @@ def handle_git_request(request, username, slug, rest=''):
                 return HttpResponse(f'Push too large (max {limit_mb} MB).',
                                     status=413, content_type='text/plain')
         except (TypeError, ValueError):
-            pass  # unusable header: the byte-counting stream still enforces it
+            pass
 
     basic_user = _basic_user(request)
     session_user = request.user if request.user.is_authenticated else None
     eff_user = basic_user or session_user
 
     if is_push:
-        # Push is a WRITE: only Basic-authenticated owners/co-owners.
-        # Sessions are deliberately ignored here (no cookie-based writes).
         if basic_user is None:
             return _auth_required('push to this repository')
         if project.status == 'removed':
@@ -908,16 +830,12 @@ def handle_git_request(request, username, slug, rest=''):
     except NotGitRepository:
         raise Http404
 
-    # Remember the branch tip BEFORE the pack lands: if the site then refuses
-    # the content, the ref has to go back exactly here, or the rejected bytes
-    # stay cloneable from a cache the scan pipeline never saw.
     old_head = _repo_head(project) if is_push else None
 
     stream = _BoundedBodyStream(request, limit) if is_push else None
     code, resp = _run_wsgi(request, project, rest, body=stream)
 
     if stream is not None and stream.oversize:
-        # We cut the body, so receive-pack aborted: no refs moved, nothing to undo.
         return HttpResponse(f'Push too large (max {limit_mb} MB).',
                             status=413, content_type='text/plain')
 

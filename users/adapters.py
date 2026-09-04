@@ -41,8 +41,6 @@ class BlaqAccountAdapter(DefaultAccountAdapter):
         into a suffixed one instead of a 500.
         """
         username = super().clean_username(username, shallow=shallow)
-        # Imported lazily: users.rename imports models, and adapters are
-        # loaded from settings before the app registry is ready.
         from .rename import RESERVED_USERNAMES
         from gallery.profanity import public_text_is_clean
 
@@ -88,9 +86,6 @@ def sync_social_profile(user, sociallogin):
         if profile is None:
             return
         updates = []
-        # An address that came back verified from the provider is a verified
-        # mailbox. sociallogin.email_addresses carries the provider's own
-        # verified flag; user.email on its own proves nothing.
         email = (user.email or '').lower()
         verified = any(
             addr.verified and (addr.email or '').lower() == email

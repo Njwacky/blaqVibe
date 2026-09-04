@@ -46,8 +46,6 @@ def trending_scores(days=WINDOW_DAYS, limit=30):
                 if project_id:
                     scores[project_id] = scores.get(project_id, 0) + n * weight
 
-        # Weights mirror gallery.models.KindAffinity: paying (trade) proves
-        # far more intent than scrolling past a card.
         bump(
             Star.objects.filter(created_at__gte=since)
             .values_list('project_id').annotate(n=Count('id')), 3)
@@ -70,8 +68,6 @@ def trending_vibes(days=WINDOW_DAYS, limit=6, exclude_owner=None):
     """Published vibes ordered by this week's activity — newest ties first."""
     scores = trending_scores(days=days, limit=max(30, limit * 5))
     if not scores:
-        # Nothing moved this week: fall back to the freshest vibes rather
-        # than showing an empty rail. Honest — it says "new", not "hot".
         qs = AppProject.objects.filter(status='published')
         if exclude_owner:
             qs = qs.exclude(owner=exclude_owner)

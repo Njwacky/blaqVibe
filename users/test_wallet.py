@@ -34,7 +34,6 @@ PW = 'Tipper@BlaqVibe2026'
 
 def _verified(username, email, balance=0):
     u = User.objects.create_user(username, email, PW)
-    # The post_save receiver on User already created the Profile.
     Profile.objects.filter(user=u).update(email_verified=True, stars_balance=balance)
     u.refresh_from_db()
     return u
@@ -67,13 +66,11 @@ class SendTipIntegrityErrorTest(TestCase):
         sender = _verified('sender', 's@example.com', balance=0)
         recipient = _verified('recip', 'r@example.com')
 
-        # Capture the real locked read before we shadow it.
         real_get = Profile.objects.select_for_update().get
 
         def stale_get(**kwargs):
             obj = real_get(**kwargs)
             if obj.user_id == sender.pk:
-                # In-memory only: the guard sees 10, the DB row still holds 0.
                 obj.stars_balance = 10
             return obj
 
@@ -83,7 +80,6 @@ class SendTipIntegrityErrorTest(TestCase):
                 send_tip(sender, recipient, 5)
 
         self.assertIn('Could not complete the tip', str(ctx.exception))
-        # Rolled back — no tip, no ledger rows, balance untouched.
         self.assertEqual(Tip.objects.count(), 0)
         self.assertEqual(StarEvent.objects.count(), 0)
         sender.profile.refresh_from_db()

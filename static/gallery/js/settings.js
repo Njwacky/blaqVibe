@@ -1,6 +1,3 @@
-/* Settings — one-tap toggles. The toggle endpoint URL + CSRF token are
-   server-rendered into data attributes on #settings-toggles (this file
-   carries no template tags). */
 (function () {
   const wrap = document.getElementById('settings-toggles');
   const apiUrl = (wrap && wrap.dataset.url) || '';
@@ -35,7 +32,4 @@
         });
     });
   });
-
-  // (The name-style live preview moved to Edit Profile with the picker —
-  // nothing on this page references #name-style-maps any more.)
 })();

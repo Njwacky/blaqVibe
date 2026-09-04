@@ -6,11 +6,6 @@ from .validators import SECRET_PATTERNS
 logger = logging.getLogger(__name__)
 
 
-# 5 Whys Queue: Why chain not parallel?
-# 1. Every app MUST be checked — chain guarantees order: virus -> secrets -> vuln -> publish
-# 2. Why one queue 'scan'? Single worker processes one at a time, no race, fair FIFO.
-# 3. Why acks_late + retry? Concurrent uploads = worker OOM mid-scan → requeue, not lost.
-# 4. Why backend never JS? JS is view-source visible — secrets in JS = breach.
 
 @shared_task(bind=True, max_retries=2, queue='scan', time_limit=120, soft_time_limit=90)
 def vulnerability_scan(self, *args, project_id=None):
@@ -23,42 +18,23 @@ def vulnerability_scan(self, *args, project_id=None):
     build step) executed by the worker.
     """
     from .models import AppProject
-    # Handle chain arg: chain passes previous result as first arg
     if project_id is None and args:
-        # args = (prev_result, project_id) or (project_id,)
         project_id = args[-1]
     p = AppProject.objects.get(pk=project_id)
-    # Even snippets without zip get Nolo review
-    # dep_audit evidence (gallery.trust reads it): 'ran' is True only when
-    # an audit actually executed and parsed — so a missing tool or a
-    # missing manifest can never be mistaken for a passed check.
     report = {"npm": [], "pip": [], "secrets": [], "dep_audit": {"ran": False, "reason": "no_manifests"}}
-    # Dependency NAMES for the slopsquatting check (gallery.dep_check):
-    # collected while the ZIP is already extracted — no second read.
     deps = {"npm": [], "pip": []}
     if p.zip_file:
-        # ziputil.materialized_path works on local AND S3/R2 storage —
-        # FieldFile.path raises NotImplementedError on remote backends.
         from .ziputil import materialized_path
         tmpdir = tempfile.mkdtemp()
         try:
             from .validators import safe_extract_zip
             with materialized_path(p.zip_file) as zip_path:
                 safe_extract_zip(zip_path, tmpdir)
-            # The audits run in a directory WE own, against pins WE derived,
-            # with HOME/npmrc/pip.conf pointed away from the tree. The previous
-            # version ran `pip-audit`/`npm audit` with cwd inside the upload, so
-            # an attacker-supplied requirements.txt (`--index-url`, `-e .`,
-            # `file://`) or `.npmrc` decided where the worker's network traffic
-            # went and what got built — code execution on the box holding the
-            # DB, Redis, R2 and Paystack credentials. See gallery/dep_audit.
             from .dep_audit import find_manifests, run_dep_audits
             audit = run_dep_audits(tmpdir)
             report["npm"] = list(audit.get('npm') or [])[:10]
             report["pip"] = list(audit.get('pip') or [])[:10]
             report["dep_audit"] = audit.get('dep_audit') or {'ran': False, 'reason': 'no_manifests'}
-            # Dependency NAMES for the slopsquatting check come from the same
-            # walk (read-only parsers, no tool, no install).
             try:
                 from .dep_check import npm_deps_from_manifest, pip_deps_from_requirements
                 pkg_path, _lock_path, req_path = find_manifests(tmpdir)
@@ -74,15 +50,7 @@ def vulnerability_scan(self, *args, project_id=None):
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)
     else:
-        # Snippet: no ZIP, no manifest, no installable dependencies — the
-        # dep check is vacuously TRUE, and saying so lets an honest snippet
-        # earn 'verified' instead of being capped at 'scanned' forever.
         report["dep_audit"] = {"ran": True, "reason": "snippet_no_deps"}
-    # Slopsquatting check (gallery.dep_check): ask the real registry whether
-    # every dependency name exists. Explicit 404 → flagged (caps the trust
-    # tier at 'scanned' via gallery.trust); network failure → treated as
-    # existing (fail-open, never a false accusation). Budgeted + cached, so
-    # a spam wave costs a constant per hour, never a per-upload bill.
     try:
         from .dep_check import check_dependencies
         outcome = check_dependencies(deps)
@@ -95,16 +63,6 @@ def vulnerability_scan(self, *args, project_id=None):
             logger.warning("Possible fake packages in %s: %s", p.slug, report['unknown_deps'])
     except Exception:
         logger.exception('dep existence check failed %s', p.slug)
-    # Nolo Auto-Review — heuristic or LLM, backend only, crush silently.
-    # 5 Whys: Why check the profile toggle here, not in the view that
-    # queues the task? Every upload path (publish, edit, git push, fork)
-    # funnels through this single task; one gate covers them all.
-    # Why default True? 90% of creators want instant feedback after an
-    # upload; only pros who already know their quality level disable it.
-    # Why store "disabled" in the report instead of skipping entirely?
-    # The scan_status view and the detail template read scan_report to
-    # find out whether Nolo had an opinion. Writing 'disabled' gives
-    # them a clean answer instead of a missing key.
     try:
         from .nolo_review import nolo_review
         nolo_enabled = True
@@ -121,7 +79,6 @@ def vulnerability_scan(self, *args, project_id=None):
     except Exception as e:
         logger.exception(f"Nolo review crush {p.slug}: {e}")
         report["nolo_review"] = {"score": 5, "fixes": [], "pros": [], "source": "error"}
-    # Merge with existing scan_report (don't overwrite)
     try:
         existing = p.scan_report or {}
         existing.update(report)
@@ -133,9 +90,6 @@ def vulnerability_scan(self, *args, project_id=None):
             p.save(update_fields=['scan_report'])
         except Exception: pass
     logger.info(f"Vuln scan {p.slug}: {report}")
-    # Trust badge: the vuln step is the last evidence writer before
-    # finalize — grade here so the tier reflects fresh evidence even if
-    # finalize is delayed behind other rows in the FIFO queue.
     try:
         from .trust import apply_trust_grade
         apply_trust_grade(p)
@@ -150,13 +104,6 @@ def scan_zip_with_clamav(self, project_id):
     p = AppProject.objects.get(pk=project_id)
     if not p.zip_file:
         return "no_zip"
-    # 5 Whys: Why check the site toggle here instead of skipping the
-    # entire chain? ClamAV is infra (not a user preference) and can be
-    # expensive CPU-wise; a superadmin who disables it expects the
-    # pipeline to skip the full scan, not to still run and then ignore
-    # the result. Why default True? Security is enabled out of the box;
-    # ops explicitly turn it off only when the container has no ClamAV
-    # binary or they use an external scanner.
     try:
         from users.models import SiteSettings
         if not SiteSettings.get().clamav_enabled:
@@ -168,8 +115,6 @@ def scan_zip_with_clamav(self, project_id):
             return "clamav_disabled"
     except Exception:
         pass
-    # clamscan needs a real filesystem path; on S3/R2 the object is streamed
-    # to a temp file for the duration of the scan (ziputil handles both).
     from .ziputil import materialized_path, open_zip
     try:
         with materialized_path(p.zip_file) as zip_path:
@@ -196,8 +141,6 @@ def scan_zip_with_clamav(self, project_id):
     except subprocess.TimeoutExpired:
         logger.warning(f"ClamAV timeout {p.slug}, retry")
         raise self.retry()
-    # Secrets scan — backend only, never sent to JS. Reads via storage API,
-    # so it works identically on local disk and S3/R2.
     secrets = []
     try:
         with open_zip(p.zip_file) as z:
@@ -207,14 +150,12 @@ def scan_zip_with_clamav(self, project_id):
                         text = z.read(name).decode('utf-8', errors='ignore')
                         for pat in SECRET_PATTERNS:
                             if pat.search(text):
-                                secrets.append(name)  # store filename only, not key
+                                secrets.append(name)
                                 break
                     except Exception: pass
     except Exception: pass
     if secrets:
         logger.warning(f"Secrets in {p.slug}: {secrets[:3]}")
-        # Keep pending for human review, don't auto-publish. Store filenames only
-        # (never the secret values) so owner_scan_reason can explain the hold.
         report = p.scan_report or {}
         report['secrets'] = secrets
         p.scan_report = report
@@ -296,8 +237,6 @@ def finalize_publish(*args, project_id=None):
         _apply_trust(p)
         return "pending_no_scanner"
     if report.get('clamav') == 'disabled':
-        # ClamAV disabled by site admin — skip the scanner check and
-        # proceed to the publish logic. Secret scans still run.
         logger.info(f"ClamAV disabled — publishing {p.slug} without virus scan")
     if report.get('secrets'):
         _set_scan_job(p, 'pending')
@@ -318,16 +257,11 @@ def finalize_publish(*args, project_id=None):
         p.status = 'published'
         p.save(update_fields=['status'])
     if p.status == 'published':
-        # Classify BEFORE the first appeal score: appeal reads preview_mode,
-        # and the feed reads both. Doing it here (not in the view) keeps the
-        # optional LLM call off the request path entirely.
         try:
             classify_and_score(p)
         except Exception:
             logger.exception('classify at publish failed %s', p.slug)
         from .notify import notify
-        # Close the publish → launch loop: detect the shippable artifact in
-        # the ZIP and point the creator at the matching launch guide.
         launch_hint = ''
         launch_url = p.get_absolute_url()
         try:
@@ -345,13 +279,8 @@ def finalize_publish(*args, project_id=None):
             award(p.owner, 'publish', ref=f'project:{p.pk}')
         except Exception:
             logger.exception('publish xp failed %s', p.slug)
-    # Update ScanJob for the JS poll (backend only — just a status string).
     _set_scan_job(p, 'clean' if p.status == 'published' else p.status)
-    # Trust badge last: every exit path of finalize writes the tier so the
-    # stored verdict can never describe a state the row has left. Published
-    # → verified/scanned from evidence; held → unknown (renders no badge).
     _apply_trust(p)
-    # Email notify — Why backend? JS toast dies when tab closed, email persists.
     _send_status_email(p)
     return "published" if p.status == 'published' else p.status
 
@@ -421,7 +350,6 @@ def process_upload_pipeline(project_id):
     """Master queue: Ensures EVERY app is checked in order, even with 20 concurrent uploads.
     Called via .delay() from publish view — Celery FIFO queue 'scan' serializes.
     No sensitive info leaves backend — JS only gets status poll via /app/<slug>/scan-status/ (clean/pending/quarantined)."""
-    # Chain: virus -> vuln -> finalize. If any quarantines, later steps still run but finalize skips publish.
     c = chain(scan_zip_with_clamav.s(project_id), vulnerability_scan.s(project_id), finalize_publish.s(project_id))
     return c.apply_async(queue='scan')
 
@@ -453,7 +381,6 @@ def generate_weekly_challenges():
     try:
         from .challenge_ai import create_draft_challenges
         created = create_draft_challenges()
-        # Optionally notify superadmin via email
         if created:
             try:
                 from django.contrib.auth.models import User

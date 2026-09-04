@@ -174,7 +174,6 @@ class GitHubSignInTests(TestCase):
         self.assertTrue(user.profile.email_verified)
         self.assertEqual(user.profile.stars_balance, WELCOME_STARS)
 
-        # Sign out and back in: the grant is ledger-idempotent.
         self.client.logout()
         github_sign_in(self.client, github_profile())
         user.profile.refresh_from_db()
@@ -338,9 +337,6 @@ class FacebookSignInTests(TestCase):
 
         from allauth.socialaccount.providers.facebook import constants
 
-        # constants.py snapshots SOCIALACCOUNT_PROVIDERS at import, so reload
-        # it under the override to see what a real boot with these credentials
-        # would have produced.
         reloaded = importlib.reload(constants)
         try:
             self.assertEqual(reloaded.GRAPH_API_VERSION, 'v25.0')

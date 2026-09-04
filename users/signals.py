@@ -42,6 +42,5 @@ def _record_interactive_login(sender, request, user, **kwargs):
     try:
         record_login(request, user)
     except Exception:
-        # Login must remain available when mail/audit storage is unavailable.
         import logging
         logging.getLogger(__name__).exception('Could not record login security event')

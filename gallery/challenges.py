@@ -57,7 +57,6 @@ def award_challenge_winner(challenge, winner, actor=None):
 
         profile = Profile.objects.select_for_update().get(user_id=winner.owner_id)
         updates = {'stars_balance': F('stars_balance') + bounty}
-        # Permanent Pro is is_pro + null pro_until — never shorten that.
         if not (profile.is_pro and profile.pro_until is None):
             updates['is_pro'] = True
             if not profile.pro_since:
@@ -65,8 +64,6 @@ def award_challenge_winner(challenge, winner, actor=None):
             if not profile.pro_until or profile.pro_until < prize_until:
                 updates['pro_until'] = prize_until
         Profile.objects.filter(pk=profile.pk).update(**updates)
-        # Ledger the bounty in the same transaction as the balance move —
-        # sum(StarEvent.delta) must always equal stars_balance.
         if bounty:
             StarEvent.objects.create(
                 user=winner.owner,

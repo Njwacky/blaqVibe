@@ -23,7 +23,6 @@ class StarterDataTests(TestCase):
             self.assertTrue(s['slug'])
             self.assertTrue(s['name'])
             self.assertTrue(s['html'].strip(), s['slug'])
-            # README must clear the publish form's own gate (100 chars + heading).
             self.assertGreaterEqual(len(s['readme'].strip()), 100, s['slug'])
             self.assertIn('# ', s['readme'], s['slug'])
 
@@ -43,7 +42,6 @@ class StarterGalleryViewTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         for s in STARTERS:
             self.assertContains(resp, s['name'])
-        # The blank on-ramp is always offered.
         self.assertContains(resp, 'Blank canvas')
 
 
@@ -52,7 +50,6 @@ class StudioViewTests(TestCase):
         resp = self.client.get('/studio/hello-landing/')
         self.assertEqual(resp.status_code, 200)
         starter = get_starter('hello-landing')
-        # The starter HTML is pre-loaded into the editor textarea.
         self.assertContains(resp, 'people vibing')
         self.assertEqual(resp.context['starter']['slug'], starter['slug'])
 
@@ -123,8 +120,6 @@ class StudioPreviewLoginGateTests(TestCase):
         self.assertIn('frame.srcdoc', js)
         self.assertIn('sessionStorage', js)
         self.assertIn('blaq-studio-draft', js)
-        # The old early-return aborted tabs/Nolo/drawer when the iframe
-        # was missing. Editors must keep working for anonymous writers.
         self.assertNotIn('if (!frame || !ed.html) return;', js)
         srcdoc_at = js.index('frame.srcdoc')
         gate_at = js.index('if (!previewLive) return;')
@@ -197,13 +192,10 @@ class StudioPublishTests(TestCase):
             'star_cost': 0,
             'price_zar': 0,
         })
-        # publish() redirects to the new vibe on success.
         self.assertEqual(resp.status_code, 302)
         project = AppProject.objects.get(owner=self.user, title='My First Vibe')
-        # The user's edits — not the starter defaults — were saved.
         self.assertIn('Edited in studio', project.html_code)
         self.assertIn('hotpink', project.css_code)
-        # It is a snippet (no ZIP), owned by the publisher.
         self.assertFalse(project.zip_file)
         self.assertEqual(project.owner, self.user)
 
@@ -234,7 +226,6 @@ class StudioPublishTests(TestCase):
             'star_cost': 0,
             'price_zar': 0,
         })
-        # login_required on the underlying publish view → redirect to login.
         self.assertEqual(resp.status_code, 302)
         self.assertIn('/login', resp.url)
         self.assertFalse(AppProject.objects.filter(title='Should Not Publish').exists())
@@ -293,8 +284,6 @@ class StudioDrawerDismissTests(TestCase):
         self.assertIn('hidden', open_tag)
         self.assertIn('role="dialog"', open_tag)
         self.assertIn('aria-modal="true"', open_tag)
-        # × in the header and a Cancel button in the form both opt into the
-        # close handler via the same hook.
         self.assertEqual(html.count('data-close-drawer'), 2, html.count('data-close-drawer'))
         self.assertContains(self.client.get('/studio/hello-landing/'), 'Cancel — keep editing')
 
@@ -305,7 +294,5 @@ class StudioDrawerDismissTests(TestCase):
 
     def test_studio_js_closes_the_drawer_on_cancel_and_escape(self):
         js = (settings.BASE_DIR / 'static' / 'gallery' / 'js' / 'studio.js').read_text()
-        # The template's close controls are wired by this hook…
         self.assertIn("querySelectorAll('[data-close-drawer]')", js)
-        # …and Escape is a way out too.
         self.assertIn("'Escape'", js)

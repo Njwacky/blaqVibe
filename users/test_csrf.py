@@ -147,7 +147,6 @@ class CsrfEnforcedLoginTests(TestCase):
         self.assertTrue(response.wsgi_request.user.is_authenticated)
 
     def test_login_post_without_cookie_is_403_not_exempt(self):
-        # Fresh client: no csrftoken cookie.
         bare = self.client_class(enforce_csrf_checks=True)
         response = bare.post('/accounts/login/', {
             'username': 'admin@blaqvibes.co.za',

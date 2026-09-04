@@ -51,14 +51,12 @@ class DetectStaticRunnableTests(TestCase):
         self.assertEqual(entry, 'home.html')
 
     def test_build_marker_is_not_runnable(self):
-        # package.json means "needs a build" — rendering src would be a fake preview.
         self.assertEqual(detect_static_runnable(['index.html', 'package.json', 'src/App.jsx']), (False, ''))
 
     def test_python_server_is_not_runnable(self):
         self.assertEqual(detect_static_runnable(['index.html', 'manage.py', 'app/views.py']), (False, ''))
 
     def test_source_heavy_tree_is_not_runnable(self):
-        # Mostly .jsx/.ts → source, not a finished static site.
         paths = ['index.html', 'a.jsx', 'b.jsx', 'c.tsx', 'd.ts']
         self.assertEqual(detect_static_runnable(paths), (False, ''))
 
@@ -101,7 +99,6 @@ class AssembleDocumentTests(TestCase):
         self.assertIn('color:tomato', doc)
         self.assertIn('console.log("live")', doc)
         self.assertIn('data:image/png;base64,', doc)
-        # No file is referenced by its archive path any more — nothing to fetch.
         self.assertNotIn('href="style.css"', doc)
         self.assertNotIn('src="app.js"', doc)
         self.assertNotIn('src="logo.png"', doc)
@@ -119,7 +116,6 @@ class AssembleDocumentTests(TestCase):
         self.assertIn('https://cdn.tailwindcss.com', doc)
 
     def test_script_close_tag_cannot_break_out(self):
-        # A user script containing </script> must not terminate our <script>.
         p = self._project_with_zip({
             'index.html': '<html><body><script src="a.js"></script></body></html>',
             'a.js': 'var x = "</script><script>alert(1)</script>";',
@@ -151,7 +147,6 @@ class PreviewModeTests(TestCase):
         from gallery.classify import classify_project
         p = make_project(self.owner, self.cat, title='Static')
         p.zip_file.save('s.zip', _zip({'index.html': '<html><body>x</body></html>', 'a.css': 'body{}'}), save=True)
-        # AppFile rows are what _project_paths reads first.
         from gallery.models import AppFile
         AppFile.objects.create(project=p, path='index.html', size=10)
         AppFile.objects.create(project=p, path='a.css', size=5)
@@ -209,8 +204,8 @@ class RunStaticViewTests(TestCase):
         self.assertEqual(resp.status_code, 200)
         body = resp.content.decode()
         self.assertIn('Live', body)
-        self.assertIn('console.log(1)', body)   # js inlined
-        self.assertNotIn('src="a.js"', body)     # not served per-file
+        self.assertIn('console.log(1)', body)
+        self.assertNotIn('src="a.js"', body)
 
     def test_sandbox_csp_present(self):
         resp = self.client.get(
@@ -222,7 +217,6 @@ class RunStaticViewTests(TestCase):
         self.assertIn("default-src 'none'", csp)
 
     def test_document_dest_is_refused_even_with_token(self):
-        # Opening the URL as a top-level document must never run user JS first-party.
         resp = self.client.get(
             f'/app/{self.p.slug}/run-static/?t={self._token()}',
             HTTP_SEC_FETCH_DEST='document',

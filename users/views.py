@@ -46,22 +46,10 @@ from gallery.models import AppProject
 from gallery.access import user_can_see_project
 from gallery.notify import notify
 
-# 5 Whys: Why /u/<username>/ not /profile/<id>? Username is brand, SEO, like GitHub.
-# Why not expose email? Privacy — only bio/location.
-# Why does profile_view fetch counts in one aggregate instead of .count() calls?
-# A profile page renders the same counts in the header and the tabs; two
-# COUNT queries per status cost more than one grouped aggregate on the same
-# indexed status column. Public pages are read hot — pay for them once.
 
 def profile_view(request, username):
     user = User.objects.filter(username=username).first()
     if user is None:
-        # 5 Whys: why redirect instead of 404 for an old username? Every
-        # notification, comment mention and shared link embeds /u/<name>/.
-        # A rename must not vaporise months of inbound links; UsernameHistory
-        # is already the map, so this is one indexed lookup. Resolves to the
-        # LIVE username (not the stored new_username) so chained renames
-        # A→B→C land on C for free.
         target = redirect_target_for_old_username(username)
         if target is not None:
             return redirect('profile_view', username=target.username)
@@ -69,8 +57,6 @@ def profile_view(request, username):
     profile, _ = Profile.objects.get_or_create(user=user)
     is_own = request.user.is_authenticated and request.user == user
 
-    # Published vibes are what the public sees. Own profile also shows
-    # pending/quarantined so the creator knows where their uploads stand.
     vibes = AppProject.objects.filter(owner=user, status='published').order_by('-created_at')
     if is_own:
         vibes_all = AppProject.objects.filter(owner=user).order_by('-created_at')
@@ -92,10 +78,6 @@ def profile_view(request, username):
     if tab not in ('vibes', 'stars', 'followers', 'following'):
         tab = 'vibes'
 
-    # 5 Whys: Why fetch the follower/following lists only when their tab is
-    # open? They used to be fetched on EVERY profile load and never rendered
-    # — dead queries. A tab nobody opened costs nothing, and the [:20] cap
-    # keeps the page cheap even for a creator with thousands of followers.
     followers = []
     following = []
     following_set = set()
@@ -108,18 +90,6 @@ def profile_view(request, username):
                 .values_list('following__username', flat=True)
             )
 
-    # Stars tab: vibes THIS USER starred, most recent star first. 5 Whys:
-    # Why query Star rows instead of AppProject.star_set? The star row IS the
-    # fact "who starred what when" — one row per (user, project), unique by
-    # constraint. select_related('project__owner') kills the N+1 that the old
-    # AppProject query had on every card's owner.
-    # Why filter through user_can_see_project HERE and not at row creation? A
-    # star can only be cast on a published vibe (toggle_star requires it), but
-    # that vibe can later be re-queued (pending) or removed. A stranger reading
-    # a public profile's Stars tab must not learn about a vibe that has since
-    # gone non-public — same visibility rule as every other content read. The
-    # starred user (profile owner) and moderators still see their own/hidden
-    # rows, because user_can_see_project returns True for owner/moderator.
     starred = []
     if tab == 'stars':
         from gallery.models import Star
@@ -130,19 +100,12 @@ def profile_view(request, username):
             if user_can_see_project(request.user, s.project)
         ]
 
-    # Rank + currency proof. rank() and stars_received() were computed on the
-    # model but never rendered anywhere — dead backend logic. They are the
-    # "is this creator worth following?" signal for a stranger's first visit.
     rank = profile.rank()
     stars_received = profile.stars_received()
 
-    # Tips are social proof — "this creator gets tipped". Two indexed reads
-    # on a public page; consistency beats staleness for money-adjacent data.
     recent_tips = Tip.objects.filter(recipient=user).select_related('sender').order_by('-created_at')[:5]
     tips_total = Tip.objects.filter(recipient=user).aggregate(t=Sum('amount'))['t'] or 0
 
-    # Next rank hint ("Silver at 10 ★") — presentation-only, so it lives in
-    # the view, not in ranks.py (whose dict shape other callers rely on).
     from gallery.ranks import RANKS
     next_rank = None
     for threshold, name, _discount, _bonus in RANKS:
@@ -150,9 +113,6 @@ def profile_view(request, username):
             next_rank = {'name': name, 'threshold': threshold}
             break
 
-    # Progression (XP / level / badges) is public: it is reputation, the
-    # same class of fact as the star counter. It is READ-only here — the
-    # only writer is users.progress, called from the action that earned it.
     try:
         from .progress import ACHIEVEMENTS, progress_for
         progress = progress_for(user)
@@ -186,12 +146,6 @@ def edit_profile(request):
             return redirect('profile_view', username=request.user.username)
     else:
         form = ProfileForm(instance=profile)
-    # Identity panel (moved here from Settings — "my profile" is where a
-    # member edits their name): the rename card and the name-style picker.
-    # Everything the PUBG-rule panels need to explain themselves;
-    # cooldown_days is None when a rename card is usable. The people-style
-    # is ONE dropdown list here — the live preview span is the styles
-    # display, so no 21-card grid is needed to sell the look.
     cooldown = cooldown_remaining(profile)
     style_form = NameStyleForm(initial={
         'name_font': profile.name_font,
@@ -200,8 +154,6 @@ def edit_profile(request):
         'name_fx': profile.name_fx,
         'name_persona': profile.name_persona or 'classic',
     })
-    # The preview JS needs the same whitelists the renderer uses — passed as
-    # data, not code: no secrets, no user input, and json_script escapes it.
     return render(request, 'users/edit_profile.html', {
         'form': form,
         'profile': profile,
@@ -220,26 +172,13 @@ def edit_profile(request):
 @login_required
 @ratelimit(key='user', rate='30/h', method='POST')
 def toggle_follow(request, username):
-    # 5 Whys: Why ratelimit follow? It was the only POST on the site without
-    # one — every other write (publish 5/h, comment 10/h) is limited. A bot
-    # could follow thousands of accounts in a minute, spamming inboxes with
-    # 'followed you' notifications. 30/h is generous for a human, brutal for
-    # a loop, and consistent with the fail-closed philosophy elsewhere.
-    # Why no explicit 429 here? django-ratelimit 4.x defaults to block=True:
-    # the decorator raises Ratelimited (a PermissionDenied) the moment the
-    # limit is exceeded, and the site's handler403 (safe_403) turns that into
-    # the same friendly 403 every other rate-limited endpoint returns. An
-    # explicit `if request.limited` branch would be unreachable dead code.
     target = get_object_or_404(User, username=username)
     if target == request.user:
         return JsonResponse({'error': 'Cannot follow yourself'}, status=400)
-    # Backend only — no JS secrets, just follower count
     follow, created = Follow.objects.get_or_create(follower=request.user, following=target)
     if not created:
         follow.delete()
         return JsonResponse({'following': False, 'followers': target.followers.count()})
-    # Notification preferences are honoured server-side: a muted kind never
-    # writes a row, so the inbox and the unread badge cannot disagree.
     if getattr(target.profile, 'notify_on_follow', True):
         notify(target, 'follow', f'@{request.user.username} followed you', url=f'/u/{request.user.username}/')
     return JsonResponse({'following': True, 'followers': target.followers.count()})
@@ -249,12 +188,6 @@ def toggle_follow(request, username):
 @login_required
 @ratelimit(key='user', rate='20/h', method='POST')
 def tip_user(request, username):
-    # 5 Whys: Why 20/h, tighter than follow's 30/h? Tips move currency —
-    # the blast radius of a hijacked session is stars, not just follower
-    # counts. 20/h is plenty for genuine gratitude, a hard ceiling for a
-    # loop. Why no explicit 429 here? Same as follow: django-ratelimit
-    # 4.x block=True raises Ratelimited → handler403 → safe_403, the
-    # site-wide behaviour for every rate-limited POST.
     target = get_object_or_404(User, username=username)
     if target == request.user:
         return JsonResponse({'error': 'You cannot tip yourself'}, status=400)
@@ -278,8 +211,6 @@ def tip_user(request, username):
         body=tip.message or 'No message — just stars.',
         url=f'/u/{request.user.username}/',
     )
-    # F() updates happened in send_tip; refresh so the response shows the
-    # post-tip balance, not a stale cached Profile.
     request.user.profile.refresh_from_db()
     return JsonResponse({
         'ok': True,
@@ -298,18 +229,10 @@ def payout_dashboard(request):
     trades = Trade.objects.filter(seller=request.user).select_related('project','buyer').order_by('-created_at')[:20]
     bought = Trade.objects.filter(buyer=request.user).select_related('project','seller').order_by('-created_at')[:20]
     total_zar = sum(s.amount_zar for s in Sale.objects.filter(seller=request.user))
-    # The append-only ledger — every wallet move, newest first. This is the
-    # answer to "why is my balance N ★?" without a support ticket.
     star_events = StarEvent.objects.filter(user=request.user)[:50]
     tips_received = Tip.objects.filter(recipient=request.user).select_related('sender').order_by('-created_at')[:20]
     tips_total = Tip.objects.filter(recipient=request.user).aggregate(t=Sum('amount'))['t'] or 0
 
-    # --- Activity charts: last 14 days, straight from the ledger. ----------
-    # 5 Whys: Why Python-side grouping instead of TruncDate? TruncDate's
-    # timezone handling has tripped more than one Django team; grouping
-    # localtime() dates in Python is unambiguous and the volume is one
-    # user's wallet rows. Why localtime? The dashboard is per-user; a
-    # "day" is their day, not UTC's.
     now_local = timezone.localtime()
     start_date = now_local.date() - timedelta(days=13)
     start_dt = timezone.make_aware(
@@ -334,8 +257,6 @@ def payout_dashboard(request):
         e, s = earned_by_day.get(d, 0), spent_by_day.get(d, 0)
         max_val = max(max_val, e, s)
         chart_days.append({'date': d, 'earned': e, 'spent': s})
-    # Balance at the END of each day, walking backwards from the live
-    # balance: balance_end(day) = balance_end(day+1) - net(day+1).
     trend = [0] * 14
     running = request.user.profile.stars_balance
     for i in range(13, -1, -1):
@@ -363,7 +284,6 @@ def payout_dashboard(request):
         'is_pro': request.user.profile.is_pro_active,
         'pro_since': getattr(request.user.profile, 'pro_since', None),
         'pro_until': getattr(request.user.profile, 'pro_until', None),
-        # --- Cash-out panel (users/payouts.py holds the rules) -----------
         'payouts': Payout.objects.filter(user=request.user)[:10],
         'open_payout': Payout.objects.filter(user=request.user, status='requested').first(),
         'payout_rate_label': payout_rate_label(),
@@ -424,8 +344,6 @@ def activate_pro_trial(request):
         messages.error(request, "Pro activation failed silently")
         return redirect('payout_dashboard')
 
-# Rendered by the settings page. Keys match Profile fields handled by
-# toggle_setting, so the generic switch JS needs no special case.
 NOTIFICATION_PREF_ROWS = (
     ('notify_on_star', 'Someone stars your vibe', 'The quiet one — the first sign a stranger liked your work.'),
     ('notify_on_fork', 'Someone forks/remixes your vibe', 'Usually the most useful note you will get: somebody built on you.'),
@@ -440,12 +358,6 @@ NOTIFICATION_PREF_ROWS = (
 def settings_view(request):
     profile, _ = Profile.objects.get_or_create(user=request.user)
     site = SiteSettings.get() if profile.is_superadmin() else None
-    # 5 Whys: why is there no identity panel here any more? Username and
-    # name-style editing moved to Edit Profile (/settings/profile/) — the
-    # page a member reaches from their own profile — so Settings stays
-    # toggles/git/email/social only. The rename and style endpoints keep
-    # their /settings/... URLs for stability; they redirect back to the
-    # profile editor.
     notification_prefs = [
         {'key': key, 'label': label, 'help': help_text,
          'value': getattr(profile, key, True)}
@@ -597,7 +509,6 @@ def toggle_setting(request):
     try:
         key = request.POST.get('key')
         value = request.POST.get('value') == 'true'
-        # User toggles
         user_keys = ['auto_language','nolo_enabled','auto_thumbnail','allow_trading','email_on_trade','email_on_review','show_language','allow_forks','allow_prs','allow_comments','allow_reviews',
                      'notify_on_star','notify_on_fork','notify_on_follow','notify_on_comment','notify_on_trade','notify_on_milestone']
         if key in user_keys:
@@ -605,7 +516,6 @@ def toggle_setting(request):
             setattr(profile, key, value)
             profile.save(update_fields=[key])
             return JsonResponse({'ok': True, key: value})
-        # Site toggles — superadmin only, but very critical ones are locked always-on
         critical_locked = ['clamav_enabled', 'r2_enabled']
         if key in critical_locked:
             return JsonResponse({'error': 'Critical — always on, cannot toggle'}, status=400)
@@ -730,8 +640,6 @@ def verify_email(request, uidb64, token):
         profile, _ = Profile.objects.get_or_create(user=user)
         profile.email_verified = True
         profile.save(update_fields=['email_verified'])
-        # The 5 ★ welcome grant is bound to a verified mailbox, not to signup.
-        # grant_welcome_stars is idempotent — replaying the link pays nothing.
         from .wallet import grant_welcome_stars
         from .models import WELCOME_STARS
         if grant_welcome_stars(user):

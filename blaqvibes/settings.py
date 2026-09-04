@@ -6,28 +6,8 @@ from dotenv import load_dotenv
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / '.env')
 
-# Fail closed: DEBUG defaults OFF. Enable it explicitly with DEBUG=1 in dev.
 DEBUG = os.getenv('DEBUG', '0') == '1'
 
-# Detect local development in a virtual environment or debug mode.
-# This avoids forcing production-only HTTPS handling when running locally.
-#
-# 5 Whys: why a parser instead of `bool(os.getenv('DJANGO_LOCAL_DEV'))`?
-# 1. Why not bool() of the raw string? In Python bool('0') is True — so
-#    DJANGO_LOCAL_DEV=0, the exact line an operator writes to turn local
-#    mode OFF, turned it ON. Same for 'false'/'no'.
-# 2. Why does that matter? LOCAL_DEV gates SECURE_SSL_REDIRECT,
-#    SESSION_COOKIE_SECURE, CSRF_COOKIE_SECURE, nosniff, X_FRAME_OPTIONS,
-#    the django-insecure SECRET_KEY fallback, SEED_DEMO and CELERY_EAGER.
-#    A silent flip ships an unhardened site that looks configured.
-# 3. Why let an explicit value win in BOTH directions? `VIRTUAL_ENV or ...`
-#    meant a venv deploy could never opt out — the heuristic outranked the
-#    operator. Explicit beats inferred.
-# 4. Why keep the venv heuristic at all? Running from a venv with nothing
-#    set is a local dev box; making every developer export a flag to get
-#    CSS instead of a 400 is a worse default.
-# 5. Why treat empty as unset? `DJANGO_LOCAL_DEV=` in a .env means
-#    "no opinion", not "off" — same as the key being absent.
 def _env_flag(name, default=False):
     raw = os.getenv(name)
     if raw is None or raw.strip() == '':
@@ -35,60 +15,29 @@ def _env_flag(name, default=False):
     return raw.strip().lower() in ('1', 'true', 'yes', 'on')
 
 
-# Tests are detected BEFORE LOCAL_DEV, for two reasons: the suite runs with
-# DEBUG=0, and a production-shaped LOCAL_DEV=False would switch on
-# SECURE_SSL_REDIRECT so that every test request answers 301. It is also
-# consumed by SEED_DEMO further down, so it must already be defined by then.
 TESTING = any(arg == 'test' for arg in sys.argv) or os.getenv('DJANGO_TEST') == '1'
 
-# Local development is EXPLICIT, or it is a genuine DEBUG run.
-#
-# 5 Whys: why remove the `VIRTUAL_ENV or PYTHONENV` inference?
-# 1. Why was it there? Laptop `runserver` inside a venv gets CSS and seeded
-#    data without exporting anything.
-# 2. Why is that wrong? A venv is also how production gets built: python
-#    buildpacks, Poetry/pipenv installs and slim images that activate a venv
-#    all set VIRTUAL_ENV on a public host.
-# 3. What did that cost? One accidental truthy value silently enabled the
-#    `django-insecure-…` SECRET_KEY (forgeable sessions and signed tokens),
-#    turned off SECURE_SSL_REDIRECT / HSTS / nosniff, downgraded
-#    X-Frame-Options to SAMEORIGIN and defaulted SEED_DEMO to on.
-# 4. Why not keep the heuristic and exempt only SECRET_KEY? LOCAL_DEV exists so
-#    that ONE flag carries the whole hardening posture; a half-trusted flag is
-#    the worst of both worlds.
-# 5. Why fail instead of guess? A clear RuntimeError at boot ("set DEBUG=1 or
-#    DJANGO_LOCAL_DEV=1") beats a site that looks configured and is not.
 if os.getenv('DJANGO_LOCAL_DEV', '').strip() != '':
     LOCAL_DEV = _env_flag('DJANGO_LOCAL_DEV')
 else:
     LOCAL_DEV = DEBUG or TESTING
 
-# Sentry — backend only, no JS secrets. Do not dummy-init without a DSN:
-# the Django/WSGI integrations still wrap exception handling, and older
-# sentry-sdk builds crash on Python 3.13 FrameLocalsProxy while serializing
-# locals. init_sentry also disables local-variable capture when a DSN is set.
 try:
     from .sentry import init_sentry
     init_sentry()
 except Exception:
-    pass  # observability must never block boot
+    pass
 
 SECRET_KEY = os.getenv('SECRET_KEY', '')
 if not SECRET_KEY:
     if LOCAL_DEV:
         SECRET_KEY = 'django-insecure-blaqvibes-dev-key-change-in-prod-07070A'
     else:
-        # Never boot production (DEBUG=0) without a real key. LOCAL_DEV is only
-        # true when an operator asked for it (DJANGO_LOCAL_DEV=1) or DEBUG is on,
-        # so the dev key can no longer arrive by inferring a virtualenv.
         raise RuntimeError(
             'SECRET_KEY must be set. Add SECRET_KEY to your .env — or, for a '
             'local run only, DEBUG=1 / DJANGO_LOCAL_DEV=1.'
         )
 
-# Arena / e2b live preview is HTTPS on {port}-{id}.e2b.app, often inside
-# a cross-site iframe. Detect it independently of DEBUG so cookie flags
-# and trusted origins stay correct even if an operator sets DEBUG=0.
 PREVIEW = _env_flag('E2B_SANDBOX') or _env_flag('DJANGO_PREVIEW')
 
 _raw_hosts = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0')
@@ -139,23 +88,13 @@ CSRF_TRUSTED_ORIGINS = csrf_trusted_origins(
     local=LOCAL_DEV or DEBUG,
 )
 
-# Canonical public origin — used for emails, sitemap, Paystack callback.
-# Override via env (e.g. a custom domain) instead of hardcoding URLs in views/tasks.
 SITE_URL = os.getenv('SITE_URL', 'https://blaqvibes.co.za').rstrip('/')
 
-# Paystack — real card checkout only when a secret key is present.
-# Leave blank to run the stars path alone. We never fake a charge or a bank payout.
 PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY', '').strip()
 PAYSTACK_ENABLED = bool(PAYSTACK_SECRET_KEY)
-# Optional Nolo backends. Claude is used only when this key is set — never faked.
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '').strip()
 ANTHROPIC_MODEL = os.getenv('ANTHROPIC_MODEL', 'claude-3-5-haiku-latest')
 
-# Seed the demo catalog when the published grid is empty (local / CI).
-# Production stays empty until an operator runs `python manage.py seed_demo`
-# with an explicit local/dev posture (see gallery/seed.py — the command itself
-# refuses to create known-password accounts on a public host).
-# `TESTING` is defined above, next to LOCAL_DEV, because both are needed there.
 SEED_DEMO = os.getenv('SEED_DEMO', '1' if (LOCAL_DEV and not TESTING) else '0') == '1'
 
 INSTALLED_APPS = [
@@ -192,39 +131,19 @@ AUTHENTICATION_BACKENDS = [
 
 ACCOUNT_ADAPTER = 'users.adapters.BlaqAccountAdapter'
 SOCIALACCOUNT_ADAPTER = 'users.adapters.BlaqSocialAccountAdapter'
-# allauth >= 65 names: SIGNUP_FIELDS (email* = required) and LOGIN_METHODS.
 ACCOUNT_SIGNUP_FIELDS = ['email*', 'username*', 'password1*', 'password2*']
 ACCOUNT_LOGIN_METHODS = {'username', 'email'}
-# BlaqVibes owns email confirmation: users.views.send_verify_email sends it and
-# /accounts/verify/<uid>/<token>/ consumes it, because confirming is what pays
-# the welcome grant. allauth's own confirm view is NOT mounted, so letting
-# allauth send its mail would build a link to a route that does not exist —
-# reverse('account_confirm_email') raises and the OAuth callback 500s on an
-# otherwise successful sign-in. 'none' keeps allauth out of a flow we own.
 ACCOUNT_EMAIL_VERIFICATION = 'none'
 ACCOUNT_UNIQUE_EMAIL = True
 SOCIALACCOUNT_AUTO_SIGNUP = True
 SOCIALACCOUNT_EMAIL_AUTHENTICATION = True
 SOCIALACCOUNT_EMAIL_AUTHENTICATION_AUTO_CONNECT = True
-# POST-only handshake start: a GET on /accounts/social/<p>/login/ would let a
-# third-party <img> tag start an OAuth round-trip. The button posts a CSRF token.
 SOCIALACCOUNT_LOGIN_ON_GET = False
 SOCIALACCOUNT_QUERY_EMAIL = True
-# Access tokens are a bearer credential for someone's GitHub/Facebook account.
-# We only need identity at sign-in, so nothing is persisted. Explicit, not implied.
 SOCIALACCOUNT_STORE_TOKENS = False
 
-# The callback URL the provider is told to return to is built from the request.
-# Behind a TLS-terminating proxy the request looks like plain http, so the
-# generated redirect_uri would be http:// and the provider would reject it as a
-# mismatch. Force the scheme of the canonical origin instead.
 ACCOUNT_DEFAULT_HTTP_PROTOCOL = 'https' if SITE_URL.startswith('https://') else 'http'
 
-# One row per provider: slug, button label, the two settings that hold its
-# credentials, and the allauth provider config. users.social reads this to
-# decide which buttons to render, so a button can never point at a provider
-# allauth has no SocialApp for. The credentials are named rather than inlined
-# so the check stays live (tests override GOOGLE_CLIENT_ID; the button follows).
 SOCIAL_PROVIDER_CREDENTIALS = {
     'google': {
         'label': 'Continue with Google',
@@ -240,9 +159,6 @@ SOCIAL_PROVIDER_CREDENTIALS = {
         'id_setting': 'GITHUB_CLIENT_ID',
         'secret_setting': 'GITHUB_CLIENT_SECRET',
         'settings': {
-            # read:user for the profile, user:email because a GitHub account
-            # can keep every address private — /user returns email: null and
-            # allauth then reads /user/emails to find the verified primary.
             'SCOPE': ['read:user', 'user:email'],
         },
     },
@@ -253,28 +169,13 @@ SOCIAL_PROVIDER_CREDENTIALS = {
         'settings': {
             'METHOD': 'oauth2',
             'SCOPE': ['email', 'public_profile'],
-            # Pin the Graph API version. allauth defaults to v19.0, which Meta
-            # retired on 2026-05-21 — unpinned, every Facebook login fails.
-            # v25.0 is supported until 2028-07-29.
             'VERSION': 'v25.0',
-            # Only what we use. The upstream default asks for `verified`,
-            # `locale`, `timezone` and `gender`, which need extra review and
-            # make the /me call fail on current Graph versions.
             'FIELDS': ['id', 'name', 'first_name', 'last_name', 'email'],
-            # Meta confirms an address before it can be added to an account, so
-            # a Facebook email is treated as verified — this is what lets a
-            # Facebook login land on the existing BlaqVibes account with the
-            # same address instead of creating a duplicate.
             'VERIFIED_EMAIL': True,
         },
     },
 }
 
-# Only providers with BOTH halves of their credentials are handed to allauth.
-# Declaring a provider with a blank client_id is worse than omitting it: allauth
-# happily redirects to `github.com/login/oauth/authorize?client_id=` and the
-# user meets the provider's own error page. Omitted -> no button (users.social),
-# and its callback route 404s through our own safe_404.
 SOCIALACCOUNT_PROVIDERS = {
     slug: {
         'APP': {
@@ -288,12 +189,6 @@ SOCIALACCOUNT_PROVIDERS = {
     if globals()[cfg['id_setting']] and globals()[cfg['secret_setting']]
 }
 
-# --- QUEUE: Celery + Redis — 5 Whys: Why queue not sync? ---
-# 1. 10 users upload at same second → sync would timeout workers, drop scans. Queue serializes.
-# 2. Why Redis not DB? Redis is in-memory, 10x faster for 100 jobs/sec, no DB lock.
-# 3. Why separate queues? scan queue (slow, 1 worker) vs default (fast). Prevents starvation.
-# 4. Why acks_late + prefetch 1? Worker crash mid-scan → job requeued, not lost.
-# 5. Why eager fallback? Dev has no Redis, but .delay() must still work (eager sync).
 CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 CELERY_TASK_ALWAYS_EAGER = os.getenv('CELERY_EAGER', '1' if LOCAL_DEV else '0') == '1'
@@ -304,11 +199,9 @@ CELERY_TASK_ROUTES = {
     'gallery.tasks.scan_zip_with_clamav': {'queue': 'scan'},
     'gallery.tasks.vulnerability_scan': {'queue': 'scan'},
     'gallery.tasks.process_upload_pipeline': {'queue': 'scan'},
-    # Ranking is bulk background work. Its own queue so a long rescore can
-    # never sit in front of a user waiting for their upload to be scanned.
     'gallery.tasks.refresh_appeal_scores': {'queue': 'rank'},
 }
-CELERY_TASK_TIME_LIMIT = 120  # 2min hard kill per scan
+CELERY_TASK_TIME_LIMIT = 120
 CELERY_TASK_SOFT_TIME_LIMIT = 90
 CELERY_BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 3600}
 from celery.schedules import crontab
@@ -317,34 +210,20 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'gallery.tasks.generate_weekly_challenges',
         'schedule': crontab(day_of_week='mon', hour=0, minute=0),
     },
-    # Appeal decays with the clock, so it must be recomputed on the clock.
-    # Every 10 minutes keeps a new upload's ranking fresh without making
-    # ranking a write on the interaction path.
     'refresh-appeal-scores': {
         'task': 'gallery.tasks.refresh_appeal_scores',
         'schedule': crontab(minute='*/10'),
         'kwargs': {'limit': int(os.getenv('APPEAL_BATCH_LIMIT', '500'))},
     },
-    # The daily prompt has to exist at 00:00 whether or not anybody is
-    # browsing, and yesterday's bounty has to be paid whether or not a
-    # moderator remembers to click. 00:05 keeps it clear of the midnight
-    # boundary (and of the weekly challenge job on Monday 00:00).
     'daily-challenge': {
         'task': 'gallery.tasks.run_daily_challenges',
         'schedule': crontab(hour=0, minute=5),
     },
 }
 
-# --- Discovery / program-kind classification ---
-# 5 Whys: Why env-tunable? 1. Cost per LLM call is real money. 2. A traffic
-# spike must be throttleable without a redeploy. 3. Zero is a valid value —
-# it disables LLM classification entirely and leaves the heuristic. 4. The
-# floor lets ops trade accuracy against spend. 5. Defaults are safe for a
-# deployment with no key at all: nothing is called, nothing breaks.
 KIND_LLM_CALLS_PER_MINUTE = int(os.getenv('KIND_LLM_CALLS_PER_MINUTE', '30'))
 KIND_LLM_CONFIDENCE_FLOOR = float(os.getenv('KIND_LLM_CONFIDENCE_FLOOR', '0.55'))
 
-# --- S3 / R2 ---
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', '')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '')
 AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME', 'blaqvibes-media')
@@ -352,8 +231,6 @@ AWS_S3_ENDPOINT_URL = os.getenv('AWS_S3_ENDPOINT_URL', '')
 AWS_S3_REGION_NAME = os.getenv('AWS_S3_REGION_NAME', 'auto')
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 AWS_QUARANTINE_BUCKET = os.getenv('AWS_QUARANTINE_BUCKET', 'blaqvibes-quarantine')
-# Fail closed: no canned ACL (R2 rejects them), no public CDN hostname.
-# Privacy is a private bucket policy + signed URLs. Never set AWS_S3_CUSTOM_DOMAIN.
 AWS_DEFAULT_ACL = None
 AWS_QUERYSTRING_AUTH = True
 AWS_QUERYSTRING_EXPIRE = 300
@@ -380,15 +257,9 @@ MIDDLEWARE = [
     'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    # Before CsrfView so process_response runs *after* the CSRF cookie is set.
     'gallery.middleware.PreviewEmbedMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    # AFTER AuthenticationMiddleware: the maintenance wall needs request.user
-    # to exempt superadmins. It used to sit before auth, so the attribute
-    # access raised whenever maintenance was on, the silent except swallowed
-    # it, and maintenance mode NEVER served the 503 it promised. Now it short-
-    # circuits every public path the same way, and the superadmin bypass works.
     'gallery.middleware.MaintenanceModeMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'allauth.account.middleware.AccountMiddleware',
@@ -409,8 +280,6 @@ TEMPLATES = [{
             'django.template.context_processors.csrf',
             'gallery.context_processors.extras',
         ],
-        # Cache templates in production; re-read them from disk in DEBUG so
-        # local template edits show up without a server restart.
         'loaders': (
             [('django.template.loaders.cached.Loader', [
                 'django.template.loaders.filesystem.Loader',
@@ -451,14 +320,12 @@ else:
 
 REDIS_URL = os.getenv('REDIS_URL', '')
 if REDIS_URL and (not LOCAL_DEV or os.getenv('USE_REDIS', '0') == '1'):
-    # Shared Redis-backed rate-limit cache so limits hold across gunicorn workers.
     RATELIMIT_CACHE = {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
         'LOCATION': REDIS_URL,
         'KEY_PREFIX': 'blaqvibes-ratelimit',
     }
 else:
-    # Dev fallback (single process) — per-worker cache is fine without Redis.
     RATELIMIT_CACHE = {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         'LOCATION': 'blaqvibes-ratelimit',
@@ -483,26 +350,9 @@ AUTH_PASSWORD_VALIDATORS = [
 SESSION_COOKIE_HTTPONLY = True
 SESSION_ENGINE = 'django.contrib.sessions.backends.db'
 SECURITY_TRUSTED_PROXY_IPS = tuple(ip.strip() for ip in os.getenv('SECURITY_TRUSTED_PROXY_IPS', '').split(',') if ip.strip())
-# Stolen browser sessions should not survive indefinitely. Active users renew
-# the expiry; idle browsers are forced to authenticate again after eight hours.
 SESSION_COOKIE_AGE = 8 * 60 * 60
 SESSION_SAVE_EVERY_REQUEST = True
-# CSRF token is exposed via {% csrf_token %} / forms, never read from the cookie,
-# so keep it HttpOnly as defense-in-depth against token exfiltration.
 CSRF_COOKIE_HTTPONLY = True
-# Trust X-Forwarded-Proto ONLY when a TLS-terminating proxy is actually in
-# front. The preview host (https://…e2b.app) always is; a real nginx deploy
-# opts in with DJANGO_BEHIND_TLS_PROXY=1. The shipped docker-compose runs
-# gunicorn directly on :8000 with no proxy — trusting a client-supplied
-# X-Forwarded-Proto there would let an attacker claim "https" and defeat
-# SECURE_SSL_REDIRECT. 5 Whys: 1. Why not always trust it? The header is
-# client-controlled; only a proxy that OVERWRITES it makes it truth. 2. Why
-# keep PREVIEW implicit? Arena terminates TLS per-request; operators never
-# set a flag for it. 3. Why a flag for nginx? A flag documents the
-# contract: set it only after configuring the proxy to replace the header.
-# 4. Why not infer from the env? Inference is how the old virtualenv bug
-# shipped unhardened hosts. 5. Why USE_X_FORWARDED_HOST here too? Host/port
-# trust rides the same "a proxy is in front" decision.
 BEHIND_TLS_PROXY = PREVIEW or _env_flag('DJANGO_BEHIND_TLS_PROXY')
 if BEHIND_TLS_PROXY:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
@@ -596,21 +446,7 @@ LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/'
 BLAQVIBES_MAX_ZIP_MB = 100
 BLAQVIBES_MAX_FILES = 1000
-# Security: No sensitive data in JS — all secrets stay in os.getenv, never passed to template context
 
-# --- LOGGING ---
-# 5 Whys: why explicit LOGGING instead of Django's default?
-# 1. The default sends nothing to the console at INFO, so the first signal of
-#    a bad upload path or a dead worker is a user complaint, not a log line.
-# 2. docker compose / k8s collect stdout; a file handler would need a volume
-#    nobody created. Console-only means zero extra infrastructure.
-# 3. django.request kept at WARNING hides healthy 404 noise but still reports
-#    500s — the line "Internal Server Error: /path" with the stack trace is
-#    what an on-call actually needs first.
-# 4. propagate=False on named loggers stops each record printing twice (once
-#    for the named logger, once via the root logger).
-# 5. LOG_LEVEL is env-tunable so a bad night can be debugged with
-#    `LOG_LEVEL=DEBUG` and a restart instead of a code change.
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO').upper()
 if LOG_LEVEL not in ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'):
     LOG_LEVEL = 'INFO'
@@ -638,7 +474,6 @@ LOGGING = {
         'level': LOG_LEVEL,
     },
     'loggers': {
-        # App code at LOG_LEVEL; 4xx noise stays quiet, 5xx still surfaces.
         'django': {
             'handlers': ['console'],
             'level': LOG_LEVEL,
@@ -654,7 +489,6 @@ LOGGING = {
             'level': 'WARNING',
             'propagate': False,
         },
-        # Query logs are pure noise unless debugging a slow page.
         'django.db.backends': {
             'handlers': ['console'],
             'level': 'WARNING',
@@ -677,4 +511,3 @@ LOGGING = {
         },
     },
 }
-

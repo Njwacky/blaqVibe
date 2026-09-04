@@ -39,7 +39,6 @@ class ChartBuilderTests(TestCase):
         self.assertIsNone(chart)
 
     def test_h_bars_escapes_user_text(self):
-        # Vibe titles are user text entering |safe markup — must be escaped.
         chart = h_bars_chart('label', [{'label': '<script>alert(1)</script>', 'value': 5}])
         self.assertIn('&lt;script&gt;', chart)
         self.assertNotIn('<script>alert(1)</script>', chart)
@@ -60,8 +59,6 @@ class AdminDashboardViewTests(TestCase):
 
     def test_anonymous_and_plain_users_are_denied(self):
         resp = self.client.get('/admin/dashboard/')
-        # Anonymous visitors are sent to sign-in (with next=) — a 403 fork
-        # page with no form is why "admin password never works."
         self.assertEqual(resp.status_code, 302)
         self.assertIn('/accounts/login/', resp.url)
         self.assertIn('next=', resp.url)
@@ -77,15 +74,10 @@ class AdminDashboardViewTests(TestCase):
         self.assertIn('Admin Dashboard', body)
         self.assertIn('TOTAL VIBES', body)
         self.assertIn('QUARANTINE RATE', body)
-        # No clone/trade events yet -> honest empty states for those
-        # sections (the signup chart may exist — accounts were created
-        # today, and that IS data).
         self.assertIn('No clones logged yet', body)
         self.assertIn('No trades yet.', body)
 
     def test_dashboard_charts_real_events(self):
-        # Clone + trade + scan events land on the charts; counter-only
-        # fields never do (they have no timestamps).
         now = timezone.now()
         CloneEvent.objects.create(project=self.project, user=self.buyer, source='git')
         CloneEvent.objects.create(project=self.project, user=None, source='zip', ip_hash='abc')
@@ -104,11 +96,10 @@ class AdminDashboardViewTests(TestCase):
         self.assertIn('TRADES / DAY', body)
         self.assertIn('★ VOLUME / DAY', body)
         self.assertIn('SCAN OUTCOMES', body)
-        self.assertIn('Dash Vibe', body)  # top vibes by clones, escaped + linked
+        self.assertIn('Dash Vibe', body)
         self.assertIn('/app/dash-vibe/', body)
 
     def test_quarantine_rate_math(self):
-        # Rate = quarantined / (clean + quarantined) — failed/queued don't count.
         ScanJob.objects.create(project=self.project, status='clean')
         other = make_project(self.owner, self.cat, slug='dash-bad', title='Dash Bad')
         ScanJob.objects.create(project=other, status='quarantined')
