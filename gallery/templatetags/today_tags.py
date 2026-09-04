@@ -10,12 +10,7 @@ register = template.Library()
 
 @register.inclusion_tag('gallery/includes/today_loop.html', takes_context=True)
 def today_loop(context):
-    """Render a compact, cached creator command center for the unfiltered feed.
-
-    The feed should feel personal without turning every request into a chain of
-    social queries. The loop is intentionally short-lived: a creator can act,
-    refresh, and see the new state without carrying stale data for long.
-    """
+    """Render a compact, cached creator command center for the unfiltered feed."""
     request = context.get('request')
     user = getattr(request, 'user', None)
     if not user or not user.is_authenticated:
@@ -131,6 +126,9 @@ def today_loop(context):
     elif data['week_stars'] or data['week_comments'] or data['week_reviews']:
         data['next_action'] = 'Turn feedback into your next remix'
         data['next_action_url'] = data['my_next_vibe'].get_absolute_url() if data['my_next_vibe'] else '/publish/'
+    elif data['following_vibes']:
+        data['next_action'] = 'Remix a creator you follow'
+        data['next_action_url'] = data['following_vibes'][0].get_absolute_url()
     elif data['my_next_vibe']:
         data['next_action'] = 'Remix something and ship an update'
         data['next_action_url'] = data['my_next_vibe'].get_absolute_url()
