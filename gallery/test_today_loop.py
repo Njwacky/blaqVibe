@@ -1,11 +1,16 @@
 from django.contrib.auth.models import AnonymousUser, User
-from django.test import RequestFactory, TestCase
+from django.core.cache import cache
 from django.template import Context, Template
+from django.test import RequestFactory, TestCase
 
 from gallery.models import Notification
 from users.models import XPEvent
 
+
 class TodayLoopTemplateTagTests(TestCase):
+    def setUp(self):
+        cache.clear()
+
     def render(self, user):
         request = RequestFactory().get('/')
         request.user = user
@@ -29,9 +34,11 @@ class TodayLoopTemplateTagTests(TestCase):
         )
         output = self.render(user)
         self.assertIn('BLAQVIBES TODAY', output)
+        self.assertIn('Build. Show. Remix. Repeat.', output)
         self.assertIn('+20 XP', output)
         self.assertIn('1 new', output)
         self.assertIn('Someone starred your vibe', output)
+        self.assertIn('See what happened to your vibes', output)
 
     def test_loop_is_scoped_to_the_current_user(self):
         user = User.objects.create_user(username='current', password='x')
@@ -39,3 +46,12 @@ class TodayLoopTemplateTagTests(TestCase):
         Notification.objects.create(user=other, kind='star', title='Other user secret')
         output = self.render(user)
         self.assertNotIn('Other user secret', output)
+
+    def test_cached_loop_does_not_leak_between_users(self):
+        first = User.objects.create_user(username='first', password='x')
+        second = User.objects.create_user(username='second', password='x')
+        Notification.objects.create(user=first, kind='star', title='First only')
+        first_output = self.render(first)
+        second_output = self.render(second)
+        self.assertIn('First only', first_output)
+        self.assertNotIn('First only', second_output)
