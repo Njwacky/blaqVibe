@@ -1,28 +1,8 @@
 {% extends 'gallery/base.html' %}
+{% load static %}
 {% block title %}My Vibes — BlaqVibes{% endblock %}
 {% block head %}
-<style>
-  /* Compact waiting summary on each unpublished card — mirrors the detail
-     page's panel, so the queue is legible without opening every vibe. */
-  .mv-progress { margin: 4px 0 2px; }
-  .mv-stage { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--warning-text); }
-  .mv-stage--blocked { color: var(--danger-text); }
-  .mv-stage-mark {
-    width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
-    background: #f59e0b; animation: pulse 1.2s infinite;
-  }
-  .mv-stage--blocked .mv-stage-mark { background: var(--danger-action); animation: none; }
-  .mv-file {
-    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
-    font-size: 11px; color: var(--muted); margin-top: 4px;
-  }
-  .mv-queue {
-    font-weight: 700; padding: 1px 7px; border-radius: 999px;
-    background: var(--warning-bg); color: var(--warning-text);
-    border: 1px solid var(--warning-border);
-  }
-  @media (prefers-reduced-motion: reduce) { .mv-stage-mark { animation: none; } }
-</style>
+<link rel="stylesheet" href="{% static 'gallery/css/my-vibes.css' %}?v=sep-files-20260904">
 {% endblock %}
 {% block content %}
 <div style="max-width:1100px;margin:0 auto;padding:20px">

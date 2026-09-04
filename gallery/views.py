@@ -467,7 +467,8 @@ def preview(request, slug):
         'snippet_token': issue_snippet_token(project.slug),
         'run_mode': run_mode,
     })
-    # This shell has no scripts of its own — lock it down (only our own inline <style>).
+    # This shell has no scripts of its own — lock it down (its stylesheet is
+    # an external file; 'unsafe-inline' is left off script-src entirely).
     csp = (
         "default-src 'none'; frame-src 'self'; img-src 'self' data: https:; "
         "style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'none'; form-action 'none'"
@@ -504,21 +505,81 @@ def snippet_request_is_framed(request, slug):
     # so a stolen token cannot be opened as a top-level first-party page.
     return _referer_is_our_preview(request, slug)
 
-def snippet_doc(request, slug):
-    """The raw snippet document (user HTML + CSS + JS).
+def snippet_asset_request_is_allowed(request, slug, dest_values):
+    """Gate for a snippet's own CSS/JS files (subresources of snippet_doc).
 
-    Served ONLY into an <iframe sandbox="allow-scripts"> (opaque origin)
-    with a short-lived signed token. CSP sandbox on the response also
-    applies if this URL is ever opened outside that iframe.
+    Modern browsers tag subresources with Sec-Fetch-Dest ('style'/'script');
+    a subresource dest can never be a top-level navigation, so the
+    short-lived signed token is enough. Older browsers omit the header, so
+    fall back to a same-host Referer pointing at the snippet document — the
+    token rides along in its query string and we verify it either way.
+    """
+    from urllib.parse import parse_qs, urlparse
+    from .preview_token import snippet_token_is_valid
+    dest = (request.META.get('HTTP_SEC_FETCH_DEST') or '').lower()
+    if dest:
+        if dest not in dest_values:
+            return False
+        return snippet_token_is_valid(slug, request.GET.get('t', ''))
+    referer = request.META.get('HTTP_REFERER', '')
+    parsed = urlparse(referer)
+    if not referer or not parsed.path:
+        return False
+    if parsed.path.rstrip('/') != f'/app/{slug}/snippet':
+        return False
+    referer_host = (parsed.hostname or '').lower()
+    request_host = (request.get_host() or '').split(':')[0].lower()
+    if referer_host != request_host:
+        return False
+    referer_token = (parse_qs(parsed.query).get('t') or [''])[0]
+    return snippet_token_is_valid(slug, request.GET.get('t', '') or referer_token)
+
+def snippet_asset(request, slug, kind):
+    """A snippet's CSS or JS served as its own file (text/css / text/javascript).
+
+    Same gate as snippet_doc: reachable only by the sandboxed (opaque-origin)
+    preview document holding the short-lived signed token, so user code never
+    loads — let alone runs — in a privileged context.
+    """
+    project = get_object_or_404(AppProject, slug=slug, status='published')
+    dest_values = ('style',) if kind == 'css' else ('script',)
+    if not snippet_asset_request_is_allowed(request, slug, dest_values):
+        return render(request, 'gallery/snippet_blocked.html', {'project': project}, status=403)
+    if kind == 'css':
+        body = project.css_code or ''
+        content_type = 'text/css; charset=utf-8'
+    else:
+        body = project.js_code or ''
+        content_type = 'text/javascript; charset=utf-8'
+    resp = HttpResponse(body, content_type=content_type)
+    resp['Content-Security-Policy'] = "default-src 'none'"
+    resp['X-Content-Type-Options'] = 'nosniff'
+    resp['Cross-Origin-Resource-Policy'] = 'same-origin'
+    resp['Referrer-Policy'] = 'no-referrer'
+    resp['Cache-Control'] = 'no-store'
+    return resp
+
+def snippet_doc(request, slug):
+    """The raw snippet document — HTML only.
+
+    The snippet's CSS and JS are separate files (snippet_asset) loaded via
+    <link>/<script src>. Served ONLY into an <iframe sandbox="allow-scripts">
+    (opaque origin) with a short-lived signed token. CSP sandbox on the
+    response also applies if this URL is ever opened outside that iframe.
     """
     project = get_object_or_404(AppProject, slug=slug, status='published')
     if not snippet_request_is_framed(request, slug):
         return render(request, 'gallery/snippet_blocked.html', {'project': project}, status=403)
-    resp = render(request, 'gallery/snippet_doc.html', {'project': project})
+    resp = render(request, 'gallery/snippet_doc.html', {
+        'project': project,
+        'token': request.GET.get('t', ''),
+    })
+    # 'unsafe-inline' stays because the user's own html_code is rendered raw
+    # and may carry its own inline blocks; our page chrome uses none.
     resp['Content-Security-Policy'] = (
         "sandbox allow-scripts; "
-        "default-src 'none'; script-src 'unsafe-inline' https://cdn.tailwindcss.com; "
-        "style-src 'unsafe-inline' https://fonts.googleapis.com; "
+        "default-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
         "img-src data: https: http:; media-src data: https:; "
         "font-src data: https://fonts.gstatic.com; "
         "connect-src https://cdn.tailwindcss.com; object-src 'none'; base-uri 'none'; "

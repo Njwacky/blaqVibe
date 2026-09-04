@@ -76,7 +76,10 @@ class StudioPreviewLoginGateTests(TestCase):
         self.assertNotContains(resp, 'id="studio-frame"')
         self.assertNotContains(resp, 'sandbox="allow-scripts"')
         self.assertContains(resp, 'Sign in to run a live preview')
-        self.assertContains(resp, 'canPreview: false')
+        # Config travels as HTML data attributes — no inline <script> block.
+        self.assertContains(resp, 'id="studio-config"')
+        self.assertContains(resp, 'data-can-preview="false"')
+        self.assertNotContains(resp, 'window.STUDIO')
         self.assertContains(resp, '/accounts/login/?next=/studio/hello-landing/')
 
     def test_blank_studio_same_gate(self):
@@ -85,7 +88,7 @@ class StudioPreviewLoginGateTests(TestCase):
         self.assertFalse(resp.context['can_preview'])
         self.assertContains(resp, 'id="ed-html"')
         self.assertNotContains(resp, 'id="studio-frame"')
-        self.assertContains(resp, 'canPreview: false')
+        self.assertContains(resp, 'data-can-preview="false"')
 
     def test_authenticated_gets_live_preview_iframe(self):
         user = make_user('studiopreview')
@@ -95,7 +98,7 @@ class StudioPreviewLoginGateTests(TestCase):
         self.assertTrue(resp.context['can_preview'])
         self.assertContains(resp, 'id="studio-frame"')
         self.assertContains(resp, 'sandbox="allow-scripts"')
-        self.assertContains(resp, 'canPreview: true')
+        self.assertContains(resp, 'data-can-preview="true"')
         self.assertContains(resp, 'Live preview · sandboxed')
         self.assertNotContains(resp, 'Sign in to run a live preview')
 

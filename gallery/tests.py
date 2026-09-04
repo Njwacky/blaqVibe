@@ -1447,6 +1447,79 @@ class SnippetIsolationTests(TestCase):
         self.assertContains(response, '?t=', html=False)
         self.assertIn('snippet_token', response.context)
 
+    def test_snippet_doc_links_separate_css_and_js_files(self):
+        self.snippet.css_code = 'h1 { color: rebeccapurple; }'
+        self.snippet.save()
+        response = self.client.get(
+            f'/app/{self.snippet.slug}/snippet/',
+            {'t': self._token()},
+            headers={'Sec-Fetch-Dest': 'iframe'},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response, f'/app/{self.snippet.slug}/snippet/style.css?t=', html=False)
+        self.assertContains(
+            response, f'/app/{self.snippet.slug}/snippet/script.js?t=', html=False)
+        # The document no longer embeds the snippet's CSS/JS inline.
+        self.assertNotContains(response, '<style>')
+        self.assertNotContains(response, 'rebeccapurple')
+        self.assertNotContains(response, 'console.log(1)')
+
+    def test_css_file_served_with_style_dest_and_token(self):
+        self.snippet.css_code = 'h1 { color: rebeccapurple; }'
+        self.snippet.save()
+        response = self.client.get(
+            f'/app/{self.snippet.slug}/snippet/style.css',
+            {'t': self._token()},
+            headers={'Sec-Fetch-Dest': 'style'},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'text/css; charset=utf-8')
+        self.assertContains(response, 'rebeccapurple')
+
+    def test_js_file_served_with_script_dest_and_token(self):
+        response = self.client.get(
+            f'/app/{self.snippet.slug}/snippet/script.js',
+            {'t': self._token()},
+            headers={'Sec-Fetch-Dest': 'script'},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'text/javascript; charset=utf-8')
+        self.assertContains(response, 'console.log(1)')
+
+    def test_asset_top_level_document_is_blocked_even_with_token(self):
+        response = self.client.get(
+            f'/app/{self.snippet.slug}/snippet/script.js',
+            {'t': self._token()},
+            headers={'Sec-Fetch-Dest': 'document'},
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_asset_without_token_is_blocked(self):
+        response = self.client.get(
+            f'/app/{self.snippet.slug}/snippet/style.css',
+            headers={'Sec-Fetch-Dest': 'style'},
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_asset_with_wrong_dest_is_blocked(self):
+        response = self.client.get(
+            f'/app/{self.snippet.slug}/snippet/script.js',
+            {'t': self._token()},
+            headers={'Sec-Fetch-Dest': 'style'},
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_asset_legacy_snippet_referer_with_token_is_allowed(self):
+        token = self._token()
+        response = self.client.get(
+            f'/app/{self.snippet.slug}/snippet/script.js',
+            {'t': token},
+            headers={'Referer': f'http://testserver/app/{self.snippet.slug}/snippet/?t={token}'},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'console.log(1)')
+
 @override_settings(RATELIMIT_ENABLE=False)
 class SafeZipExtractTests(TestCase):
     def test_safe_extract_writes_normal_files(self):

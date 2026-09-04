@@ -1,6 +1,9 @@
 {% extends 'gallery/base.html' %}
 {% load static %}
 {% block title %}Start a vibe — BlaqVibes{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'gallery/css/starter-gallery.css' %}?v=sep-files-20260904">
+{% endblock %}
 {% block content %}
 <div style="max-width:1080px;margin:0 auto;padding:24px 20px">
 
@@ -51,7 +54,4 @@
     </div>
   </div>
 </div>
-<style>
-  .starter-card:hover { border-color:var(--accent-border); transform:translateY(-2px); }
-</style>
 {% endblock %}
