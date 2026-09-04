@@ -20,7 +20,6 @@
 
   <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
     <a href="{% url 'moderation_queue' %}" class="btnV">🛡️ Moderation Queue</a>
-    <a href="{% url 'payout_queue' %}" class="btnV">🏦 Payout Queue</a>
     {% if user.profile.is_superadmin %}<a href="{% url 'manage_roles' %}" class="btnG">Manage Roles</a>{% endif %}
     <a href="{% url 'audit_log' %}" class="btnG">📜 Audit Log</a>
     <a href="/blaq-admin-secure/" class="btnG">Django Admin</a>
