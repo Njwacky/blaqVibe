@@ -28,6 +28,39 @@ from .access import user_can_see_project
 
 logger = logging.getLogger(__name__)
 
+
+def _battle_visible(user, battle):
+    """True only when BOTH vibes in a battle are visible to `user`.
+
+    5 Whys — why a helper instead of re-reading status in each view?
+    1. Why does this matter? A battle is created from two published vibes,
+       but either vibe can later be re-queued (pending), quarantined or
+       removed — just like every other content read on the site. The
+       battle page and history render the vibes' titles, owners and star
+       counts; a stranger must not learn about a vibe that has since gone
+       non-public from a route whose only job is to be fun.
+    2. Why `user_can_see_project` and not a raw `status == 'published'`
+       check? It is the single visibility rule the rest of the site uses
+       (owner/moderator can see their own pending, strangers cannot), so
+       a battle owner reviewing their own non-public vibe still can.
+    3. Why call it on BOTH vibes and not just one? The page shows both
+       cards side by side; leaking either one is a leak.
+    4. Why a module-level helper returning a bool? battle(), battle_history()
+       and vote_battle() all need the same answer — one place to get it
+       right, instead of a subtly different filter per view.
+    5. Why catch every exception and fail closed? A broken select_related
+       must not render a visible battle; a False here hides it honestly.
+    """
+    try:
+        return bool(
+            user_can_see_project(user, battle.vibe_a)
+            and user_can_see_project(user, battle.vibe_b)
+        )
+    except Exception:
+        logger.exception('battle visibility check failed battle=%s', getattr(battle, 'id', '?'))
+        return False
+
+
 @login_required
 @require_POST
 def nolo_compare(request):
@@ -477,10 +510,18 @@ def battle(request):
         # Try to find a battle not voted by this user
         if request.user.is_authenticated:
             voted_ids = request.user.battle_votes.values_list('battle_id', flat=True)
-            available = VibeBattle.objects.exclude(id__in=voted_ids).order_by('-created_at')[:5]
-            if available.exists():
-                battle = available.first()
-                return render(request, 'gallery/battle.html', {'battle': battle})
+            # A battle is a view of two vibes; if either has since gone
+            # non-public it must not be surfaced to this person (same rule as
+            # every other content read). One helper, applied to every battle
+            # this page could otherwise render.
+            available = [
+                b for b in VibeBattle.objects.exclude(id__in=voted_ids)
+                .select_related('vibe_a__owner', 'vibe_b__owner')
+                .order_by('-created_at')[:30]
+                if _battle_visible(request.user, b)
+            ]
+            if available:
+                return render(request, 'gallery/battle.html', {'battle': available[0]})
         vibes = list(qs.order_by('?')[:2])
         if len(vibes) < 2:
             vibes = list(qs[:2])
@@ -532,9 +573,22 @@ def battle_history(request):
     try:
         from .models import VibeBattle, BattleVote
         my_votes = []
-        recent = VibeBattle.objects.order_by('-created_at')[:10]
+        # The history page is public — it must never render a battle whose
+        # vibes have since gone non-public (same rule as the battle page).
+        # Fetch a slightly larger window, filter with the one visibility
+        # helper, then cap the visible count.
+        recent = [
+            b for b in VibeBattle.objects.select_related('vibe_a__owner', 'vibe_b__owner')
+            .order_by('-created_at')[:30]
+            if _battle_visible(request.user, b)
+        ][:10]
         if request.user.is_authenticated:
-            my_votes = BattleVote.objects.filter(user=request.user).select_related('battle__vibe_a__owner','battle__vibe_b__owner').order_by('-created_at')[:20]
+            my_votes = [
+                v for v in BattleVote.objects.filter(user=request.user)
+                .select_related('battle__vibe_a__owner', 'battle__vibe_b__owner')
+                .order_by('-created_at')[:40]
+                if _battle_visible(request.user, v.battle)
+            ][:20]
         return render(request, 'gallery/battle_history.html', {'my_votes': my_votes, 'recent': recent})
     except Exception as e:
         import logging
@@ -545,13 +599,21 @@ def battle_history(request):
 @require_POST
 @ratelimit(key='user', rate='30/h', method='POST')
 def vote_battle(request, battle_id):
+    # Visibility + object lookup are resolved BEFORE the try. Http404 is an
+    # Exception, and the broad catch-all below would swallow it and answer a
+    # 302 — which both confirms the battle exists and hides the refusal from
+    # the caller. Same anti-pattern create_pr was fixed for.
+    battle = get_object_or_404(VibeBattle, id=battle_id)
+    # You cannot vote on a battle you cannot see: if either vibe has since
+    # gone non-public, the battle is no longer a real contest (and a
+    # stranger must not confirm its existence via a vote).
+    if not _battle_visible(request.user, battle):
+        raise Http404
     try:
-        from .models import VibeBattle, BattleVote
         from django.db.models import F
         if getattr(request, 'limited', False):
             messages.error(request, "Rate limit: too many votes.")
             return redirect('battle')
-        battle = get_object_or_404(VibeBattle, id=battle_id)
         if BattleVote.objects.filter(user=request.user, battle=battle).exists():
             messages.info(request, "You already voted on this battle")
             return redirect('battle')

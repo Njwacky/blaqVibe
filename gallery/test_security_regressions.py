@@ -203,6 +203,12 @@ class AuthRateLimitRegressionTests(TestCase):
         self.addCleanup(self._caches.disable)
         self.addCleanup(lambda: caches['ratelimit'].clear())
         self.addCleanup(lambda: caches['default'].clear())
+        # Start from a clean counter regardless of which test ran before this
+        # class. A shared locmem LOCATION across modules can otherwise leave
+        # residue that makes the 21st post exceed the ceiling early OR the
+        # counter not reach the ceiling at all — both make the assertion flaky.
+        caches['ratelimit'].clear()
+        caches['default'].clear()
         make_user('someone')  # real user so a good login is meaningful
 
     def test_login_post_is_rate_limited_at_20_per_minute(self):
@@ -243,6 +249,9 @@ class CspReportRateLimitRegressionTests(TestCase):
         self.addCleanup(self._caches.disable)
         self.addCleanup(lambda: caches['ratelimit'].clear())
         self.addCleanup(lambda: caches['default'].clear())
+        # Clean counter at start (see AuthRateLimitRegressionTests).
+        caches['ratelimit'].clear()
+        caches['default'].clear()
 
     def test_csp_report_accepts_legitimate_report(self):
         response = self.client.post(

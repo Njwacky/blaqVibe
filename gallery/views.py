@@ -1028,6 +1028,8 @@ def _notify_project_owner(owner, kind, title, url, actor=None, body=''):
     return bool(notify(owner, kind, title, body, url))
 
 
+@login_required
+@require_POST
 def toggle_star(request, slug):
     project = get_object_or_404(AppProject, slug=slug, status='published')
     from .economy import toggle_project_star
@@ -1826,6 +1828,44 @@ def notifications_inbox(request):
     notes = Notification.objects.filter(user=request.user)[:50]
     Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
     return render(request, 'gallery/notifications.html', {'notifications': notes})
+
+
+@login_required
+@require_POST
+def notifications_mark_read(request, notification_id):
+    """Mark one notification read. Owner-scoped: a stranger's id is a 404.
+
+    5 Whys:
+    1. Why an endpoint at all? The inbox marks everything read on open, but
+       a link to a single notification (or a future dropdown) needs to clear
+       exactly one without touching the rest.
+    2. Why filter on `user=request.user` instead of fetching then comparing?
+       The queryset is the authorization — a guessed id that isn't yours can
+       never be read, and the 404 is the honest answer (not a 403 that
+       confirms the row exists).
+    3. Why idempotent (no error when already read)? A retried tap is a retry,
+       not a bug; the response is the current unread count either way.
+    4. Why return the unread count? The caller can update a badge without a
+       second round-trip, and it is the only piece of state that matters.
+    5. Why POST only? Reading state is a mutation; GET would make a cached
+       link flip is_read without a real user intent.
+    """
+    from .models import Notification
+    n = get_object_or_404(Notification, pk=notification_id, user=request.user)
+    if not n.is_read:
+        n.is_read = True
+        n.save(update_fields=['is_read'])
+    unread = request.user.notifications.filter(is_read=False).count()
+    return JsonResponse({'ok': True, 'unread': unread})
+
+
+@login_required
+@require_POST
+def notifications_mark_all_read(request):
+    """Mark every notification for the current user as read. Owner-scoped."""
+    from .models import Notification
+    Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
+    return JsonResponse({'ok': True, 'unread': 0})
 
 
 def sitemap_xml(request):
