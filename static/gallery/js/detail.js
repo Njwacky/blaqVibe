@@ -9,6 +9,78 @@
   const scanText = document.getElementById('scan-text');
   const scanUrl = banner ? banner.dataset.scanUrl : null;
 
+  // Put the project first: visitors should understand the builder, artifact,
+  // evidence and remix lineage before they encounter optional AI tooling.
+  function addTrustHierarchy(){
+    const layout = document.querySelector('.detail-layout');
+    const sidebar = layout ? layout.children[1] : null;
+    if(!sidebar || document.getElementById('build-evidence')) return;
+
+    const text = document.body.innerText || '';
+    const hasAi = /🤖/.test(text) || /AI PROMPT/i.test(text) || /AI README/i.test(text);
+    const forked = /Forked from/i.test(sidebar.innerText || '');
+    const checked = /✓ Checked/i.test(sidebar.innerText || '');
+    const scanned = /Scanned/i.test(sidebar.innerText || '');
+    const preview = /Playable here/i.test(sidebar.innerText || '') || /▶ Run preview/i.test(sidebar.innerText || '');
+    const files = (sidebar.innerText.match(/Files\s+([0-9]+)/i) || [])[1];
+    const creator = (sidebar.innerText.match(/Publisher\s+@?([A-Za-z0-9_.-]+)/i) || [])[1] || 'Creator';
+
+    const method = forked ? 'Remixed' : (hasAi ? 'AI-assisted' : 'Human-built');
+    const methodDetail = forked
+      ? 'Built from another project and published as a new direction.'
+      : hasAi
+        ? 'AI involvement is disclosed as provenance; the project itself is the evidence.'
+        : 'Published by its creator; inspect the files, README and preview to evaluate it.';
+    const checks = checked ? 'Checked' : (scanned ? 'Scanned' : 'Not yet checked');
+    const previewText = preview ? 'Runnable preview available' : 'Files / README available';
+
+    const card = document.createElement('section');
+    card.id = 'build-evidence';
+    card.className = 'card build-evidence-card';
+    card.innerHTML = `
+      <div class="build-evidence__eyebrow">PROJECT EVIDENCE</div>
+      <h3 class="build-evidence__title">What you can verify</h3>
+      <p class="build-evidence__intro">A real project should stand on its own: creator, artifact, checks and history.</p>
+      <div class="build-evidence__grid">
+        <div><span>Creator</span><b>@${esc(creator)}</b></div>
+        <div><span>Build method</span><b>${esc(method)}</b><small>${esc(methodDetail)}</small></div>
+        <div><span>Safety check</span><b>${esc(checks)}</b><small>Platform scanning and moderation signals.</small></div>
+        <div><span>Artifact</span><b>${esc(files ? files + ' files' : 'Project files')}</b><small>${esc(previewText)}</small></div>
+      </div>
+    `;
+    sidebar.insertBefore(card, sidebar.firstElementChild);
+
+    const style = document.createElement('style');
+    style.textContent = `
+      .build-evidence-card{margin-bottom:12px;border-color:var(--accent-border);background:var(--card)}
+      .build-evidence__eyebrow{font-size:10px;letter-spacing:.1em;font-weight:800;color:var(--link)}
+      .build-evidence__title{font-size:17px;font-weight:800;margin-top:4px}
+      .build-evidence__intro{font-size:11px;line-height:1.55;color:var(--muted);margin:5px 0 10px}
+      .build-evidence__grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+      .build-evidence__grid>div{padding:9px;background:var(--bg);border:1px solid var(--line);border-radius:9px;min-width:0}
+      .build-evidence__grid span{display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+      .build-evidence__grid b{display:block;font-size:12px;margin-top:3px;overflow-wrap:anywhere}
+      .build-evidence__grid small{display:block;font-size:10px;color:var(--muted);line-height:1.45;margin-top:3px}
+      @media(max-width:640px){.build-evidence__grid{grid-template-columns:1fr}}
+    `;
+    document.head.appendChild(style);
+
+    // AI remains visible and honest, but it is provenance—not the hero.
+    document.querySelectorAll('.badge').forEach(function(b){
+      if(/🤖/.test(b.textContent)){
+        b.textContent = 'Build method: AI-assisted';
+        b.style.background = 'var(--input)';
+        b.style.border = '1px solid var(--line)';
+        b.style.color = 'var(--muted)';
+      }
+    });
+    document.querySelectorAll('div').forEach(function(el){
+      const label = (el.textContent || '').trim();
+      if(label === '🤖 AI PROMPT') el.textContent = 'BUILD NOTES';
+      if(label === '🤖 AI README — Gemini/Groq') el.textContent = 'README HELPER — OPTIONAL';
+    });
+  }
+
   // Keep the rich waiting panel (headline, file details, queue position and
   // the stage checklist) in sync with each poll — so the page never looks
   // frozen while a vibe is being checked.
@@ -54,16 +126,16 @@
         if(scanText) scanText.textContent=d.status;
         if(d.reason && scanText) scanText.textContent = d.status + ' — ' + d.reason;
         if(d.is_published || d.status==='clean'){
-          if(scanText) scanText.textContent='clean — vibe is live!';
+          if(scanText) scanText.textContent='clean — project is live!';
           const hl = document.getElementById('scan-headline');
-          if(hl) hl.textContent = '✓ Your vibe is live!';
+          if(hl) hl.textContent = '✓ Your project is live!';
           if(banner){ banner.classList.remove('scan-panel--held','scan-panel--blocked'); banner.classList.add('scan-panel--live'); }
-          try{ toast('✓ Your vibe is live!'); }catch(e){}
+          try{ toast('✓ Your project is live!'); }catch(e){}
           setTimeout(()=>location.reload(),1200);
         } else if(d.status==='quarantined'){
           if(banner){ banner.classList.remove('scan-panel--held','scan-panel--live'); banner.classList.add('scan-panel--blocked'); }
           if(scanText) scanText.textContent='quarantined — blocked for review';
-          try{ toast('Your vibe was quarantined — check My Vibes.'); }catch(e){}
+          try{ toast('Your project was quarantined — check My Vibes.'); }catch(e){}
         } else if((d.progress && d.progress.held)){
           if(banner){ banner.classList.add('scan-panel--held'); }
           setTimeout(poll, 4000);
@@ -143,7 +215,7 @@
       }).catch(()=>{ try{toast('Failed')}catch(err){}});
     }
     if(e.target.classList.contains('js-fork-form')){
-      if(!confirm('Fork this vibe to your account? You will get your own copy to remix.')) e.preventDefault();
+      if(!confirm('Fork this project to your account? You will get your own copy to remix.')) e.preventDefault();
     }
     if(e.target.id==='nolo-form'){
       e.preventDefault();
@@ -153,7 +225,7 @@
 
   window.noloCompare = function(){
     const bEl = document.getElementById('nolo-b');
-    if(!bEl || !bEl.value){ try{toast('Pick a vibe to compare')}catch(e){} return; }
+    if(!bEl || !bEl.value){ try{toast('Pick a project to compare')}catch(e){} return; }
     const form = document.getElementById('nolo-form');
     if(!form) return;
     const fd = new FormData(form);
@@ -178,4 +250,7 @@
           </div>`;
     }).catch(()=>{ try{toast('Compare failed')}catch(e){}});
   };
+
+  if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', addTrustHierarchy);
+  else addTrustHierarchy();
 })();
