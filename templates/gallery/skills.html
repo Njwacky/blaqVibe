@@ -1,0 +1,72 @@
+{% extends 'gallery/base.html' %}
+{% load static %}
+
+{% block title %}Builder Skills — BlaqVibes{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'gallery/css/skills.css' %}">
+{% endblock %}
+
+{% block content %}
+<main class="skills-shell">
+  <header class="skills-hero">
+    <p class="skills-eyebrow">BUILDER SKILLS</p>
+    <h1>Share how you build.</h1>
+    <p>Reusable workflows, prompts, debugging recipes and starter patterns — backed by the projects people actually make.</p>
+    {% if user.is_authenticated %}
+      <form class="skill-create" method="post" action="{% url 'create_skill' %}">
+        {% csrf_token %}
+        <h2>Publish a skill</h2>
+        <input name="title" maxlength="140" required placeholder="Skill title — e.g. Turn a Django idea into a first working page">
+        <input name="summary" maxlength="260" required placeholder="What will another builder get?">
+        <textarea name="problem" maxlength="1000" required placeholder="What problem does this solve?"></textarea>
+        <textarea name="workflow" maxlength="5000" required placeholder="Share the prompt or workflow. Never include API keys, passwords or private data."></textarea>
+        <div class="skill-fields">
+          <input name="tools" maxlength="300" placeholder="Tools: Django, Python, VS Code">
+          <select name="difficulty">
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+          </select>
+        </div>
+        <input name="expected_output" maxlength="500" placeholder="Expected output (optional)">
+        <input name="tags" maxlength="300" placeholder="Tags: django, debugging, auth">
+        <button type="submit">Publish skill</button>
+      </form>
+    {% endif %}
+  </header>
+
+  <section class="skills-discovery">
+    <div class="skills-toolbar">
+      <div>
+        <p class="skills-eyebrow">USEFUL, NOT VIRAL</p>
+        <h2>Skills builders are using</h2>
+      </div>
+      <form method="get">
+        <input name="q" value="{{ q }}" placeholder="Search skills">
+        <select name="difficulty" onchange="this.form.submit()">
+          <option value="">All levels</option>
+          <option value="beginner" {% if difficulty == 'beginner' %}selected{% endif %}>Beginner</option>
+          <option value="intermediate" {% if difficulty == 'intermediate' %}selected{% endif %}>Intermediate</option>
+          <option value="advanced" {% if difficulty == 'advanced' %}selected{% endif %}>Advanced</option>
+        </select>
+        <button type="submit">Search</button>
+      </form>
+    </div>
+
+    <div class="skill-grid">
+      {% for skill in skills %}
+        <article class="skill-card">
+          <div class="skill-meta"><span>{{ skill.get_difficulty_display }}</span><span>{{ skill.uses }} uses</span></div>
+          <h3><a href="{{ skill.get_absolute_url }}">{{ skill.title }}</a></h3>
+          <p>{{ skill.summary }}</p>
+          <div class="skill-creator">by @{{ skill.creator.username }}</div>
+          {% if skill.expected_output %}<div class="skill-proof">→ {{ skill.expected_output }}</div>{% endif %}
+          <a class="skill-open" href="{{ skill.get_absolute_url }}">See workflow →</a>
+        </article>
+      {% empty %}
+        <div class="skill-empty"><h3>No skills yet.</h3><p>Be the first builder to publish a workflow someone else can use.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+{% endblock %}
