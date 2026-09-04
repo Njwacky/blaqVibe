@@ -1,8 +1,5 @@
-from datetime import timedelta
-
 from django import template
 from django.core.cache import cache
-from django.utils import timezone
 
 register = template.Library()
 
