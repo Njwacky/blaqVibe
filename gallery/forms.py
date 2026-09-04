@@ -21,10 +21,23 @@ class AppUploadForm(forms.ModelForm):
             'readme': forms.Textarea(attrs={'rows':10, 'placeholder':'# My App\n## What is this?\n## How to Run\n```bash\npip install -r requirements.txt\n```'}),
             'short_description': forms.TextInput(attrs={'placeholder':'One-line what it does'}),
             'tech_stack': forms.TextInput(attrs={'placeholder':'Django, React, Tailwind'}),
-            'ai_prompt': forms.Textarea(attrs={'rows':3, 'placeholder':'If AI-generated, paste prompt...'}),
+            'ai_generated': forms.CheckboxInput(attrs={'aria-describedby':'ai-origin-help'}),
+            'ai_tool': forms.TextInput(attrs={'placeholder':'e.g. Claude, Gemini, ChatGPT'}),
+            'ai_prompt': forms.Textarea(attrs={'rows':3, 'placeholder':'If AI helped create it, briefly share the prompt or workflow...'}),
             'html_code': forms.Textarea(attrs={'rows':6, 'placeholder':'<div>Snippet HTML (for snippet only)</div>'}),
             'star_cost': forms.NumberInput(attrs={'min':0,'max':5, 'placeholder':'0=free, 2=Bronze'}),
         }
+        labels = {
+            'ai_generated': 'AI-assisted creation',
+            'ai_tool': 'AI tool used (if any)',
+            'ai_prompt': 'AI creation notes',
+        }
+        help_texts = {
+            'ai_generated': 'Be transparent if AI materially helped create this project. This is shown as provenance, not a quality score.',
+            'ai_tool': 'Optional unless you mark the project as AI-assisted. You can name more than one tool.',
+            'ai_prompt': 'Share the useful prompt or workflow when you can. Do not include secrets, API keys, or private data.',
+        }
+
     def clean_title(self):
         title = (self.cleaned_data.get('title') or '').strip()
         return validate_public_text(title, allow_blank=False)
@@ -36,6 +49,12 @@ class AppUploadForm(forms.ModelForm):
         if '# ' not in md:
             raise forms.ValidationError("README needs at least one heading (e.g. '# My App').")
         return validate_public_text(md)
+
+    def clean_ai_tool(self):
+        tool = (self.cleaned_data.get('ai_tool') or '').strip()
+        if len(tool) > 50:
+            raise forms.ValidationError("AI tool name must be 50 characters or fewer.")
+        return validate_public_text(tool)
 
     def clean_ai_prompt(self):
         prompt = self.cleaned_data.get('ai_prompt', '') or ''
@@ -62,12 +81,14 @@ class AppUploadForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        # Skip the "provide a ZIP or snippet" error when the ZIP field already
-        # has one: the creator DID provide a ZIP — ours was rejected for a
-        # specific reason (node_modules, .env, too many files). Tacking on
-        # "Provide either a ZIP file or HTML snippet" reads as "we didn't get
-        # your file" and buries the real, fixable reason under a second error
-        # that isn't true. One failure, one instruction.
+        # AI provenance must be internally consistent. We never ask creators
+        # to hide AI use: marking it requires enough evidence to explain the
+        # origin, while keeping the notes optional for human-built projects.
+        if cleaned.get('ai_generated'):
+            if not (cleaned.get('ai_tool') or '').strip():
+                self.add_error('ai_tool', 'Name the AI tool used so visitors can understand the project provenance.')
+            if not (cleaned.get('ai_prompt') or '').strip():
+                self.add_error('ai_prompt', 'Add a short prompt/workflow note so the AI-assisted origin is verifiable.')
         if self.errors.get('zip_file'):
             return cleaned
         zipf = cleaned.get('zip_file')

@@ -2,9 +2,9 @@
 
 **GitHub stores the code. BlaqVibes tells the story of what you're building.**
 
-BlaqVibes is a creator network for vibe-coded apps and experiments: **BUILD → SHOW → REMIX → COMPETE → REPEAT**.
+BlaqVibes is a creator network for builders and their projects: **BUILD → SHOW → REMIX → COMPETE → REPEAT**.
 
-Publish what you made, get feedback, discover creators, remix ideas, take on challenges, and build a reputation around your work.
+Publish what you made, get feedback, discover creators, remix ideas, take on challenges, and build a reputation around your work. You can build by hand, use AI as a tool, or remix another project — the platform does not treat any one creation method as the identity of the project.
 
 ## The core loop
 
@@ -13,6 +13,21 @@ Publish what you made, get feedback, discover creators, remix ideas, take on cha
 3. **Remix** another creator's idea or let someone remix yours.
 4. **Compete** through challenges, battles, stars and reputation.
 5. **Repeat** with BlaqVibes Today showing what happened and what to do next.
+
+## AI is a tool, not a disguise
+
+BlaqVibes does not try to make AI-built projects look human-built. If AI materially helped create a project, the publisher can mark it as AI-assisted and provide the tool and a short creation note. That provenance is part of the project's story.
+
+The goal is simple: **make projects easier to trust, not harder to identify**.
+
+A project can be:
+
+- **Human-built** — created without material AI assistance.
+- **AI-assisted** — a person used AI during development and remains responsible for the published work.
+- **AI-generated** — substantially produced from an AI workflow.
+- **Remixed** — derived from another BlaqVibes project, with the original lineage preserved.
+
+AI labels are not quality scores. Trust comes from evidence: the files, README, runnable preview when available, security scanning, project history, creator identity, reviews and remix lineage.
 
 ## Run locally
 
@@ -65,9 +80,9 @@ CI covers migrations, demo seeding, tests, security posture and feed smoke check
 
 ## What is real
 
-- **Trust is evidence, not decoration.** Each vibe receives a pipeline-written trust tier (`verified`, `scanned`, or unknown). Content changes reset the tier until the new bytes are checked.
+- **Trust is evidence, not decoration.** Each project receives a pipeline-written trust tier (`verified`, `scanned`, or unknown). Content changes reset the tier until the new bytes are checked.
 - **Dependency safety is real.** Manifest dependencies are checked against the npm/PyPI registries to reduce AI-generated slopsquatting risk. Registry failures fail closed rather than pretending a package is malicious.
-- **Program kinds are explicit.** Vibes can be games, APIs, mobile apps, notebooks, CLI tools and more. The platform says when a live preview is unavailable instead of faking one.
+- **Program kinds are explicit.** Projects can be games, APIs, mobile apps, notebooks, CLI tools and more. The platform says when a live preview is unavailable instead of faking one.
 - **Discovery is personalised carefully.** The For You feed can learn from actions such as opening, starring, forking and trading, while explicit filters and non-default sorts stay truthful.
 - **Git is real.** Smart HTTP supports clone/push flows subject to the same access, ownership and scanning rules as the web UI. A pushed project re-enters the scan queue.
 - **Stars are a real ledger.** Trades move stars atomically between buyer and seller, and successful trades unlock paid ZIP downloads.
@@ -77,8 +92,9 @@ CI covers migrations, demo seeding, tests, security posture and feed smoke check
 - **Battle votes do not inflate project stars.** Competitive voting and creator popularity remain separate signals.
 - **Remix lineage is preserved.** Forks keep a `forked_from` relationship so visitors can see where an idea came from and how it travelled.
 - **BlaqVibes Today is the return loop.** It combines the daily mission, creator momentum, feedback, notifications and remixable work into one short command center.
-- **Nolo is honest about providers.** Claude/Gemini/Groq are used only when configured; otherwise the built-in helper is presented as such.
-- **Nolo prompts are budgeted.** Prompt construction compresses stable instructions and dynamic input within explicit character/token budgets, with observable token estimates in the response metadata.
+- **AI tooling is honest.** Claude/Gemini/Groq are used only when configured; otherwise the built-in helper is presented as such. AI assistance is disclosed rather than hidden.
+- **AI creation metadata is validated.** A publisher who marks a project as AI-assisted must name the tool and provide a short creation/workflow note. This makes the origin legible instead of turning AI into a mystery badge.
+- **Nolo is an assistant, not the author.** Nolo can compare, explain and help with project material, but it does not turn BlaqVibes into an "AI app generator" identity.
 - **Social sign-in is configurable.** Google, GitHub and Facebook providers require their own credentials in the environment.
 
 ## Stability and operations
