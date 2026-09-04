@@ -142,15 +142,12 @@
   </div>
 </div>
 
-<script>
-  window.STUDIO = {
-    action: "{% if starter %}{% url 'studio' starter.slug %}{% else %}{% url 'studio_blank' %}{% endif %}",
-    fixUrl: "{% url 'nolo_fix_api' %}",
-    readmeUrl: "{% url 'nolo_readme_api' %}",
-    csrf: "{{ csrf_token }}",
-    canPreview: {% if can_preview %}true{% else %}false{% endif %},
-    draftKey: "{{ starter.slug|default:'blank'|escapejs }}"
-  };
-</script>
-<script src="{% static 'gallery/js/studio.js' %}?v={{ starters_version }}"></script>
+<div id="studio-config" hidden
+     data-action="{% if starter %}{% url 'studio' starter.slug %}{% else %}{% url 'studio_blank' %}{% endif %}"
+     data-fix-url="{% url 'nolo_fix_api' %}"
+     data-readme-url="{% url 'nolo_readme_api' %}"
+     data-csrf="{{ csrf_token }}"
+     data-can-preview="{% if can_preview %}true{% else %}false{% endif %}"
+     data-draft-key="{{ starter.slug|default:'blank' }}"></div>
+<script src="{% static 'gallery/js/studio.js' %}?v={{ starters_version }}-sep-files-20260904"></script>
 {% endblock %}

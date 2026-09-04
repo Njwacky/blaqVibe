@@ -11,7 +11,23 @@
 (function () {
   'use strict';
 
-  var cfg = window.STUDIO || {};
+  // Server config travels as data attributes on #studio-config (see
+  // studio.html) so the page carries no inline <script> blocks — HTML stays
+  // HTML and this file stays the only JavaScript.
+  function readStudioConfig() {
+    var el = document.getElementById('studio-config');
+    if (!el || !el.dataset) return {};
+    var d = el.dataset;
+    return {
+      action: d.action || '',
+      fixUrl: d.fixUrl || '',
+      readmeUrl: d.readmeUrl || '',
+      csrf: d.csrf || '',
+      canPreview: d.canPreview === 'true',
+      draftKey: d.draftKey || 'blank'
+    };
+  }
+  var cfg = window.STUDIO = readStudioConfig();
   var canPreview = cfg.canPreview === true;
   var draftKey = 'blaq-studio-draft:' + (cfg.draftKey || 'blank');
   var DRAFT_MAX = 180000;

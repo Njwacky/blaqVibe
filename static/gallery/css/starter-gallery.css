@@ -1,0 +1,2 @@
+/* Starter gallery — card hover (extracted from templates/gallery/starter_gallery.html). */
+.starter-card:hover { border-color: var(--accent-border); transform: translateY(-2px); }
