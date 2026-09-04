@@ -268,6 +268,11 @@ def feed(request):
         # are a discovery surface for "I just landed here", not a second
         # result set on top of a query.
         unfiltered = not any([q, cat, kind, program_kind, runnable, trust_filter, following, ai, tech])
+        # The "BlaqVibes Today" loop follows the same rule: it links to the
+        # creator's own vibes and followed creators' work, so on a search or
+        # the Following tab it would put cards on the page that the active
+        # filter excluded.
+        ctx['unfiltered'] = unfiltered
         if unfiltered:
             try:
                 from . import trending

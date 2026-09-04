@@ -78,7 +78,6 @@ def nolo_compare(request):
         return JsonResponse(result)
     except Exception as e:
         # crush silently — log, return safe error
-        import logging
         logging.getLogger(__name__).exception(f"nolo compare crush: {e}")
         return JsonResponse({'error': 'Compare failed silently', 'a':{},'b':{},'diff':{}}, status=500)
 
@@ -107,7 +106,6 @@ def nolo_chat_api(request):
         answer, source, meta = get_nolo_ai_answer(prompt, return_meta=True)
         return JsonResponse({'reply': answer, 'source': source, 'meta': meta})
     except Exception as e:
-        import logging
         logging.getLogger(__name__).exception(f"nolo chat api crush: {e}")
         return JsonResponse({'error': 'Nolo could not answer right now. Try again soon.'}, status=500)
 
@@ -333,7 +331,6 @@ def create_pr(request, slug):
     except Http404:
         raise
     except Exception as e:
-        import logging
         logging.getLogger(__name__).exception(f"create_pr crush: {e}")
         messages.error(request, "PR failed silently")
         return redirect('app_detail', slug=slug)
@@ -364,7 +361,6 @@ def pr_list(request, slug):
         prs = PullRequest.objects.filter(target=target).select_related('source','author').order_by('-created_at')
         return render(request, 'gallery/pr_list.html', {'target': target, 'prs': prs})
     except Exception as e:
-        import logging
         logging.getLogger(__name__).exception(f"pr_list crush: {e}")
         return render(request, 'gallery/pr_list.html', {'target': get_object_or_404(AppProject, slug=slug, status='published'), 'prs': PullRequest.objects.none()})
 
@@ -406,7 +402,6 @@ def pr_detail(request, slug, pr_id):
         nolo_review = (pr.source.scan_report or {}).get('nolo_review')
         return render(request, 'gallery/pr_detail.html', {'pr': pr, 'target': target, 'diff': diff, 'nolo_diff': nolo_diff, 'nolo_review': nolo_review})
     except Exception as e:
-        import logging
         logging.getLogger(__name__).exception(f"pr_detail crush: {e}")
         return render(request, 'gallery/pr_detail.html', {'pr': pr, 'target': target, 'diff': {'added':[],'removed':[],'modified':[],'unchanged':[],'added_count':0,'removed_count':0,'modified_count':0,'common_count':0}, 'nolo_diff': {'only_in_a':[],'only_in_b':[],'common':[]}, 'nolo_review': None})
 
@@ -486,7 +481,7 @@ def pr_action(request, slug, pr_id):
                 from users.progress import award
                 award(pr.author, 'pr_merged', ref=f'pr:{pr.id}')
             except Exception:
-                logging.getLogger(__name__).exception('pr merge xp failed %s', pr.id)
+                logger.exception('pr merge xp failed %s', pr.id)
             messages.success(request, f"✓ PR #{pr.id} merged — files copied from fork, re-queued for scan.")
         elif action == 'close':
             pr.status = 'closed'
@@ -494,7 +489,6 @@ def pr_action(request, slug, pr_id):
             messages.info(request, f"PR #{pr.id} closed")
         return redirect('pr_list', slug=slug)
     except Exception as e:
-        import logging
         logging.getLogger(__name__).exception(f"pr_action crush: {e}")
         return redirect('pr_list', slug=slug)
 
@@ -534,7 +528,6 @@ def battle(request):
         battle = VibeBattle.objects.create(vibe_a=a, vibe_b=b)
         return render(request, 'gallery/battle.html', {'battle': battle})
     except Exception as e:
-        import logging
         logging.getLogger(__name__).exception(f"battle crush: {e}")
         return render(request, 'gallery/battle.html', {'battle': None})
 
@@ -565,7 +558,6 @@ def battle_leaderboard(request):
             u.rank = contributor_bonus(u)
         return render(request, 'gallery/battle_leaderboard.html', {'top_vibes': vibes, 'top_users': users})
     except Exception as e:
-        import logging
         logging.getLogger(__name__).exception(f"leaderboard crush: {e}")
         return render(request, 'gallery/battle_leaderboard.html', {'top_vibes': [], 'top_users': []})
 
@@ -591,7 +583,6 @@ def battle_history(request):
             ][:20]
         return render(request, 'gallery/battle_history.html', {'my_votes': my_votes, 'recent': recent})
     except Exception as e:
-        import logging
         logging.getLogger(__name__).exception(f"battle_history crush: {e}")
         return render(request, 'gallery/battle_history.html', {'my_votes': [], 'recent': []})
 
@@ -632,7 +623,6 @@ def vote_battle(request, battle_id):
         messages.success(request, "Voted! Battle score updated — project stars are unchanged.")
         return redirect('battle')
     except Exception as e:
-        import logging
         logging.getLogger(__name__).exception(f"vote crush: {e}")
         return redirect('battle')
 
@@ -730,7 +720,6 @@ def generate_challenges(request):
         messages.success(request, f"AI drafted {len(created)} challenges — approve one to make it live!")
         return redirect('challenge_list')
     except Exception as e:
-        import logging
         logging.getLogger(__name__).exception(f"generate_challenges crush: {e}")
         return redirect('challenge_list')
 
@@ -749,7 +738,6 @@ def approve_challenge(request, tag):
         messages.success(request, f"Challenge '{ch.title}' is now live!")
         return redirect('challenge_detail', tag=tag)
     except Exception as e:
-        import logging
         logging.getLogger(__name__).exception(f"approve_challenge crush: {e}")
         return redirect('challenge_list')
 

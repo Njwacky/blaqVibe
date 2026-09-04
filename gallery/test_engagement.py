@@ -137,6 +137,17 @@ class FollowAndFollowingTabTests(TestCase):
         self.assertIn('/app/%s/' % other.slug, body)
         self.assertNotIn('/app/%s/' % self.bob_vibe.slug, body)
 
+    def test_today_loop_only_renders_on_the_unfiltered_feed(self):
+        """The Today loop links the creator's own vibes and followed creators'
+        work. On a search or the Following tab that would put cards on the
+        page the active filter excluded, so it is a landing-page-only rail
+        (same rule as trending / rising creators)."""
+        self.client.force_login(self.alice)
+        self.client.post('/u/bob/follow/')
+        self.assertIn('BLAQVIBES TODAY', self.client.get('/').content.decode())
+        for url in ('/?q=Zebra', '/?following=1', '/?kind=snippet', '/?sort=stars&q=x'):
+            self.assertNotIn('BLAQVIBES TODAY', self.client.get(url).content.decode(), url)
+
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-engagement-tests')
 class DailyChallengeTests(TestCase):
