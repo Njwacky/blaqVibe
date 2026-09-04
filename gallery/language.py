@@ -1,13 +1,13 @@
 import zipfile, os, collections
 
-# 5 Whys: Why size-weighted not count? 10-line CSS vs 500-line Python should not be equal.
+# Size-weighted, not a plain count: a 10-line CSS file and a 500-line Python
+# file shouldn't count equally.
 EXT_MAP = {
     '.py': 'Python', '.js': 'JavaScript', '.jsx': 'JavaScript', '.ts': 'TypeScript', '.tsx': 'TypeScript',
     '.html': 'HTML', '.css': 'CSS', '.scss': 'SCSS', '.vue': 'Vue', '.rb': 'Ruby', '.php': 'PHP',
     '.go': 'Go', '.rs': 'Rust', '.java': 'Java', '.kt': 'Kotlin', '.swift': 'Swift',
     '.json': 'JSON', '.md': 'Markdown', '.sql': 'SQL', '.sh': 'Shell'
 }
-
 
 def _stats_from_infos(infos):
     counts = collections.Counter()
@@ -35,7 +35,6 @@ def _stats_from_infos(infos):
         result[first] += diff
     return result
 
-
 def detect_languages(zip_path):
     """Local-path variant, kept for scripts that have a real path."""
     try:
@@ -43,7 +42,6 @@ def detect_languages(zip_path):
             return _stats_from_infos(z.infolist())
     except Exception:
         return {}
-
 
 def detect_languages_from_field(file_field):
     """Storage-agnostic variant — works on local disk and S3/R2.

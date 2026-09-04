@@ -1,25 +1,4 @@
 """Server-rendered SVG charts for the earnings page.
-
-5 Whys:
-1. Why server-rendered SVG instead of a JS chart library? The site ships
-   zero third-party JS and must work with JS disabled; a CDN chart lib
-   would add a network dependency and a CSP surface for one page. SVG is
-   markup — inspectable, testable, selectable by screen readers.
-2. Why chart the LEDGER (StarEvent) instead of counters? views/clones/
-   stars are cumulative integers with no history — a chart of them would
-   be a lie. StarEvent is the one append-only time series the wallet
-   owns, so the charts show exactly what the ledger knows.
-3. Why precompute coordinates in Python instead of the template?
-   Scaling math (heights, padding, nice-max rounding) is logic; logic
-   lives in Python where tests can assert it. The template stays
-   declarative.
-4. Why last 14 days? Long enough to see a trend, short enough that bars
-   stay readable at ~47px per day.
-5. Why do the generators return None for all-zero input instead of an
-   empty chart? An empty axes box would read as "you earned nothing"
-   when the truth is "the ledger has no rows yet" — the caller renders
-   an honest empty state instead.
-
 All output is generated from dates and integers only — no user text ever
 reaches these strings, so the template's |safe is XSS-free by
 construction.
@@ -36,14 +15,12 @@ BASE_Y = PAD_T + PLOT_H
 EARNED_FILL = '#10B981'
 SPENT_FILL = '#EF4444'
 
-
 def _svg_start(label):
     return (
         f'<svg viewBox="0 0 {CHART_W} {CHART_H}" role="img" aria-label="{label}" '
         f'xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;display:block">'
         f'<title>{label}</title>'
     )
-
 
 def _gridlines(parts, values, fmt):
     """Horizontal gridlines at the given values, with value labels."""
@@ -58,7 +35,6 @@ def _gridlines(parts, values, fmt):
             f'<text x="{PAD_L - 6}" y="{y + 3:.1f}" text-anchor="end" font-size="9" '
             f'fill="var(--muted)">{fmt(v)}</text>'
         )
-
 
 def activity_chart(days, max_val):
     """Two-tone bars: earned vs spent per day. Returns None when flat-empty.
@@ -104,7 +80,6 @@ def activity_chart(days, max_val):
     parts.append('</svg>')
     return ''.join(parts)
 
-
 def balance_chart(trend, min_bal, max_bal):
     """Line chart of wallet balance at the end of each day.
 
@@ -145,23 +120,7 @@ def balance_chart(trend, min_bal, max_bal):
     parts.append('</svg>')
     return ''.join(parts)
 
-
-# --- Admin dashboard builders ------------------------------------------------
-# 5 Whys (why these live here, sharing the earnings chart's math):
-# 1. Why reuse this module? The axis/scale/gridline decisions are already
-#    tested and CSS-variable aware; two chart engines would drift.
-# 2. Why generic builders instead of one function per metric? The admin
-#    dashboard charts ~6 time series; a parameterised builder keeps each
-#    metric a data-shape problem, not a drawing problem.
-# 3. Why does every builder return None on all-zero input? Same rule as
-#    the earnings charts: an empty axes box would read "the site did
-#    nothing" when the truth is "we only started logging this recently".
-#    The caller renders an honest empty state.
-# 4. Why is user text (vibe titles) escaped here? These SVGs are injected
-#    with |safe in the template; the ONLY trusted path to |safe is
-#    escaping at the boundary where user text enters the markup.
-# 5. Why no third-party chart lib? The site ships zero third-party JS and
-#    must work with JS disabled — see the module docstring.
+# Admin dashboard builders
 
 def daily_bars_chart(label, days, series, stacked=True, fmt=str):
     """Vertical bars per day for one or more series.
@@ -222,7 +181,6 @@ def daily_bars_chart(label, days, series, stacked=True, fmt=str):
     parts.append('</g>')
     parts.append('</svg>')
     return ''.join(parts)
-
 
 def h_bars_chart(label, items, hrefs=None, fmt=str, bar_color='var(--link)'):
     """Horizontal bars for rankings (top vibes by stars/clones).

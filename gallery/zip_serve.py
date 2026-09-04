@@ -3,7 +3,6 @@ from django.http import FileResponse, Http404, HttpResponseRedirect
 
 from .storages import get_presigned_url, is_s3_enabled
 
-
 def serve_named_zip(file_field, download_name):
     if not file_field:
         raise Http404
@@ -24,7 +23,6 @@ def serve_named_zip(file_field, download_name):
     except FileNotFoundError:
         raise Http404
 
-
 def serve_project_zip(project, user=None, ip=''):
     if not project.zip_file:
         raise Http404
@@ -33,7 +31,6 @@ def serve_project_zip(project, user=None, ip=''):
     from .git_daemon import record_clone
     record_clone(project, user, 'zip', ip)
     return serve_named_zip(project.zip_file, f'{project.slug}.zip')
-
 
 def owner_scan_reason(project) -> str:
     report = project.scan_report or {}
@@ -46,7 +43,6 @@ def owner_scan_reason(project) -> str:
     if project.status == 'pending':
         return 'Queued for review. You will get an in-app notification when it is live.'
     return ''
-
 
 def _human_bytes(num) -> str:
     """Bytes → human string (e.g. 1536 → '1.5 KB'). No external deps."""
@@ -62,15 +58,13 @@ def _human_bytes(num) -> str:
         num /= 1024.0
     return f'{num:.1f} TB'
 
-
 def upload_file_info(project) -> dict:
     """Name + size of the artifact the creator uploaded, for the waiting UI.
 
-    5 Whys: Why compute this instead of storing it? The FileField already
-    knows the name and the storage backend knows the size; asking them keeps
-    one source of truth and works identically on local disk and S3/R2. It is
-    only ever shown to the owner/moderator while a vibe waits, so a single
-    extra storage stat call on that page is cheap.
+    Computed rather than stored: the FileField already knows the name and the
+    storage backend knows the size, so asking them keeps one source of truth
+    and works identically on local disk and S3/R2. It's only shown to the
+    owner/moderator while a vibe waits, so one extra storage stat call is cheap.
     """
     import os
     info = {
@@ -111,7 +105,6 @@ def upload_file_info(project) -> dict:
                 if (getattr(project, f, '') or '').strip()
             )
     return info
-
 
 def scan_progress(project) -> dict:
     """A rich, owner-facing description of *why* a vibe is still waiting.

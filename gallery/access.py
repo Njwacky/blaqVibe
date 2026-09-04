@@ -9,7 +9,6 @@ moderation queue; Django is_staff is not a BlaqVibes role.
 """
 from .models import Sale, Trade
 
-
 def user_is_moderator(user) -> bool:
     if not getattr(user, 'is_authenticated', False):
         return False
@@ -18,14 +17,13 @@ def user_is_moderator(user) -> bool:
     except Exception:
         return False
 
-
 def user_can_see_project(user, project) -> bool:
     """Published is public. Pending/quarantined is owner or moderator only.
 
     'removed' (soft-deleted): the page is gone for everyone except
-    moderators — buyers keep the *download*, not the listing. 5 Whys:
-    Why hide the page from buyers too? The creator asked for the vibe to
-    be gone; the purchase contract covers the ZIP, not the storefront.
+    moderators — buyers keep the *download*, not the listing. The page is
+    hidden from buyers too because the creator asked for the vibe to be gone;
+    the purchase contract covers the ZIP, not the storefront.
     """
     status = getattr(project, 'status', None)
     if status == 'published':
@@ -36,7 +34,6 @@ def user_can_see_project(user, project) -> bool:
         return True
     return user_is_moderator(user)
 
-
 def effective_star_cost(project) -> int:
     try:
         if not project.owner.profile.allow_trading:
@@ -45,12 +42,11 @@ def effective_star_cost(project) -> int:
         pass
     return int(project.star_cost or 0)
 
-
 def effective_price_zar(project) -> int:
-    # 5 Whys: a ZAR-only vibe must not stay locked when cards are off.
-    # Why lock? price_zar > 0. Why can't they pay? no PAYSTACK_SECRET_KEY.
-    # Why no star fallback? star_cost may be 0. Why is that a fake paywall?
-    # Because we hide Buy and still refuse the ZIP. Treat ZAR as 0 until cards work.
+    # A ZAR-only vibe must not stay locked when cards are off: price_zar > 0
+    # locks the ZIP, but with no PAYSTACK_SECRET_KEY the user can't pay and
+    # star_cost may be 0, so hiding Buy while refusing the file is a fake
+    # paywall. Treat ZAR as 0 until cards work.
     try:
         from .payments import paystack_enabled
         if not paystack_enabled():
@@ -58,7 +54,6 @@ def effective_price_zar(project) -> int:
     except Exception:
         return 0
     return int(project.price_zar or 0)
-
 
 def user_can_download(user, project) -> bool:
     status = getattr(project, "status", None)
@@ -85,23 +80,6 @@ def user_can_download(user, project) -> bool:
         return False
     if getattr(user, "is_authenticated", False) and user.pk == project.owner_id:
         return True
-    # 5 Whys — why does a receipt outrank the rescan state?
-    # 1. Why does this matter? An edit (or a `git push`) moves a vibe back
-    #    to pending while it is re-scanned. Under the old rule a buyer's
-    #    download broke for the whole rescan — and forever if the scanner
-    #    was unavailable. They paid; the outage was not theirs.
-    # 2. Why not just keep serving the pending bytes? Because those bytes
-    #    have not been scanned yet. The download view therefore serves the
-    #    last *scanned* version (see last_scanned_version), never the
-    #    un-checked archive.
-    # 3. Why check the receipt before the price? A free vibe that is
-    #    mid-rescan has no receipt, so it correctly stays locked for a
-    #    stranger; only paid access survives the pipeline.
-    # 4. Why not allow moderators? Review happens in the moderation queue
-    #    and on the detail page; a download is not a review tool.
-    # 5. Why is 'removed' handled above and 'quarantined' refused here?
-    #    Removal is the creator's choice, quarantine is the scanner's;
-    #    the first must not punish buyers, the second must protect them.
     if status == "pending" and getattr(user, "is_authenticated", False):
         if (
             Trade.objects.filter(buyer=user, project=project).exists()
@@ -122,7 +100,6 @@ def user_can_download(user, project) -> bool:
         return True
     return False
 
-
 def last_scanned_version(project):
     """The most recent archived ZIP for a vibe that is mid-rescan.
 
@@ -140,7 +117,6 @@ def last_scanned_version(project):
         return project.versions.order_by('-created_at').first()
     except Exception:
         return None
-
 
 def access_denied_message(user, project) -> str:
     cost = effective_star_cost(project)

@@ -9,7 +9,6 @@ from users.forms import SignUpForm
 from users.models import AdminLog, Follow, Payout, Profile, StarEvent
 from gallery.models import AppProject, Category, Notification
 
-
 @override_settings(RATELIMIT_ENABLE=False)
 class AuthAndProTests(TestCase):
     def test_signup_requires_email(self):
@@ -187,15 +186,14 @@ class AuthAndProTests(TestCase):
         self.assertContains(response, 'stars are the complete money path')
         self.assertNotContains(response, 'YOUR PAYOUT (85%)')
 
-
 @override_settings(RATELIMIT_ENABLE=False)
 class ProfileAndFollowTests(TestCase):
     """The whole profile + follow surface — the community backbone.
 
-    5 Whys: Why test this surface at all? Every discovery flow on the site
-    funnels through it: feed -> creator name -> profile -> follow. It had
-    ZERO tests while trading/payments had many; the follow economy cannot be
-    trusted if "click creator name" is the only untested hop in the chain.
+    It's tested because every discovery flow funnels through it:
+    feed -> creator name -> profile -> follow. It had zero tests while
+    trading/payments had many; the follow economy can't be trusted if "click
+    creator name" is the only untested hop in the chain.
     """
 
     def _make_user(self, username, **kw):
@@ -213,7 +211,7 @@ class ProfileAndFollowTests(TestCase):
             stars=stars,
         )
 
-    # --- Profile page ---
+    # Profile page
 
     def test_profile_page_renders_for_anonymous(self):
         owner = self._make_user('maker')
@@ -254,7 +252,7 @@ class ProfileAndFollowTests(TestCase):
         self.assertContains(response, 'Public one')
         self.assertNotContains(response, 'Hidden one')
 
-    # --- Creator-name links from discovery surfaces ---
+    # Creator-name links from discovery surfaces
 
     def test_feed_links_creator_names_to_profiles(self):
         owner = self._make_user('feedstar')
@@ -268,7 +266,7 @@ class ProfileAndFollowTests(TestCase):
         response = self.client.get(project.get_absolute_url())
         self.assertContains(response, '/u/publisher/')
 
-    # --- Follow ---
+    # Follow
 
     def test_follow_toggle_and_unfollow(self):
         fan = self._make_user('fan')
@@ -309,21 +307,20 @@ class ProfileAndFollowTests(TestCase):
     @override_settings(
         RATELIMIT_ENABLE=True,
         RATELIMIT_USE_CACHE='ratelimit',
-        # 5 Whys: Why pin the cache here? The rate-limit cache follows
-        # REDIS_URL from .env at settings-import time. A test that silently
-        # depends on whether .env exists (Redis up or down) would pass on
-        # one machine and crash on another — a hermetic test pins locmem.
+        # Pin the cache here: the rate-limit cache follows REDIS_URL from .env
+        # at settings-import time, so a test that silently depends on whether
+        # .env exists would pass on one machine and crash on another — a
+        # hermetic test pins locmem.
         CACHES={
             'default': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'test-default'},
             'ratelimit': {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache', 'LOCATION': 'test-ratelimit'},
         },
     )
     def test_follow_is_rate_limited(self):
-        # 5 Whys: Why assert 403, not 429? This codebase's ratelimit pattern
-        # (django-ratelimit 4.x, block=True) raises Ratelimited, which Django
-        # maps through handler403 to the site's friendly safe_403 page — the
-        # same behaviour publish/comments/battles have. Follow must not be
-        # the odd one out.
+        # Assert 403, not 429: the codebase's ratelimit pattern (django-ratelimit
+        # 4.x, block=True) raises Ratelimited, which Django maps through
+        # handler403 to the friendly safe_403 page — same as publish/comments/
+        # battles, so follow must not be the odd one out.
         self._make_user('bot')
         self._make_user('t1')
         self._make_user('t2')
@@ -334,7 +331,7 @@ class ProfileAndFollowTests(TestCase):
             last = self.client.post(f'/u/{target}/follow/')
         self.assertEqual(last.status_code, 403)
 
-    # --- Tabs ---
+    # Tabs
 
     def test_followers_tab_lists_followers(self):
         fan = self._make_user('fan')
@@ -370,15 +367,13 @@ class ProfileAndFollowTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Fallback vibe')
 
-
 @override_settings(RATELIMIT_ENABLE=False)
 class TipTests(TestCase):
     """Star tipping — the gratitude money path.
 
-    5 Whys: Why test tips like trades? Tips move spendable currency —
-    the same blast radius as a Trade. The wallet must be provably
-    zero-sum, ledgered, and gated, or the economy's "no minting" rule
-    is just a comment.
+    Tips are tested like trades because they move spendable currency — the
+    same blast radius. The wallet must be provably zero-sum, ledgered and
+    gated, or the economy's "no minting" rule is just a comment.
     """
 
     def _make_user(self, username, verified=True):
@@ -390,7 +385,7 @@ class TipTests(TestCase):
             grant_welcome_stars(user)  # real wallet path -> 5★
         return user
 
-    # --- Wallet moves ---
+    # Wallet moves
 
     def test_tip_moves_stars_and_writes_ledger(self):
         from gallery.models import Notification
@@ -514,7 +509,7 @@ class TipTests(TestCase):
             last = self.client.post(f'/u/victim{i % 3}/tip/', {'amount': '1'})
         self.assertEqual(last.status_code, 403)
 
-    # --- UI surfaces ---
+    # UI surfaces
 
     def test_profile_shows_recent_tips(self):
         self._make_user('giver')
@@ -536,15 +531,14 @@ class TipTests(TestCase):
         self.assertContains(response, 'Tips received')
         self.assertContains(response, '+4 ★')
 
-
 class ChartTests(TestCase):
     """Earnings-page charts — real ledger data, honest empty states.
 
-    5 Whys: Why test SVG markup? The charts are the one place the template
-    renders Python-built HTML with |safe. The generators only emit dates
-    and integers (no user text), but a regression that let user content
-    into the SVG would be an XSS hole — so the tests pin what the chart
-    CAN and CANNOT contain, and what the empty state says.
+    The SVG markup is tested because charts are the one place the template
+    renders Python-built HTML with |safe. The generators only emit dates and
+    integers (no user text), but a regression letting user content into the
+    SVG would be an XSS hole — so the tests pin what the chart CAN and CANNOT
+    contain, plus the empty-state text.
     """
 
     def _user_with_balance(self, username, balance):
@@ -624,15 +618,13 @@ class ChartTests(TestCase):
         # The payload still exists in the DB — it was just rendered escaped.
         self.assertContains(response, '&lt;script&gt;alert(1)&lt;/script&gt;')
 
-
 class AppDetailTipTests(TestCase):
-    """The ⭐ Tip widget on app-detail pages — same backend, new surface.
+    """The star Tip widget on app-detail pages — same backend, new surface.
 
-    5 Whys: Why test the widget, not just the endpoint? The endpoint is
-    already covered by TipTests; these tests pin the DISCOVERY surface —
-    that a visitor on a vibe page can find the tip button, that the owner
-    never sees it on their own vibe, and that anonymous visitors get the
-    login path instead.
+    These test the widget, not just the endpoint (covered by TipTests): they
+    pin the DISCOVERY surface — that a visitor on a vibe page can find the tip
+    button, the owner never sees it on their own vibe, and anonymous visitors
+    get the login path instead.
     """
 
     def setUp(self):
@@ -682,7 +674,6 @@ class AppDetailTipTests(TestCase):
         self.assertEqual(self.owner.profile.stars_balance, 2)
         self.fan.profile.refresh_from_db()
         self.assertEqual(self.fan.profile.stars_balance, 3)
-
 
 @override_settings(RATELIMIT_ENABLE=False)
 class PayoutTests(TestCase):
@@ -839,7 +830,6 @@ class PayoutTests(TestCase):
         response = self.client.get('/admin/payouts/')
         self.assertContains(response, '500 ★ → R50')
         self.assertContains(response, '1234567890')  # money admins see full digits
-
 
 class PaystackTransferTests(TestCase):
     """initiate_payout_transfer — real API shape, mocked wire.

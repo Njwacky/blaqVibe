@@ -1,31 +1,6 @@
 """Program-kind classification: heuristic floor + selective LLM lift.
-
 Public entry point: `classify_project(project)`. It is called from the
 upload pipeline (after the scan, before publish) and from `edit_vibe`.
-
-5 Whys — why is the LLM *selective* rather than always-on?
-
-1. Why not classify every upload with the LLM? The load target is "tons of
-   people uploading every second". One call per upload makes the publish
-   pipeline's throughput equal to a third party's rate limit, and its cost
-   linear in spam.
-2. Why not classify none of them with the LLM? The heuristic is a keyword
-   and filename table. It is confidently right on a Godot project and
-   genuinely lost on "Mzansi Runner — my little side thing" with a ZIP of
-   six `.js` files. Those ambiguous rows are exactly the ones a human
-   would want a second opinion on.
-3. Why gate on heuristic confidence specifically? Confidence already
-   measures "how much evidence, how clear a winner". Spending the call
-   where confidence is low puts the budget where it changes the answer.
-4. Why a token-bucket budget on top of the confidence gate? Confidence is
-   a property of one upload; a spam wave of a thousand identical
-   low-confidence ZIPs would still pass the gate a thousand times. The
-   bucket makes the worst case a *constant* number of calls per minute,
-   and rows that miss the bucket keep their heuristic kind — degraded,
-   never broken.
-5. Why does the LLM never get to invent a kind? `coerce_kind` funnels its
-   answer into the taxonomy. An LLM that returns "roguelike-ish" must not
-   create a bucket nothing can filter, rank, or learn from.
 """
 import json
 import logging
@@ -45,14 +20,12 @@ LLM_CONFIDENCE_FLOOR = 0.55
 LLM_CALLS_PER_MINUTE = 30
 _BUCKET_KEY = 'blaqvibes:kind-llm-bucket'
 
-
 def _setting(name, default):
     try:
         from django.conf import settings
         return getattr(settings, name, default)
     except Exception:
         return default
-
 
 def _env(name):
     try:
@@ -62,11 +35,9 @@ def _env(name):
         val = os.getenv(name, '')
     return (val or '').strip()
 
-
 def llm_available():
     """True when some provider key is configured."""
     return bool(_env('ANTHROPIC_API_KEY') or _env('GEMINI_API_KEY') or _env('GROQ_API_KEY'))
-
 
 def needs_llm(heuristic):
     """Only ambiguous rows are worth a call."""
@@ -77,7 +48,6 @@ def needs_llm(heuristic):
     return float(heuristic.get('confidence') or 0) < _setting(
         'KIND_LLM_CONFIDENCE_FLOOR', LLM_CONFIDENCE_FLOOR
     )
-
 
 def _take_budget():
     """Per-minute token bucket. Returns True if this call may proceed.
@@ -111,7 +81,6 @@ def _take_budget():
         logger.warning('kind LLM budget check failed — skipping LLM')
         return False
 
-
 _PROMPT = """You label uploaded software projects for a code-sharing site.
 
 Reply with ONLY a JSON object, no prose:
@@ -131,7 +100,6 @@ README extract:
 {readme}
 """
 
-
 def _build_prompt(project):
     try:
         from .kind_detect import _shallow_paths
@@ -148,7 +116,6 @@ def _build_prompt(project):
         files=', '.join(files)[:600] or 'none',
         readme=(getattr(project, 'readme', '') or '')[:1200],
     )
-
 
 def _parse_llm_json(text):
     if not text:
@@ -179,7 +146,6 @@ def _parse_llm_json(text):
         'why': why,
     }
 
-
 def _call_claude(prompt):
     import requests
     key = _env('ANTHROPIC_API_KEY')
@@ -201,7 +167,6 @@ def _call_claude(prompt):
              if isinstance(b, dict) and b.get('type') == 'text']
     return _parse_llm_json(''.join(parts))
 
-
 def _call_gemini(prompt):
     key = _env('GEMINI_API_KEY')
     if not key:
@@ -213,7 +178,6 @@ def _call_gemini(prompt):
         prompt, generation_config={'temperature': 0.1, 'max_output_tokens': 200}
     )
     return _parse_llm_json(getattr(resp, 'text', '') or '')
-
 
 def _call_groq(prompt):
     key = _env('GROQ_API_KEY')
@@ -229,9 +193,7 @@ def _call_groq(prompt):
     )
     return _parse_llm_json(resp.choices[0].message.content or '')
 
-
 _PROVIDERS = (('claude', _call_claude), ('gemini', _call_gemini), ('groq', _call_groq))
-
 
 def llm_classify(project):
     """One LLM opinion, or None. Never raises."""
@@ -252,27 +214,12 @@ def llm_classify(project):
             return out
     return None
 
-
 def classify_project(project, allow_llm=True, save=True):
-    """Decide kind + preview mode for a project and (optionally) persist.
-
-    Precedence, highest first:
-      1. `creator_kind` — the human who wrote it said so explicitly.
-      2. LLM — only when the heuristic was unsure and budget allowed.
-      3. Heuristic.
-
-    5 Whys on creator-first:
-    1. Why does a creator's pick beat the model? They know what they built;
-       we are guessing from filenames.
-    2. Why keep classifying at all when they picked? `preview_mode` and the
-       appeal score still need computing, and a disagreement is a useful
-       moderation signal (stored in evidence).
-    3. Why not let them pick "preview mode" too? Capability is a fact about
-       our sandbox, not a preference — letting them claim a runnable
-       preview for a ZIP would be the dishonesty we are removing.
-    4. Why store evidence at all? So the badge is arguable (see kind_detect).
-    5. Why `save=False` available? Tests and the publish preview need the
-       verdict without a write.
+    """Decide kind + preview mode for a project and (optionally) persist. A
+    creator's explicit kind pick beats the model (they know what they built),
+    but classification still runs to set capability-derived preview_mode and to
+    store badge evidence (see kind_detect). `save=False` serves tests and the
+    publish preview.
     """
     heuristic = detect_kind(project)
     verdict = dict(heuristic)
@@ -300,18 +247,6 @@ def classify_project(project, allow_llm=True, save=True):
     verdict['kind'] = coerce_kind(verdict.get('kind'))
 
     # Can a ZIP actually run in the sandbox? Only if it is a static site.
-    # 5 Whys: Why decide this in the classifier and not the runner view?
-    # 1. preview_mode (the badge) and the runner must agree on ONE verdict;
-    #    computing it in two places invites a card that says "runnable" and a
-    #    preview that shows nothing.
-    # 2. The classifier already runs off the request path (scan queue / edit),
-    #    so the file-list walk costs queue time, not page time.
-    # 3. The file list is the only evidence — a build marker means "needs a
-    #    build/host", a real index.html means "opens in a browser".
-    # 4. Storing static_entry here means the runner opens exactly the file the
-    #    badge was decided from.
-    # 5. Snippets skip this entirely (html_code wins), so no ZIP is read for a
-    #    pure-snippet publish.
     static_runnable = False
     static_entry = ''
     if not (getattr(project, 'html_code', '') or '').strip() and getattr(project, 'zip_file', None):
@@ -346,21 +281,8 @@ def classify_project(project, allow_llm=True, save=True):
             logger.exception('classify_project save failed for %s', getattr(project, 'slug', '?'))
     return verdict
 
-
 def _project_paths(project):
     """The archive's file paths — from AppFile rows first, ZIP as fallback.
-
-    5 Whys:
-    1. Why prefer AppFile rows? They are already built at upload/scan time;
-       reading them is one indexed query, not a ZIP open.
-    2. Why fall back to the ZIP at all? An admin/seed/PR path may set the ZIP
-       before the AppFile rows exist, and classify must still be correct.
-    3. Why not always read the ZIP? On remote storage that is a network fetch;
-       doing it when the rows already answer the question is wasted I/O.
-    4. Why cap nothing here? detect_static_runnable is O(files) and the upload
-       validator already caps files at 1000.
-    5. Why swallow errors to []? An unreadable archive means "not runnable" —
-       the honest floor, never a crash.
     """
     try:
         rows = list(project.files.values_list('path', flat=True))

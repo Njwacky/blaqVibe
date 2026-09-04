@@ -1411,7 +1411,6 @@ ARTIFACT_ROUTES = (
     {"value": "extension", "name": "Extension", "icon": "gallery/icons/launch/brands/chrome-web-store.svg", "group": "desktop", "label": "A browser extension ZIP", "guides": ("chrome-web-store",), "note": "Chrome Web Store"},
 )
 
-
 def guides_for_category(category):
     """Return guides for a known category; unknown input safely falls back to all."""
     valid = {item["slug"] for item in CATEGORIES}

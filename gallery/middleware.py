@@ -1,22 +1,6 @@
 """
 Maintenance mode middleware — shows a 503 page when SiteSettings.maintenance
 is True for all users except superadmins.
-
-5 Whys:
-1. Why middleware not a view decorator? Maintenance must block EVERY route
-   (auth, admin, API, static) before any view code runs — a decorator on
-   every view would miss new views and would fire after middleware that
-   touches the DB (sessions, auth).
-2. Why not a context-processor flag that templates check? Templates are
-   the last layer; a CSRF token or a cache miss would still generate a
-   full page with 200 status, telling crawlers the site is up.
-3. Why skip static/media/admin paths? The maintenance page itself needs
-   CSS/images, and a superadmin fixing the cause needs the admin panel.
-4. Why default False? The site ships live; maintenance is an exceptional
-   state set by ops during deploys or DB migrations.
-5. Why catch every exception silently? A broken SiteSettings row must not
-   take the whole site down — the middleware falls through to normal
-   operation so the admin can fix it.
 """
 
 from http import cookies as http_cookies
@@ -28,23 +12,8 @@ from django.shortcuts import render
 http_cookies.Morsel._reserved.setdefault('partitioned', 'Partitioned')
 http_cookies.Morsel._flags.add('partitioned')
 
-
 class PreviewEmbedMiddleware:
     """Make CSRF/session cookies survive the Arena live-preview iframe.
-
-    5 Whys: why middleware, not only settings?
-    1. Why touch the response at all? SameSite=Lax cookies are first-party
-       only. The preview is https://{port}-{id}.e2b.app inside a parent
-       on another origin, so the browser never stores/sends csrftoken —
-       Django then says "CSRF cookie not set."
-    2. Why also key off the Host suffix? A runserver started without
-       E2B_SANDBOX still serves that host. Settings-only would miss it.
-    3. Why Partitioned? Chrome is dropping unpartitioned third-party
-       cookies. CHIPS is what still works in an iframe.
-    4. Why strip X-Frame-Options here? SAMEORIGIN / DENY blocks the
-       Arena iframe; production keeps DENY because Host is not e2b.app.
-    5. Why never rewrite cookies on blaqvibes.co.za? Production is
-       first-party. Lax + Secure is the CSRF posture we want there.
     """
 
     def __init__(self, get_response):
@@ -69,7 +38,6 @@ class PreviewEmbedMiddleware:
             morsel['partitioned'] = True
         return response
 
-
 def host_needs_embed_cookies(request):
     """True only for the e2b preview hostname, never for blaqvibes.co.za."""
     try:
@@ -77,7 +45,6 @@ def host_needs_embed_cookies(request):
     except Exception:
         return False
     return host.endswith('.e2b.app') or host.endswith('.e2b.dev')
-
 
 class MaintenanceModeMiddleware:
     """Responds 503 for all public paths when maintenance mode is on.

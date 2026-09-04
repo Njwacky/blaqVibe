@@ -1,31 +1,4 @@
 """Dependency audits that cannot execute, resolve or fetch what the uploader wrote.
-
-5 Whys: why a dedicated module instead of `subprocess.run(['pip-audit'], cwd=root)`?
-1. Why was the old call dangerous? `cwd=root` put the tool's working directory
-   INSIDE the attacker's extracted ZIP. pip-audit with no arguments auto-detects
-   that `requirements.txt`, then resolves it — a resolution step that is
-   `pip install --dry-run` in a throwaway venv. An uploaded manifest carrying
-   `--index-url http://attacker/`, `file:///app/…` or `-e .` therefore made the
-   worker send requests wherever the uploader pointed it and BUILD source
-   distributions, i.e. run `setup.py` from a package the attacker chose.
-   `npm audit` reads the project's own `.npmrc`, so `registry=http://…` in an
-   uploaded file redirected the audit the same way.
-2. Why does that matter more here than elsewhere? The scan runs in the Celery
-   worker, whose environment holds DATABASE_URL, REDIS_URL, the R2 keys and
-   PAYSTACK_SECRET_KEY. One upload becomes every credential in the deployment.
-3. Why not just sandbox the worker instead? Also right, and out of reach from a
-   pull request: the fix must hold on today's compose file. Defence in depth —
-   this module removes the capability, the container should still be network-
-   namespaced.
-4. Why keep the audits at all if we cannot trust the manifest? Because the
-   evidence is what the ✓ badge is made of (see `gallery/trust._deps_check`). We
-   keep the signal by re-deriving a SAFE input ourselves: exact `name==version`
-   pins only, our own index/registry, `--disable-pip`/`--no-deps` so nothing is
-   resolved or built, and a clean isolated directory holding only our files.
-5. Why fail to `ran: False` instead of guessing? A missing tool, an unreadable
-   manifest or a manifest we refused must not look like a passed check — the
-   grader then says 'scanned', never 'verified'. Honesty over coverage.
-
 Nothing here raises, nothing here installs, and nothing here reads a config file
 from the tree under scan.
 """
@@ -57,13 +30,11 @@ NPM_REGISTRY = 'https://registry.npmjs.org/'
 # Directories that are never the project's real manifest, only dependency noise.
 _SKIP_DIRS = {'node_modules', '.git', '__pycache__', '.venv', 'venv', '.npm-cache'}
 
-
 def tools_enabled() -> bool:
     """Set SCAN_AUDIT_TOOLS=0 to skip the audit tools entirely (still honest)."""
     return os.getenv('SCAN_AUDIT_TOOLS', '1').strip().lower() not in ('0', 'false', 'no', 'off')
 
-
-# --- manifest discovery ------------------------------------------------------
+# manifest discovery
 
 def find_manifests(root):
     """(package_json, package_lock, requirements_txt) — first of each, capped.
@@ -89,7 +60,6 @@ def find_manifests(root):
             break
     return pkg, lock, req
 
-
 def _read_limited(path):
     try:
         if os.path.getsize(path) > MAX_MANIFEST_BYTES:
@@ -98,7 +68,6 @@ def _read_limited(path):
             return fh.read(MAX_MANIFEST_BYTES + 1)[:MAX_MANIFEST_BYTES]
     except OSError:
         return None
-
 
 def safe_pip_pins(requirements_path):
     """Exact `name==version` pins from an untrusted requirements.txt.
@@ -129,7 +98,6 @@ def safe_pip_pins(requirements_path):
     if not pins:
         return None
     return pins
-
 
 def safe_npm_deps(package_json_path):
     """(name, version) pairs pinned in package.json's dependency blocks.
@@ -165,8 +133,7 @@ def safe_npm_deps(package_json_path):
         return None
     return out
 
-
-# --- isolated execution ------------------------------------------------------
+# isolated execution
 
 def _clean_env(isolated: str) -> dict:
     """A config-free environment: HOME, npmrc and pip conf point at our temp dir.
@@ -188,7 +155,6 @@ def _clean_env(isolated: str) -> dict:
         'PYTHONUNBUFFERED': '1',
     }
 
-
 def _prepare_isolation():
     """Our own scratch dir, with the neutral config files npm/pip will read."""
     isolated = tempfile.mkdtemp(prefix='bv-audit-')
@@ -206,14 +172,12 @@ def _prepare_isolation():
     Path(isolated, 'pip.conf').write_text('[global]\nindex-url = https://pypi.org/simple\n', encoding='utf-8')
     return isolated
 
-
 def _run(cmd, isolated, extra_env=None):
     env = _clean_env(isolated)
     env.update(extra_env or {})
     return subprocess.run(
         cmd, cwd=isolated, capture_output=True, timeout=AUDIT_TIMEOUT, env=env,
     )
-
 
 def audit_pip(pins, isolated):
     """Vulnerable package names among `pins`. (name|None, ran, reason)."""
@@ -257,7 +221,6 @@ def audit_pip(pins, isolated):
         except AttributeError:
             continue
     return names[:MAX_RESULTS], True, 'ok'
-
 
 def audit_npm(package_json_path, lock_path, isolated):
     """Vulnerable package names for an npm project, without touching its files.
@@ -326,7 +289,6 @@ def audit_npm(package_json_path, lock_path, isolated):
         # pass would hand a project an 'audited, 0 known CVEs' tick for free.
         return [], False, 'empty_report'
     return names, True, 'ok'
-
 
 def run_dep_audits(extract_root):
     """{npm, pip, dep_audit} for a freshly extracted project tree.

@@ -1,25 +1,7 @@
 """Detect what kind of shippable artifact a ZIP contains.
-
 Closes the publish → launch loop: after a vibe is published we look at its
 file list and point the creator at the matching launch guide
 (/launch/?artifact=<value>).
-
-5 Whys:
-1. Why detect at all? After publish, nothing told the creator what to do
-   next — the launch hub was a separate island nobody found.
-2. Why detect from the stored file list (AppFile / file_tree) and not by
-   re-reading the ZIP? The tree is already extracted at upload; reading
-   the archive again is wasted I/O and another storage round-trip.
-3. Why first-match priority order instead of returning every match?
-   A Next.js repo contains package.json AND often a Dockerfile. The
-   creator needs ONE next step, not a quiz. Specific beats generic:
-   aab > apple > extension > flatpak > container > frontend > pwa > static.
-4. Why only look at the top two path segments? ZIPs usually wrap
-   everything in one root folder. node_modules/foo/package.json three
-   levels down is a dependency, not the project.
-5. Why must every returned value exist in ARTIFACT_ROUTES? The value goes
-   straight into /launch/?artifact=… — an unknown value silently shows
-   nothing. The test suite cross-checks the two tables.
 """
 from .launch_guides import ARTIFACT_ROUTES
 
@@ -28,16 +10,13 @@ _ROUTE_VALUES = {route['value'] for route in ARTIFACT_ROUTES}
 # (artifact value, matcher) — first hit wins, most specific first.
 # Matchers get (basename_lower, full_path_lower) for each candidate file.
 
-
 def _name_is(*names):
     wanted = set(names)
     return lambda base, path: base in wanted
 
-
 def _ext_is(*exts):
     suffixes = tuple(exts)
     return lambda base, path: base.endswith(suffixes)
-
 
 _DETECTORS = (
     ('aab', _ext_is('.aab')),
@@ -48,7 +27,6 @@ _DETECTORS = (
     ('frontend', _name_is('package.json')),
     ('static', _name_is('index.html', 'index.htm')),
 )
-
 
 def _candidate_paths(project):
     """Lower-cased file paths, shallow entries only (root + one folder)."""
@@ -71,7 +49,6 @@ def _candidate_paths(project):
                     if subchild is None:
                         paths.append(f'{lname}/{str(sub).lower()}')
     return paths
-
 
 def detect_artifact(project):
     """Return an ARTIFACT_ROUTES value for this project, or ''.
@@ -103,7 +80,6 @@ def detect_artifact(project):
         return ''
     except Exception:
         return ''
-
 
 def artifact_route(value):
     """The full route dict for a detected value, or None."""

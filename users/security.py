@@ -16,7 +16,6 @@ from .models import SecurityEvent
 def _digest(value):
     return hmac.new(settings.SECRET_KEY.encode(), value.encode(), hashlib.sha256).hexdigest()
 
-
 def client_ip(request):
     """Use forwarding headers only when the operator names trusted proxies."""
     remote = (request.META.get('REMOTE_ADDR') or '').strip()
@@ -26,7 +25,6 @@ def client_ip(request):
             return forwarded.split(',')[0].strip()
     return remote
 
-
 def masked_network(ip):
     try:
         parsed = ipaddress.ip_address(ip)
@@ -35,7 +33,6 @@ def masked_network(ip):
         return ':'.join(parsed.exploded.split(':')[:3]) + '::/48'
     except ValueError:
         return 'unknown network'
-
 
 def revoke_user_sessions(user, *, keep_session_key=None):
     """Delete every persisted session for a user except the current one."""
@@ -50,7 +47,6 @@ def revoke_user_sessions(user, *, keep_session_key=None):
             revoked += 1
     return revoked
 
-
 def revoke_git_token(user):
     """A password recovery is a compromise signal, not only a web logout."""
     profile = getattr(user, 'profile', None)
@@ -59,7 +55,6 @@ def revoke_git_token(user):
     profile.git_token_hash = ''
     profile.save(update_fields=['git_token_hash'])
     return True
-
 
 def record_login(request, user):
     ip = client_ip(request)
@@ -79,7 +74,6 @@ def record_login(request, user):
             settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=True,
         )
 
-
 class AccountPasswordChangeView(LoginRequiredMixin, PasswordChangeView):
     template_name = 'registration/password_change_form.html'
     success_url = reverse_lazy('password_change_done')
@@ -93,7 +87,6 @@ class AccountPasswordChangeView(LoginRequiredMixin, PasswordChangeView):
             SecurityEvent.objects.create(user=self.request.user, event='git_tokens_revoked')
         messages.success(self.request, 'Password changed. Other devices and Git credentials have been signed out.')
         return response
-
 
 class AccountPasswordResetConfirmView(PasswordResetConfirmView):
     def form_valid(self, form):

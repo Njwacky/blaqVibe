@@ -4,7 +4,7 @@ from django.contrib.auth.models import User
 from django.urls import reverse
 from django.utils.text import slugify
 
-# Price ceilings — see the 5 Whys on AppProject.star_cost.
+# Price ceilings — see the on AppProject.star_cost.
 MAX_STAR_COST = 5
 MAX_PRICE_ZAR = 9999
 
@@ -38,9 +38,9 @@ class Tag(models.Model):
 
 class AppProject(models.Model):
     # 'removed' is the soft-delete state: gone from feed/search/detail for
-    # strangers, but buyers who paid (Trade/Sale) keep their download.
-    # 5 Whys: Why a status, not a boolean? The status field already gates
-    # every list and view — one more state rides every existing filter.
+    # strangers, but buyers who paid (Trade/Sale) keep their download. It's a
+    # status rather than a boolean because the status field already gates every
+    # list and view — one more state rides every existing filter.
     STATUS_CHOICES = [
         ('pending','Pending Scan/Review'),
         ('published','Published'),
@@ -67,19 +67,6 @@ class AppProject(models.Model):
     file_tree = models.JSONField(default=dict, blank=True)
     file_count = models.PositiveIntegerField(default=0)
     language_stats = models.JSONField(default=dict, blank=True)  # {'Python':68,'JavaScript':22}
-    # Price caps are MODEL validators, not widget attributes. 5 Whys:
-    # 1. Why cap at all? `max=5` on the HTML widget is decoration — a stray
-    #    digit in a crafted POST (or a typo in a script) used to store
-    #    9999 ★ and the vibe became permanently unbuyable.
-    # 2. Why a model validator and not a form-only check? Every writer
-    #    (publish form, edit form, admin, a future API) goes through
-    #    full_clean() or the ModelForm, so one declaration guards them all.
-    # 3. Why 5? The published tiers are Bronze 1 / Silver 3 / Gold 5; the
-    #    whole UI and the copy ("0=free, 2=Bronze") are written against them.
-    # 4. Why 9999 ZAR and not a smaller ceiling? It is a sane upper bound for
-    #    an indie vibe, and Paystack's own limits apply long before ours.
-    # 5. Why not silently clamp? A clamped price hides a mistake the creator
-    #    still believes they set. Rejecting is honest and reversible.
     star_cost = models.PositiveIntegerField(
         default=0,
         validators=[MaxValueValidator(MAX_STAR_COST)],
@@ -101,18 +88,6 @@ class AppProject(models.Model):
     stars = models.PositiveIntegerField(default=0)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
     is_featured = models.BooleanField(default=False)
-    # --- What kind of program is this? -----------------------------------
-    # 5 Whys: Why store the kind instead of deriving it per request?
-    # 1. Discovery has to FILTER and SORT on it; a Python-derived value
-    #    cannot be a WHERE clause or an ORDER BY.
-    # 2. Deriving it means re-reading the file list for every card on every
-    #    page view — 12 extra queries per feed page, forever.
-    # 3. The classifier may call an LLM. Deriving on read would put a paid
-    #    network call inside a page render.
-    # 4. A stored value is auditable: kind_source/kind_evidence say who
-    #    decided and why, so a wrong badge can be argued with.
-    # 5. It is also correctable — a creator edit or a moderator override
-    #    writes the field, and everything downstream follows immediately.
     kind = models.CharField(
         max_length=20, choices=KIND_CHOICES, default=DEFAULT_KIND, db_index=True,
         help_text='What sort of program this is — auto-detected, creator can override.',
@@ -137,18 +112,8 @@ class AppProject(models.Model):
     # Which document inside a static_zip is the entry to assemble+run. Stored
     # for the same reason preview_mode is: the runner view must not re-scan the
     # archive on every hit, and a wrong entry is correctable by a rescan.
-    # 5 Whys: Why store the path, not re-derive it in the runner view?
-    # 1. detect_static_runnable already walked the file list at classify time;
-    #    re-walking the ZIP on every preview request is I/O we already paid.
-    # 2. The value the badge (preview_mode) was decided from and the value the
-    #    runner opens must be the SAME file, or the badge could promise a run
-    #    the runner cannot deliver.
-    # 3. It is auditable: a moderator can see which file we treat as the entry.
-    # 4. It is correctable — a rescan or edit rewrites it, like every other
-    #    pipeline-written field.
-    # 5. Blank is the honest default: no runnable entry means no static run.
     static_entry = models.CharField(max_length=500, blank=True, default='')
-    # --- Trust badge -------------------------------------------------------
+    # Trust badge
     # Public verdict derived from scan evidence by gallery.trust. Stored for
     # the same 4-point reasons `kind` is stored: (1) the feed must filter and
     # sort on it in SQL; (2) deriving per card would re-run regex scans on
@@ -236,12 +201,12 @@ class AppProject(models.Model):
             # Auto language detect (crush silently). Reads through the
             # storage API so it works on local disk AND S3/R2 — FieldFile.path
             # raises NotImplementedError on remote backends.
-            # 5 Whys: Why check the toggle here and not in the upload form?
-            # save() is the single entry point for every code path that
-            # creates or updates a project (publish, edit, fork, git push).
-            # Gating here means every path respects the user's choice. Why
-            # default True? Auto-detect is the primary discovery signal for
-            # trading; manual tech_stack only is a power-user opt-out.
+            # Check the toggle here (not in the upload form) because save() is
+            # the single entry point for every path that creates or updates a
+            # project (publish, edit, fork, git push) — gating here makes every
+            # path respect the choice. It defaults True because auto-detect is
+            # the primary discovery signal; manual tech_stack is a power-user
+            # opt-out.
             if self.zip_file and not self.language_stats:
                 try:
                     if getattr(self.owner.profile, 'auto_language', True):
@@ -256,7 +221,7 @@ class AppProject(models.Model):
         return reverse('app_detail', args=[self.slug])
     def __str__(self): return self.title
 
-    # --- Kind helpers (templates + API read these, never a raw string) ---
+    # Kind helpers (templates + API read these, never a raw string)
     @property
     def kind_meta(self):
         return kind_meta(self.kind)
@@ -387,25 +352,9 @@ class AppReport(models.Model):
 
 class ProjectCoOwner(models.Model):
     """A revenue share in a vibe's star trades.
-
-    The OWNER keeps whatever the co-owners don't: owner_share =
-    100 − Σ(co-owner share_percent). Adding or removing a co-owner never
-    rewrites existing rows — the remainder always rebalances itself.
-
-    5 Whys:
-    1. Why percentages, not absolute star amounts? Star cost changes over
-       time (0 → 3 → 5); a percentage stays fair at every price point.
-    2. Why a separate table instead of a second owner FK on AppProject?
-       owner is non-null everywhere (templates, ranks, lifecycle ghost).
-       The table keeps owner = accountable entity; money splits are a
-       separate, removable attribute.
-    3. Why CASCADE on project? The row is pure metadata about the project;
-       a hard project delete (never paid) should take the split with it.
-    4. Why CASCADE on user? A co-owner leaving the platform removes their
-       share automatically — their percentage silently returns to the owner.
-    5. Why cap each share at 100 and validate the sum? The form enforces
-       Σ ≤ 100 so the owner's remainder never goes negative; the Check
-      Constraint guards direct writes.
+        The OWNER keeps whatever the co-owners don't: owner_share =
+        100 − Σ(co-owner share_percent). Adding or removing a co-owner never
+        rewrites existing rows — the remainder always rebalances itself.
     """
     project = models.ForeignKey(AppProject, on_delete=models.CASCADE, related_name='co_owners')
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='co_owned_projects')
@@ -424,7 +373,6 @@ class ProjectCoOwner(models.Model):
     def __str__(self):
         return f'@{self.user.username} {self.share_percent}% of {self.project.slug}'
 
-
 class AppVersion(models.Model):
     """Git-like versions — Why not overwrite zip? History + stars preserved, rollback."""
     project = models.ForeignKey(AppProject, on_delete=models.CASCADE, related_name='versions')
@@ -438,25 +386,6 @@ class AppVersion(models.Model):
 
 class Trade(models.Model):
     """Star trading — a money record.
-
-    5 Whys on the FK rules:
-    1. Why PROTECT the project? A hard project delete used to cascade
-       every buyer's receipt AND their paid download. Money records must
-       outlive content — content soft-deletes instead (status='removed').
-    2. Why SET_NULL on buyer/seller? Deleting *your* account must not
-       delete the *other* party's receipt.
-    3. Why nullable users but a protected project? The project row carries
-       the ZIP buyers paid for; a user row carries nothing the counterparty
-       needs.
-    4. Why NO unique (buyer, project) anymore? Co-owner splits create one
-       Trade row PER RECIPIENT (owner + each co-owner) so ranks, payout
-       dashboards and ledger refs each see exactly their share. "One
-       purchase per buyer" is now enforced in code (the early-return guard
-       + the re-check under the project lock in trade_for_download), not
-       by the schema — and the project-row lock serializes concurrent
-       purchases, which is stronger than letting one INSERT fail.
-    5. Why not soft-delete users too? Django auth deletion is a legal
-       (POPIA) erasure path; receipts just stop naming them.
     """
     buyer = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='trades_bought')
     seller = models.ForeignKey(User, null=True, blank=True, on_delete=models.SET_NULL, related_name='trades_sold')
@@ -502,7 +431,6 @@ class Sale(models.Model):
             ),
         ]
     def __str__(self): return f"{self.buyer} → {self.project.slug} R{self.amount_zar}"
-
 
 class PaymentIntent(models.Model):
     """Frozen checkout — webhook fulfills this row, not the live price_zar."""
@@ -590,7 +518,7 @@ class BattleVote(models.Model):
         unique_together = ('user','battle')
     def __str__(self): return f"{self.user} voted {self.choice} on {self.battle_id}"
 
-# Deploy model removed. 5 Whys: Why delete instead of keep? It promised
+# Deploy model removed. delete instead of keep? It promised
 # "Running" live deployments that never existed — the view only redirected
 # to the in-app preview. Dead capability code is a lie in the schema; when
 # real hosting ships it gets a real model designed for it.
@@ -634,7 +562,6 @@ class PullRequest(models.Model):
         indexes = [models.Index(fields=['target','status']), models.Index(fields=['source'])]
     def __str__(self): return f"PR #{self.id} {self.source.slug} → {self.target.slug} ({self.status})"
 
-
 class Notification(models.Model):
     KIND_CHOICES = [
         ('comment', 'Comment'),
@@ -673,7 +600,6 @@ class Notification(models.Model):
     def __str__(self):
         return f'{self.user} {self.kind}: {self.title}'
 
-
 class Bookmark(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bookmarks')
     project = models.ForeignKey(AppProject, on_delete=models.CASCADE, related_name='bookmarks')
@@ -686,31 +612,9 @@ class Bookmark(models.Model):
     def __str__(self):
         return f'{self.user} ♥ {self.project.slug}'
 
-
 class KindAffinity(models.Model):
     """What one user has shown they like, per program kind.
-
-    One row per (user, kind) — at most 14 rows per user, forever.
-
-    5 Whys — why a rolled-up score table instead of ranking from raw events?
-
-    1. Why not just query VibeView/Star/Trade at feed time? Ranking a page
-       would need a per-user aggregate over the whole event history on every
-       request. At "tons of uploads a second" scale the read path is the hot
-       path; it must touch a bounded number of rows.
-    2. Why not cache that aggregate instead? A cache still has to be built
-       from the events on a miss, so the worst case (cold cache, big user)
-       is unchanged. A materialised row has no cold case.
-    3. Why per-kind rather than per-project embeddings? 14 buckets is the
-       smallest thing that can express "push games to the front", which is
-       the actual request. Per-project similarity is a different, far more
-       expensive product and is not needed to answer it.
-    4. Why keep `score` decayed rather than a raw count? Taste changes. A
-       user who played games in March and now ships APIs should see APIs;
-       an undecayed counter would keep them on games forever.
-    5. Why store `updated_at` per row instead of decaying on a schedule?
-       Lazy decay-on-read means no periodic job over every user, and a
-       dormant user's row is decayed correctly the moment they return.
+        One row per (user, kind) — at most 14 rows per user, forever.
     """
 
     # Weights per interaction. Ordered by how much intent each one proves:
@@ -747,29 +651,8 @@ class KindAffinity(models.Model):
     def __str__(self):
         return f'{self.user} likes {self.kind} ({self.score:.1f})'
 
-
 class CloneEvent(models.Model):
     """Append-only clone log — the admin charts' source of truth.
-
-    5 Whys:
-    1. Why a log table instead of charting `AppProject.clones`? That counter
-       is cumulative with no timestamps — a "clones/day" chart drawn from it
-       would be fiction. This table is the one append-only time series the
-       clone metric actually has.
-    2. Why both a counter AND rows? Cards/ranks need the cheap integer; the
-       dashboard needs the history. `record_clone` writes both in the same
-       code path so they can never drift.
-    3. Why `source` ('git' | 'zip')? A ZIP download and a `git clone` are
-       different behaviours — the chart can show them separately, and the
-       git daemon throttles only its own rows (a retried pack transfer must
-       not mint a clone per retry).
-    4. Why an ip_hash for anonymous rows only? Git clones are throttled per
-       actor per project per hour; authenticated users are keyed by user,
-       anonymous by a SHA-256 of the IP — no raw IP is stored, and the hash
-       is used only for that throttle and the anonymous slice of the chart.
-    5. Why CASCADE on project but SET_NULL on user? Clone history belongs to
-       the vibe; if the account goes away (POPIA erasure), the row stays as
-       an anonymous event instead of vanishing from the chart.
     """
     SOURCE_CHOICES = [('git', 'git clone/fetch'), ('zip', 'zip download')]
     project = models.ForeignKey(AppProject, on_delete=models.CASCADE, related_name='clone_events')

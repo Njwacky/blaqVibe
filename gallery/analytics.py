@@ -1,24 +1,8 @@
 """Creator analytics — the numbers a creator would come back for.
-
 Privacy rule: everything here is scoped to ONE project owned by the
 caller, or aggregated across the caller's own vibes. There is no function
 in this module that takes another user's id, so a view cannot accidentally
 leak somebody else's numbers by passing the wrong argument.
-
-5 Whys (why per-project stats live here and not on the detail page)
-1. The detail page is public; views/followers/trade counts are not. Mixing
-   them invites a template edit to leak a private number.
-2. Why counts from event tables and not the cached counters?
-   AppProject.views/clones/stars are cumulative integers with no dates, so
-   they cannot answer "today" — the whole point of the page. Event rows
-   (VibeView, CloneEvent, Star, Trade) carry timestamps.
-3. Why 14 days? Long enough to see a trend, short enough to render as a
-   bar you can read on a phone.
-4. Why return plain dicts? The template draws them; the same dicts are
-   what the tests assert on, without parsing HTML.
-5. Why rank against the vibe's own kind? "You're #12 in Python projects"
-   is a claim a creator can act on. A global rank against games, bots and
-   extensions is noise.
 """
 import logging
 from datetime import timedelta
@@ -30,7 +14,6 @@ from django.utils import timezone
 logger = logging.getLogger(__name__)
 
 WINDOW_DAYS = 14
-
 
 def _daily_counts(queryset, date_field='created_at', days=WINDOW_DAYS):
     """[(date, count)] for the window, zero-filled (a chart needs gaps)."""
@@ -45,16 +28,13 @@ def _daily_counts(queryset, date_field='created_at', days=WINDOW_DAYS):
     return [(start + timedelta(days=i), counts.get(start + timedelta(days=i), 0))
             for i in range(days)]
 
-
 def _in_window(queryset, date_field='created_at', days=1):
     since = timezone.now() - timedelta(days=days)
     return queryset.filter(**{f'{date_field}__gte': since}).count()
 
-
 def _series_with_max(pairs):
     """([(date, n)], max) — the template needs the max to scale its bars."""
     return pairs, max((n for _d, n in pairs), default=0)
-
 
 def project_stats(project, days=WINDOW_DAYS):
     """Everything a creator needs to know about one of their own vibes."""
@@ -96,7 +76,6 @@ def project_stats(project, days=WINDOW_DAYS):
                 'downloads_series': [], 'downloads_max': 0,
                 'rank_in_kind': None, 'days': days}
 
-
 def rank_in_kind(project):
     """1-based position of this vibe among published vibes of its kind."""
     from .models import AppProject
@@ -109,7 +88,6 @@ def rank_in_kind(project):
     except Exception:
         logger.debug('rank_in_kind failed %s', getattr(project, 'slug', '?'))
         return None
-
 
 def creator_stats(user, days=WINDOW_DAYS):
     """Totals across everything the creator owns (owner-scoped only)."""

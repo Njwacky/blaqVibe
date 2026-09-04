@@ -5,7 +5,6 @@ from django.http import FileResponse, Http404
 
 BLOCKED_PREFIXES = ('apps/zips/', 'apps/versions/')
 
-
 def serve_public_media(request, path):
     """Local MEDIA server that never streams paid ZIP bytes."""
     norm = (path or '').replace('\\', '/').lstrip('/')

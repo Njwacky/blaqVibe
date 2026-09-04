@@ -2,7 +2,6 @@ from django.contrib import admin
 
 from .models import AdminLog, Profile, StarEvent
 
-
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'role', 'stars_balance', 'is_pro', 'email_verified', 'created_at')
@@ -12,7 +11,6 @@ class ProfileAdmin(admin.ModelAdmin):
     # here would desync it from StarEvent — use a StarEvent('admin_adjust')
     # via the ledger instead.
     readonly_fields = ('stars_balance',)
-
 
 @admin.register(StarEvent)
 class StarEventAdmin(admin.ModelAdmin):
@@ -30,7 +28,6 @@ class StarEventAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
-
 
 @admin.register(AdminLog)
 class AdminLogAdmin(admin.ModelAdmin):

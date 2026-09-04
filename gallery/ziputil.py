@@ -1,22 +1,4 @@
 """Storage-agnostic access to project ZIPs.
-
-5 Whys:
-1. Why does this module exist? Six call sites used `project.zip_file.path`.
-   `FieldFile.path` raises NotImplementedError on remote storage (S3/R2),
-   so the scan → publish pipeline died in the exact production config the
-   storage hardening was built for.
-2. Why did nobody notice? Dev and tests always run on local MEDIA_ROOT,
-   and the callers wrapped everything in broad `except Exception`.
-3. Why two helpers instead of one? Most callers (tree build, secrets scan,
-   language detect, file preview) only need to READ the archive —
-   zipfile.ZipFile accepts a file object, so `open_zip()` streams straight
-   from storage with no temp file. Only external tools that demand a real
-   filesystem path (clamscan) need `materialized_path()`.
-4. Why a context manager for materialization? A temp copy of a 100 MB ZIP
-   that is never cleaned up is a disk-leak per scan. `with` ties the file's
-   lifetime to the work.
-5. Why keep using .path when it exists? Local disk needs no copy —
-   materializing there would double I/O for nothing.
 """
 import contextlib
 import os
@@ -24,14 +6,12 @@ import shutil
 import tempfile
 import zipfile
 
-
 def _local_path(file_field):
     """The real filesystem path, or None on remote storage."""
     try:
         return file_field.path
     except (NotImplementedError, ValueError, AttributeError):
         return None
-
 
 @contextlib.contextmanager
 def open_zip(file_field):
@@ -51,7 +31,6 @@ def open_zip(file_field):
             yield zf
     finally:
         file_field.close()
-
 
 @contextlib.contextmanager
 def materialized_path(file_field, suffix='.zip'):
@@ -83,7 +62,6 @@ def materialized_path(file_field, suffix='.zip'):
             os.unlink(tmp.name)
         except OSError:
             pass
-
 
 def build_tree(file_field):
     """(tree_dict, file_list) from a ZIP FileField on any storage."""

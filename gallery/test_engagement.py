@@ -40,7 +40,6 @@ from gallery.tests import make_category, make_project, make_user, make_zip_bytes
 
 from users.progress import LEVELS, XP_BY_REASON, award, level_for, progress_for, sync_achievements
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-engagement-tests')
 class FollowAndFollowingTabTests(TestCase):
     """P1: follow a creator, then read a feed of only those creators."""
@@ -148,7 +147,6 @@ class FollowAndFollowingTabTests(TestCase):
         for url in ('/?q=Zebra', '/?following=1', '/?kind=snippet', '/?sort=stars&q=x'):
             self.assertNotIn('BLAQVIBES TODAY', self.client.get(url).content.decode(), url)
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-engagement-tests')
 class DailyChallengeTests(TestCase):
     """P1: one prompt per calendar day, deterministic, idempotent."""
@@ -186,7 +184,6 @@ class DailyChallengeTests(TestCase):
         body = self.client.get(f'/challenges/{challenge.tag}/').content.decode()
         self.assertIn(entry.slug, body)
         self.assertNotIn(secret.slug, body)
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-engagement-tests')
 class TrendingAndRemixTests(TestCase):
@@ -261,7 +258,6 @@ class TrendingAndRemixTests(TestCase):
         body = self.client.get('/').content.decode()
         self.assertIn(self.hot.title, body)
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-engagement-tests')
 class AnalyticsTests(TestCase):
     """P1: creator analytics — correct numbers, and yours only."""
@@ -328,7 +324,6 @@ class AnalyticsTests(TestCase):
         body = self.client.get(f'/app/{self.project.slug}/stats/').content.decode()
         self.assertNotIn('Not Yours', body)
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-engagement-tests')
 class ProgressTests(TestCase):
     """P1: XP, levels and badges — earned, capped, never faked."""
@@ -380,7 +375,6 @@ class ProgressTests(TestCase):
         self.assertIn('L2', body)
         self.assertIn('progressbar', body)
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-engagement-tests')
 class NotificationSurfaceTests(TestCase):
     """P1: the notification helper behind every social write.
@@ -430,7 +424,6 @@ class NotificationSurfaceTests(TestCase):
         self.assertIn('fan row', body)
         self.assertNotIn('owner row', body)
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-engagement-tests')
 class RemixHistoryTests(TestCase):
     """P1: fork/remix history — visible, and never a window onto private work."""
@@ -471,7 +464,6 @@ class RemixHistoryTests(TestCase):
         body = self.client.get(f'/app/{self.root.slug}/forks/').content.decode()
         self.assertIn(fork.slug, body)
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-engagement-tests')
 class PersonalisedHomeTests(TestCase):
     """P1: For You — a ranked feed for people with signal, newest for the rest."""
@@ -497,7 +489,6 @@ class PersonalisedHomeTests(TestCase):
         taste.record(other, webapp.kind, 'star')
         self.assertEqual(taste.top_kinds(self.user, limit=3), [])
         self.assertEqual(taste.top_kinds(other, limit=3), ['web_app'])
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-engagement-tests')
 class QueryBudgetTests(TestCase):
@@ -567,7 +558,6 @@ class QueryBudgetTests(TestCase):
         with self.assertNumQueries(0):
             self.assertEqual(profile.stars_received(), first)
             self.assertEqual(profile.rank(), rank)
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-engagement-tests')
 class DailyChallengeJobTests(TestCase):

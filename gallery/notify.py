@@ -2,7 +2,6 @@ import logging
 
 logger = logging.getLogger(__name__)
 
-
 def notify(user, kind, title, body='', url=''):
     if not user:
         return None

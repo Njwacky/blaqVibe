@@ -1,7 +1,6 @@
 from django.contrib import admin
 from .models import Category, Tag, AppProject, AppFile, Comment, Star, ProjectCoOwner
 
-
 @admin.register(ProjectCoOwner)
 class ProjectCoOwnerAdmin(admin.ModelAdmin):
     list_display = ('project', 'user', 'share_percent', 'created_at')

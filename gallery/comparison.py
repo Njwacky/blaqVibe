@@ -1,27 +1,8 @@
 """Comparison matrix for the Launch hub — "which platform do I pick?".
-
 Curated rows reference guides by slug (never a parallel set of claims) and
 add one *cost* label per platform. Cost labels are deliberately coarse and
 were checked against each platform's pricing in August 2026; the live docs
 remain the authority and the row links to its guide.
-
-5 Whys:
-1. Why a matrix at all? The hub lists 22 destinations; a creator deciding
-   between Cloudflare/Netlify/Vercel or Render/Railway/Fly has no signal.
-   The matrix turns "22 cards" into "3 comparable choices".
-2. Why reference guides by slug instead of duplicating name/pace/best-for?
-   One source of truth: the guide data already holds pace, good_for and the
-   doc links, and the view joins them. Duplicating text would drift.
-3. Why a separate cost field and not a claim inside each guide? Pricing is
-   the fastest-moving fact. Keeping it in ONE curated table makes the
-   quarterly recheck a single diff instead of 22 edits, and the matrix is
-   the only surface that needs the label.
-4. Why coarse labels ("Free tier", "Trial credits") and not exact prices?
-   Exact numbers change and a wrong "US$5/mo" is a fabricated claim. The
-   coarse label survives a price change, and the row links to live docs.
-5. Why on the hub and not the guide pages? The decision is made BEFORE
-   opening a guide; the hub is where the user is choosing. Guide pages stay
-   focused on how-to.
 
 Maintenance: when a platform's pricing model changes, update ONLY the cost
 label here, then bump that guide's `last_reviewed` in launch_guides.py.
@@ -96,22 +77,8 @@ COMPARISON_GROUPS = (
 
 COMPARISON_BY_GROUP = {group["slug"]: group for group in COMPARISON_GROUPS}
 
-
 def enrich_comparison_groups(guide_by_slug):
     """Join comparison rows with guide data for the hub template.
-
-    5 Whys:
-    1. Why join here instead of storing full rows in comparison.py? The
-       guide dict is the single source for name/pace/eyebrow/good_for; the
-       matrix stores only slug + cost so nothing can drift.
-    2. Why return the guide in the row? The template needs the destination
-       link and label, and rendering already annotates guides elsewhere.
-    3. Why skip a row whose guide is missing? A typo'd slug would crash the
-       hub; skipping keeps the hub alive and a test catches the typo.
-    4. Why first two good_for items as "best for"? The matrix is a glance;
-       a long list defeats it, and the guide page has the full list.
-    5. Why keep group question text here? It is the decision prompt that
-       makes the matrix a chooser, not a table — copy belongs with data.
     """
     enriched = []
     for group in COMPARISON_GROUPS:

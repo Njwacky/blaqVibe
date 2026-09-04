@@ -1,22 +1,12 @@
 /* BlaqVibes Studio — in-browser editor. Write always; run only when signed in.
- *
- * 5 Whys (mirrored from gallery/views_community.studio):
- * 1. Why srcdoc in a sandboxed iframe, not a server round-trip per keystroke?
- *    `<iframe sandbox="allow-scripts" srcdoc>` is an opaque origin — the
- *    user's in-progress code cannot read cookies or the parent DOM — so we
- *    can run it instantly, locally, with zero latency and zero server load.
- * 2. Why NOT allow-same-origin on the frame? That would give the previewed
- *    code our origin (cookies, storage). allow-scripts alone keeps it opaque.
- * 3. Why require login to RUN, not to write? Writing is text. Running HTML/JS
- *    executes in the visitor's browser. The iframe is omitted from anonymous
- *    HTML so DevTools cannot conjure a runner the server never sent.
- * 4. Why not abort the whole script when `#studio-frame` is missing?
- *    Anonymous visitors still need tabs, drafts, Nolo, and the publish
- *    drawer. Only `render()` no-ops without a live frame.
- * 5. Why persist the draft in sessionStorage? Sign-in is a full navigation.
- *    Without a local draft, "you can write without an account" deletes the
- *    work at the conversion moment. sessionStorage dies with the tab;
- *    the server never stores anonymous code.
+ * The preview runs in `<iframe sandbox="allow-scripts" srcdoc>`, an opaque
+ * origin that can't read cookies or the parent DOM — so it runs instantly with
+ * no server round-trip. allow-same-origin is deliberately absent (that would
+ * hand the preview our origin). The iframe is omitted from anonymous HTML, so
+ * DevTools can't conjure a runner; drafts persist in sessionStorage because
+ * sign-in is a full navigation that would otherwise lose anonymous work. When
+ * `#studio-frame` is missing, only render() no-ops — tabs, drafts and the
+ * publish drawer still work.
  */
 (function () {
   'use strict';
@@ -177,7 +167,7 @@
     if (noloBox && !noloBox.hidden) noloBox.hidden = true;
   });
 
-  // --- Nolo: fix my code ---------------------------------------------------
+  // Nolo: fix my code.
   var noloBox = document.getElementById('studio-nolo');
   var noloSummary = document.getElementById('studio-nolo-summary');
   var noloFindings = document.getElementById('studio-nolo-findings');
@@ -240,7 +230,7 @@
   }
   if (noloClose) noloClose.addEventListener('click', function () { if (noloBox) noloBox.hidden = true; });
 
-  // --- Nolo: write my README ----------------------------------------------
+  // Nolo: write my README.
   var readmeBtn = document.getElementById('studio-readme');
   if (readmeBtn) {
     readmeBtn.addEventListener('click', function () {

@@ -18,9 +18,7 @@ from .rename import RESERVED_USERNAMES
 from gallery.profanity import validate_public_text
 import bleach
 
-
 ALLOWED_BIO_TAGS = []
-
 
 class ProfileForm(forms.ModelForm):
     class Meta:
@@ -73,13 +71,10 @@ class ProfileForm(forms.ModelForm):
                 raise forms.ValidationError("Only images")
         return f
 
-
 class TipForm(forms.Form):
-    """Gratitude stars — amount + optional note.
-
-    5 Whys: Why a form instead of parsing request.POST by hand? The same
-    bounds (1–1000) and sanitizer must apply no matter who calls the view —
-    a form is the one place they live, and the view stays a thin shell.
+    """Gratitude stars — amount + optional note. A form (rather than parsing
+    request.POST by hand) keeps the bounds (1-1000) and sanitizer in one place
+    no matter who calls the view, leaving the view a thin shell.
     """
     amount = forms.IntegerField(min_value=1, max_value=1000)
     message = forms.CharField(required=False, max_length=200)
@@ -89,7 +84,6 @@ class TipForm(forms.Form):
         # Then the public-language gate — a tip note shows on the profile.
         note = bleach.clean(self.cleaned_data.get('message', ''), tags=[], strip=True)[:200]
         return validate_public_text(note)
-
 
 class SignUpForm(UserCreationForm):
     email = forms.EmailField(
@@ -142,13 +136,12 @@ class SignUpForm(UserCreationForm):
         if not username:
             raise forms.ValidationError("Username is required.")
         if username.lower() in RESERVED_USERNAMES:
-            # 5 Whys: why here too, not just at rename? "admin"/"support" /
-            # "nolo" phishing works wherever the handle can appear, and
-            # signup is the FIRST place it can appear. One shared list
-            # (users/rename.py) gates both doors — no drift.
-            # Why mention sign-in? Operators try to *register* as admin
-            # with a placeholder password, get this error, and report
-            # "admin login never works." Point them at the real door.
+            # Gated at signup too, not just rename: "admin"/"support"/"nolo"
+            # phishing works wherever the handle can appear, and signup is the
+            # first place it can. One shared list (users/rename.py) gates both
+            # doors with no drift. The message mentions sign-in because
+            # operators try to *register* as admin, get this error, and report
+            # "admin login never works" — point them at the real door.
             raise forms.ValidationError(
                 "That username is reserved. Sign in if you already have "
                 "an operator account, or pick another name."
@@ -162,21 +155,8 @@ class SignUpForm(UserCreationForm):
             user.save()
         return user
 
-
 class ChangeEmailForm(forms.Form):
     """Fix the mailbox before we send another confirmation.
-
-    5 Whys: why a form instead of mailing User.email again?
-    1. Why edit first? The activate banner used to POST-resend to whatever
-       was stored. A typo at signup then mailed a mailbox the person
-       cannot open, forever.
-    2. Why the same uniqueness rule as SignUpForm? Two accounts with the
-       same address makes email-login a coin flip (see AuthenticationForm).
-    3. Why lowercase? Signup stores lowercased email; a mixed-case twin
-       would look unique and then collide on login.
-    4. Why exclude self? Resending to the current address must stay valid.
-    5. Why not live on ProfileForm? Bio/avatar is public chrome; the
-       mailbox is an auth credential and has its own confirm flow.
     """
     email = forms.EmailField(
         required=True,
@@ -201,7 +181,6 @@ class ChangeEmailForm(forms.Form):
         if taken.exists():
             raise forms.ValidationError('An account with this email already exists.')
         return email
-
 
 class StyledAuthenticationForm(AuthenticationForm):
     username = forms.CharField(widget=forms.TextInput(attrs={
@@ -247,14 +226,12 @@ class StyledAuthenticationForm(AuthenticationForm):
                 )
         return super().clean()
 
-
 class StyledPasswordResetForm(PasswordResetForm):
     email = forms.EmailField(widget=forms.EmailInput(attrs={
         'placeholder': 'you@email.com',
         'autocomplete': 'email',
         'class': 'field-input',
     }))
-
 
 class StyledSetPasswordForm(SetPasswordForm):
     new_password1 = forms.CharField(widget=forms.PasswordInput(attrs={
@@ -268,22 +245,19 @@ class StyledSetPasswordForm(SetPasswordForm):
         'class': 'field-input',
     }))
 
-
 class StyledPasswordChangeForm(PasswordChangeForm):
     old_password = forms.CharField(widget=forms.PasswordInput(attrs={'autocomplete': 'current-password', 'class': 'field-input'}))
     new_password1 = forms.CharField(widget=forms.PasswordInput(attrs={'autocomplete': 'new-password', 'class': 'field-input'}))
     new_password2 = forms.CharField(widget=forms.PasswordInput(attrs={'autocomplete': 'new-password', 'class': 'field-input'}))
 
-
 class RenameForm(forms.Form):
     """The rename-card form. Format rules live here; money, cooldown and
-    reservation rules live in users.rename (the form cannot be tricked
-    into charging nobody, because it never charges — rename_user does).
+    reservation rules live in users.rename (the form can't be tricked into
+    charging nobody, because it never charges — rename_user does).
 
-    5 Whys: why does the form NOT check uniqueness/reservation? Those
-    answers expire between render and POST. The form checks what cannot
-    drift (charset, length, language); rename_user re-checks everything
-    under the lock. One gate that matters, zero dead duplication.
+    The form does NOT check uniqueness/reservation: those answers expire
+    between render and POST. It checks only what can't drift (charset, length,
+    language); rename_user re-checks everything under the lock.
     """
     new_username = forms.CharField(
         max_length=150,
@@ -307,61 +281,10 @@ class RenameForm(forms.Form):
             )
         return validate_public_text(new, allow_blank=False)
 
-
 class NameStyleForm(forms.Form):
     """Whitelist-only style picker. Choices are built FROM the models.NAME_*
-    dicts — the form can never offer, or accept, a slug the renderer does
-    not know. Anything else dies as a form error before the wallet moves.
-
-    5 Whys — why the people-style is a form field too (four points each):
-    1. Why not trust a hidden input the template printed?
-       a. Hidden fields are still POST data; a crafted slug must die here
-          before set_name_style runs, same as a crafted font.
-       b. Choices come FROM NAME_PERSONAS, so the form cannot accept a
-          21st people-style the CSS file does not define.
-       c. required=False lets a no-JS client omit the select (old bookmarks,
-          existing tests) and still save a Classic mix.
-       d. clean_name_persona maps empty → classic so the writer never sees
-          None and the ledger ref always has a slug.
-    2. Why ONE <select> dropdown and not a grid of cards?
-       a. The picker lives on Edit Profile ("my profile"), next to the
-          bio/avatar form — a 21-card grid crowded the page into a
-          showroom; one dropdown keeps it a form.
-       b. A <select> cannot preview each look in place, so the option text
-          carries the label + blurb and the live preview span beside the
-          dropdown renders the real composed look on every change — the
-          styles display moved, it did not die.
-       c. The widget still exists on the form so a future admin tool that
-          renders {{ form }} gets a valid field, not a missing key.
-       d. One <select> name=name_persona on the wire — the exact POST
-          shape the radio grid produced, so no-JS clients and existing
-          tests post unchanged.
-    3. Why reject an unknown persona at the form instead of coercing?
-       a. A POST that invents "namepersona-xss" is an attack, not a typo.
-          Fail the form, charge nothing, same as comic-sans-custom.
-       b. Direct callers of set_name_style still coerce — the form is the
-          HTTP gate, the composer is the storage gate.
-       c. Existing font tests already assert form.errors['name_font'];
-          persona must behave identically or the policy forks.
-       d. Coercing at the form would hide bugs in the template (a typo'd
-          radio value would silently become Classic and look like a no-op).
-    4. Why keep the four dropdowns after adding people-styles?
-       a. Classic + mix is the documented custom path; removing the
-          dropdowns would lock every non-recipe look behind a code change.
-       b. Fine-tune that no longer matches a recipe clears the persona
-          (compose_name_style) — the dropdowns are how that mix is posted.
-       c. No-JS users who never open the people-style list can still
-          restyle via the four fields, same as before this feature.
-       d. Preview JS fills the dropdowns from the recipe so what you save
-          is what the preview showed, even if they never touch a <select>.
-    5. Why is Classic in NAME_PERSONAS if it is not one of the twenty?
-       a. The dropdown needs a default option; Classic is that option.
-       b. compose_name_style treats 'classic' as "no extra class", so the
-          slug and the look stay aligned.
-       c. One dict drives form choices, preview maps, and CSS class
-          lookup — a parallel CLASSIC_SLUG constant would drift.
-       d. Tests count people_style_slugs() == 20 and assert 'classic'
-          is present; both invariants live next to the same dict.
+        dicts — the form can never offer, or accept, a slug the renderer does
+        not know. Anything else dies as a form error before the wallet moves.
     """
 
     name_persona = forms.ChoiceField(

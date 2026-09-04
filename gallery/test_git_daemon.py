@@ -25,11 +25,9 @@ from gallery.tests import make_category, make_project, make_user, make_zip_file
 
 GIT_MEDIA = '/tmp/blaqvibes-tests-git'
 
-
 def basic_auth(username, password):
     token = base64.b64encode(f'{username}:{password}'.encode()).decode()
     return f'Basic {token}'
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT=GIT_MEDIA, SEED_DEMO=False)
 class GitGateTests(TestCase):
@@ -116,7 +114,6 @@ class GitGateTests(TestCase):
         self.assertEqual(CloneEvent.objects.filter(project=self.project, source='git').count(), 1)
         self.project.refresh_from_db()
         self.assertEqual(self.project.clones, 1)
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT=GIT_MEDIA, SEED_DEMO=False)
 class GitLiveTests(LiveServerTestCase):
@@ -274,7 +271,6 @@ class GitLiveTests(LiveServerTestCase):
             # The initial snapshot commit + the pushed commit(s).
             count = sum(1 for _ in r.get_walker())
             self.assertGreaterEqual(count, 2)
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT=GIT_MEDIA, SEED_DEMO=False)
 class GitPushPipelineTests(TestCase):

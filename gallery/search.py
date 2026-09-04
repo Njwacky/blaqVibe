@@ -1,26 +1,13 @@
 from django.db.models import Q, F, Case, When, Value, IntegerField
 from django.db import connection
 
-# 5 Whys Search v3 — Why very well? 1k vibes, typo "dashbord", ranking by title > stack > readme, trending + rank bonus.
+# Search v3: tolerates typos ("dashbord") across a 1k-vibe catalog, ranking
+# title > stack > readme with a trending + rank bonus.
 # Postgres: SearchVector + TrigramSimilarity + GIN. SQLite: scored icontains with title weight.
 
 def search_projects(qs, q, sort='newest', user=None):
     """Filter + order the feed.
-
-    `user` is only consulted for sort='foryou'.
-
-    5 Whys — why does personalisation live inside search_projects instead
-    of being applied by the view afterwards?
-    1. Because ordering must be part of the queryset the Paginator slices;
-       reordering after pagination would only shuffle one page.
-    2. Because 'for you' has to compose with a text query — searching
-       "platformer" as a game-lover should still favour games.
-    3. Because every caller of the feed (feed view, and any future one)
-       then gets the same ordering rules for free.
-    4. Because the view already passes `sort` here; a second ordering hook
-       elsewhere would make "which one wins?" ambiguous.
-    5. Because the fall-through is explicit: an unknown or unsupported sort
-       lands on the same '-created_at' it always did.
+        `user` is only consulted for sort='foryou'.
     """
     # Base sort if no query
     if not q:
@@ -33,10 +20,10 @@ def search_projects(qs, q, sort='newest', user=None):
         if sort == 'clones':
             return qs.order_by('-clones', '-created_at')
         if sort == 'trending':
-            # Trending = the global interest score, which already blends
-            # engagement with a freshness decay (see gallery/interest.py).
-            # Why not raw stars? Stars never decay, so page one would be
-            # frozen forever and nothing new could ever be discovered.
+            # Trending uses the global interest score, which already blends
+            # engagement with freshness decay (see gallery/interest.py). Raw
+            # stars never decay, so ordering by them would freeze page one
+            # forever and let nothing new be discovered.
             return qs.order_by('-appeal_score', '-stars', '-created_at')
         return qs.order_by('-created_at')
 

@@ -1,22 +1,4 @@
 """Superadmin provisioning + login regression tests.
-
-5 Whys: why pin these in CI?
-1. Why a command test at all? The original bug was silent: `createsuperuser`
-   produced an account that logged in, reached /blaq-admin-secure/, then 403'd
-   on every app admin page because profile.role stayed 'user'. A test that
-   asserts BOTH the Django flags and the app role fails loudly if the command
-   ever drifts back to half-provisioned.
-2. Why test idempotency? Deploy scripts re-run provisioning; a second run
-   must converge, not raise on the duplicate username or reset role.
-3. Why test repair of an existing half-configured user? That is exactly the
-   state a broken deploy leaves behind — the command's main job is fixing it.
-4. Why an email-login test? settings promise ACCOUNT_LOGIN_METHODS email,
-   but the site login is a stock AuthenticationForm that ignores it. The
-   regression ("sign in with your email" fails) only stays fixed if a test
-   watches it.
-5. Why assert the ambiguous-email case does NOT redirect? Two accounts
-   sharing an address must not make login a coin flip — the clean() only
-   resolves when exactly one match exists, and the test locks that in.
 """
 from django.contrib.auth import get_user_model
 from django.core.management import call_command
@@ -26,7 +8,6 @@ from .models import Profile
 
 User = get_user_model()
 PW = 'Admin@BlaqVibe2026'
-
 
 class CreateSuperadminTest(TestCase):
     def test_creates_with_all_flags_and_role(self):
@@ -77,7 +58,6 @@ class CreateSuperadminTest(TestCase):
         c.login(username='ghost', password=PW)
         self.assertEqual(c.get('/admin/roles/').status_code, 403)
 
-
 class EmailLoginTest(TestCase):
     def setUp(self):
         u = User.objects.create_user('admin', 'admin@blaqvibes.co.za', PW)
@@ -112,23 +92,8 @@ class EmailLoginTest(TestCase):
                                    'password': PW})
         self.assertFalse(r.wsgi_request.user.is_authenticated)
 
-
 class DemoStaffAndPlaceholderPasswordTest(TestCase):
     """The 'admin / youpwassword never works' regressions.
-
-    5 Whys: why these extra cases?
-    1. Why seed staff at all? Docs and the admin demo tell people to log
-       in as nolo.ai / blaq12345. seed_demo used to create those users
-       as role='user', so the password worked and the dashboard 403'd.
-    2. Why gate it on LOCAL_DEV? A known-password superadmin must not
-       ship with SEED_DEMO=1 on a public host.
-    3. Why repair createsuperuser's leftover `admin`? That is the exact
-       account operators type (admin + a placeholder password) — Django
-       flags set, profile.role still 'user'.
-    4. Why env provision? People put DJANGO_SUPERADMIN_PASSWORD in .env
-       and never run the command. Boot must honour the env var.
-    5. Why a login-form POST, not client.login()? client.login() skips
-       StyledAuthenticationForm, which is the path the browser uses.
     """
 
     def test_local_seed_demo_staff_can_open_admin(self):

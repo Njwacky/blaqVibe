@@ -1,100 +1,17 @@
 """Trust badge — turn scan evidence into a public verdict nobody can fake.
-
 The public surface is three tiers, chosen because the majority of vibe
-builders are NOT developers and need a verdict, not a metric:
 
     verified  — virus-scanned clean, no leaked secrets, dependencies checked
     scanned   — went through the pipeline, at least one check incomplete
     unknown   — no complete evidence (pending, quarantined, removed, legacy)
 
-5 WHYS — each Why carries 4 points. Any point that fails has a documented
+each Why carries 4 points. Any point that fails has a documented
 fallback approach: the design degrades, it never breaks, and it never lies.
 
-WHY 1 — Why a *derived grade* instead of showing scan_report raw?
-  1. scan_report is backend-only by design — secret *filenames* and audit
-     details live there; a projection can never leak what it does not
-     contain. Fails-if: a future key adds sensitive data → the grader
-     reads only whitelisted keys, so new keys are invisible to it.
-  2. A tier is judgement-free for non-devs ("✓ Checked"), the 63% of the
-     vibe market who cannot parse "npm audit: 2 high".
-     Fails-if: copy confuses a user → tier text lives in ONE table
-     (TRUST_META) editable without touching logic.
-  3. A grade is stable vocabulary for templates, the API, and ranking —
-     three consumers, one definition. Fails-if: a consumer needs more
-     detail → trust_reasons() offers safe sentences, still no raw report.
-  4. Raw reports differ per ecosystem (npm/pip/none) — a tier is the only
-     honest common denominator. Fails-if: a new ecosystem is added →
-     extend _deps_ok(); tiers do not change.
-
 WHY 2 — Why is the grade STORED on the row (not computed per render)?
-  1. The feed orders and filters by appeal_score in SQL; a Python-derived
-     trust would be invisible to WHERE/ORDER BY (same 5-Whys the kind
-     field already answers).
-  2. Cards render 12+ vibes per page; re-deriving per card re-runs regex
-     scans per page view. Fails-if: a row is stale → the pipeline is the
-     only writer and every content change re-queues a scan, bounding
-     staleness to the queue depth.
-  3. A stored verdict is auditable: trust + trust_graded_at say what was
-     decided and when. Fails-if: evidence changes out-of-band →
-     invalidate_trust() resets to unknown immediately at the mutation
-     site, so the stored value can never describe the previous ZIP.
-  4. db_index on trust lets a future "verified only" filter stay a range
-     scan. Fails-if: no filter ever ships → an unused index costs a few
-     bytes; drop it in a later migration.
-
 WHY 3 — Why is the scan pipeline the ONLY writer (apply_trust_grade)?
-  1. Unfarmable: stars can be earned with sockpuppets, but a grade only
-     the virus→secrets→vuln→publish chain can write cannot be voted into
-     existence. Fails-if: a moderator needs to override → add a moderator
-     path that writes kind_source-style provenance, never a user path.
-  2. One writer means one place to audit. Fails-if: a second legitimate
-     writer appears (e.g. a rescan command) → it must call this same
-     function; the code review rule is "no direct trust= writes".
-  3. The chain is FIFO on one queue (existing design) so two writers
-     cannot race a row; last-write-wins is also chronological.
-     Fails-if: queues are ever parallelised → trust_graded_at lets the
-     older write refuse to overwrite a newer one (monotonic guard).
-  4. Forms/API/admin cannot set it: AppUploadForm uses a field allowlist,
-     the API is read-only, and no template ever posts trust.
-     Fails-if: someone adds 'trust' to a form → the spoof test
-     (test_publish_form_ignores_trust_field) fails the build.
-
 WHY 4 — Why does ANY content change reset the badge to unknown?
-  1. A buyer pays stars for the ZIP that was scanned. If a new ZIP could
-     inherit the old ✓, the badge would vouch for bytes nobody checked —
-     that is how people get robbed. Fails-if: a creator is annoyed by the
-     reset → the rescan is automatic and fast; the reset is the price of
-     the badge meaning something.
-  2. Every mutation path already returns the project to status='pending'
-     (edit, git push, PR merge) — invalidate_trust() rides those exact
-     sites, so no new scheduling machinery is needed. Fails-if: a new
-     mutation path is added → the rule "status='pending' must be written
-     through invalidate_trust()" is enforced by docs + review.
-  3. Resetting is fail-safe in the other direction too: a crashed rescan
-     leaves 'unknown', which renders NO badge — absence is the honest
-     signal, never a wrong ✓. Fails-if: the queue is backed up → cards
-     show badge-less, the site keeps working, nothing is claimed.
-  4. Forks/PR merges create pending rows anyway, so downstream content
-     starts unverifed by construction. Fails-if: a fork of a verified
-     vibe looks worse in feed → correct: it IS unchecked until rescanned.
-
 WHY 5 — Why does the grade feed the ranking (small boost, ≤ 8%)?
-  1. Users told us trust matters (AI-code trust fell 77%→60%); a ranking
-     that ignores it shows slop above checked vibes. Fails-if: boost
-     overshadows quality → it is capped at +8% so it reorders equals,
-     it cannot buy rank (test_asserts verified-worst < unverified-best).
-  2. Money safety: the boost applies to ordering only — it never touches
-     star_cost, payouts, or trade logic, so it cannot be arbitraged.
-     Fails-if: someone tries farm-the-boost → grade is pipeline-written,
-     so there is nothing a user action can do to raise it.
-  3. It is applied to the base before the freshness multiplier, so a new
-     verified vibe beats a new unverified one, and an old great one still
-     decays identically. Fails-if: decay must dominate → floor 0.35
-     applies after the boost; ordering among old vibes is unchanged.
-  4. The multiplier is a pure function of the tier string — no network,
-     no IO — so compute_appeal stays pure and testable.
-     Fails-if: tiers are retuned → TRUST_MULTIPLIER is one dict beside
-     the tiers; tests re-derive expectations from it instead of literals.
 """
 import logging
 
@@ -102,9 +19,7 @@ from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
-# --------------------------------------------------------------------------
 # Tiers — the entire public vocabulary of the badge.
-# --------------------------------------------------------------------------
 TRUST_VERIFIED = 'verified'
 TRUST_SCANNED = 'scanned'
 TRUST_UNKNOWN = 'unknown'
@@ -119,15 +34,6 @@ TRUST_CHOICES = [
 
 # Fixed presentation table. Server-rendered only; nothing in here is ever
 # user-supplied, so a creator cannot style or spoof their way to a ✓.
-# 5 Whys (4 points) on why a table and not template conditionals:
-# 1. One source of truth for web, API label, and emails — three surfaces
-#    cannot drift apart if they all read TRUST_META.
-# 2. Titles are plain static strings → nothing user-controlled ever enters
-#    a title="" attribute (no tooltip injection).
-# 3. A test asserts TRUST_META keys == TRUST_TIERS == model choices, so a
-#    tier added without copy fails the build, not the user's trust.
-# 4. If the fails-if happens (tier renamed), templates keep rendering the
-#    old key's copy — degrade to 'unknown' is impossible to miss.
 TRUST_META = {
     TRUST_VERIFIED: {
         'label': 'Checked',
@@ -165,14 +71,12 @@ TRUST_MULTIPLIER = {
 # 'unknown' — a missing badge, never a wrong one.
 _EVIDENCE_KEYS = ('clamav', 'secrets', 'nolo_review', 'dep_audit', 'snippet_scan')
 
-
 def _pipeline_ran(report):
     """True if any known pipeline step wrote evidence into the report."""
     try:
         return any(k in (report or {}) for k in _EVIDENCE_KEYS)
     except Exception:
         return False
-
 
 def _virus_check(project, report):
     """(ok, reason_key). Snippets have no ZIP — nothing to virus-scan."""
@@ -189,7 +93,6 @@ def _virus_check(project, report):
         return False, 'scanner_missing'
     except Exception:
         return False, 'scanner_missing'
-
 
 def _secrets_check(project, report):
     """(ok, reason_key). ZIPs use the pipeline's secrets scan; snippets are
@@ -211,7 +114,6 @@ def _secrets_check(project, report):
         return True, 'clean'
     except Exception:
         return False, 'check_failed'
-
 
 def _deps_check(project, report):
     """(ok, reason_key). Uses evidence the vuln task writes:
@@ -242,7 +144,6 @@ def _deps_check(project, report):
     except Exception:
         return False, 'check_failed'
 
-
 # Human sentences for the detail page / tooltip "read". Fixed table — a
 # reason_key can never inject text, filenames, or secret material.
 _REASON_TEXT = {
@@ -261,7 +162,6 @@ _REASON_TEXT = {
 }
 
 _CHECK_ORDER = (('Virus scan', _virus_check), ('Secrets', _secrets_check), ('Dependencies', _deps_check))
-
 
 def trust_grade(project):
     """Pure tier derivation. Never raises, never writes, never lies.
@@ -284,7 +184,6 @@ def trust_grade(project):
         logger.exception('trust_grade failed for %s', getattr(project, 'slug', '?'))
         return TRUST_UNKNOWN
 
-
 def trust_reasons(project):
     """Safe human-readable check results for the detail page.
 
@@ -306,7 +205,6 @@ def trust_reasons(project):
     except Exception:
         return []
 
-
 def _award_verified_xp(project, tier):
     """One XP grant the first time a vibe proves itself clean.
 
@@ -325,7 +223,6 @@ def _award_verified_xp(project, tier):
         award(owner, 'verified', ref=f'verified:{project.pk}')
     except Exception:
         logger.exception('verified xp failed %s', getattr(project, 'slug', '?'))
-
 
 def apply_trust_grade(project, save=True):
     """The ONE pipeline writer of the stored grade.
@@ -353,7 +250,6 @@ def apply_trust_grade(project, save=True):
         logger.exception('apply_trust_grade failed for %s', getattr(project, 'slug', '?'))
         return getattr(project, 'trust', TRUST_UNKNOWN)
 
-
 def invalidate_trust(project, save=True, extra_fields=None):
     """Reset to unknown the moment ANY content changes.
 
@@ -370,7 +266,6 @@ def invalidate_trust(project, save=True, extra_fields=None):
     except Exception:
         logger.exception('invalidate_trust failed for %s', getattr(project, 'slug', '?'))
 
-
 def trust_multiplier(tier):
     """Ranking boost per tier (see TRUST_MULTIPLIER / WHY 5). Never raises."""
     try:
@@ -378,38 +273,16 @@ def trust_multiplier(tier):
     except Exception:
         return 1.0
 
-
 def trust_meta(tier):
     """Presentation row for a tier — fixed table, nothing user-supplied."""
     return TRUST_META.get(tier) or TRUST_META[TRUST_UNKNOWN]
 
-
 def snippet_evidence(project, save=True):
     """The snippet's scan step — pure, fast, run at publish/review time.
-
-    ZIPs get the queued chain (clamav → secrets → dep audits). Snippets
-    never enter the scan queue (a publish is a user waiting on a response,
-    and the queue is for subprocess work), so their evidence is produced
-    here, in-request.
-
-    4 points on why this shape:
-    1. Pure regex over at most three text fields costs microseconds — no
-       subprocess, no LLM, no queue hop on the request path, so the
-       existing "snippets never enter the scan queue" rule survives.
-       Fails-if: a snippet ever grows heavier checks → move them to the
-       queue and leave this function as the evidence marker.
-    2. It writes REAL evidence, not a hardcoded pass: a snippet with a
-       leaked token records secrets_found=True and the same grader that
-       grades ZIPs grades it 'scanned'. One truth for both shapes.
-       Fails-if: the grader changes → it reads the same evidence keys,
-       so the two cannot drift.
-    3. It writes evidence only — the trust FIELD is still written solely
-       by apply_trust_grade, which this calls at the end. The writer rule
-       (WHY 3) is not weakened: views may produce evidence, never verdicts.
-       Fails-if: someone writes project.trust directly from a view →
-       that is the bug the spoof/robbery tests exist to catch.
-    4. Crush-silently: on any failure no evidence is written, which grades
-       'unknown' — no badge. Degrade, never a wrong ✓.
+        ZIPs get the queued chain (clamav → secrets → dep audits). Snippets
+        never enter the scan queue (a publish is a user waiting on a response,
+        and the queue is for subprocess work), so their evidence is produced
+        here, in-request.
     """
     try:
         from .validators import SECRET_PATTERNS

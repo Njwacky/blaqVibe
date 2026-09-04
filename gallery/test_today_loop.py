@@ -5,7 +5,6 @@ from django.template import Context, Template
 from gallery.models import Notification
 from users.models import XPEvent
 
-
 class TodayLoopTemplateTagTests(TestCase):
     def render(self, user):
         request = RequestFactory().get('/')

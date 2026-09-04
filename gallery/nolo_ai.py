@@ -17,7 +17,6 @@ NOLO_SYSTEM_PROMPT = (
     'If you are unsure, say so. Do not claim to be live when no model key is set.'
 )
 
-
 def _env(name: str) -> str:
     try:
         from django.conf import settings
@@ -26,14 +25,12 @@ def _env(name: str) -> str:
         val = os.getenv(name, '')
     return (val or '').strip()
 
-
 def _int_setting(name, default):
     raw = _env(name)
     try:
         return int(raw) if raw else default
     except (TypeError, ValueError):
         return default
-
 
 def configured_ai_backend() -> str:
     """Which live model we will try first. heuristic = no API key."""
@@ -45,14 +42,11 @@ def configured_ai_backend() -> str:
         return 'groq'
     return 'heuristic'
 
-
 def _max_output_tokens(default=180):
     return max(80, _int_setting('NOLO_OUTPUT_MAX_TOKENS', default))
 
-
 def _system_prompt():
     return _env('NOLO_SYSTEM_PROMPT') or NOLO_SYSTEM_PROMPT
-
 
 def get_nolo_ai_answer(prompt, *, system_text=None, budget_chars=None, preserve_code=False, return_meta=False):
     """Return (reply, source) — or (reply, source, meta) when return_meta=True.
@@ -129,7 +123,6 @@ def get_nolo_ai_answer(prompt, *, system_text=None, budget_chars=None, preserve_
     reply = _heuristic_fallback(prompt)
     return _maybe_meta(reply, 'heuristic', plan, return_meta)
 
-
 def _maybe_meta(reply, source, plan, return_meta):
     if not return_meta:
         return reply, source
@@ -148,7 +141,6 @@ def _maybe_meta(reply, source, plan, return_meta):
         'warnings': plan['warnings'],
     }
     return reply, source, meta
-
 
 def _claude_answer(api_key: str, prompt_text: str, system_text: str) -> str:
     body = {
@@ -187,7 +179,6 @@ def _claude_answer(api_key: str, prompt_text: str, system_text: str) -> str:
         if isinstance(block, dict) and block.get('type') == 'text':
             parts.append(block.get('text') or '')
     return ''.join(parts).strip()
-
 
 def _heuristic_fallback(prompt):
     prompt = (prompt or '').lower()

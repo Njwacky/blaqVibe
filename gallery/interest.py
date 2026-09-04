@@ -1,28 +1,6 @@
 """appeal_score — "how interesting is this vibe to a stranger?", 0-100.
-
 This is the *global* half of ranking. `taste.personalized_order` adds the
 per-user half on top of it.
-
-5 Whys — why a stored, batch-computed score instead of ordering by stars?
-
-1. Why not `ORDER BY stars`? Stars accumulate forever, so the same handful
-   of old vibes own page one permanently. With "tons of people uploading
-   every second" that is the whole product failing: nothing new is ever
-   seen, so nothing new can ever earn stars — a closed loop.
-2. Why not `ORDER BY created_at` then? That is the opposite failure: the
-   feed becomes a firehose where a polished game is buried by fifty
-   half-finished uploads within a minute.
-3. Why blend engagement, quality and freshness with a time decay? Each
-   alone is gameable or degenerate; the decay is what guarantees a new
-   good upload can out-rank an old good upload without anyone voting.
-4. Why compute it in a task and store it, rather than as a query
-   annotation? An annotation recomputes logarithms and date arithmetic for
-   every row on every page load and cannot be indexed. A stored float can
-   be, so the feed stays a range scan as the table grows.
-5. Why recompute on a schedule instead of on every interaction? Interactions
-   are the highest-volume events on the site; making each one write to a
-   ranked, indexed column would turn the hot path into an index-churn
-   problem. Staleness of a few minutes is invisible to a browsing user.
 """
 import logging
 import math
@@ -45,7 +23,6 @@ FRESHNESS_HALF_LIFE_DAYS = 14.0
 # decaying it to zero — decay reorders, it does not delete.
 FRESHNESS_FLOOR = 0.35
 
-
 def _log_scale(value, ceiling):
     """0..1, logarithmic. Why log? The 500th star means less than the 5th."""
     try:
@@ -55,7 +32,6 @@ def _log_scale(value, ceiling):
     if v <= 0:
         return 0.0
     return min(1.0, math.log1p(v) / math.log1p(max(1.0, ceiling)))
-
 
 def engagement_component(project):
     """Weighted, log-scaled interaction signal.
@@ -81,7 +57,6 @@ def engagement_component(project):
         + 0.14 * _log_scale(views, 5000)
         + 0.10 * _log_scale(reviews, 30)
     )
-
 
 def quality_component(project):
     """Signals that a human put effort in — readable without any traffic.
@@ -121,7 +96,6 @@ def quality_component(project):
         pass
     return min(1.0, score)
 
-
 def runnable_component(project):
     """A vibe you can play right now is more interesting than one you can't.
 
@@ -140,7 +114,6 @@ def runnable_component(project):
         return 0.25
     return 0.0
 
-
 def freshness_multiplier(project, now=None):
     now = now or timezone.now()
     try:
@@ -149,7 +122,6 @@ def freshness_multiplier(project, now=None):
         return 1.0
     decay = math.pow(0.5, age_days / FRESHNESS_HALF_LIFE_DAYS)
     return FRESHNESS_FLOOR + (1.0 - FRESHNESS_FLOOR) * decay
-
 
 def compute_appeal(project, now=None):
     """Return the 0-100 score. Pure — no writes, never raises."""
@@ -185,7 +157,6 @@ def compute_appeal(project, now=None):
         logger.exception('compute_appeal failed for %s', getattr(project, 'slug', '?'))
         return 0.0
 
-
 def refresh_project(project, save=True):
     score = compute_appeal(project)
     if save:
@@ -197,22 +168,8 @@ def refresh_project(project, save=True):
             logger.exception('refresh_project save failed')
     return score
 
-
 def refresh_batch(queryset=None, limit=500):
     """Recompute the oldest-scored published vibes.
-
-    5 Whys — why oldest-first with a limit, not "everything"?
-    1. Why a limit? An unbounded pass over a growing table eventually takes
-       longer than the interval it runs on, and then it never finishes.
-    2. Why oldest-scored first? It is the only ordering that guarantees
-       every row is eventually refreshed, no matter how many are added.
-    3. Why not only score rows that changed? Freshness decays with the
-       clock, not with edits — an untouched row's correct score changes
-       every hour on its own.
-    4. Why bulk_update? One UPDATE per row would make a 500-row pass 500
-       round trips.
-    5. Why published only? Nothing else is ever ranked, so scoring it is
-       work with no reader.
     """
     from .models import AppProject
     from django.db.models import Count
@@ -230,7 +187,6 @@ def refresh_batch(queryset=None, limit=500):
     if rows:
         AppProject.objects.bulk_update(rows, ['appeal_score', 'appeal_updated_at'], batch_size=200)
     return len(rows)
-
 
 def _oldest_scored_first():
     """Never-scored rows must be picked up before already-scored ones."""

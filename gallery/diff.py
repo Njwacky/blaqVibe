@@ -13,7 +13,6 @@ MAX_DIFF_FILES = 10          # cap common-file content diffs to keep page small
 MAX_FILE_BYTES = 512 * 1024  # skip binary / huge files
 MAX_DIFF_LINES = 400         # cap unified diff lines per file
 
-
 def _read_text(zf, name):
     try:
         data = zf.read(name)
@@ -23,16 +22,13 @@ def _read_text(zf, name):
     except (KeyError, zipfile.BadZipFile, OSError):
         return None
 
-
 def _as_lines(text):
     return text.splitlines() if text is not None else None
-
 
 def _cap(lines, limit=MAX_DIFF_LINES):
     if len(lines) <= limit:
         return lines, False
     return lines[:limit], True
-
 
 def diff_file_content(source_zip_path, target_zip_path, path, added, removed, common):
     """Return a dict describing content changes for the given file path."""
@@ -97,7 +93,6 @@ def diff_file_content(source_zip_path, target_zip_path, path, added, removed, co
     result['lines'] = lines
     result['truncated'] = truncated
     return result
-
 
 def diff_projects(source, target):
     """Diff the ZIP contents of two projects into a renderable structure.

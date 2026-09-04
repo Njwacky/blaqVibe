@@ -26,11 +26,10 @@ BLOCKED_NAMES = {
 BLOCKED_EXT = {'.exe','.dll','.so','.dylib','.sh','.bat','.bin','.o','.a'}
 # A subset of BLOCKED_NAMES that is *build output*, not a credential. They
 # get their own error message: the beginner fix ("delete the folder and
-# re-zip") is different from the security fix ("rotate that key").
-# 5 Whys: why not one message for both? Because the single biggest upload
-# failure is an ordinary vibe-coded folder that contains node_modules/ —
-# and an error that says "credentials" sends that person to check their
-# keys instead of their folder. Same block, different instruction.
+# re-zip") is different from the security fix ("rotate that key"). The single
+# biggest upload failure is an ordinary vibe-coded folder containing
+# node_modules/ — an error that says "credentials" would send that person to
+# check their keys instead of their folder. Same block, different instruction.
 BULK_NAMES = {'node_modules', '__pycache__', 'venv', '.venv', '__MACOSX', '.DS_Store'}
 SECRET_PATTERNS = [
     re.compile(r'sk_live_[0-9a-zA-Z]+'),
@@ -39,7 +38,10 @@ SECRET_PATTERNS = [
     re.compile(r'ghp_[A-Za-z0-9_]{36}'),
 ]
 
-# 5 Whys: Why not just check '..'? Symlink + absolute + // + \ + commonpath bypass it. Why not just sum? Ratio bomb: 1KB compressed -> 10GB. Why not just count? 1999 * 300KB = 600MB still passes but symlink does.
+# Beyond '..': symlinks, absolute paths, // and \ prefixes and commonpath
+# bypasses all need catching. A byte SUM alone misses ratio bombs (1KB
+# compressed -> 10GB) and a file COUNT alone misses big sparse sets
+# (1999 * 300KB = 600MB), so entry count, total size and names are all checked.
 
 def _is_symlink(zip_info):
     # External attr high 16 bits is file mode; symlink is 0o120000
@@ -185,14 +187,11 @@ def scan_for_secrets_text(text: str):
     except Exception:
         return []
 
-
 def normalize_zip_name(name: str) -> str:
     return (name or '').replace('\\', '/')
 
-
 def zip_name_parts(name: str):
     return [part for part in normalize_zip_name(name).split('/') if part and part != '.']
-
 
 def is_safe_zip_name(name: str) -> bool:
     """Reject absolute paths, drive letters, `..`, and blocked names."""
@@ -213,7 +212,6 @@ def is_safe_zip_name(name: str) -> bool:
             return False
     return True
 
-
 def assert_safe_zip_info(info):
     """Shared gate for validate_zip and safe_extract_zip."""
     name = info.filename
@@ -224,7 +222,6 @@ def assert_safe_zip_info(info):
     if info.file_size > 50 * 1024 * 1024:
         raise ValueError(f'single file too large: {name}')
 
-
 def _under_dest(dest, path):
     dest_real = os.path.realpath(dest)
     path_real = os.path.realpath(path)
@@ -232,7 +229,6 @@ def _under_dest(dest, path):
         return os.path.commonpath([dest_real]) == os.path.commonpath([dest_real, path_real])
     except ValueError:
         return False
-
 
 def _write_extracted_file(src, target, remaining_budget):
     flags = os.O_WRONLY | os.O_CREAT | os.O_TRUNC
@@ -256,18 +252,8 @@ def _write_extracted_file(src, target, remaining_budget):
             os.close(fd)
     return written
 
-
 def safe_extract_zip(zip_path, dest_dir):
     """Extract members one-by-one under dest_dir.
-
-    5 Whys:
-    1. Why not extractall? It writes `../` and symlinks before we can stop it.
-    2. Why re-check names here? Admin upload, PR merge, and seed skip the form.
-    3. Why count bytes while writing? Declared file_size is attacker-controlled.
-    4. Why O_NOFOLLOW + realpath? mkdir then replace-parent-with-symlink is the
-       classic extract race.
-    5. Why refuse blocked names on extract too? A `.env` that got past upload
-       must not land on the worker disk next to the scanner.
     """
     dest = os.path.abspath(dest_dir)
     os.makedirs(dest, exist_ok=True)

@@ -14,7 +14,6 @@ from django.test import SimpleTestCase, override_settings
 
 from gallery.management.commands.backup_db import Command
 
-
 @override_settings(BASE_DIR=tempfile.gettempdir())
 class BackupDbTests(SimpleTestCase):
 

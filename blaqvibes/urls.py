@@ -24,7 +24,6 @@ def serve_sw(request):
         from django.http import Http404
         raise Http404
 
-
 def serve_robots(request):
     # Serve robots.txt — plain text, no secrets. Collected from static/.
     try:
@@ -77,26 +76,8 @@ password_reset_confirm_view = ratelimit(key='ip', rate='20/m', method='POST')(
     )
 )
 
-
 def social_provider_urls():
     """Mount every provider's login/callback routes, 404 when unconfigured.
-
-    5 Whys:
-    1. Why wrap at all? A provider with no credentials has no SocialApp, so
-       allauth's login view raises SocialApp.DoesNotExist — a 500 on a public
-       URL that scanners and stale links both hit.
-    2. Why 404 and not a redirect to /accounts/login/? A provider this
-       deployment does not offer has no page; 404 is the honest answer and it
-       goes through our own safe_404.
-    3. Why mount the routes at all then, instead of skipping them? URLconfs are
-       built once at boot. Skipping would mean the set of live routes is frozen
-       against the environment as it was at import, and it could not be
-       exercised in tests that toggle credentials.
-    4. Why check on each request rather than caching the decision? The check is
-       a dict lookup against settings; correctness beats a nanosecond.
-    5. Why keep the provider apps in INSTALLED_APPS regardless? Their provider
-       classes must stay registered so allauth can build a SocialApp the moment
-       credentials appear — only the *answer* is conditional.
     """
     patterns = []
     for slug in ('google', 'github', 'facebook'):
@@ -108,7 +89,6 @@ def social_provider_urls():
         # No namespace: allauth reverses these as plain `github_callback`.
         patterns.append(path('accounts/social/', include(guarded)))
     return patterns
-
 
 def _require_configured_provider(slug, pattern):
     """Wrap one URL pattern (or the provider's include) with the guard.

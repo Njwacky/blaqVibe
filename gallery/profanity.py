@@ -1,34 +1,4 @@
 """Public-language gate — vulgar, abusive, and hateful words never go live.
-
-5 Whys (no shortcuts):
-
-1. Why filter at all? Comments, reviews, titles, bios, tips, usernames and
-   PRs are public. XSS sanitizers (bleach/nh3) stop scripts, not slurs.
-   A gallery a stranger can open must not greet them with abuse.
-
-2. Why reject at write time instead of silently hiding after save?
-   The comments spec said "auto-hide if banned words". Hide-after-save
-   still fires the owner's notification with the quote, and the author
-   thinks it posted. A form error lets them reword. Nothing public is
-   created. Nothing is mailed.
-
-3. Why one module, not a list pasted into each view?
-   post_comment, post_review, TipForm, SignUpForm, AppUploadForm and
-   create_pr would drift the first time someone adds a field. One
-   function is the one truth; every caller asks it.
-
-4. Why word-boundaries + normalisation, not ``"ass" in text``?
-   "class", "password", "assistant", "analysis", "Scunthorpe",
-   "cocktail" would all die. We normalise leetspeak / separators /
-   homoglyphs, then match tokens. "f.u.c.k" and "sh1t" still fail;
-   "classic views" still pass.
-
-5. Why still scan on model.save and in notify()?
-   Admin, the shell, a future API, and a forgotten view can bypass a
-   form. save() refuses to render the words publicly (comments hide;
-   review text blanks). notify() drops a quote that slipped through
-   so an inbox is never the leak. At 10k vibes this is the only
-   thing that still works when a new write path appears.
 """
 from __future__ import annotations
 
@@ -120,7 +90,6 @@ _LEET = str.maketrans({
 _NON_LETTER = re.compile(r'[^a-z]+')
 _REPEAT = re.compile(r'(.)\1{2,}')
 
-
 def _fold(text: str) -> str:
     """Unicode fold → lowercase Latin-ish letters and spaces only."""
     if not text:
@@ -134,16 +103,13 @@ def _fold(text: str) -> str:
     text = _NON_LETTER.sub(' ', text)
     return text
 
-
 def _collapse_repeats(token: str) -> str:
     """fuuuuck → fuck. bookkeeper stays bookkeeper (max 2 of a letter)."""
     return _REPEAT.sub(r'\1\1', token)
 
-
 def _fully_collapse(token: str) -> str:
     """fuuuuck → fuck for the lookup only. 'book' → 'bok' is fine: not listed."""
     return re.sub(r'(.)\1+', r'\1', token)
-
 
 def _merge_single_letters(tokens: list[str]) -> list[str]:
     """Join runs of 1-letter tokens so 'f u c k' is one word."""
@@ -167,7 +133,6 @@ def _merge_single_letters(tokens: list[str]) -> list[str]:
             merged.extend(buf)
     return merged
 
-
 # Words that are never a legitimate prefix/infix of a longer token.
 # "fuckyou" and "shithead2" must fail; "cocktail" and "dickens" must not,
 # so "cock"/"dick" stay whole-token only.
@@ -185,7 +150,6 @@ _STICKY = frozenset({
     'motherfuck',
 })
 
-
 def _token_is_blocked(token: str) -> bool:
     candidates = {token, _collapse_repeats(token), _fully_collapse(token)}
     if candidates & _BLOCKED_WORDS:
@@ -197,7 +161,6 @@ def _token_is_blocked(token: str) -> bool:
             if form == bad or form.startswith(bad):
                 return True
     return False
-
 
 def contains_profanity(text: str | None) -> bool:
     """True when `text` would be abusive on a public page."""
@@ -218,7 +181,6 @@ def contains_profanity(text: str | None) -> bool:
         # the words). Fail closed: treat unparseable input as unclean.
         return True
 
-
 def validate_public_text(text: str | None, *, allow_blank: bool = True) -> str:
     """Form/view helper. Returns the original text or raises ValidationError.
 
@@ -233,7 +195,6 @@ def validate_public_text(text: str | None, *, allow_blank: bool = True) -> str:
     if contains_profanity(value):
         raise ValidationError(PUBLIC_LANGUAGE_ERROR)
     return value
-
 
 def public_text_is_clean(text: str | None) -> bool:
     """Boolean wrapper for views that do not want to catch ValidationError."""

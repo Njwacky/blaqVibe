@@ -1,41 +1,16 @@
 """Heuristic program-kind detection — the deterministic floor.
-
 `classify.classify_project()` is the public entry point; this module is the
 part that must work with **no API key, no network, and no money**.
-
-5 Whys — why is the heuristic the floor rather than the LLM?
-
-1. Why not just ask the LLM for every upload? The stated load is "tons of
-   people uploading every second". An LLM call per upload is a per-upload
-   cost, a per-upload latency, and a third-party dependency on the publish
-   path — the feed would degrade the moment the vendor rate-limits us.
-2. Why must a kind exist even when the LLM never runs? The feed filters,
-   the badge, and the taste learner all read `kind`. An empty kind means an
-   unfilterable, unrankable, unlearnable row — the vibe effectively
-   disappears from discovery.
-3. Why score confidence instead of returning a bare label? Confidence is
-   what lets the LLM stage be *selective*: only low-confidence rows are
-   worth spending a call on (see `classify.needs_llm`).
-4. Why weighted signals instead of first-match-wins (like artifact_detect)?
-   artifact_detect answers "which single deploy guide?", where specificity
-   ordering is enough. Here a Unity project and a React project both carry
-   `package.json`; only the *balance* of evidence separates "game" from
-   "web app".
-5. Why keep evidence strings? A creator who disagrees with the badge needs
-   to see why we said it, and a moderator triaging a mislabel needs the
-   same. Silent classification is unarguable classification.
 """
 import re
 
 from .taxonomy import DEFAULT_KIND, KIND_VALUES, coerce_kind
 
-# ---------------------------------------------------------------------------
 # Signal tables. Weight scale is deliberately coarse:
 #   5 = near-proof (a Unity ProjectSettings folder, an .apk)
 #   3 = strong (manifest.json, requirements + Dockerfile)
 #   2 = supporting (tech_stack mentions "phaser")
 #   1 = weak (the word "game" in the README)
-# ---------------------------------------------------------------------------
 
 # Exact file/dir names, matched on the basename of shallow paths.
 _NAME_SIGNALS = {
@@ -279,7 +254,6 @@ _LANGUAGE_SIGNALS = {
 _TEXT_CAP_PER_TERM = 1
 _MAX_PATHS = 400
 
-
 def _shallow_paths(project):
     """Lower-cased shallow file paths (root + one folder deep).
 
@@ -318,7 +292,6 @@ def _shallow_paths(project):
             pass
     return paths
 
-
 def _text_blob(project):
     parts = [
         getattr(project, 'title', '') or '',
@@ -328,12 +301,10 @@ def _text_blob(project):
     ]
     return ' '.join(parts).lower()
 
-
 def _add(scores, evidence, kind, weight, why):
     kind = coerce_kind(kind)
     scores[kind] = scores.get(kind, 0) + weight
     evidence.append((kind, weight, why))
-
 
 def score_kinds(project):
     """Return (scores dict, evidence list). Pure, no DB writes."""
@@ -395,19 +366,6 @@ def score_kinds(project):
     if has_html and not has_zip:
         # A pasted HTML/CSS/JS snippet cannot BE a backend, a mobile app or
         # a desktop program — whatever its README talks about.
-        #
-        # 5 Whys:
-        # 1. Why damp instead of trusting the words? A landing page for a
-        #    SaaS legitimately says "backend" and "API" in its copy; the
-        #    words describe the product's subject, not the artifact.
-        # 2. Why not ban those kinds outright for snippets? A creator may
-        #    still explicitly pick one, and creator_kind must always win.
-        # 3. Why is the artifact more reliable than the prose? Because we
-        #    can verify the artifact; the prose is unverifiable marketing.
-        # 4. Why 0.25 rather than 0? A trace keeps the runner-up ordering
-        #    meaningful, so confidence still reflects genuine ambiguity.
-        # 5. Why only when there is no ZIP? A ZIP alongside the snippet may
-        #    genuinely contain the server; then the words may be right.
         from .taxonomy import KIND_BY_VALUE
         for kind in list(scores):
             if not KIND_BY_VALUE.get(kind, {}).get('web_native', False):
@@ -423,7 +381,6 @@ def score_kinds(project):
 
     return scores, evidence
 
-
 def detect_kind(project):
     """Heuristic classification.
 
@@ -437,10 +394,9 @@ def detect_kind(project):
         ranked = sorted(scores.items(), key=lambda kv: kv[1], reverse=True)
         top_kind, top_score = ranked[0]
         runner_up = ranked[1][1] if len(ranked) > 1 else 0.0
-        # Confidence blends absolute evidence with the margin over #2.
-        # Why both? A lone weak signal (score 1, nothing else) is not
-        # confident just because nothing competes with it, and a strong
-        # signal that ties with another kind is genuinely ambiguous.
+        # Confidence blends absolute evidence with the margin over #2: a lone
+        # weak signal isn't confident just because nothing competes with it, and
+        # a strong signal that ties another kind is genuinely ambiguous.
         strength = min(1.0, top_score / 8.0)
         margin = (top_score - runner_up) / top_score if top_score else 0.0
         confidence = round(max(0.0, min(1.0, 0.55 * strength + 0.45 * margin)), 3)
@@ -465,7 +421,6 @@ def detect_kind(project):
         import logging
         logging.getLogger(__name__).exception('detect_kind failed')
         return {'kind': DEFAULT_KIND, 'confidence': 0.0, 'evidence': [], 'source': 'heuristic'}
-
 
 def all_kind_values():
     return KIND_VALUES

@@ -1,29 +1,8 @@
 """Creator cash-outs — stars held at request, ZAR paid by a money admin.
-
 This module is the ONLY writer of Payout rows and their two ledger reasons.
 Views render and validate input; the rules live here so every call site
 gets them for free (same discipline as users/wallet.py and
 gallery/economy.py).
-
-5 Whys (why payouts work the way they do):
-1. Why debit stars at REQUEST, not at approval? The moment a creator asks
-   for cash, the stars must stop being spendable — otherwise the same
-   500 ★ can be traded to a friend AND paid out as R50. The hold IS the
-   debit; approval only moves real money.
-2. Why one open payout per user? Two open requests can each pass a
-   balance check against the same wallet and overspend it exactly like
-   two concurrent tips. One in-flight payout is also the cheapest
-   anti-fraud window a small team can actually review.
-3. Why refund on reject as a NEW row? The ledger is append-only. The
-   refund ('payout_refund') answers the hold ('payout_hold'); deleting
-   either side is the exact edit-path a ledger must never grow.
-4. Why does approval touch no wallet math? The stars already left the
-   spendable balance at request. Approval pays ZAR out-of-band (EFT or
-   Paystack transfer) — recording cash movement in the star ledger
-   would mix two currencies in one sum.
-5. Why keep a human in the loop? Paystack Transfers need OTP/approval
-   and can fail days later. 'paid' means an admin confirmed real money
-   moved — the same never-pretend rule as the rest of the money path.
 """
 import logging
 import re
@@ -48,16 +27,13 @@ logger = logging.getLogger(__name__)
 
 _ACCOUNT_RE = re.compile(r'^[0-9]{4,20}$')
 
-
 class PayoutError(Exception):
     def __init__(self, message):
         self.message = message
         super().__init__(message)
 
-
 def payout_rate_label() -> str:
     return f'{STARS_PER_ZAR} ★ = R1 (minimum {MIN_PAYOUT_STARS} ★, in multiples of {STARS_PER_ZAR})'
-
 
 def request_payout(user, amount_stars, bank_name, account_number, holder_name):
     """Hold stars and queue a cash-out. Returns the Payout row.
@@ -140,7 +116,6 @@ def request_payout(user, amount_stars, bank_name, account_number, holder_name):
     )
     return payout
 
-
 def decide_payout(admin_user, payout_id, action, note=''):
     """Admin decision on a requested payout. Returns the updated row.
 
@@ -217,7 +192,6 @@ def decide_payout(admin_user, payout_id, action, note=''):
             note or f'Paid to {payout.bank_name} {payout.account_masked}.',
         )
     return payout
-
 
 def record_transfer_reference(payout_id, provider_ref):
     """Store a Paystack transfer code on a still-requested payout.

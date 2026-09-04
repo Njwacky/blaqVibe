@@ -1,7 +1,8 @@
 import os, logging, json, re
 logger = logging.getLogger(__name__)
 
-# 5 Whys: Why heuristic fallback? No OPENAI_API_KEY in dev → still give value, crush silently.
+# Heuristic fallback: with no OPENAI_API_KEY in dev there's still value, and it
+# degrades silently.
 
 def heuristic_review(project):
     """Backend only, no JS, no LLM key needed — checks for quality signals."""

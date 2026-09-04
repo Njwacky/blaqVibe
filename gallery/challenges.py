@@ -1,15 +1,4 @@
 """Challenge winner awards — one shot, submissions only.
-
-5 Whys:
-1. Why lock the Challenge row? Two admin clicks would mint the bounty twice.
-2. Why re-check the tag inside the lock? The tag can be removed between the
-   view's first lookup and the write.
-3. Why not add the bounty to project.stars? That counter is "people starred
-   this". Battle votes already do not inflate it; a prize must not either.
-4. Why one Profile update? A second save can fail after stars moved and
-   leave Pro ungranted — or shorten permanent Pro.
-5. Why an AdminLog + inbox notify? stars_balance is a counter. Without a
-   row you cannot answer "why did this wallet jump 10 ★?"
 """
 from datetime import timedelta
 import logging
@@ -25,19 +14,16 @@ from .notify import notify
 
 PRO_PRIZE_DAYS = 30
 
-
 class ChallengeAwardError(Exception):
     def __init__(self, message):
         self.message = message
         super().__init__(message)
-
 
 def _is_tagged_submission(winner, tag):
     return (
         winner.status == 'published'
         and winner.tags.filter(slug=tag).exists()
     )
-
 
 def award_challenge_winner(challenge, winner, actor=None):
     """Pay the bounty once to a published, tagged submission."""

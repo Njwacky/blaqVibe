@@ -1,9 +1,9 @@
 """PUBG-style rename rules + name styling — every gate tested.
 
-5 Whys (why this file mirrors the rules, not the views): the money and
-identity walls live in users.rename. Testing them directly (plus a thin
-end-to-end pass through the views) means an admin tool or future API that
-reuses rename_user inherits the same guarantees the tests prove.
+This file mirrors the rules rather than the views: the money and identity
+walls live in users.rename. Testing them directly (plus a thin end-to-end
+pass through the views) means an admin tool or future API that reuses
+rename_user inherits the same guarantees the tests prove.
 """
 from datetime import timedelta
 
@@ -36,14 +36,13 @@ from users.rename import (
     set_name_style,
 )
 
-
 def make_user(username, stars=0, pro=False, **profile_kwargs):
     """Create a user whose starting balance is LEDGERED.
 
-    5 Whys: why not just set stars_balance? wallet_reconciles() proves
-    balance == Σ ledger; a test wallet minted out of thin air breaks the
-    invariant the tests are supposed to protect. Every ★ a test user holds
-    arrives the way real stars do — as a ledger row.
+    The balance isn't just set directly: wallet_reconciles() proves
+    balance == sum of ledger rows, and a test wallet minted out of thin air
+    would break the invariant these tests protect. Every star a test user
+    holds arrives the way real ones do — as a ledger row.
     """
     user = User.objects.create_user(username, password='pass12345', email=f'{username}@test.com')
     profile = user.profile
@@ -62,20 +61,18 @@ def make_user(username, stars=0, pro=False, **profile_kwargs):
         profile.save(update_fields=[key])
     return user
 
-
 def top_up(user, stars):
     """Add spendable stars the ledgered way (cooldown tests need a second card)."""
     profile = user.profile
     Profile.objects.filter(pk=profile.pk).update(stars_balance=profile.stars_balance + stars)
     StarEvent.objects.create(user=user, delta=stars, reason='backfill', ref='test-topup')
 
-
 @override_settings(RATELIMIT_ENABLE=False)
 class RenameRuleTests(TestCase):
     def setUp(self):
         self.user = make_user('coder', stars=RENAME_COST_STARS)
 
-    # --- the happy paths -------------------------------------------------
+    # the happy paths
 
     def test_non_pro_pays_stars_and_burns_them(self):
         history = rename_user(self.user, 'coderprime')
@@ -108,7 +105,7 @@ class RenameRuleTests(TestCase):
         self.user.profile.refresh_from_db()
         self.assertEqual(self.user.profile.stars_balance, ledger_balance(self.user))
 
-    # --- the money wall ----------------------------------------------------
+    # the money wall
 
     def test_welcome_grant_cannot_afford_a_card(self):
         """5 ★ welcome < 100 ★ card — a throwaway farm renames nothing."""
@@ -121,7 +118,7 @@ class RenameRuleTests(TestCase):
         self.assertEqual(poor.profile.stars_balance, 5)  # nothing charged
         self.assertFalse(StarEvent.objects.filter(user=poor, reason='rename_spend').exists())
 
-    # --- the cooldown wall (PUBG rule) --------------------------------------
+    # the cooldown wall (PUBG rule)
 
     def test_cooldown_blocks_second_rename_even_with_stars_and_pro(self):
         rename_user(self.user, 'coderprime')
@@ -149,7 +146,7 @@ class RenameRuleTests(TestCase):
     def test_cooldown_remaining_is_none_before_first_rename(self):
         self.assertIsNone(cooldown_remaining(self.user.profile))
 
-    # --- impersonation walls -------------------------------------------------
+    # impersonation walls
 
     def test_cannot_take_existing_name_case_insensitive(self):
         other = make_user('Nolo')
@@ -192,7 +189,7 @@ class RenameRuleTests(TestCase):
         rename_user(self.user, 'coder')  # own reservation exempts self
         self.assertEqual(self.user.username, 'coder')
 
-    # --- validation walls ------------------------------------------------------
+    # validation walls
 
     def test_same_name_rejected(self):
         with self.assertRaises(RenameError):
@@ -214,7 +211,7 @@ class RenameRuleTests(TestCase):
             rename_user(self.user, 'admin')
         self.assertFalse(UsernameHistory.objects.exists())
 
-    # --- link-rot fix ------------------------------------------------------
+    # link-rot fix
 
     def test_old_profile_url_redirects_to_new(self):
         rename_user(self.user, 'coderprime')
@@ -236,7 +233,7 @@ class RenameRuleTests(TestCase):
     def test_unknown_username_still_404s(self):
         self.assertEqual(self.client.get('/u/ghost-user/').status_code, 404)
 
-    # --- the views end-to-end -----------------------------------------------
+    # the views end-to-end
 
     def test_rename_view_charges_and_redirects(self):
         self.client.login(username='coder', password='pass12345')
@@ -283,7 +280,6 @@ class RenameRuleTests(TestCase):
         })
         self.assertFalse(form.is_valid())
         self.assertIn('username', form.errors)
-
 
 @override_settings(RATELIMIT_ENABLE=False)
 class NameStyleTests(TestCase):

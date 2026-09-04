@@ -1,18 +1,4 @@
 """CSRF cookie / preview-iframe regressions.
-
-5 Whys: why pin these?
-1. Why a CSRF test at all? The live preview 403'd login with
-   "CSRF cookie not set" — Django's test client skips CSRF unless
-   we turn it on, so a normal login test would never catch it.
-2. Why test cookie_security() as a function? Settings are imported
-   once. The helper is the only way to lock preview vs production
-   vs laptop flags without reimporting the module.
-3. Why assert the login GET sets csrftoken? No cookie on GET means
-   every POST 403s. That is the failure the user hit.
-4. Why a POST without the cookie must 403? A "fix" that csrf_exempts
-   login would go green and reopen login CSRF.
-5. Why the e2b Host rewrite? PreviewEmbedMiddleware only upgrades
-   cookies for that host; a testserver request must stay Lax.
 """
 from django.contrib.auth import get_user_model
 from django.test import RequestFactory, SimpleTestCase, TestCase, override_settings
@@ -23,7 +9,6 @@ from gallery.middleware import PreviewEmbedMiddleware, host_needs_embed_cookies
 
 User = get_user_model()
 PW = 'Admin@BlaqVibe2026'
-
 
 class CookieSecurityHelperTests(SimpleTestCase):
     def test_preview_is_samesite_none_secure(self):
@@ -67,7 +52,6 @@ class CookieSecurityHelperTests(SimpleTestCase):
             origins,
             ['https://blaqvibes.co.za', 'https://www.blaqvibes.co.za'],
         )
-
 
 class PreviewEmbedMiddlewareTests(SimpleTestCase):
     def setUp(self):
@@ -117,7 +101,6 @@ class PreviewEmbedMiddlewareTests(SimpleTestCase):
         self.assertEqual(morsel['samesite'], 'Lax')
         self.assertEqual(response['X-Frame-Options'], 'DENY')
         self.assertFalse(morsel['partitioned'])
-
 
 class CsrfEnforcedLoginTests(TestCase):
     def setUp(self):

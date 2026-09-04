@@ -1,24 +1,7 @@
 """Stars economy — the working money path.
-
 No external API. Buyer spends star_cost, seller receives the same amount,
 a Trade row is the receipt, a pair of StarEvent rows is the ledger, and
 that Trade unlocks the ZIP.
-
-5 Whys (why starring does NOT move the wallet):
-1. Why did it before? "Engagement should reward creators" — a star paid
-   the owner +1 spendable ★.
-2. Why is that a mint? Starring is free and reversible. Unstar only
-   deducted when the balance was still there, so star → owner spends →
-   unstar → star again printed currency with a single account.
-3. Why not fix the unstar edge instead? Any free action that creates
-   currency is farmable with throwaway accounts; patching one loop leaves
-   the class of bug alive.
-4. Why keep the star counter at all? project.stars is reputation —
-   ranking, discovery, bragging rights. Reputation may be cheap;
-   currency may not.
-5. Why is the fix safe for creators? Real income still flows through
-   trades (buyer pays star_cost) and challenge bounties — both scarce,
-   both ledgered.
 """
 from django.db import IntegrityError, transaction
 from django.db.models import F, Sum
@@ -28,40 +11,16 @@ from users.models import Profile, StarEvent
 from .access import effective_star_cost
 from .models import AppProject, Trade
 
-
 class TradeError(Exception):
     def __init__(self, message):
         self.message = message
         super().__init__(message)
 
-
 def split_shares(project, total):
     """Distribute `total` stars among owner + co-owners.
-
-    Returns [(user, amount), ...] where amounts sum EXACTLY to total and
-    every amount is >= 1 (zero-share recipients are omitted, so the list
-    may be shorter than the team). Owner keeps 100 − Σ(co-owner shares).
-
-    5 Whys:
-    1. Why largest-remainder instead of truncation? 5★ split 34/33/33:
-       floor gives 1+1+1 = 3 — two stars would vanish (or be minted if we
-       rounded up). Largest remainder hands the leftover to the biggest
-       fractional parts, so Σ == total always: buyer pays N, team gets N,
-       the ledger reconciles. A star is never created or destroyed by
-       arithmetic.
-    2. Why integer math (`p // 100`, `p % 100`) instead of floats?
-       Float division is fine at 2 decimals but the remainder loop needs
-       exactness; integer quotients/remainders are exact by construction.
-    3. Why omit zero-share recipients instead of creating 0★ Trade rows?
-       A "+0 ★" ledger row and Trade row is noise that breaks the "you
-       earned" display; the remainder pass guarantees the omitted rows
-       truly would have been 0.
-    4. Why owner first, then co-owners by id? The returned order is the
-       lock order in trade_for_download; a stable total order across
-       concurrent trades prevents deadlocks.
-    5. Why fall back to owner-gets-all when shares exceed 100? That state
-       is unreachable through the app (form validates Σ ≤ 100), but a
-       direct DB write must not pay out more than 100% — fail safe.
+        Returns [(user, amount), ...] where amounts sum EXACTLY to total and
+        every amount is >= 1 (zero-share recipients are omitted, so the list
+        may be shorter than the team). Owner keeps 100 − Σ(co-owner shares).
     """
     co = list(project.co_owners.select_related('user').order_by('id'))
     used = sum(c.share_percent for c in co)
@@ -91,25 +50,11 @@ def split_shares(project, total):
         remainder -= 1
     return [(u, amt) for u, amt in base.items() if amt > 0]
 
-
 def trade_for_download(buyer, project):
     """Atomically spend stars to unlock a ZIP.
-
-    Returns the Trade (existing or new). Returns None when the download is
-    free for this buyer (owner, or star_cost == 0). Raises TradeError when
-    the buyer cannot pay.
-
-    5 Whys (verified email gate):
-    1. Why require email_verified to trade? The seller is paid real,
-       spendable stars. An unverified account is free to script.
-    2. Why gate the trade, not the download? Free downloads harm nobody;
-       only the currency transfer needs a scarce counterparty.
-    3. Why not gate on account age? Age is free too — it only slows the
-       farm down. A mailbox is the cheapest real cost we can demand.
-    4. Why is the welcome grant on the same gate? One rule — currency
-       enters and moves only for verified accounts — is auditable.
-    5. Why check inside this function, not the view? Every future caller
-       (API, admin tool) must hit the same wall.
+        Returns the Trade (existing or new). Returns None when the download is
+        free for this buyer (owner, or star_cost == 0). Raises TradeError when
+        the buyer cannot pay.
     """
     if not getattr(buyer, 'is_authenticated', False):
         raise TradeError('Sign in to trade stars for this vibe.')
@@ -158,13 +103,13 @@ def trade_for_download(buyer, project):
                     f'Need {cost} ★ to trade for “{project.title}” — you have {buyer_p.stars_balance} ★. '
                     'Earn stars by publishing vibes that get traded.'
                 )
-            # One Trade + ledger row PER RECIPIENT (owner + each co-owner).
-            # 5 Whys: why not one row with multiple sellers? Trade.seller is
-            # a single FK used by ranks, payout dashboard, trading history
-            # and ledger refs. Per-recipient rows keep every existing query
-            # correct unchanged — each person's "sold" list shows exactly
-            # their share. Lock order follows split_shares (owner first, then
-            # co-owners by id) so concurrent trades never deadlock.
+            # One Trade + ledger row PER RECIPIENT (owner + each co-owner)
+            # rather than one row with multiple sellers: Trade.seller is a
+            # single FK used by ranks, payout dashboard, trading history and
+            # ledger refs. Per-recipient rows keep every existing query correct
+            # unchanged — each person's "sold" list shows exactly their share.
+            # Lock order follows split_shares (owner first, then co-owners by
+            # id) so concurrent trades never deadlock.
             shares = split_shares(locked, cost)
             if not shares:
                 raise TradeError('No recipient for this trade. Try again.')
@@ -197,24 +142,9 @@ def trade_for_download(buyer, project):
             return existing
         raise TradeError('Could not complete the trade. Try again.')
 
-
 def toggle_project_star(user, project):
     """Atomically star or unstar. Returns True if the vibe is now starred.
-
-    Reputation only — the wallet is untouched.
-
-    5 Whys:
-    1. Why lock the project row? Two tabs both get_or_create, then the loser
-       treats it as an unstar and deletes the winner's Star.
-    2. Why select_for_update on Star too? So the delete and the counter move
-       cannot interleave with another toggle.
-    3. Why IntegrityError on create? Unique (user, project) is the real lock
-       if two creates sneak in before the row lock is held.
-    4. Why not let stars go negative? Unstar uses stars__gt=0, same as the
-       existing floor test.
-    5. Why does the owner's wallet NOT move here? Starring is free and
-       reversible; paying spendable currency for it was a minting loop
-       (star → spend → unstar → star). See module docstring.
+        Reputation only — the wallet is untouched.
     """
     from .models import AppProject, Star
 
@@ -232,10 +162,8 @@ def toggle_project_star(user, project):
         AppProject.objects.filter(pk=locked.pk).update(stars=F('stars') + 1)
         return True
 
-
 def stars_earned(user) -> int:
     return Trade.objects.filter(seller=user).aggregate(total=Sum('cost'))['total'] or 0
-
 
 def stars_spent(user) -> int:
     return Trade.objects.filter(buyer=user).aggregate(total=Sum('cost'))['total'] or 0

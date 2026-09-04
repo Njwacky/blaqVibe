@@ -15,23 +15,6 @@ from gallery.models import AppProject, AppReport, CloneEvent, ScanJob, Trade
 
 DAYS = 14
 
-# 5 Whys on the dashboard's data rules:
-# 1. Why chart append-only logs (CloneEvent, Trade, ScanJob, date_joined)
-#    instead of cumulative counters? Cumulative ints have no history — a
-#    "clones/day" line drawn from them would be a lie (same rule as the
-#    earnings charts). Only rows with timestamps get charted.
-# 2. Why is "quarantine rate" jobs-with-an-outcome / not all uploads? A
-#    scan that never concluded (still queued/scanning) is not data about
-#    the app, it is data about the queue.
-# 3. Why server-rendered SVG? Same as earnings: zero third-party JS, works
-#    with JS disabled, testable as markup.
-# 4. Why 14 days? Long enough to see a trend, short enough to stay
-#    readable; the earnings page already proved the shape.
-# 5. Why does an all-zero series render "no data yet" instead of an empty
-#    axis? Honesty — a brand-new install would otherwise look like a dead
-#    platform. Charts start when the logs start.
-
-
 def _fmt(v):
     if v is None:
         return '0'
@@ -39,11 +22,9 @@ def _fmt(v):
         return f'{v / 1000:.1f}k'
     return str(int(v))
 
-
 def _days_list():
     today = timezone.localdate()
     return [today - timedelta(days=i) for i in reversed(range(DAYS))]
-
 
 def _daily_counts(queryset, field, days, aggregate='count'):
     """Map TruncDate(field) -> n for the given queryset, filled to `days`."""
@@ -51,7 +32,6 @@ def _daily_counts(queryset, field, days, aggregate='count'):
     rows = queryset.annotate(day=TruncDate(field)).values('day').annotate(n=agg)
     counts = {r['day']: (r['n'] or 0) for r in rows}
     return [counts.get(d, 0) for d in days]
-
 
 @admin_required
 def admin_dashboard(request):
@@ -212,12 +192,10 @@ def audit_log(request):
     trades = Trade.objects.select_related('buyer','seller','project').order_by('-created_at')[:20]
     return render(request, 'users/audit_log.html', {'logs': logs, 'trades': trades})
 
-
-# --- Payouts — the money queue (users/payouts.py holds the rules) ----------
-# 5 Whys: Why is this admin-facing, not moderator-facing? Only admins+
-# may move real money; moderators handle content. Why are full account
-# numbers shown here? An admin typing an EFT needs them — this page is
-# role-gated and the public side only ever sees the masked digits.
+# Payouts — the money queue (users/payouts.py holds the rules). Admin-facing,
+# not moderator-facing: only admins may move real money, moderators handle
+# content. Full account numbers appear here because an admin typing an EFT needs
+# them; the page is role-gated and the public side only ever sees masked digits.
 
 @admin_required
 def payout_queue(request):

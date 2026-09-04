@@ -22,7 +22,6 @@ from gallery.models import AppReport, AppVersion, PullRequest, Star
 # exercises the exact same fixtures the rest of the app tests use.
 from gallery.tests import make_category, make_project, make_user, make_zip_file
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class PullRequestVisibilityRegressionTests(TestCase):
     """Finding #1 — PR pages must not leak unpublished forks to strangers."""
@@ -111,7 +110,6 @@ class PullRequestVisibilityRegressionTests(TestCase):
         response = self.client.get(f'/app/{pubfork.slug}/forks/')
         self.assertEqual(response.status_code, 200)
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class ProfileStarsVisibilityRegressionTests(TestCase):
     """Related object-lookup leak — a public profile's Stars tab must not
@@ -144,7 +142,6 @@ class ProfileStarsVisibilityRegressionTests(TestCase):
         response = self.client.get(f'/u/{self.owner.username}/?tab=stars')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Secret pending vibe')
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class DownloadAndReportGateRegressionTests(TestCase):
@@ -183,7 +180,6 @@ class DownloadAndReportGateRegressionTests(TestCase):
         response = self.client.post(f'/app/{self.published.slug}/report/', {'reason': 'spam'})
         self.assertEqual(response.status_code, 302)
         self.assertTrue(AppReport.objects.filter(project=self.published, reason='spam').exists())
-
 
 class AuthRateLimitRegressionTests(TestCase):
     """Finding #2 — login and password-reset are rate-limited per IP."""
@@ -232,7 +228,6 @@ class AuthRateLimitRegressionTests(TestCase):
             last = self.client.post('/accounts/password_reset/', {'email': 'someone@test.com'})
         self.assertEqual(last.status_code, 403)
 
-
 class CspReportRateLimitRegressionTests(TestCase):
     """Finding #8 — unauthenticated csp-report POST flood is bounded."""
 
@@ -267,7 +262,6 @@ class CspReportRateLimitRegressionTests(TestCase):
             last = self.client.post('/csp-report/', data='{}', content_type='application/json')
         self.assertEqual(last.status_code, 403)
 
-
 @override_settings(RATELIMIT_ENABLE=False)
 class ReadinessLeakRegressionTests(TestCase):
     """Finding #5 — /readyz must not echo DB/Redis exception strings."""
@@ -283,7 +277,6 @@ class ReadinessLeakRegressionTests(TestCase):
         self.assertNotIn('db.internal', raw)
         self.assertNotIn('hunter2', raw)
         self.assertNotIn('5432', raw)
-
 
 class SecureProxyHeaderDefaultsTests(SimpleTestCase):
     """Finding #3 — client X-Forwarded-Proto is trusted only behind a proxy.
