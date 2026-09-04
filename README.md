@@ -85,10 +85,10 @@ CI covers migrations, demo seeding, tests, security posture and feed smoke check
 - **Program kinds are explicit.** Projects can be games, APIs, mobile apps, notebooks, CLI tools and more. The platform says when a live preview is unavailable instead of faking one.
 - **Discovery is personalised carefully.** The For You feed can learn from actions such as opening, starring, forking and trading, while explicit filters and non-default sorts stay truthful.
 - **Git is real.** Smart HTTP supports clone/push flows subject to the same access, ownership and scanning rules as the web UI. A pushed project re-enters the scan queue.
-- **Stars are a real ledger.** Trades move stars atomically between buyer and seller, and successful trades unlock paid ZIP downloads.
+- **Stars are an in-app ledger.** Stars can be earned through supported BlaqVibes activity and spent to unlock projects or support creators. They are not a promise of cash redemption or creator repayment.
 - **Paid downloads are protected.** ZIPs, forks, Git URLs and media paths cannot bypass the access checks.
-- **Paystack checkout is gated.** Buy flows only appear when the required payment configuration is present and webhooks are verified.
-- **Creator cash-outs exist.** Star balances can be held for payout and approved by an authorised operator; pending payment-provider transfers are not treated as paid automatically.
+- **Paystack checkout is gated.** Buy flows only appear when the required payment configuration is present and webhooks are verified. Paystack is used for customer purchases, not creator cash-outs.
+- **There is no creator cash-out program.** BlaqVibes does not promise to convert stars into ZAR, reimburse creators for stars, or transfer creator earnings to bank accounts. Stars stay inside the platform's economy.
 - **Battle votes do not inflate project stars.** Competitive voting and creator popularity remain separate signals.
 - **Remix lineage is preserved.** Forks keep a `forked_from` relationship so visitors can see where an idea came from and how it travelled.
 - **BlaqVibes Today is the return loop.** It combines the daily mission, creator momentum, feedback, notifications and remixable work into one short command center.
