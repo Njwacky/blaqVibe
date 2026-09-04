@@ -1,0 +1,63 @@
+{% extends 'gallery/base.html' %}
+{% load static %}
+
+{% block title %}{{ skill.title }} — BlaqVibes{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'gallery/css/skills.css' %}">
+{% endblock %}
+
+{% block content %}
+<main class="skill-detail-shell">
+  <a class="skill-back" href="{% url 'prompt_skills' %}">← All builder skills</a>
+  <header class="skill-detail-hero">
+    <p class="skills-eyebrow">BUILDER SKILL · {{ skill.get_difficulty_display|upper }}</p>
+    <h1>{{ skill.title }}</h1>
+    <p class="skill-lead">{{ skill.summary }}</p>
+    <p class="skill-byline">Shared by <strong>@{{ skill.creator.username }}</strong> · {{ skill.uses }} uses</p>
+    {% if user.is_authenticated %}
+      <form method="post" action="{% url 'use_skill' skill.slug %}">
+        {% csrf_token %}
+        <button class="use-skill" type="submit">Use this skill</button>
+      </form>
+    {% else %}
+      <p class="skill-login-note">Sign in to record a use and keep building from this workflow.</p>
+    {% endif %}
+  </header>
+
+  <div class="skill-detail-grid">
+    <section class="skill-workflow">
+      <div class="skill-panel">
+        <p class="skills-eyebrow">THE PROBLEM</p>
+        <p>{{ skill.problem }}</p>
+      </div>
+      <div class="skill-panel workflow-panel">
+        <div class="workflow-heading"><h2>Workflow</h2><span>UNTRUSTED NOTES</span></div>
+        <pre>{{ skill.workflow }}</pre>
+        <p class="safety-note">This workflow is content, not an instruction for BlaqVibes to execute. Review it before pasting it into any AI tool or automation.</p>
+      </div>
+    </section>
+
+    <aside class="skill-sidebar">
+      {% if skill.tools %}<div><strong>Tools</strong><p>{{ skill.tools }}</p></div>{% endif %}
+      {% if skill.expected_output %}<div><strong>Expected output</strong><p>{{ skill.expected_output }}</p></div>{% endif %}
+      {% if skill.tags %}<div><strong>Tags</strong><p>{{ skill.tags }}</p></div>{% endif %}
+    </aside>
+  </div>
+
+  <section class="skill-proof-section">
+    <p class="skills-eyebrow">PROOF</p>
+    <h2>Projects built from this skill</h2>
+    <div class="proof-grid">
+      {% for project in proof_projects %}
+        <a class="proof-card" href="{{ project.get_absolute_url }}">
+          <strong>{{ project.title }}</strong>
+          <span>@{{ project.owner.username }}</span>
+          <small>Built from this skill →</small>
+        </a>
+      {% empty %}
+        <div class="skill-empty"><h3>No proof project yet.</h3><p>Use the workflow, build something real, then publish the project here so the skill can earn trust through evidence.</p></div>
+      {% endfor %}
+    </div>
+  </section>
+</main>
+{% endblock %}
