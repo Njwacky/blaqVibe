@@ -1,4 +1,5 @@
-# 5 Whys: Why stars → rank? Incentive to publish quality. Why bonus for trending? High stars = appears 1st.
+# Stars feed rank, to reward publishing quality; a trending bonus lets high-star
+# vibes surface first.
 RANKS = [
     (0, 'Bronze', 0, 0),
     (10, 'Silver', 10, 5),

@@ -28,28 +28,8 @@ from .access import user_can_see_project
 
 logger = logging.getLogger(__name__)
 
-
 def _battle_visible(user, battle):
     """True only when BOTH vibes in a battle are visible to `user`.
-
-    5 Whys — why a helper instead of re-reading status in each view?
-    1. Why does this matter? A battle is created from two published vibes,
-       but either vibe can later be re-queued (pending), quarantined or
-       removed — just like every other content read on the site. The
-       battle page and history render the vibes' titles, owners and star
-       counts; a stranger must not learn about a vibe that has since gone
-       non-public from a route whose only job is to be fun.
-    2. Why `user_can_see_project` and not a raw `status == 'published'`
-       check? It is the single visibility rule the rest of the site uses
-       (owner/moderator can see their own pending, strangers cannot), so
-       a battle owner reviewing their own non-public vibe still can.
-    3. Why call it on BOTH vibes and not just one? The page shows both
-       cards side by side; leaking either one is a leak.
-    4. Why a module-level helper returning a bool? battle(), battle_history()
-       and vote_battle() all need the same answer — one place to get it
-       right, instead of a subtly different filter per view.
-    5. Why catch every exception and fail closed? A broken select_related
-       must not render a visible battle; a False here hides it honestly.
     """
     try:
         return bool(
@@ -59,7 +39,6 @@ def _battle_visible(user, battle):
     except Exception:
         logger.exception('battle visibility check failed battle=%s', getattr(battle, 'id', '?'))
         return False
-
 
 @login_required
 @require_POST
@@ -113,19 +92,6 @@ def nolo_chat_api(request):
 @ratelimit(key='ip', rate='30/h', method='POST')
 def nolo_fix_api(request):
     """Nolo debugs a beginner's HTML/CSS/JS. Works with or without an API key.
-
-    5 Whys:
-    1. Why a separate endpoint from chat? The Studio sends structured code
-       (html/css/js/error), not a free chat line; a typed contract lets the
-       UI render findings next to the code.
-    2. Why no login gate? A beginner tinkering in Studio before signing up is
-       exactly who needs debugging help; the rate limit is by IP, not user.
-    3. Why crush to a safe JSON error? A broken analyser must never take the
-       Studio down mid-edit.
-    4. Why return `source`? The UI must be honest about whether a live model
-       or the built-in checks answered (same rule as chat).
-    5. Why cap at 30/h? Debugging is bursty but a paste loop is abuse; the
-       cap matches chat's order of magnitude.
     """
     try:
         if getattr(request, 'limited', False):
@@ -143,23 +109,10 @@ def nolo_fix_api(request):
         logger.exception(f"nolo fix api crush: {e}")
         return JsonResponse({'error': 'Nolo could not analyse that right now.'}, status=500)
 
-
 @require_POST
 @ratelimit(key='ip', rate='30/h', method='POST')
 def nolo_readme_api(request):
     """Nolo writes a README from the project's title/description/code.
-
-    5 Whys:
-    1. Why here and not the existing ai_readme.py? That one works on a saved
-       ZIP AppProject; the Studio needs a README BEFORE anything is saved,
-       straight from the editor fields.
-    2. Why guarantee a '# ' heading + length? The publish form rejects a
-       README under 100 chars or without a heading; a generator that produced
-       an unpublishable README would be a trap.
-    3. Why no login gate? Same as fix: the beginner needs it before signing up.
-    4. Why sanitise the code first? It is user text; it goes through the prompt
-       scrub before it can reach a model or the page.
-    5. Why return source? Honesty about live-model vs built-in, every time.
     """
     try:
         if getattr(request, 'limited', False):
@@ -179,27 +132,11 @@ def nolo_readme_api(request):
         logger.exception(f"nolo readme api crush: {e}")
         return JsonResponse({'error': 'Nolo could not write that right now.'}, status=500)
 
-
 def nolo_help(request):
     return redirect('nolo_chat')
 
-
 def starter_gallery(request):
     """The on-ramp: pick a starter template (or a blank page) to open in Studio.
-
-    5 Whys — why a gallery page separate from the feed?
-    1. Why not just seed starters into the feed? The feed is finished vibes to
-       clone/trade; a starter is a *blank canvas to begin from*. Mixing them
-       would blur "learn from this" with "publish over this".
-    2. Why public (no login)? A beginner deciding whether to sign up should be
-       able to pick a starter and write first; the login wall lands at
-       *running* the preview and at publish — never at the editors.
-    3. Why data-driven (gallery.starters)? Starters must be trustworthy on
-       first paint — code-reviewed data, never user bytes (see starters.py).
-    4. Why include a blank option? Someone with their own idea should not have
-       to delete a template first; blank is the honest "start from nothing".
-    5. Why keep it read-only? The gallery only routes to Studio; all editing
-       and the publish gate live in one place (studio), so rules cannot drift.
     """
     from .starters import STARTERS, STARTERS_VERSION
     return render(request, 'gallery/starter_gallery.html', {
@@ -207,45 +144,15 @@ def starter_gallery(request):
         'starters_version': STARTERS_VERSION,
     })
 
-
 def studio(request, slug=''):
     """In-browser editor. Write without an account; run preview after login.
-
-    GET  — load a starter (or blank) into three editors (HTML/CSS/JS).
-           Writing is public. The live preview iframe is only in the HTML
-           when the visitor is signed in; anonymous visitors get a lock
-           panel instead. Drafts live in sessionStorage so sign-in does
-           not wipe the editors.
-    POST — hand the edited fields to the ONE publish path so scan, classify,
-           and trust all apply. Studio never writes an AppProject itself.
-
-    5 Whys:
-    1. Why does the live preview run entirely client-side? An `<iframe
-       sandbox="allow-scripts" srcdoc>` is an opaque origin — it cannot read
-       our cookies or DOM — so the user's in-progress code is safe to run
-       with zero round-trips. This IS the client-side runner, reused.
-    2. Why route publish through gallery.views.publish instead of saving here?
-       Edited starter code is user content; it must pass the same validation,
-       snippet secret-scan, classification, and trust grading as any upload.
-       A second save path would be a second place for those rules to rot.
-    3. Why require login to RUN the preview, not to write? Writing is text
-       in a textarea — no execution, no account. Running HTML/JS executes in
-       the visitor's browser. An account is the same gate we already use for
-       publish, so a shared /studio/ URL cannot become an anonymous script
-       runner, and the conversion is honest: you wrote it, sign in to see it
-       run.
-    4. Why omit the iframe from the anonymous HTML rather than hide it with
-       CSS? `display:none` still leaves an iframe a visitor (or an extension)
-       can unhide, and studio.js would still assign srcdoc. A missing element
-       cannot run. The JS flag `canPreview` is rendered from
-       `request.user.is_authenticated` — flipping it in DevTools cannot
-       conjure an iframe that was never sent.
-    5. Why persist the draft in sessionStorage? Sign-in is a full navigation.
-       Without a local draft, "you can write without an account" deletes the
-       work at the conversion moment. sessionStorage (not localStorage) dies
-       with the tab on a shared computer; the server never stores anonymous
-       code (that would be a pastebin). After login, `?next=` returns to the
-       same /studio/<slug>/ and the editors restore.
+        GET  — load a starter (or blank) into three editors (HTML/CSS/JS).
+               Writing is public. The live preview iframe is only in the HTML
+               when the visitor is signed in; anonymous visitors get a lock
+               panel instead. Drafts live in sessionStorage so sign-in does
+               not wipe the editors.
+        POST — hand the edited fields to the ONE publish path so scan, classify,
+               and trust all apply. Studio never writes an AppProject itself.
     """
     from .starters import get_starter, STARTERS_VERSION
     from .forms import AppUploadForm
@@ -337,24 +244,8 @@ def create_pr(request, slug):
 
 def pr_list(request, slug):
     """List PRs for a vibe — open/merged/closed, backend only.
-
-    Published target only, same visibility rule as every other content
-    page. A PR list rides on the *target* slug, so it must not confirm
-    (or hand out forks' metadata for) an unpublished vibe. 5 Whys:
-    1. Why gate here when create_pr already checks forked_from? A fork is
-       created pending; its PR rows describe that pending source. Listing
-       them from a guessed pending slug is exactly the leak the rest of
-       the site 404s.
-    2. Why 404, not 403? A 403 confirms the vibe exists (scan_status says
-       the same thing).
-    3. Why gate the TARGET, not just the source? The page title, owner and
-       PR metadata all describe the target; a pending target is private.
-    4. Why keep pr_action ungated? Merge/close is owner/admin-only and
-       re-routes through this page; it cannot read more than it already
-       knows about its own vibe.
-    5. Why not also require the SOURCE to be published? Owners legitimately
-       hold open PRs from their own still-pending forks — the source gate
-       (user_can_see_project) lives on pr_detail, where content is read.
+        Published target only, same visibility rule as every other content
+        page. A PR list rides on the *target* slug, so it must not confirm
     """
     try:
         target = get_object_or_404(AppProject, slug=slug, status='published')
@@ -628,17 +519,6 @@ def vote_battle(request, battle_id):
 
 def run_vibe(request, slug):
     """Send people to the honest preview. Not a Docker host.
-
-    5 Whys: Why ask can_run_preview instead of `if html_code`?
-    1. A static-site ZIP now runs live too (preview_mode == 'static_zip'),
-       so "runnable" is no longer "has an inline snippet".
-    2. can_run_preview is the single source of truth the badge and the shell
-       already use — routing on anything else could disagree with the badge.
-    3. A ZIP that only shows files must still land on the file list, not a
-       blank live frame.
-    4. No snippet and no files → honest error, never a fake preview.
-    5. One property, three call sites (card, shell, this router) — they can
-       never drift.
     """
     project = get_object_or_404(AppProject, slug=slug, status='published')
     # An inline snippet always runs; a static-site ZIP runs when the
@@ -652,23 +532,14 @@ def run_vibe(request, slug):
     messages.error(request, "Nothing to preview — no snippet or files.")
     return redirect(project.get_absolute_url())
 
-# deploy_view removed with the Deploy model. 5 Whys: Why kill the route?
-# It promised a live deployment and delivered a redirect — a lie in the URL
-# space. Old /deploy/<token>/ links now 404 honestly.
+# deploy_view was removed with the Deploy model: it promised a live deployment
+# but delivered a redirect — a lie in the URL space. Old /deploy/<token>/ links
+# now 404 honestly.
 
 @require_POST
 @ratelimit(key='ip', rate='20/h', method='POST')
 def copy_increment(request, slug):
     """One copy count per session per published vibe. Not a leaderboard.
-
-    5 Whys:
-    1. Why not a naked F()+1? Anyone can POST /copy/ in a loop.
-    2. Why session not IP-only? IP rate limits rotate; a session is the
-       browser that actually copied.
-    3. Why ignore the owner? Self-copies would be the first farm.
-    4. Why published only? A pending slug must not be confirmable this way.
-    5. Why keep the endpoint? The snippet Copy button already calls it;
-       dropping the stat would lie in the UI. Cap it instead.
     """
     if getattr(request, 'limited', False):
         return JsonResponse({'ok': True, 'ignored': 'limited'}, status=429)

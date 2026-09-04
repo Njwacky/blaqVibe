@@ -1,29 +1,8 @@
 """Nolo's assistant skills — fix code and write a README.
-
 Two things a new vibe coder actually needs: "why is my code broken?" and
 "write me a README". Both work WITHOUT an API key (a real static analyser and
 a real structured README generator), and get better WITH one (the analysis is
 handed to the model as grounding, never replaced by a guess).
-
-5 Whys — why heuristics first, LLM only as a lift?
-
-1. Why must this work with no key at all? The whole site's honesty rule is
-   "never pretend to be a live model" (see nolo_ai). A beginner on a fresh
-   deploy with no key must still get a genuinely useful answer, not a stub.
-2. Why a real static analyser instead of "set a key for help"? The common
-   beginner breakages — an unclosed tag, `getElementByID`, a missing bracket,
-   calling the DOM before it exists — are detectable deterministically in
-   milliseconds, offline, with no hallucination risk.
-3. Why still call the LLM when a key exists? Heuristics catch the frequent
-   mistakes; a model explains the unusual one and writes prose. Feeding it the
-   heuristic findings grounds it so it fixes the ACTUAL code, not an imagined
-   version.
-4. Why cap and sanitise the input? Code pasted into a form is user text — it
-   goes through the same length cap and prompt-injection scrub as any prompt
-   (see prompt_sanitize) before it can reach a model or the page.
-5. Why return structured findings, not one blob? The Studio renders each
-   finding next to the code; a list the UI can iterate beats a wall of text,
-   and tests can assert a specific check fired.
 """
 import logging
 import re
@@ -51,11 +30,9 @@ NOLO_README_SYSTEM_PROMPT = (
 # gallery/prompt_economy.py and NOLO_CODE_PROMPT_BUDGET_CHARS in .env.example.
 NOLO_CODE_PROMPT_BUDGET = 8000
 
-
 def _clip(text):
     text = text or ''
     return text[:MAX_CODE_LEN]
-
 
 def _code_budget():
     try:
@@ -69,17 +46,13 @@ def _code_budget():
     except (TypeError, ValueError):
         return NOLO_CODE_PROMPT_BUDGET
 
-
-# --------------------------------------------------------------------------- #
-# Skill 1: Fix my code
-# --------------------------------------------------------------------------- #
+# Skill 1: Fix my code.
 
 # Void elements never need a closing tag — don't flag them as "unclosed".
 _VOID_TAGS = {
     'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input', 'link',
     'meta', 'param', 'source', 'track', 'wbr',
 }
-
 
 def _check_html(html, findings):
     if not html.strip():
@@ -107,7 +80,6 @@ def _check_html(html, findings):
                       'Use onclick="doThing()" to run it on click.',
         })
 
-
 def _check_css(css, findings):
     if not css.strip():
         return
@@ -120,7 +92,6 @@ def _check_css(css, findings):
             'detail': f'{opens} opening braces vs {closes} closing. A missing brace usually stops '
                       f'every rule after it from applying.',
         })
-
 
 def _check_js(js, findings):
     if not js.strip():
@@ -168,7 +139,6 @@ def _check_js(js, findings):
             'detail': 'Fine while building — remember to remove debug logging before you publish.',
         })
 
-
 def analyze_code(html='', css='', js='', error=''):
     """Deterministic static checks over HTML/CSS/JS. Returns a findings list.
 
@@ -192,7 +162,6 @@ def analyze_code(html='', css='', js='', error=''):
     order = {'error': 0, 'warning': 1, 'info': 2}
     findings.sort(key=lambda f: order.get(f.get('level'), 3))
     return findings
-
 
 def fix_code(html='', css='', js='', error='', allow_llm=True):
     """Return (summary, findings, source).
@@ -245,10 +214,7 @@ def fix_code(html='', css='', js='', error='', allow_llm=True):
                    "paste the exact error text from the browser console (F12) and I’ll look again.")
     return summary, findings, 'heuristic'
 
-
-# --------------------------------------------------------------------------- #
-# Skill 2: Write my README
-# --------------------------------------------------------------------------- #
+# Skill 2: Write my README.
 
 def _detect_features(html, css, js):
     """Human-readable feature bullets inferred from the code. No network."""
@@ -269,7 +235,6 @@ def _detect_features(html, css, js):
         if needle in blob:
             feats.append(label)
     return feats[:6]
-
 
 def write_readme(title='', description='', html='', css='', js='', tech='', allow_llm=True):
     """Return (markdown, source).

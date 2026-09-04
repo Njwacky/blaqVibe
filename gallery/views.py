@@ -58,22 +58,8 @@ from .views_community import (
 )
 logger = logging.getLogger(__name__)
 
-
 def safe_internal_next(request, default=''):
     """Same-origin relative `next` URL, or default.
-
-    5 Whys:
-    1. Why honor next at all? Studio sends beginners to sign in / sign up
-       mid-edit; dumping them on the feed after that is a trap that looks
-       like their code vanished.
-    2. Why reject absolute URLs to other hosts? Open redirect — a login
-       form that bounces to evil.example is an account-phishing hole.
-    3. Why require a leading '/' and forbid '//'? Protocol-relative
-       `//evil.example` fools a naive "starts with slash" check.
-    4. Why also use Django's url_has_allowed_host_and_scheme? Defence in
-       depth against scheme tricks (`javascript:`, `data:`).
-    5. Why a default instead of raising? A missing or garbage next is not
-       an error for the user — send them to the caller’s fallback.
     """
     candidate = (request.POST.get('next') or request.GET.get('next') or '').strip()
     if not candidate.startswith('/') or candidate.startswith('//'):
@@ -86,21 +72,9 @@ def safe_internal_next(request, default=''):
         return candidate
     return default
 
-
 @ratelimit(key='ip', rate='10/h', method='POST')
 def signup(request):
     """Account creation — rate limited per IP.
-
-    5 Whys:
-    1. Why rate limit signup? Accounts used to arrive with 5 spendable ★;
-       a loop could mint a wallet per second.
-    2. Why keep the limit now that the grant moved to email-verify?
-       Defense in depth — sockpuppets are still the raw material for vote
-       farming (battles) and fake reviews.
-    3. Why per-IP not per-user? There is no user yet.
-    4. Why 10/h not 3/h? Shared NATs (campus, office) are real; 10 blocks
-       scripts without locking out a classroom.
-    5. Why 429 not a silent pass? Failing open makes the limit decorative.
     """
     if getattr(request, 'limited', False):
         return HttpResponse("Too many signups from this network. Try again later.", status=429)
@@ -124,22 +98,6 @@ def signup(request):
 
 def feed(request):
     """The discovery grid.
-
-    5 Whys — why is 'for you' the default sort for a signed-in user?
-
-    1. Why personalise at all? Everything gets published here, so the grid
-       fills with kinds a given person will never open. Sorting by taste is
-       what keeps a firehose usable.
-    2. Why default to it instead of hiding it behind a dropdown option? A
-       default nobody selects is a feature nobody gets; the user asked for
-       games to be pushed to the FRONT for people who like games.
-    3. Why does it silently fall back to global order? Anonymous visitors
-       and brand-new accounts have no signal — reordering on noise would be
-       worse than not reordering (see taste.has_enough_signal).
-    4. Why keep every other sort working exactly as before? 'Newest' is a
-       promise about ordering; personalising it would make it a lie.
-    5. Why still allow an explicit kind filter on top? Ranking is a guess;
-       a filter is an instruction, and an instruction must always win.
     """
     try:
         q = request.GET.get('q','').strip()
@@ -209,15 +167,11 @@ def feed(request):
                 tech = bleach.clean(tech, tags=[], strip=True)[:100]
             except Exception: pass
             projects = projects.filter(tech_stack__icontains=tech)
-        # 5 Whys: Why force q to '' instead of conditionally calling
-        # search_projects? search_projects handles empty q by returning
-        # the sorted queryset; setting q to '' reuses that path without
-        # adding a branch. Why allow filters to still work when search
-        # is off? A feed without text search should still let users
-        # browse by category/kind/tech — those filters are index-only
-        # and cost nothing. Why fail-closed? If the setting cannot be
-        # read, search stays on (default True) so a broken DB row never
-        # silences the feed.
+        # When search is disabled, force q to '': search_projects treats an
+        # empty q as "no search" and returns the sorted queryset, so the other
+        # filters still work (index-only, free) without a branch. Fail open — if
+        # the setting can't be read, search stays on (default True) so a broken
+        # DB row never silences the feed.
         try:
             from users.models import SiteSettings
             if not SiteSettings.get().search_enabled:
@@ -299,7 +253,6 @@ def feed(request):
     except Exception:
         logger.exception("feed crush silent")
         return render(request, 'gallery/feed.html', {'page': Paginator(AppProject.objects.none(), 12).get_page(1), 'categories': Category.objects.all(), 'q': '', 'cat': '', 'kind': '', 'sort': 'newest', 'program_kinds': PROGRAM_KINDS, 'program_kind': '', 'runnable': '', 'following': '', 'trust': '', 'personalized': False, 'my_kinds': []})
-
 
 def coerce_program_kind_filter(value):
     """Only a real taxonomy value may reach the WHERE clause.
@@ -448,14 +401,6 @@ def app_detail(request, slug):
 
 def scan_status(request, slug):
     """Owner/moderator poll for unpublished; public only after publish.
-
-    5 Whys:
-    1. Why not public on pending? A guessed slug leaks queued/quarantined.
-    2. Why 404 not 403? 403 confirms the vibe exists.
-    3. Why still public after publish? The detail-page poll reloads when
-       is_published flips. Strangers then only see 'clean'.
-    4. Why hide reason from strangers? owner_scan_reason names virus/secrets.
-    5. Why moderator not is_staff? Django staff is not a BlaqVibes role.
     """
     project = get_object_or_404(AppProject, slug=slug)
     if not user_can_see_project(request.user, project):
@@ -489,29 +434,16 @@ def preview_files(request, slug):
         'can_download': user_can_download(request.user, project) if project.zip_file else True,
     })
 
-
 def preview(request, slug):
     """Safe preview shell — the user's HTML/JS runs only inside a sandboxed
-    (opaque-origin) iframe, never in a privileged context.
+        (opaque-origin) iframe, never in a privileged context.
 
-    Two runnable shapes share this one shell:
-      * a snippet → the iframe points at snippet_doc;
-      * a static-site ZIP → the iframe points at run_static (an assembled,
-        single-document version of the ZIP's entry HTML).
-    Both are the same opaque-origin sandbox, so the shell's own CSP is
-    identical; only the iframe src differs. A ZIP that is NOT static-runnable
-    still redirects to the honest file list.
-
-    5 Whys: Why one shell for both instead of a second preview page?
-    1. The security posture (locked-down shell, opaque-origin child) is
-       identical; duplicating it risks the copy drifting weaker.
-    2. detail.js and app_detail already link to this URL; keeping it means no
-       template churn and no second thing to keep in sync.
-    3. `can_run_preview` already encodes "is there something to run"; the
-       shell just asks the model which runnable kind it is.
-    4. A static ZIP that fails to assemble falls back to the file list — the
-       shell decides that once, not every template.
-    5. One shell, one CSP header block — the audit surface stays small.
+          * a snippet → the iframe points at snippet_doc;
+          * a static-site ZIP → the iframe points at run_static (an assembled,
+            single-document version of the ZIP's entry HTML).
+        Both are the same opaque-origin sandbox, so the shell's own CSP is
+        identical; only the iframe src differs. A ZIP that is NOT static-runnable
+        still redirects to the honest file list.
     """
     project = get_object_or_404(AppProject, slug=slug, status='published')
     # Which runnable shape is this? An inline snippet (html_code) always runs
@@ -546,7 +478,6 @@ def preview(request, slug):
     resp['Referrer-Policy'] = 'no-referrer'
     return resp
 
-
 def _referer_is_our_preview(request, slug):
     from urllib.parse import urlparse
     referer = request.META.get('HTTP_REFERER', '')
@@ -558,7 +489,6 @@ def _referer_is_our_preview(request, slug):
     referer_host = (parsed.hostname or '').lower()
     request_host = (request.get_host() or '').split(':')[0].lower()
     return bool(referer_host) and referer_host == request_host
-
 
 def snippet_request_is_framed(request, slug):
     """True only for the sandboxed preview iframe with a valid signed token."""
@@ -573,7 +503,6 @@ def snippet_request_is_framed(request, slug):
     # Old browsers omit Sec-Fetch-Dest. Require a same-host preview Referer
     # so a stolen token cannot be opened as a top-level first-party page.
     return _referer_is_our_preview(request, slug)
-
 
 def snippet_doc(request, slug):
     """The raw snippet document (user HTML + CSS + JS).
@@ -601,31 +530,12 @@ def snippet_doc(request, slug):
     resp['Cross-Origin-Resource-Policy'] = 'same-origin'
     return resp
 
-
 def run_static(request, slug):
     """Assembled single-document run of a static-site ZIP.
-
-    The ZIP's entry HTML with its local CSS/JS/images inlined (gallery.runner),
-    served ONLY into the same sandboxed, opaque-origin iframe as snippet_doc,
-    behind the same short-lived signed token. No file is served from our
-    origin — the assembled bytes are one document, exactly like a snippet.
-
-    5 Whys:
-    1. Why reuse snippet_request_is_framed? The threat is identical (a stolen
-       token opened top-level must not run user JS first-party); one guard,
-       one place to get it right.
-    2. Why not serve `/run/<path>` per asset? That needs `allow-same-origin`
-       or CSP `'self'`, which reopens the exact XSS surface the sandbox
-       closes. Inlining keeps the opaque origin.
-    3. Why gate on preview_mode == 'static_zip'? A ZIP that needs a build or a
-       server has no honest run; assembling its index.html would show broken
-       chrome — the fake preview the site forbids.
-    4. Why the same CSP as snippet_doc? The assembled document is the same
-       shape (inline styles/scripts, remote CDNs, data-URI images); a
-       different policy would either break real vibes or weaken the sandbox.
-    5. Why fall back to snippet_blocked / files instead of 500 on empty
-       assembly? A ZIP we cannot assemble is honestly "no live preview", not
-       a server error the visitor caused.
+        The ZIP's entry HTML with its local CSS/JS/images inlined (gallery.runner),
+        served ONLY into the same sandboxed, opaque-origin iframe as snippet_doc,
+        behind the same short-lived signed token. No file is served from our
+        origin — the assembled bytes are one document, exactly like a snippet.
     """
     project = get_object_or_404(AppProject, slug=slug, status='published')
     if project.preview_mode != 'static_zip' or not project.static_entry:
@@ -717,25 +627,6 @@ def publish(request):
                 except Exception:
                     logger.exception('snippet evidence failed %s', project.slug)
 
-                # 5 Whys — why publish on evidence instead of the old
-                # "must already have 3 published vibes" rule?
-                # 1. Why did that rule fail? A brand-new creator has zero
-                #    published vibes, so every first publish was held —
-                #    and a hold is invisible: no ScanJob row, no task, no
-                #    notification, only "we'll tell you", which nothing told.
-                # 2. Why not just auto-publish unconditionally? A snippet
-                #    still deserves a check, and the check we can afford
-                #    in-request (snippet_evidence: regex only, no queue,
-                #    no LLM) is real evidence — so publish on ITS answer.
-                # 3. Why hold when it flags? A pasted API key is a real
-                #    leak; that is a human decision, not a silent push.
-                # 4. Why is spam still contained? publish is 5/h per user,
-                #    signup is 10/h per IP, snippets only ever run in the
-                #    opaque-origin sandbox, and reports + the moderation
-                #    queue remain the backstop for anything that lands.
-                # 5. Why tell the moderator? A held snippet with no queue
-                #    entry is a vibe nobody owns — the notification makes
-                #    the hold somebody's job instead of nobody's.
                 flagged = bool((project.scan_report or {}).get('snippet_scan', {}).get('secrets_found'))
                 if flagged:
                     project.status = 'pending'
@@ -964,13 +855,11 @@ def post_review(request, slug):
                 award(request.user, 'review_given', ref=f'review:{review.pk}')
             except Exception:
                 logger.exception('review xp failed %s', project.slug)
-            # Email the owner if they want review emails.
-            # 5 Whys: Why email on top of the in-app notify? A review
-            # changes the vibe's average rating and affects its ranking —
-            # the owner needs to know even when they are offline. Why a
-            # per-user toggle? A creator with many vibes may not want an
-            # email for every single review. Why fail_silently? An MTA
-            # blip must not block the user from seeing their updated review.
+            # Email the owner (if they opted in) on top of the in-app notify: a
+            # review changes the vibe's average rating and ranking, so they
+            # should know offline too. fail_silently so an MTA blip can't block
+            # the saved review.
+
             if project.owner != request.user and getattr(project.owner.profile, 'email_on_review', True) and project.owner.email:
                 try:
                     send_mail(
@@ -999,20 +888,6 @@ def post_review(request, slug):
 
 def _notify_project_owner(owner, kind, title, url, actor=None, body=''):
     """Social notification, honouring the recipient's per-kind preference.
-
-    5 Whys: why a helper instead of calling notify() directly?
-    1. Every social event (star, fork, comment, review, trade) must respect
-       the same six switches; one helper means the seventh call site cannot
-       forget.
-    2. Why is the lookup defensive? Profile may be missing (deleted account,
-       shell-created user); a missing profile must not raise inside a view
-       the user perceives as "I just starred something".
-    3. Why is `actor` unused for now? It is the hook for muting a specific
-       person later (blocking) without touching every call site again.
-    4. Why not check "does this person want email"? The email switches are
-       separate and stay separate — an in-app note is not an email.
-    5. Why return a bool? Callers and tests can assert the suppression
-       instead of counting rows after the fact.
     """
     pref_map = {
         'star': 'notify_on_star',
@@ -1031,7 +906,6 @@ def _notify_project_owner(owner, kind, title, url, actor=None, body=''):
     except Exception:
         pass
     return bool(notify(owner, kind, title, body, url))
-
 
 @login_required
 @require_POST
@@ -1092,28 +966,11 @@ def my_vibes(request):
 
 def _content_fields_changed(project, cleaned):
     """True only when the *executable* bytes changed.
-
-    5 Whys: why compare fields instead of always re-queueing?
-    1. Because `p.status = 'pending'` used to run on every save, so editing
-       a title took a live vibe off the feed — and for a snippet nothing
-       ever set it back. The creator saw "✓ Vibe updated!" while the world
-       saw a 404.
-    2. Why distinguish code from metadata? A new README or a new title is
-       not new executable content; re-running the whole scan chain for it
-       buys nothing and costs a queue slot.
-    3. Why is a replaced ZIP always "changed"? The archive is one opaque
-       blob; we cannot cheaply diff it, so any new upload is re-scanned.
-    4. Why is this the only place that decides? publish, edit and git push
-       all funnel through their own callers; keeping the test here means
-       one rule for "does this need a rescan".
-    5. Why not trust the browser? A crafted POST can send the same code
-       back with a new ZIP; the check reads the server's own state.
     """
     for field in ('html_code', 'css_code', 'js_code'):
         if (cleaned.get(field) or '') != (getattr(project, field, '') or ''):
             return True
     return False
-
 
 @login_required
 def vibe_stats(request, slug):
@@ -1145,7 +1002,6 @@ def vibe_stats(request, slug):
         'headline': headline,
     })
 
-
 @login_required
 def edit_vibe(request, slug):
     project = get_object_or_404(AppProject, slug=slug, owner=request.user)
@@ -1168,7 +1024,7 @@ def edit_vibe(request, slug):
                     changelog = 'Update'
                 AppVersion.objects.create(project=project, zip_file=project.zip_file, version=f"1.{project.versions.count()+1}.0", changelog=changelog)
 
-            # --- Metadata-only edit: nothing to re-scan, nothing to hide ---
+            # Metadata-only edit: nothing to re-scan, nothing to hide
             if not new_zip and not code_changed:
                 # Deliberately does NOT touch status or trust: the bytes the
                 # badge vouched for are still the bytes we are serving.
@@ -1234,7 +1090,7 @@ def edit_vibe(request, slug):
                     messages.info(request, f"⏳ “{p.title}” re-queued for scan.")
                 return redirect(p.get_absolute_url())
 
-            # --- Snippet edit: re-scan in-request, stay live when clean ---
+            # Snippet edit: re-scan in-request, stay live when clean
             # Snippets never enter the queue (see trust.snippet_evidence): the
             # check is a regex over three text fields, so it costs
             # microseconds and can run while the creator waits. That is what
@@ -1273,7 +1129,6 @@ def edit_vibe(request, slug):
         form = AppUploadForm(instance=project)
     return render(request, 'gallery/edit_vibe.html', {'form': form, 'project': project, 'co_owner_form': CoOwnerForm()})
 
-
 def _finish_snippet_edit(request, project, republished):
     """Re-label a snippet after an edit and tell the creator what happened."""
     try:
@@ -1287,18 +1142,15 @@ def _finish_snippet_edit(request, project, republished):
         messages.success(request, "✓ Vibe updated!")
     return redirect(project.get_absolute_url())
 
-
 @login_required
 @require_POST
 @ratelimit(key='user', rate='10/h', method='POST')
 def add_co_owner(request, slug):
-    """Add a co-owner with a % share of star trade revenue.
-
-    5 Whys: Why lock the project row? The trade path locks it too —
-    locking here serializes "edit the split" vs "pay out", so a trade can
-    never pay an old split while the form reads a new one.
-    Why re-queue moderation? It doesn't — a split is metadata about money,
-    not content; re-scanning a ZIP that didn't change would be noise.
+    """Add a co-owner with a % share of star trade revenue. The project row is
+    locked because the trade path locks it too — this serializes "edit the
+    split" against "pay out" so a trade can never pay an old split while the
+    form reads a new one. It doesn't re-queue moderation: a split is metadata
+    about money, not content, so re-scanning an unchanged ZIP would be noise.
     """
     project = get_object_or_404(AppProject, slug=slug, owner=request.user)
     form = CoOwnerForm(request.POST, project=project)
@@ -1343,7 +1195,6 @@ def add_co_owner(request, slug):
         for err in form.errors.values():
             messages.error(request, err[0])
     return redirect('edit_vibe', slug=slug)
-
 
 @login_required
 @require_POST
@@ -1489,13 +1340,11 @@ def trade_download(request, slug):
                     award(who, 'trade_received', ref=f'trade:{r.pk}')
                 except Exception:
                     logger.exception('trade xp failed %s', project.slug)
-            # Email the seller(s) if they want trade emails.
-            # 5 Whys: Why email on top of the in-app notify? A star trade
-            # is a money event — the notification must survive a closed
-            # tab. Email is the durable channel. Why a per-user toggle?
-            # Big creators with high trade volume don't want an inbox
-            # flooded with "1 ★ traded" emails every hour. Why fail_silently?
-            # An MTA outage must not crash the download.
+            # Email the seller(s) if opted in, on top of the in-app notify: a
+            # trade is a money event and must survive a closed tab, so email is
+            # the durable channel. fail_silently so an MTA outage can't crash
+            # the download.
+
             if who and getattr(who.profile, 'email_on_trade', True) and who.email:
                 try:
                     send_mail(
@@ -1689,7 +1538,6 @@ def download_version(request, slug, version_id):
     from .zip_serve import serve_named_zip
     return serve_named_zip(version.zip_file, f'{project.slug}-v{version.version}.zip')
 
-
 @login_required
 @require_POST
 @ratelimit(key='user', rate='10/h', method='POST')
@@ -1819,13 +1667,11 @@ def toggle_bookmark(request, slug):
     taste.record(request.user, project, 'save', project=project)
     return JsonResponse({'saved': True})
 
-
 @login_required
 def saved_vibes(request):
     from .models import Bookmark
     qs = Bookmark.objects.filter(user=request.user).select_related('project', 'project__owner')
     return render(request, 'gallery/saved.html', {'bookmarks': qs})
-
 
 @login_required
 def notifications_inbox(request):
@@ -1834,26 +1680,10 @@ def notifications_inbox(request):
     Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
     return render(request, 'gallery/notifications.html', {'notifications': notes})
 
-
 @login_required
 @require_POST
 def notifications_mark_read(request, notification_id):
     """Mark one notification read. Owner-scoped: a stranger's id is a 404.
-
-    5 Whys:
-    1. Why an endpoint at all? The inbox marks everything read on open, but
-       a link to a single notification (or a future dropdown) needs to clear
-       exactly one without touching the rest.
-    2. Why filter on `user=request.user` instead of fetching then comparing?
-       The queryset is the authorization — a guessed id that isn't yours can
-       never be read, and the 404 is the honest answer (not a 403 that
-       confirms the row exists).
-    3. Why idempotent (no error when already read)? A retried tap is a retry,
-       not a bug; the response is the current unread count either way.
-    4. Why return the unread count? The caller can update a badge without a
-       second round-trip, and it is the only piece of state that matters.
-    5. Why POST only? Reading state is a mutation; GET would make a cached
-       link flip is_read without a real user intent.
     """
     from .models import Notification
     n = get_object_or_404(Notification, pk=notification_id, user=request.user)
@@ -1863,7 +1693,6 @@ def notifications_mark_read(request, notification_id):
     unread = request.user.notifications.filter(is_read=False).count()
     return JsonResponse({'ok': True, 'unread': unread})
 
-
 @login_required
 @require_POST
 def notifications_mark_all_read(request):
@@ -1871,7 +1700,6 @@ def notifications_mark_all_read(request):
     from .models import Notification
     Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
     return JsonResponse({'ok': True, 'unread': 0})
-
 
 def sitemap_xml(request):
     projects = AppProject.objects.filter(status='published').only('slug', 'updated_at')[:500]
@@ -1883,51 +1711,13 @@ def sitemap_xml(request):
     rows.append('</urlset>')
     return HttpResponse('\n'.join(rows), content_type='application/xml')
 
-
 def prompt_skills(request):
     """A practical, provider-neutral prompt efficiency workbench.
-
-    5 Whys:
-    1. Why teach prompt structure instead of promising a magic optimizer?
-       People need a reusable mental model, not another opaque rewrite.
-    2. Why show an explicit token estimate? Tokens are an approximate budget;
-       making the trade-off visible helps users choose the smallest useful
-       context without pretending to know a provider's tokenizer.
-    3. Why use 5 Whys? It turns a vague request into the actual outcome,
-       constraints, and acceptance test before words are spent on prose.
-    4. Why run in the browser? The user's draft must not leave the page just
-       to count words or assemble a template; privacy and latency improve.
-    5. Why keep the output editable? The human remains accountable for the
-       instruction. The tool accelerates thinking; it does not invent facts.
     """
     return render(request, 'gallery/prompt_skills.html')
 
-
 def trust_legend(request):
     """Public "what does the badge mean" page — the anti-fake read.
-
-    5 Whys (4 points each) — why a static legend page at all?
-    1. Why explain the badge? A verdict without a published standard is
-       just marketing; the standard is what makes it trust. Non-devs (the
-       majority of vibe builders) cannot infer "verified" from a tooltip.
-       Fails-if: copy drifts from logic → the page imports TRUST_META and
-       the check table from gallery.trust, so the site renders the code's
-       actual definitions, not a writer's memory of them.
-    2. Why no database on this page? Zero queries means zero leak surface
-       and zero cost; the legend is the same for every visitor.
-       Fails-if: per-vibe detail is wanted → the detail page already
-       shows that vibe's trust_reasons() rows.
-    3. Why spell out what is NOT checked? Overclaiming is how platforms
-       lose trust; saying "we do not run your code" is the honesty rule
-       the rest of the site already follows (no fake previews).
-       Fails-if: a new check is added → add a row to the table below and
-       the grader — a check the page claims but the code skips is a bug.
-    4. Why explain how fakes are handled? The page is also the deterrent:
-       stating that any content change resets the badge tells a would-be
-       bait-and-switcher the trick cannot work here. Fails-if: someone
-       finds a mutation path that skips the reset → it is a bug class the
-       docs name ("status='pending' must ride invalidate_trust"), making
-       it findable in review.
     """
     from .trust import TRUST_META, TRUST_VERIFIED, TRUST_SCANNED, TRUST_UNKNOWN
     context = {

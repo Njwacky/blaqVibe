@@ -1,12 +1,6 @@
 import bleach, re, logging
 logger = logging.getLogger(__name__)
 
-# 5 Whys Prompt Fields:
-# 1. Many prompt fields (ai_prompt, readme, comment, search q) are user text → XSS + prompt injection.
-# 2. Why sanitize? Prompt shown in detail page + fed to Nolo future LLM → injection can steal.
-# 3. Why separate from readme? Prompt is free-form, may contain "ignore previous instructions".
-# 4. Why try/except? Malicious prompt with 100k chars + weird unicode should not crash app — fail silently, log, return safe.
-
 PROMPT_MAX_LEN = 5000
 PROMPT_INJECTION_PATTERNS = [
     re.compile(r'ignore\s+previous\s+instructions', re.I),

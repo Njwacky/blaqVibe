@@ -1,18 +1,4 @@
 """Re-label and re-score published vibes.
-
-5 Whys — why a command when a migration already backfilled once?
-
-1. Why need it again? The signal tables in `kind_detect` will be edited as
-   real uploads reveal gaps. Improving the tables must be able to improve
-   existing rows, not only future ones.
-2. Why not re-run the migration? Migrations run once, by design.
-3. Why `--llm` off by default? A full pass over the catalog with the LLM on
-   is an unbounded bill; you should have to ask for it out loud.
-4. Why `--force`? Normally we must not overwrite a creator's explicit pick
-   or a moderator override — but after a taxonomy change an operator needs
-   a way to rebuild everything.
-5. Why report counts per kind? It is the cheapest way to see that a table
-   change did what was intended before it reaches the feed.
 """
 import collections
 
@@ -20,7 +6,6 @@ from django.core.management.base import BaseCommand
 
 from gallery.interest import refresh_project
 from gallery.models import AppProject
-
 
 class Command(BaseCommand):
     help = 'Re-detect program kind and recompute appeal score for vibes.'

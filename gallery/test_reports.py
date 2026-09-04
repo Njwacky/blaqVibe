@@ -1,20 +1,4 @@
 """Tests for the report triage continuum: create → staff badge → resolve.
-
-5 Whys (why this file exists):
-1. Why test reports at all? Reports are the lowest-cost moderation signal on
-   a platform with an open feed; a broken report path means spam/malware can
-   sit until a moderator happens to look at the admin page.
-2. Why test create and dedupe? A spammer with one account can otherwise fill
-   the queue with duplicate rows and bury a genuine report under noise.
-3. Why test each decision? 'ignore', 'quarantine', 'remove' and 'delete'
-   have genuinely different side effects (nothing / hold / soft / hard), and
-   only a test can prove the money-aware hard/soft rule is preserved.
-4. Why test access? The queue URL is indexed staff work; a role-logic bug
-   either hides reports from the people who must act or shows them to
-   everyone on the internet.
-5. Why test the audit + notification side effects separately? A state
-   change that happens without an AdminLog row or an owner notification
-   is an action the platform can't explain to the person it happened to.
 """
 from datetime import timedelta
 
@@ -26,7 +10,6 @@ from django.utils import timezone
 from gallery.models import AppProject, AppReport, Notification, ScanJob, Trade
 from gallery.tests import make_category, make_project, make_user
 from users.models import AdminLog
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class ReportQueueAccessTests(TestCase):
@@ -57,7 +40,6 @@ class ReportQueueAccessTests(TestCase):
         self.client.login(username='adminuser', password='pass12345')
         response = self.client.get(reverse('reports_queue'))
         self.assertEqual(response.status_code, 200)
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class ReportCreationTests(TestCase):
@@ -124,7 +106,6 @@ class ReportCreationTests(TestCase):
         self.assertEqual(response.status_code, 302)
         row = AppReport.objects.get(project=self.project, user__isnull=True)
         self.assertEqual(row.reason, 'copyright')
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class ReportResolutionTests(TestCase):

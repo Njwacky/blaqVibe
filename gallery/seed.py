@@ -49,12 +49,12 @@ SNIPPETS = [
 
 Copy-paste landing hero for a SaaS launch.
 
-## How to use
+# # How to use
 1. Copy the HTML from the Code tab.
 2. Add the Tailwind CDN script if you are not already on Tailwind.
 3. Swap the product name and CTAs.
 
-## Stack
+# # Stack
 HTML + Tailwind utility classes. No build step.
 """,
     },
@@ -71,10 +71,10 @@ HTML + Tailwind utility classes. No build step.
 
 High-converting waitlist block for a coming-soon page.
 
-## How to use
+# # How to use
 Copy the HTML, hook the form to your email tool, keep the Tailwind classes.
 
-## Stack
+# # Stack
 HTML + Tailwind. Form is front-end only until you wire a backend.
 """,
     },
@@ -91,10 +91,10 @@ HTML + Tailwind. Form is front-end only until you wire a backend.
 
 Admin-style dashboard snippet: sidebar, three KPI cards, chart hole, orders table.
 
-## How to use
+# # How to use
 Copy the HTML. Drop Chart.js (or any chart) into the dashed chart area.
 
-## Stack
+# # Stack
 HTML + Tailwind. Chart is a placeholder on purpose.
 """,
     },
@@ -111,10 +111,10 @@ HTML + Tailwind. Chart is a placeholder on purpose.
 
 Dark-mode admin cards you can drop into a SaaS settings page.
 
-## How to use
+# # How to use
 Copy the HTML. Replace the numbers with your API data.
 
-## Stack
+# # Stack
 HTML + Tailwind. No JavaScript required for the layout.
 """,
     },
@@ -131,10 +131,10 @@ HTML + Tailwind. No JavaScript required for the layout.
 
 Static portfolio table. Plug a quotes API if you want live prices.
 
-## How to use
+# # How to use
 Copy the HTML. The LIVE pill is a style, not a live market feed.
 
-## Stack
+# # Stack
 HTML + Tailwind. Prices in the demo are hardcoded.
 """,
     },
@@ -151,10 +151,10 @@ HTML + Tailwind. Prices in the demo are hardcoded.
 
 One-asset trading card. Chart area is a placeholder for TradingView or Chart.js.
 
-## How to use
+# # How to use
 Copy the HTML. Wire Buy/Sell to your own order flow.
 
-## Stack
+# # Stack
 HTML + Tailwind. No exchange connection in this snippet.
 """,
     },
@@ -164,16 +164,16 @@ ZIP_README = """# Stock Tracker Starter
 
 Small full-app ZIP so you can try the stars trade path.
 
-## What is this?
+# # What is this?
 A starter Django-style project: README, app module, and requirements.
 
-## How to run
+# # How to run
 ```
 pip install -r requirements.txt
 python app.py
 ```
 
-## Trade
+# # Trade
 This vibe costs 2 ★ to download. New accounts start with 5 ★.
 """
 
@@ -181,11 +181,9 @@ ZIP_APP_PY = '''"""Tiny starter — not a hosted container."""
 def main():
     print("Stock tracker starter. Run locally after you trade stars for the ZIP.")
 
-
 if __name__ == "__main__":
     main()
 '''
-
 
 def _body_html(path: Path) -> str:
     raw = path.read_text(encoding='utf-8')
@@ -195,7 +193,6 @@ def _body_html(path: Path) -> str:
     if 'cdn.tailwindcss.com' not in body:
         body = '<script src="https://cdn.tailwindcss.com"></script>\n' + body
     return body
-
 
 def _ensure_user(username: str, password: str, stars: int = 5, *,
                  wallet: bool = True, usable_password: bool = True,
@@ -262,7 +259,6 @@ def _ensure_user(username: str, password: str, stars: int = 5, *,
         user.save(update_fields=flag_fields)
     return user
 
-
 def _categories():
     cats = {}
     for slug, name, typ, order in CATEGORIES:
@@ -276,7 +272,6 @@ def _categories():
             cat.save(update_fields=['name', 'order'])
         cats[slug] = cat
     return cats
-
 
 def _seed_snippets(owner, cats):
     created = 0
@@ -309,7 +304,6 @@ def _seed_snippets(owner, cats):
             project.status = 'published'
             project.save(update_fields=['status'])
     return created
-
 
 def _seed_zip_app(owner, cats):
     slug = 'stock-tracker-starter'
@@ -357,17 +351,15 @@ def _seed_zip_app(owner, cats):
         )
     return 1
 
-
 def _ensure_demo_staff():
     """Local/debug only — the accounts the docs already tell people to use.
 
-    5 Whys: why here? Specs and the admin demo say "login nolo.ai /
-    blaq12345" and "blaq is admin." seed_demo used to create those
-    usernames as role='user', so the documented password signed in and
-    then 403'd on every admin page. That is the "admin login never
-    works" ticket. This function is now reached ONLY in dev posture
-    (`seed_mode() == 'dev'`) — a known-password superadmin must never
-    exist on a public host, not even with SEED_DEMO=1.
+    The specs and admin demo say "login nolo.ai / blaq12345" and "blaq is
+    admin"; seed_demo used to create those usernames as role='user', so the
+    documented password signed in and then 403'd on every admin page (the
+    "admin login never works" ticket). Reached ONLY in dev posture
+    (`seed_mode() == 'dev'`) — a known-password admin must never exist on a
+    public host, not even with SEED_DEMO=1.
     """
     _ensure_user('blaq', DEMO_PASSWORD, stars=20, role='admin')
     _ensure_user('thando', MODERATOR_PASSWORD, stars=12, role='moderator')
@@ -379,34 +371,14 @@ def _ensure_demo_staff():
         import logging
         logging.getLogger(__name__).exception('repair createsuperuser admin failed')
 
-
 def seed_mode():
     """'dev' | 'forced' | None — who may receive known-password fixtures.
-
-    5 Whys: why gate the seeder itself and not only its callers?
-    1. Why? `SEED_DEMO=1` was never a statement about passwords; it asked for
-       a populated grid. The old code gated only the *staff* accounts, so a
-       production host still got `blaq`/`thando` — verified wallets, documented
-       passwords, spendable stars.
-    2. Why is that a breach and not a cosmetic issue? `email_verified` is the
-       exact flag that unlocks trading, tipping and payout eligibility, so a
-       seeded account is a usable wallet, not a placeholder row.
-    3. Why keep a `forced` mode at all? A public demo/staging host legitimately
-       wants the catalog. It gets the content with unusable-password, unfunded
-       accounts — the grid renders, nobody inherits a credential.
-    4. Why read settings rather than `manage.py` args? Three entry points seed
-       (the post-migrate signal, the empty-feed auto-seed and the management
-       command); a function they all consult is the only place the rule cannot
-       be forgotten.
-    5. Why raise instead of returning silently? A silent no-op is how "the
-       command succeeded but nothing happened" gets reported as a data bug.
     """
     if getattr(settings, 'DEBUG', False) or getattr(settings, 'LOCAL_DEV', False):
         return 'dev'
     if os.getenv('SEED_DEMO_FORCE', '').strip() == '1':
         return 'forced'
     return None
-
 
 def seed_demo():
     """Create published demo vibes. Safe to run many times.

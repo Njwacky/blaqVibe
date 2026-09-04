@@ -20,7 +20,6 @@ from gallery.taxonomy import RUNNABLE_PREVIEW_MODES, preview_mode_for
 
 from .tests import make_category, make_project, make_user
 
-
 def _zip(files, name='site.zip'):
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w') as zf:
@@ -30,9 +29,7 @@ def _zip(files, name='site.zip'):
             zf.writestr(path, content)
     return SimpleUploadedFile(name, buf.getvalue(), content_type='application/zip')
 
-
 _PNG = b'\x89PNG\r\n\x1a\n' + b'0' * 24
-
 
 class DetectStaticRunnableTests(TestCase):
     def test_root_index_is_runnable(self):
@@ -72,7 +69,6 @@ class DetectStaticRunnableTests(TestCase):
         runnable, entry = detect_static_runnable(['index.html', 'game.js', 'assets/sprite.png'])
         self.assertTrue(runnable)
         self.assertEqual(entry, 'index.html')
-
 
 @override_settings(MEDIA_ROOT='/tmp/blaqvibes-runner-tests')
 class AssembleDocumentTests(TestCase):
@@ -140,7 +136,6 @@ class AssembleDocumentTests(TestCase):
         self.assertIn('type="module"', doc)
         self.assertIn('export const a = 1;', doc)
 
-
 @override_settings(MEDIA_ROOT='/tmp/blaqvibes-runner-tests')
 class PreviewModeTests(TestCase):
     def setUp(self):
@@ -177,7 +172,6 @@ class PreviewModeTests(TestCase):
 
     def test_snippet_still_wins(self):
         self.assertEqual(preview_mode_for('web_app', has_html=True, has_zip=True, static_runnable=True), 'snippet')
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-runner-tests')
 class RunStaticViewTests(TestCase):

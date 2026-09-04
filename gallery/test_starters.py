@@ -16,7 +16,6 @@ from gallery.starters import STARTERS, STARTERS_BY_SLUG, get_starter
 
 from .tests import make_category, make_user
 
-
 class StarterDataTests(TestCase):
     def test_every_starter_is_self_contained_and_complete(self):
         for s in STARTERS:
@@ -36,7 +35,6 @@ class StarterDataTests(TestCase):
         self.assertEqual(len(slugs), len(set(slugs)))
         self.assertEqual(len(STARTERS_BY_SLUG), len(STARTERS))
 
-
 class StarterGalleryViewTests(TestCase):
     def test_gallery_is_public_and_lists_starters(self):
         resp = self.client.get('/start/')
@@ -45,7 +43,6 @@ class StarterGalleryViewTests(TestCase):
             self.assertContains(resp, s['name'])
         # The blank on-ramp is always offered.
         self.assertContains(resp, 'Blank canvas')
-
 
 class StudioViewTests(TestCase):
     def test_studio_loads_starter_into_editors(self):
@@ -64,22 +61,8 @@ class StudioViewTests(TestCase):
     def test_unknown_starter_is_404(self):
         self.assertEqual(self.client.get('/studio/not-real/').status_code, 404)
 
-
 class StudioPreviewLoginGateTests(TestCase):
     """Anonymous visitors can write; they cannot run a live preview.
-
-    5 Whys — why these tests, not just a CSS assert?
-    1. Why omit the iframe instead of hiding it? CSS hide is a fake gate;
-       the HTML must not contain `#studio-frame` for anonymous GETs.
-    2. Why still assert the three editors? "You can write" is the other
-       half of the promise — a login wall on the whole Studio would fail it.
-    3. Why assert the JS flag AND the missing element? Flipping
-       `canPreview` in DevTools must not be enough; there is no iframe
-       to assign srcdoc to.
-    4. Why persist a draft in JS? Sign-in is a navigation; without
-       sessionStorage the conversion deletes the work.
-    5. Why honor `next` on signup? Dumping a new account on the feed
-       looks like the code vanished.
     """
 
     def test_anonymous_can_write_but_has_no_preview_iframe(self):
@@ -176,7 +159,6 @@ class StudioPreviewLoginGateTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         self.assertNotIn('evil.example', resp.url)
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-studio-tests')
 class StudioPublishTests(TestCase):
     def setUp(self):
@@ -238,7 +220,6 @@ class StudioPublishTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         self.assertIn('/login', resp.url)
         self.assertFalse(AppProject.objects.filter(title='Should Not Publish').exists())
-
 
 class StudioDrawerDismissTests(TestCase):
     """The publish drawer must appear only when asked for, and always close.

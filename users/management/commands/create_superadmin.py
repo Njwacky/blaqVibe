@@ -1,6 +1,6 @@
 """Create or repair the BlaqVibes superadmin — ALL flags, atomically.
 
-See users/provision.py for the 5 Whys. This command is the operator
+See users/provision.py for the . This command is the operator
 interface; seed/migrate call the same function so a password in .env
 actually produces an account that can sign in.
 """
@@ -15,7 +15,6 @@ from users.provision import (
     ProvisionError,
     provision_superadmin,
 )
-
 
 class Command(BaseCommand):
     help = ('Create or update the superadmin: Django is_staff/is_superuser, '

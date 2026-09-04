@@ -27,10 +27,8 @@ logger = logging.getLogger(__name__)
 
 PROBE_VERSION = '1'
 
-
 def _now():
     return timezone.now().isoformat()
-
 
 def liveness(request):
     """Process alive? Always 200. No DB, no cache, no broker — ever."""
@@ -41,7 +39,6 @@ def liveness(request):
         'version': PROBE_VERSION,
         'time': _now(),
     }, headers={'Cache-Control': 'no-store'})
-
 
 def _db_ok():
     try:
@@ -54,7 +51,6 @@ def _db_ok():
         # carry host/port/db/user strings (see readiness below).
         logger.exception('readiness database check failed')
         return False, 'unavailable'
-
 
 def _queue_state():
     """Report Celery/broker state. Eager/CELERY_EAGER is a local dev mode,
@@ -75,7 +71,6 @@ def _queue_state():
     except Exception as exc:
         logger.exception('readiness queue check failed')
         return False, 'unavailable'
-
 
 def readiness(request):
     """Ready to serve? DB must answer SELECT 1; queue is reported, not gated."""

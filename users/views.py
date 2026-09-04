@@ -46,9 +46,9 @@ from gallery.models import AppProject
 from gallery.access import user_can_see_project
 from gallery.notify import notify
 
-# 5 Whys: Why /u/<username>/ not /profile/<id>? Username is brand, SEO, like GitHub.
-# Why not expose email? Privacy — only bio/location.
-# Why does profile_view fetch counts in one aggregate instead of .count() calls?
+# Profiles live at /u/<username>/ (username is brand/SEO, like GitHub), not
+# /profile/<id>. Email is never exposed (privacy) — only bio/location.
+# Counts are fetched in one aggregate rather than separate .count() calls:
 # A profile page renders the same counts in the header and the tabs; two
 # COUNT queries per status cost more than one grouped aggregate on the same
 # indexed status column. Public pages are read hot — pay for them once.
@@ -56,12 +56,11 @@ from gallery.notify import notify
 def profile_view(request, username):
     user = User.objects.filter(username=username).first()
     if user is None:
-        # 5 Whys: why redirect instead of 404 for an old username? Every
-        # notification, comment mention and shared link embeds /u/<name>/.
-        # A rename must not vaporise months of inbound links; UsernameHistory
-        # is already the map, so this is one indexed lookup. Resolves to the
-        # LIVE username (not the stored new_username) so chained renames
-        # A→B→C land on C for free.
+        # Redirect rather than 404 for an old username: every notification,
+        # comment mention and shared link embeds /u/<name>/, so a rename must
+        # not vaporise months of inbound links. UsernameHistory is already the
+        # map; resolve to the LIVE username (not the stored new_username) so
+        # chained renames A->B->C land on C for free.
         target = redirect_target_for_old_username(username)
         if target is not None:
             return redirect('profile_view', username=target.username)
@@ -92,10 +91,10 @@ def profile_view(request, username):
     if tab not in ('vibes', 'stars', 'followers', 'following'):
         tab = 'vibes'
 
-    # 5 Whys: Why fetch the follower/following lists only when their tab is
-    # open? They used to be fetched on EVERY profile load and never rendered
-    # — dead queries. A tab nobody opened costs nothing, and the [:20] cap
-    # keeps the page cheap even for a creator with thousands of followers.
+    # Fetch the follower/following lists only when their tab is open: they
+    # used to be fetched on every profile load and never rendered (dead
+    # queries). A tab nobody opened costs nothing, and the [:20] cap keeps the
+    # page cheap even for a creator with thousands of followers.
     followers = []
     following = []
     following_set = set()
@@ -108,18 +107,14 @@ def profile_view(request, username):
                 .values_list('following__username', flat=True)
             )
 
-    # Stars tab: vibes THIS USER starred, most recent star first. 5 Whys:
-    # Why query Star rows instead of AppProject.star_set? The star row IS the
-    # fact "who starred what when" — one row per (user, project), unique by
-    # constraint. select_related('project__owner') kills the N+1 that the old
-    # AppProject query had on every card's owner.
-    # Why filter through user_can_see_project HERE and not at row creation? A
-    # star can only be cast on a published vibe (toggle_star requires it), but
-    # that vibe can later be re-queued (pending) or removed. A stranger reading
-    # a public profile's Stars tab must not learn about a vibe that has since
-    # gone non-public — same visibility rule as every other content read. The
-    # starred user (profile owner) and moderators still see their own/hidden
-    # rows, because user_can_see_project returns True for owner/moderator.
+    # Stars tab: vibes this user starred, most recent first. Star rows are
+    # queried directly (one row per (user, project), "who starred what when"),
+    # with select_related('project__owner') to kill the N+1 on each card.
+    # Re-apply user_can_see_project here (not just at row creation): a star can
+    # only be cast on a published vibe, but that vibe can later be re-queued or
+    # removed, and a stranger must not learn of it — the owner/moderators still
+    # see their own/hidden rows.
+
     starred = []
     if tab == 'stars':
         from gallery.models import Star
@@ -220,16 +215,13 @@ def edit_profile(request):
 @login_required
 @ratelimit(key='user', rate='30/h', method='POST')
 def toggle_follow(request, username):
-    # 5 Whys: Why ratelimit follow? It was the only POST on the site without
-    # one — every other write (publish 5/h, comment 10/h) is limited. A bot
-    # could follow thousands of accounts in a minute, spamming inboxes with
-    # 'followed you' notifications. 30/h is generous for a human, brutal for
-    # a loop, and consistent with the fail-closed philosophy elsewhere.
-    # Why no explicit 429 here? django-ratelimit 4.x defaults to block=True:
-    # the decorator raises Ratelimited (a PermissionDenied) the moment the
-    # limit is exceeded, and the site's handler403 (safe_403) turns that into
-    # the same friendly 403 every other rate-limited endpoint returns. An
-    # explicit `if request.limited` branch would be unreachable dead code.
+    # Follow is rate-limited (30/h) like every other write: a bot could
+    # otherwise follow thousands of accounts a minute, spamming 'followed you'
+    # notifications. 30/h is generous for a human, brutal for a loop. There's no
+    # explicit 429 branch because django-ratelimit 4.x defaults to block=True,
+    # raising Ratelimited (a PermissionDenied) that handler403 (safe_403) turns
+    # into the same friendly 403 as every other rate-limited endpoint — an
+    # explicit `if request.limited` would be unreachable dead code.
     target = get_object_or_404(User, username=username)
     if target == request.user:
         return JsonResponse({'error': 'Cannot follow yourself'}, status=400)
@@ -244,17 +236,15 @@ def toggle_follow(request, username):
         notify(target, 'follow', f'@{request.user.username} followed you', url=f'/u/{request.user.username}/')
     return JsonResponse({'following': True, 'followers': target.followers.count()})
 
-
 @require_POST
 @login_required
 @ratelimit(key='user', rate='20/h', method='POST')
 def tip_user(request, username):
-    # 5 Whys: Why 20/h, tighter than follow's 30/h? Tips move currency —
-    # the blast radius of a hijacked session is stars, not just follower
-    # counts. 20/h is plenty for genuine gratitude, a hard ceiling for a
-    # loop. Why no explicit 429 here? Same as follow: django-ratelimit
-    # 4.x block=True raises Ratelimited → handler403 → safe_403, the
-    # site-wide behaviour for every rate-limited POST.
+    # 20/h, tighter than follow's 30/h, because tips move currency — the blast
+    # radius of a hijacked session is stars, not just follower counts. There's
+    # no explicit 429 branch (same as follow): django-ratelimit's block=True
+    # raises Ratelimited, which handler403 turns into the site-wide safe_403.
+
     target = get_object_or_404(User, username=username)
     if target == request.user:
         return JsonResponse({'error': 'You cannot tip yourself'}, status=400)
@@ -304,12 +294,11 @@ def payout_dashboard(request):
     tips_received = Tip.objects.filter(recipient=request.user).select_related('sender').order_by('-created_at')[:20]
     tips_total = Tip.objects.filter(recipient=request.user).aggregate(t=Sum('amount'))['t'] or 0
 
-    # --- Activity charts: last 14 days, straight from the ledger. ----------
-    # 5 Whys: Why Python-side grouping instead of TruncDate? TruncDate's
-    # timezone handling has tripped more than one Django team; grouping
-    # localtime() dates in Python is unambiguous and the volume is one
-    # user's wallet rows. Why localtime? The dashboard is per-user; a
-    # "day" is their day, not UTC's.
+    # Activity charts: last 14 days, straight from the ledger. Grouped in
+    # Python on localtime() dates rather than TruncDate (whose timezone
+    # handling is a frequent source of bugs); the volume is one user's rows.
+    # Local time because the dashboard is per-user — a "day" is their day, not
+    # UTC's.
     now_local = timezone.localtime()
     start_date = now_local.date() - timedelta(days=13)
     start_dt = timezone.make_aware(
@@ -363,7 +352,7 @@ def payout_dashboard(request):
         'is_pro': request.user.profile.is_pro_active,
         'pro_since': getattr(request.user.profile, 'pro_since', None),
         'pro_until': getattr(request.user.profile, 'pro_until', None),
-        # --- Cash-out panel (users/payouts.py holds the rules) -----------
+        # Cash-out panel (users/payouts.py holds the rules)
         'payouts': Payout.objects.filter(user=request.user)[:10],
         'open_payout': Payout.objects.filter(user=request.user, status='requested').first(),
         'payout_rate_label': payout_rate_label(),
@@ -435,17 +424,15 @@ NOTIFICATION_PREF_ROWS = (
     ('notify_on_milestone', 'Star milestones', 'Only at 10 / 50 / 100 / 500 ★, so this one is quiet by design.'),
 )
 
-
 @login_required
 def settings_view(request):
     profile, _ = Profile.objects.get_or_create(user=request.user)
     site = SiteSettings.get() if profile.is_superadmin() else None
-    # 5 Whys: why is there no identity panel here any more? Username and
-    # name-style editing moved to Edit Profile (/settings/profile/) — the
-    # page a member reaches from their own profile — so Settings stays
-    # toggles/git/email/social only. The rename and style endpoints keep
-    # their /settings/... URLs for stability; they redirect back to the
-    # profile editor.
+    # No identity panel here any more: username and name-style editing moved to
+    # Edit Profile (/settings/profile/), the page reached from the user's own
+    # profile, so Settings holds toggles/git/email/social only. The rename and
+    # style endpoints keep their /settings/... URLs for stability and redirect
+    # back to the profile editor.
     notification_prefs = [
         {'key': key, 'label': label, 'help': help_text,
          'value': getattr(profile, key, True)}
@@ -458,7 +445,6 @@ def settings_view(request):
         'security_events': SecurityEvent.objects.filter(user=request.user)[:8],
         **social_connection_context(request.user),
     })
-
 
 @login_required
 @require_POST
@@ -474,7 +460,6 @@ def logout_other_devices(request):
     messages.success(request, f'Signed out {count} other device(s).')
     return redirect('settings')
 
-
 @login_required
 @require_POST
 @ratelimit(key='user', rate='5/h', method='POST')
@@ -482,7 +467,7 @@ def rename_username(request):
     """Spend a rename card (Pro) or burn stars — users.rename is the only
     writer of User.username after signup.
 
-    5 Whys: why 5/h when the 30-day cooldown already throttles? The ratelimit
+    5/h when the 30-day cooldown already throttles? The ratelimit
     guards the FAILURE path — a bot (or a bug) hammering the endpoint with
     rejected candidates must not get 100 free validation oracle calls a
     second (which usernames are taken? which are reserved?). Same shape as
@@ -521,7 +506,6 @@ def rename_username(request):
             f'redirect here.',
         )
     return redirect('settings')
-
 
 @login_required
 @require_POST
@@ -570,11 +554,11 @@ def set_name_style_view(request):
 def regenerate_git_token(request):
     """Issue a fresh git credential — plaintext shown ONCE, hash stored.
 
-    5 Whys: Why rotate instead of a fixed token? A git credential that
-    leaked (shell history, CI logs) must die without deleting the account.
-    Why show it in a flash message? We do not store plaintext, so the
-    rotation response is the only moment the user can copy it. Why 5/h?
-    Rotation invalidates the old token; a flood would be a self-DoS.
+    Rotate rather than reuse a fixed token, so a leaked credential (shell
+    history, CI logs) can die without deleting the account. The plaintext is
+    never stored, so the rotation response is the only moment it can be copied.
+    Limited to 5/h because each rotation invalidates the old token and a flood
+    would be a self-DoS.
     """
     if getattr(request, 'limited', False):
         messages.error(request, 'Rate limit: 5 git tokens per hour.')
@@ -627,19 +611,6 @@ def toggle_setting(request):
 @require_POST
 def delete_account(request):
     """Delete the account without destroying other people's purchases.
-
-    5 Whys:
-    1. Why not a plain user.delete()? Sale/Trade PROTECT their project —
-       cascading a sold vibe would raise ProtectedError (and rightly so).
-    2. Why hand sold vibes to a ghost user instead of deleting them?
-       Buyers paid for those ZIPs. The file must stay downloadable.
-    3. Why status='removed'? The vibe must vanish from the public feed the
-       moment its creator leaves — only existing buyers keep access.
-    4. Why do Sale/Trade rows survive with buyer/seller = NULL? They are
-       money records. Deleting your account must not delete a counterparty's
-       receipt.
-    5. Why release BEFORE user.delete()? The cascade runs inside delete();
-       by then it is too late to reassign anything.
     """
     confirm = (request.POST.get('confirm') or '').strip()
     if confirm != request.user.username:
@@ -653,7 +624,6 @@ def delete_account(request):
     user.delete()
     messages.success(request, "Your account and vibes were deleted. Vibes people already bought stay downloadable for them.")
     return redirect('feed')
-
 
 def send_verify_email(request, user):
     if not (user and user.email):
@@ -669,24 +639,8 @@ def send_verify_email(request, user):
         fail_silently=True,
     )
 
-
 def apply_unverified_email(user, email):
     """Point this account at a new unconfirmed mailbox.
-
-    5 Whys: why a helper, not `user.email = …` in the view?
-    1. Why touch allauth EmailAddress too? Password-reset and email-login
-       read that table. Updating User.email alone leaves the old address
-       as primary/verified and the banner never matches the inbox.
-    2. Why drop other EmailAddress rows for this user? An unverified
-       account has one mailbox. Keeping the typo as a second row would
-       let a later confirm of the old token revive it.
-    3. Why never steal another user's EmailAddress? Email is unique in
-       allauth. The form already rejected a taken User.email; this is
-       the same fail-closed for the allauth row.
-    4. Why force email_verified=False? Changing the address must lock
-       the welcome grant and recovery until the NEW mailbox clicks.
-    5. Why lowercase here too? Signup and ChangeEmailForm store lower;
-       a mixed-case write would dodge iexact uniqueness later.
     """
     email = (email or '').strip().lower()
     if not user or not email:
@@ -719,7 +673,6 @@ def apply_unverified_email(user, email):
             'allauth EmailAddress update failed for user=%s', getattr(user, 'pk', None)
         )
 
-
 def verify_email(request, uidb64, token):
     try:
         uid = force_str(urlsafe_base64_decode(uidb64))
@@ -742,29 +695,15 @@ def verify_email(request, uidb64, token):
     messages.error(request, "That confirmation link is invalid or expired.")
     return redirect('login')
 
-
 @login_required
 def resend_verify_email(request):
     """Old /send/ URL. Do not fire mail until they confirm the address."""
     return redirect('edit_email')
 
-
 @login_required
 @ratelimit(key='user', rate='5/h', method='POST')
 def edit_email(request):
     """Confirm-or-fix the mailbox, then send the activation link.
-
-    5 Whys: why a page instead of the old one-click resend?
-    1. Why stop the POST-resend? A wrong address at signup mailed a
-       mailbox the person cannot open. Resend made that worse.
-    2. Why edit + send in one POST? Two steps (save, then resend) is a
-       place people bounce. One button: this is the address, send it.
-    3. Why 5/h? Same ceiling as git-token rotation — enough for a typo
-       retry, brutal for a loop against someone else's inbox.
-    4. Why bounce verified accounts to settings? Changing a confirmed
-       mailbox is a different (takeover) flow; this page is for activate.
-    5. Why stay on this page after send? They may still have the typo
-       and need another edit without hunting settings.
     """
     profile, _ = Profile.objects.get_or_create(user=request.user)
     if profile.email_verified:

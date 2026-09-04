@@ -16,7 +16,6 @@ from gallery.models import AppProject, Category, Notification, PaymentIntent, Pr
 from gallery.validators import validate_zip
 from users.models import Profile
 
-
 def make_zip_bytes(files):
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w') as zf:
@@ -24,10 +23,8 @@ def make_zip_bytes(files):
             zf.writestr(name, content)
     return buf.getvalue()
 
-
 def make_zip_file(files, name='app.zip'):
     return SimpleUploadedFile(name, make_zip_bytes(files), content_type='application/zip')
-
 
 def make_user(username, password='pass12345', **profile_kwargs):
     user = User.objects.create_user(
@@ -43,7 +40,6 @@ def make_user(username, password='pass12345', **profile_kwargs):
     if profile_kwargs:
         profile.save()
     return user
-
 
 def published_zip(project, files=None):
     """Attach a real ZIP to a project, the way publish() would.
@@ -62,10 +58,8 @@ def published_zip(project, files=None):
     )
     return project
 
-
 def make_category():
     return Category.objects.create(name='Apps', slug='apps', type='full_app')
-
 
 def make_project(owner, category, **kwargs):
     defaults = {
@@ -78,7 +72,6 @@ def make_project(owner, category, **kwargs):
     }
     defaults.update(kwargs)
     return AppProject.objects.create(**defaults)
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class AccessAndPaywallTests(TestCase):
@@ -146,7 +139,6 @@ class AccessAndPaywallTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertFalse(Sale.objects.filter(buyer=self.buyer, project=priced).exists())
 
-
 @override_settings(RATELIMIT_ENABLE=False)
 class PrivacyAndBattleTests(TestCase):
     def setUp(self):
@@ -191,7 +183,6 @@ class PrivacyAndBattleTests(TestCase):
         self.assertEqual(self.a.stars, before)
         self.assertEqual(battle.votes_a, 1)
 
-
 @override_settings(RATELIMIT_ENABLE=False)
 class FormAndValidatorTests(TestCase):
     def setUp(self):
@@ -231,7 +222,6 @@ class FormAndValidatorTests(TestCase):
         upload = make_zip_file({'app.py': 'print(1)\n', 'README.md': '# Hi\n'})
         self.assertIsNone(validate_zip(upload))
 
-
 @override_settings(RATELIMIT_ENABLE=False)
 class StarFloorTests(TestCase):
     def setUp(self):
@@ -247,7 +237,6 @@ class StarFloorTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.project.refresh_from_db()
         self.assertGreaterEqual(self.project.stars, 0)
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class RemainingHoleTests(TestCase):
@@ -364,7 +353,6 @@ class RemainingHoleTests(TestCase):
         self.assertEqual(target.js_code, 'new()')
         self.assertFalse(target.zip_file)
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False)
 class StarsEconomyTests(TestCase):
     def setUp(self):
@@ -475,7 +463,6 @@ class StarsEconomyTests(TestCase):
         self.assertEqual(ledger_balance(self.buyer), self.buyer.profile.stars_balance)
         self.assertEqual(ledger_balance(self.owner), self.owner.profile.stars_balance)
 
-
 @override_settings(RATELIMIT_ENABLE=False, SEED_DEMO=False)
 class PreviewHonestyTests(TestCase):
     def setUp(self):
@@ -522,7 +509,6 @@ class PreviewHonestyTests(TestCase):
         self.assertNotContains(response, 'Preview 1h')
         self.assertNotContains(response, 'Buy R')
 
-
 @override_settings(RATELIMIT_ENABLE=False, SEED_DEMO=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class SeedDemoTests(TestCase):
     def test_seed_fills_the_feed(self):
@@ -537,7 +523,6 @@ class SeedDemoTests(TestCase):
         self.assertContains(response, 'SaaS Launch Hero')
         self.assertContains(response, 'Stock Tracker Starter')
         self.assertNotContains(response, 'Publish your first vibe')
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False, PAYSTACK_SECRET_KEY='', PAYSTACK_ENABLED=False)
 class FiveWhysHolesTests(TestCase):
@@ -653,7 +638,6 @@ class FiveWhysHolesTests(TestCase):
         self.assertIn('not a container', reply)
         self.assertEqual(posted.call_args.kwargs['headers']['x-api-key'], 'sk-ant-test')
 
-
 @override_settings(RATELIMIT_ENABLE=False)
 class PromptEconomyTests(SimpleTestCase):
     """The real token-saving prompt engine behind Nolo.
@@ -739,8 +723,6 @@ class PromptEconomyTests(SimpleTestCase):
         self.assertGreaterEqual(body['meta']['prompt']['saved_tokens'], 0)
         self.assertGreaterEqual(body['meta']['prompt']['input_tokens_before'], 1)
         self.assertEqual(body['meta']['structure']['ordering'], 'system-first-dynamic-last')
-
-
 
 @override_settings(RATELIMIT_ENABLE=False, PAYSTACK_SECRET_KEY='sk_test_webhook', PAYSTACK_ENABLED=True)
 class PaystackWebhookTests(TestCase):
@@ -928,7 +910,6 @@ class PaystackWebhookTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response.url, 'https://paystack.test/existing')
         self.assertEqual(PaymentIntent.objects.filter(buyer=self.buyer, project=self.project).count(), 1)
-
 
 @override_settings(RATELIMIT_ENABLE=False, SEED_DEMO=False)
 class LaunchGuideTests(TestCase):
@@ -1195,8 +1176,6 @@ class LaunchGuideTests(TestCase):
             call_command('check_guide_reviews', days=90, stdout=out)
         self.assertIn('reviewed within 90 days', out.getvalue())
 
-
-
 @override_settings(RATELIMIT_ENABLE=False)
 class ComparisonMatrixTests(TestCase):
     """The hub comparison matrix must reference only real guides and stay honest."""
@@ -1258,7 +1237,6 @@ class ComparisonMatrixTests(TestCase):
         self.assertIn('/launch/cloudflare-pages/', body)
         self.assertIn('/launch/railway/', body)
         self.assertIn('/launch/steam/', body)
-
 
 @override_settings(RATELIMIT_ENABLE=False)
 class FrameworkCommandTests(TestCase):
@@ -1323,7 +1301,6 @@ class FrameworkCommandTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'gunicorn')
         self.assertContains(response, 'collectstatic')
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False)
 class ChallengeAwardTests(TestCase):
@@ -1401,7 +1378,6 @@ class ChallengeAwardTests(TestCase):
         self.assertEqual(self.challenge.winner_id, self.entry.id)
         self.assertEqual(self.other.profile.stars_balance, 5)
 
-
 @override_settings(RATELIMIT_ENABLE=False, SEED_DEMO=False)
 class SnippetIsolationTests(TestCase):
     def setUp(self):
@@ -1471,7 +1447,6 @@ class SnippetIsolationTests(TestCase):
         self.assertContains(response, '?t=', html=False)
         self.assertIn('snippet_token', response.context)
 
-
 @override_settings(RATELIMIT_ENABLE=False)
 class SafeZipExtractTests(TestCase):
     def test_safe_extract_writes_normal_files(self):
@@ -1533,7 +1508,6 @@ class SafeZipExtractTests(TestCase):
             import shutil
             shutil.rmtree(dest, ignore_errors=True)
 
-
 class PrivateS3StorageTests(TestCase):
     def test_private_options_never_go_public(self):
         from django.conf import settings
@@ -1548,7 +1522,6 @@ class PrivateS3StorageTests(TestCase):
         self.assertIsNone(PrivateMediaStorage.default_acl)
         self.assertTrue(PrivateMediaStorage.querystring_auth)
         self.assertIsNone(PrivateMediaStorage.custom_domain)
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class VersionDownloadTests(TestCase):
@@ -1583,7 +1556,6 @@ class VersionDownloadTests(TestCase):
         response = self.client.get(f'/app/{self.project.slug}/versions/{self.version.id}/download/')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'application/zip')
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False)
 class ScanStatusVisibilityTests(TestCase):
@@ -1631,7 +1603,6 @@ class ScanStatusVisibilityTests(TestCase):
         self.assertTrue(body['is_published'])
         self.assertEqual(body['reason'], '')
 
-
 @override_settings(RATELIMIT_ENABLE=False, SEED_DEMO=False)
 class CopyIncrementTests(TestCase):
     def setUp(self):
@@ -1663,7 +1634,6 @@ class CopyIncrementTests(TestCase):
         self.live.refresh_from_db()
         self.assertEqual(self.live.copies, 1)
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class StaffIsNotAFreePassTests(TestCase):
     def setUp(self):
@@ -1683,7 +1653,6 @@ class StaffIsNotAFreePassTests(TestCase):
         self.assertIn(self.project.slug, response.url)
         self.project.refresh_from_db()
         self.assertEqual(self.project.clones, 0)
-
 
 @override_settings(RATELIMIT_ENABLE=False)
 class AtomicStarToggleTests(TestCase):
@@ -1705,7 +1674,6 @@ class AtomicStarToggleTests(TestCase):
         self.assertEqual(Star.objects.filter(user=self.fan, project=self.project).count(), 1)
         self.project.refresh_from_db()
         self.assertEqual(self.project.stars, 1)
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False)
 class WelcomeGrantTests(TestCase):
@@ -1751,7 +1719,6 @@ class WelcomeGrantTests(TestCase):
         user.profile.refresh_from_db()
         self.assertEqual(user.profile.stars_balance, WELCOME_STARS)
         self.assertEqual(StarEvent.objects.filter(user=user, reason='welcome').count(), 1)
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False)
 class DeleteLifecycleTests(TestCase):
@@ -1846,7 +1813,6 @@ class DeleteLifecycleTests(TestCase):
         self.assertEqual(trade.seller, self.owner)
         self.assertEqual(trade.cost, 3)
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False)
 class ZiputilStorageTests(TestCase):
     """ZIP access must work when FieldFile.path is unavailable (S3/R2)."""
@@ -1928,7 +1894,6 @@ class ZiputilStorageTests(TestCase):
         stats = detect_languages_from_field(self._remote_field())
         self.assertIn('Python', stats)
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False)
 class ArtifactDetectionTests(TestCase):
     """Publish → launch loop: detected artifact must map to a real guide."""
@@ -2003,7 +1968,6 @@ class ArtifactDetectionTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Vercel')
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False)
 class ChallengeBountyLedgerTests(TestCase):
     def test_bounty_writes_ledger_row(self):
@@ -2031,7 +1995,6 @@ class ChallengeBountyLedgerTests(TestCase):
             user=creator, delta=10, reason='challenge_bounty',
             ref=f'challenge:{challenge.tag}:{entry.slug}',
         ).exists())
-
 
 # ===========================================================================
 # Program-kind classification, honest previews, appeal scoring, taste feed.
@@ -2070,7 +2033,6 @@ class TaxonomyTests(TestCase):
         self.assertEqual(preview_mode_for('game', has_html=False, has_zip=True), 'files')
         self.assertEqual(preview_mode_for('game', has_html=True, has_zip=True), 'snippet')
         self.assertEqual(preview_mode_for('api_backend', has_html=False, has_zip=True), 'files')
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class KindDetectTests(TestCase):
@@ -2205,7 +2167,6 @@ class KindDetectTests(TestCase):
         project = self._with_files(['game/project.godot'])
         self.assertTrue(detect_kind(project)['evidence'])
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class ClassifyTests(TestCase):
     def setUp(self):
@@ -2298,7 +2259,6 @@ class ClassifyTests(TestCase):
         self.assertEqual(snippet.preview_mode, 'snippet')
         self.assertTrue(snippet.can_run_preview)
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class AppealScoreTests(TestCase):
     def setUp(self):
@@ -2384,7 +2344,6 @@ class AppealScoreTests(TestCase):
             make_project(self.owner, self.cat, title=f'Limited {i}')
         AppProject.objects.update(appeal_updated_at=None)
         self.assertEqual(refresh_batch(limit=2), 2)
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class TasteLearningTests(TestCase):
@@ -2524,7 +2483,6 @@ class TasteLearningTests(TestCase):
         self.assertIsInstance(ordered, QuerySet)
         self.assertIn('ORDER BY', str(ordered.query).upper())
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class DiscoveryFeedTests(TestCase):
     def setUp(self):
@@ -2630,7 +2588,6 @@ class DiscoveryFeedTests(TestCase):
         self.assertIn('API / backend', body)
         self.assertIn('Files only', body)
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class HonestPreviewTests(TestCase):
     def setUp(self):
@@ -2676,7 +2633,6 @@ class HonestPreviewTests(TestCase):
             self.assertEqual(project.kind, k['value'])
             self.assertTrue(project.preview_note)
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class KindApiTests(TestCase):
     def setUp(self):
@@ -2708,7 +2664,6 @@ class KindApiTests(TestCase):
         from gallery.taxonomy import KIND_VALUES
         data = json.loads(self.client.get('/api/v1/program-kinds/').content)
         self.assertEqual(tuple(r['value'] for r in data['results']), KIND_VALUES)
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class PublishClassificationTests(TestCase):
@@ -2786,7 +2741,6 @@ class PublishClassificationTests(TestCase):
         self.assertEqual(project.preview_mode, 'files')
         self.assertGreater(project.appeal_score, 0)
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class InteractionSignalTests(TestCase):
     """Every learning hook, proven through a real request."""
@@ -2842,12 +2796,11 @@ class InteractionSignalTests(TestCase):
             response = self.client.get(f'/app/{self.game.slug}/download/')
         self.assertEqual(response.status_code, 200)
 
-
 @override_settings(RATELIMIT_ENABLE=False)
 class CoOwnerSplitTests(TestCase):
     """Co-owner revenue splits — the trust layer for team-built vibes.
 
-    5 Whys: Why test the money path so hard? Splits move currency to MORE
+    The money path is tested hard because splits move currency to MORE
     recipients per purchase — every invariant that held for one seller
     (zero-sum, ledger reconciliation, no replay, verified gate) must hold
     for N sellers, or the economy gains a rounding/minting hole.
@@ -3008,10 +2961,9 @@ class CoOwnerSplitTests(TestCase):
         self.assertIn('your share', partner_note.title)
         self.assertIn('2 ★', partner_note.title)
 
-
 # ==========================================================================
 # Trust badge — the pipeline-written public verdict (gallery.trust).
-# Every guarantee of the badge's 5 Whys has a test here: the writer rule,
+# Every guarantee of the badge's has a test here: the writer rule,
 # the reset rule, the unfakeable rule, the capped ranking boost, and the
 # "nobody gets robbed" story.
 # ==========================================================================
@@ -3030,7 +2982,7 @@ class TrustBadgeTests(TestCase):
             'dep_audit': {'ran': True, 'reason': 'ok'},
         }
 
-    # ---- pure grading ---------------------------------------------------
+    # pure grading
     def test_clean_zip_project_grades_verified(self):
         from gallery.trust import trust_grade, TRUST_VERIFIED
         p = make_project(self.owner, self.cat,
@@ -3113,7 +3065,7 @@ class TrustBadgeTests(TestCase):
         broken = SimpleNamespace(status=None)  # no slug, no scan_report
         self.assertEqual(trust_grade(broken), TRUST_UNKNOWN)
 
-    # ---- the writer rule -------------------------------------------------
+    # the writer rule
     def test_apply_trust_grade_writes_and_stamps(self):
         from gallery.trust import apply_trust_grade, TRUST_VERIFIED
         p = make_project(self.owner, self.cat,
@@ -3137,7 +3089,7 @@ class TrustBadgeTests(TestCase):
         written = apply_trust_grade(p)
         self.assertEqual(written, TRUST_UNKNOWN)  # refused, current value kept
 
-    # ---- the pipeline end to end ----------------------------------------
+    # the pipeline end to end
     def test_publish_flow_grades_a_clean_snippet_verified(self):
         # The publish view trusts snippets from creators with >=3 published
         # vibes (same precondition as PublishClassificationTests); newer
@@ -3186,7 +3138,7 @@ class TrustBadgeTests(TestCase):
         self.assertEqual(p.status, 'pending')
         self.assertEqual(p.trust, 'unknown')
 
-    # ---- the reset rule (nobody gets robbed) -----------------------------
+    # the reset rule (nobody gets robbed)
     def test_content_change_resets_a_verified_badge(self):
         """The bait-and-switch defence: a buyer traded for a ✓ vibe, the
         owner then swaps the bytes — the badge must drop before any buyer
@@ -3211,7 +3163,7 @@ class TrustBadgeTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertNotContains(response, '✓ Checked')
 
-    # ---- the unfakeable rule ----------------------------------------------
+    # the unfakeable rule
     def test_publish_form_has_no_trust_field(self):
         self.assertNotIn('trust', AppUploadForm.base_fields)
 
@@ -3256,7 +3208,7 @@ class TrustBadgeTests(TestCase):
         self.assertEqual(row['trust_label'], 'Checked')
         self.assertNotIn('scan_report', row)
 
-    # ---- presentation table ------------------------------------------------
+    # presentation table
     def test_meta_table_covers_exactly_the_tiers(self):
         from gallery.trust import TRUST_META, TRUST_TIERS
         field_choices = {c[0] for c in AppProject._meta.get_field('trust').choices}
@@ -3278,7 +3230,7 @@ class TrustBadgeTests(TestCase):
             self.assertIn(r['ok'], (True, False))
             self.assertTrue(r['detail'])  # every row says something safe
 
-    # ---- ranking: reorder equals, never buy rank ---------------------------
+    # ranking: reorder equals, never buy rank
     def test_verified_boosts_identical_content(self):
         from gallery.interest import compute_appeal
         from gallery.trust import TRUST_VERIFIED, trust_multiplier
@@ -3306,7 +3258,7 @@ class TrustBadgeTests(TestCase):
         strong.trust = 'unknown'
         self.assertGreater(compute_appeal(strong), compute_appeal(weak))
 
-    # ---- the public read ----------------------------------------------------
+    # the public read
     def test_trust_legend_page_renders(self):
         response = self.client.get('/trust/')
         self.assertEqual(response.status_code, 200)
@@ -3324,7 +3276,6 @@ class TrustBadgeTests(TestCase):
         self.assertContains(detail, '✓ Checked')
         self.assertContains(detail, 'What does this mean?')
 
-
 # ==========================================================================
 # Slopsquatting check (gallery.dep_check) + the "Checked only" feed filter.
 # The registry check flags AI-invented package names; the filter lets a
@@ -3336,7 +3287,7 @@ class DepCheckTests(TestCase):
         from django.core.cache import cache
         cache.clear()
 
-    # ---- pure parsers -----------------------------------------------------
+    # pure parsers
     def test_npm_manifest_parser_reads_every_dependency_section(self):
         from gallery.dep_check import npm_deps_from_manifest
         import json, tempfile, os
@@ -3384,7 +3335,7 @@ class DepCheckTests(TestCase):
         finally:
             os.unlink(path)
 
-    # ---- registry lookups: cache, verdicts, breaker ------------------------
+    # registry lookups: cache, verdicts, breaker
     def test_registry_results_are_cached_per_name(self):
         from gallery import dep_check
         calls = []
@@ -3451,7 +3402,7 @@ class DepCheckTests(TestCase):
         out = dep_check.check_dependencies({'npm': [], 'pip': []})
         self.assertEqual(out['reason'], 'no_deps')
 
-    # ---- end to end through the real scan task -----------------------------
+    # end to end through the real scan task
     def _fake_status(self, url, timeout=5):
         return 404 if ('not-a-real-pkg-zzz' in url or 'fake-pkg-abc' in url) else 200
 
@@ -3510,7 +3461,6 @@ class DepCheckTests(TestCase):
         p.refresh_from_db()
         self.assertNotIn('unknown_deps', p.scan_report)
         self.assertEqual(p.scan_report.get('dep_exist_check', {}).get('checked'), 1)
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class TrustFilterTests(TestCase):
@@ -3573,7 +3523,6 @@ class TrustFilterTests(TestCase):
         slugs = {r['slug'] for r in rows}
         self.assertIn(self.unknown.slug, slugs)
 
-
 # ==========================================================================
 # Marketing copy — the three promises on the feed (value strip, hero stat,
 # meta description, footer). Every claim is pinned to something the code
@@ -3625,12 +3574,11 @@ class MarketingCopyTests(TestCase):
         # exactly the rate the value strip states.
         self.assertEqual(MIN_PAYOUT_STARS // 50, 10)
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class CredentialFileBlockTests(TestCase):
     """Uploads may not carry the files that steer a tool or hold a key.
 
-    5 Whys: why test `.npmrc` specifically (and not just `.env`)? Because the
+    test `.npmrc` specifically (and not just `.env`)? Because the
     scan worker runs `npm audit`/`pip-audit`; an uploaded npmrc/pip.conf tells
     those tools where to talk to. The blocklist is the cheap outer gate for the
     thing `gallery/dep_audit.py` refuses to rely on inner gates for.
@@ -3676,7 +3624,6 @@ class CredentialFileBlockTests(TestCase):
             self.assertFalse(os.path.exists(os.path.join(dest, '.npmrc')))
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
-
 
 @override_settings(RATELIMIT_ENABLE=False)
 class DependencyAuditIsolationTests(TestCase):
@@ -3792,12 +3739,11 @@ class DependencyAuditIsolationTests(TestCase):
         finally:
             shutil.rmtree(root, ignore_errors=True)
 
-
 class LocalDevPostureTests(SimpleTestCase):
     """`LOCAL_DEV` is a decision, never a vibe check.
 
-    5 Whys: why spawn a subprocess to read a module? Because the behaviour under
-    test happens ONCE, at import time, from `os.environ`. Patching an already
+    These spawn a subprocess to read a module because the behaviour under test
+    happens ONCE, at import time, from `os.environ`. Patching an already
     imported settings module proves nothing about the inference we removed: an
     activated virtualenv used to imply DEBUG, SSL-redirect off, the repository
     SECRET_KEY acceptable and demo accounts seeded.
@@ -3836,7 +3782,6 @@ class LocalDevPostureTests(SimpleTestCase):
 
     def test_the_explicit_flag_turns_dev_mode_on_without_debug(self):
         self.assertEqual(self._posture(DJANGO_LOCAL_DEV='1', DEBUG=None), '10')
-
 
 @override_settings(RATELIMIT_ENABLE=True)
 class SecurityCheckCommandTests(SimpleTestCase):

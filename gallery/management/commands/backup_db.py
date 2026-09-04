@@ -1,28 +1,8 @@
 """`python manage.py backup_db` — a consistent, timestamped database backup.
-
-Why a command instead of docs telling people to copy the file?
-1. A copy of a SQLite file mid-write can be torn; `sqlite3.Connection.backup`
-   takes a consistent snapshot of whatever Django is using, even the in-memory
-   test DB.
-2. One command with one default output dir means a cron/systemd timer can be a
-   one-liner, and every backup lands in the same place with a sortable name.
-3. Old backups are pruned to `--keep` newest files so a nightly cron does not
-   fill the disk while keeping a real recovery window.
-4. Postgres uses `pg_dump -Fc` (custom format) so a restore is
-   `pg_restore --clean --if-exists -d <db> backup.dump`.
-
 Restore is deliberately NOT implemented: restoring into a live production DB
 needs a human deciding what to take down. The command documents the one-liners
 instead.
-
-5 Whys: why not a Django fixture?
-1. Fixtures are serialized ORM objects; they skip DB-level state (sequences,
-   indexes, row locks) and cannot capture a live Postgres transaction
-   consistently.
-2. `dumpdata` on a 100 MB media-free DB is slow and memory-hungry compared to
-   a native dump.
-3. Native dumps restore into the exact engine; fixtures need model
-   compatibility forever.
+not a Django fixture?
 """
 import datetime
 import os
@@ -34,10 +14,8 @@ from django.core.management.base import BaseCommand, CommandError
 
 DEFAULT_KEEP = 10
 
-
 def _stamp():
     return datetime.datetime.now(datetime.timezone.utc).strftime('%Y%m%dT%H%M%SZ')
-
 
 class Command(BaseCommand):
     help = (

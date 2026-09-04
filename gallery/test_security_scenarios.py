@@ -38,7 +38,6 @@ from .tests import (
     published_zip,
 )
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-sec-tests')
 class Scenario1_PrivateProjectLeaks(TestCase):
     """A private/unpublished vibe must be invisible in every listing."""
@@ -108,7 +107,6 @@ class Scenario1_PrivateProjectLeaks(TestCase):
         KindAffinity.objects.create(user=self.other, kind=self.pending.kind, score=50, events=9)
         body = self.client.get('/?sort=foryou').content.decode()
         self._assert_hidden(body)
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-sec-tests')
 class Scenario2_PullRequestLeak(TestCase):
@@ -183,7 +181,6 @@ class Scenario2_PullRequestLeak(TestCase):
         self.assertEqual(self.client.get(self.list_url).status_code, 404)
         self.client.force_login(self.stranger)
         self.assertEqual(self.client.get(self.list_url).status_code, 404)
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-sec-tests')
 class Scenario3_DownloadBypass(TestCase):
@@ -270,7 +267,6 @@ class Scenario3_DownloadBypass(TestCase):
         self.client.force_login(self.thief)
         self.assertEqual(self.client.get(self.url).status_code, 404)
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-sec-tests')
 class Scenario4_OldUrlsAfterUnpublish(TestCase):
     """Unpublish/remove must invalidate every URL that exposed the content."""
@@ -322,7 +318,6 @@ class Scenario4_OldUrlsAfterUnpublish(TestCase):
             self.assertEqual(self.client.get(url).status_code, 404, url)
         self.client.force_login(self.owner)
         self.assertEqual(self.client.get(f'/app/{self.slug}/').status_code, 200)
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-sec-tests')
 class Scenario5_Idor(TestCase):
@@ -383,7 +378,6 @@ class Scenario5_Idor(TestCase):
         self.client.force_login(self.alice)
         self.assertIn('Bob Vibe', self.client.get('/saved/').content.decode())
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-sec-tests')
 class Scenario6_PrivateUserData(TestCase):
     """No endpoint may answer with another account's private facts."""
@@ -421,7 +415,6 @@ class Scenario6_PrivateUserData(TestCase):
         body = self.client.get('/u/alice/').content.decode()
         self.assertIn('alice', body)
         self.assertNotIn('@test.com', body)
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-sec-tests')
 class Scenario7_RoleEscalation(TestCase):
@@ -470,7 +463,6 @@ class Scenario7_RoleEscalation(TestCase):
         self.assertEqual(response.status_code, 403)
         self.user.profile.refresh_from_db()
         self.assertEqual(self.user.profile.role, 'user')
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-sec-tests')
 class Scenario8_EconomyRaces(TestCase):
@@ -543,7 +535,6 @@ class Scenario8_EconomyRaces(TestCase):
         self.buyer.profile.refresh_from_db()
         self.assertEqual(self.buyer.profile.stars_balance, 7)
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-sec-tests')
 class Scenario9_GitAuth(TestCase):
     """A browser session is not a git credential."""
@@ -604,7 +595,6 @@ class Scenario9_GitAuth(TestCase):
         owner_row = User.objects.get(pk=self.owner.pk)
         blob = f'{owner_row.profile.git_token_hash}{owner_row.password}'
         self.assertNotIn(token, blob)
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-sec-tests')
 class Scenario10_UploadAndZipSafety(TestCase):
@@ -697,7 +687,6 @@ class Scenario10_UploadAndZipSafety(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response['Content-Type'], 'application/json')
         self.assertIn('content', response.json())
-
 
 class AntiAbuseRateLimitTests(TestCase):
     """P9 — every write that costs money, stars or attention is bounded.

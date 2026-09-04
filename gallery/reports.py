@@ -1,42 +1,5 @@
 """Report triage — create, escalate, resolve, and audit user reports.
-
-5 Whys — why is this its own module instead of a fat view?
-1. Why not put it in gallery/views.py? A report is created from one view
-   and resolved from another; a shared module means the two can never
-   disagree about what a "report" is.
-2. Why not keep the rules in the model? The model already enforces the
-   shape (status choices, outcome choices); the *policy* — who may act,
-   what each decision does to a project, who gets told — is business
-   logic, not schema.
-3. Why is every state transition declared here instead of inline? If a
-   moderator action ever runs from two routes (web + API + a future
-   management command), one place must be the single source of truth.
-4. Why return a structured result instead of raising exceptions for the
-   normal cases? An already-resolved report is a normal race, not a bug;
-   the view needs a message to show, and an exception would make every
-   page a 500.
-5. Why audit inside the same transaction as the action? An AdminLog row
-   written after the state change can be lost in a crash, leaving an
-   action nobody can trace.
-
 The five Whys for the decision matrix:
-1. Why decisions are 'ignore' / 'quarantine' / 'remove' / 'delete' and
-   nothing else? The only real question a moderator has is "did this
-   violate?"; every other wording is cosmetic.
-2. Why 'remove' and 'delete' are separate yet both go through
-   lifecycle.remove_project? Because the *content* change is identical —
-   soft-delete when money moved, hard-delete when nothing was ever paid —
-   and lifecycle is the single implementation of that rule.
-3. Why does ignore resolve the report with outcome 'no_action'? A report
-   that has been deliberately dismissed must be distinguishable from one
-   that was never looked at.
-4. Why does one handled report auto-resolve its siblings on the same
-   project? Leaving three open rows side-by-side after the vibe is gone
-   is a queue that can never be emptied.
-5. Why notify moderators on *creation* and the owner on *resolution*?
-   A report nobody is told about is a queue that only the admin page can
-   discover; an owner told nothing is a user who logs in to a vanished
-   vibe with no explanation.
 """
 from __future__ import annotations
 
@@ -63,20 +26,17 @@ OUTCOME_BY_DECISION = {
     'delete': 'deleted',
 }
 
-
 def _is_moderator(user) -> bool:
     try:
         return bool(user.profile.is_moderator())
     except Exception:
         return False
 
-
 def _is_admin(user) -> bool:
     try:
         return bool(user.profile.is_admin())
     except Exception:
         return False
-
 
 def moderators_queryset():
     """Active staff in every moderator-bearing role, in stable order."""
@@ -87,7 +47,6 @@ def moderators_queryset():
         .order_by('username')
         .select_related('profile')
     )
-
 
 def moderators_to_notify(reporter=None):
     """Staff who should open their inbox when a report arrives.
@@ -101,33 +60,11 @@ def moderators_to_notify(reporter=None):
         qs = qs.exclude(pk=reporter.pk)
     return list(qs[:50])
 
-
 def create_report(project: AppProject, user, reason: str, details: str, cooldown_hours: int = 24) -> tuple[AppReport, bool]:
     """Create one report and notify staff — the only creation path.
-
-    Returns (report, created). `created=False` means the same user already
-    has an open report about this project inside the cooldown window; we
-    return that row instead of minting a duplicate.
-
-    5 Whys:
-    1. Why notify inside creation and not in the view? The view has no
-       knowledge of who staff are or which notification channel exists;
-       it should stay a thin HTTP boundary (parse input, redirect).
-    2. Why notify every staff member instead of one "duty" moderator?
-       There is no on-call concept yet; a single inbox becomes a single
-       point of failure if that one person is away.
-    3. Why cap at 50 notified users? A huge staff roster should still
-       work; unbounded notification fan-out on a spam request is the
-       resource-exhaustion the rate limit cannot fully see.
-    4. Why dedupe open reports from the same user/project inside a 24h
-       window? The rate limit bounds *requests* per IP, not a determined
-       spammer who rotates IPs; one open report stands for "the community
-       flagged this", and a queue full of near-identical rows makes the
-       worst reports harder to find.
-    5. Why create the row first, then notify? The notification is a
-       side effect; the row is the durable truth. If notification fails
-       for any reason, the report still exists and the queue still shows
-       it the next time a moderator opens the triage page.
+        Returns (report, created). `created=False` means the same user already
+        has an open report about this project inside the cooldown window; we
+        return that row instead of minting a duplicate.
     """
     authenticated = bool(user is not None and getattr(user, 'is_authenticated', False))
     if authenticated:
@@ -159,7 +96,6 @@ def create_report(project: AppProject, user, reason: str, details: str, cooldown
     except Exception:
         logger.exception('report notify failed slug=%s id=%s', project.slug, report.pk)
     return report, True
-
 
 def resolve_report(report: AppReport, actor, decision: str, note: str = '') -> dict:
     """Resolve one report under a lock, returning a structured result.
@@ -245,33 +181,9 @@ def resolve_report(report: AppReport, actor, decision: str, note: str = '') -> d
         'outcome': outcome,
     }
 
-
 def _apply_project_action(project: AppProject, actor, decision: str, report: AppReport) -> dict:
     """Apply the content change a report resolution implies.
-
-    Returns {'outcome': actual_outcome, 'message': user-facing sentence}.
-
-    5 Whys:
-    1. Why is quarantine software-set trust reset? A trust badge is a
-       verdict about the bytes currently published. Quarantining is a
-       state change; a badge that still says "verified" for a vibe the
-       platform itself has pulled is a contradiction a screenshot can
-       prove.
-    2. Why do remove and delete both call remove_project? The money rule
-       (paid vibe → keep buyers' receipts) must be identical everywhere;
-       lifecycle owns it because moderation and account deletion both need
-       it.
-    3. Why rewrite the ScanJob to quarantined on quarantine? The scan
-       queue is the only place a user can see "why is this held" after a
-       manual quarantine; writing it here gives them an answer after the
-       human decision, not just after an automated one.
-    4. Why notify the owner before the project row can disappear? A hard
-       delete cascades the row; notifying after would query an owner that
-       no longer exists. Capture the user, deliver the message, then let
-       lifecycle do its money-aware work.
-    5. Why never notify the project owner on ignore? Nothing changed about
-       their content; emailing "your report was dismissed" would teach
-       people to spam the system for attention.
+        Returns {'outcome': actual_outcome, 'message': user-facing sentence}.
     """
     owner = project.owner  # in-memory; safe to read after a hard delete
 
@@ -306,7 +218,6 @@ def _apply_project_action(project: AppProject, actor, decision: str, report: App
         'outcome': 'removed' if outcome == 'removed' else 'deleted',
         'message': f' The vibe was {"removed" if outcome == "removed" else "deleted"}.',
     }
-
 
 def _autoresolve_open_siblings(project: AppProject, actor, outcome: str, note: str) -> int:
     """Resolve every other open report about the same project."""

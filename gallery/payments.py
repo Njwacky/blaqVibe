@@ -1,18 +1,4 @@
 """Paystack checkout — initialize and webhook are the same frozen row.
-
-5 Whys:
-1. Why a PaymentIntent? The live price_zar can change (or drop to 0) between
-   Buy and the webhook. Fulfilling the live price is a different sale.
-2. Why verify with Paystack's API after HMAC? HMAC only proves the secret.
-   If the secret leaks, verify still asks Paystack whether *this* reference
-   succeeded for *this* amount in ZAR.
-3. Why reuse one pending intent for 30 minutes? Two Buy clicks would create
-   two references and two charges for one Sale (unique buyer+project).
-4. Why still fulfill an expired/failed intent if Paystack says success?
-   The customer paid. We mark the row paid and unlock. We do not invent a
-   second Sale.
-5. Why require a real email and a published ZIP? A fake
-   `user@blaqvibes.co.za` is not the buyer, and a snippet has nothing to sell.
 """
 import hashlib
 import hmac
@@ -32,20 +18,16 @@ logger = logging.getLogger(__name__)
 INTENT_TTL = timedelta(minutes=30)
 PAYSTACK_CURRENCY = 'ZAR'
 
-
 class PaymentError(Exception):
     def __init__(self, message):
         self.message = message
         super().__init__(message)
 
-
 def paystack_secret() -> str:
     return (getattr(settings, 'PAYSTACK_SECRET_KEY', '') or '').strip()
 
-
 def paystack_enabled() -> bool:
     return bool(paystack_secret())
-
 
 def verify_paystack_signature(body: bytes, sig: str) -> bool:
     secret = paystack_secret()
@@ -53,7 +35,6 @@ def verify_paystack_signature(body: bytes, sig: str) -> bool:
         return False
     expected = hmac.new(secret.encode(), body, hashlib.sha512).hexdigest()
     return hmac.compare_digest(expected, sig)
-
 
 def verify_paystack_transaction(reference: str) -> dict:
     """Ask Paystack whether this reference actually succeeded.
@@ -74,38 +55,14 @@ def verify_paystack_transaction(reference: str) -> dict:
         raise PaymentError('Paystack did not verify this reference.')
     return payload.get('data') or {}
 
-
 def _authorization_headers():
     return {
         'Authorization': f'Bearer {paystack_secret()}',
         'Content-Type': 'application/json',
     }
 
-
-# --- Transfers — creator cash-outs (users/payouts.py owns the Payout row) --
-# 5 Whys:
-# 1. Why look up the bank code at transfer time instead of a hardcoded SA
-#    bank list? Codes change and a wrong code sends money to the wrong
-#    bank. GET /bank?currency=ZAR is Paystack's own list — the same one
-#    its dashboard uses to validate.
-# 2. Why match on a normalised name? Creators type "capitec bank",
-#    "CAPITEC", "Capitec Bank Ltd". Comparing alphanumerics-only,
-#    lowercase, with contains fallback, matches all of those without a
-#    60-entry dropdown we would have to maintain.
-# 3. Why recipient + transfer instead of a single call? That IS the
-#    Paystack Transfers API: create a reusable recipient, then transfer
-#    to it. Two calls, two receipts (recipient_code + transfer_code).
-# 4. Why does a successful response still not mark the Payout paid?
-#    Transfers are async — pending OTP, approval, or the bank. Only a
-#    human confirming real money moved flips the row (never-pretend
-#    rule; see users/payouts.decide_payout).
-# 5. Why raise instead of returning None on failure? The admin queue
-#    must show the exact reason ("bank code not found", "insufficient
-#    balance") — a swallowed failure looks like a sent EFT.
-
 def _normalise_bank(name: str) -> str:
     return ''.join(c for c in (name or '').lower() if c.isalnum())
-
 
 def resolve_zar_bank_code(bank_name: str) -> str:
     """Find the Paystack bank code for a free-text SA bank name.
@@ -148,7 +105,6 @@ def resolve_zar_bank_code(bank_name: str) -> str:
             f'Known banks include: {known}. Fix the payout or pay by EFT.'
         )
     return code
-
 
 def initiate_payout_transfer(payout) -> str:
     """Start a real Paystack transfer for a Payout row. Returns the code.
@@ -209,7 +165,6 @@ def initiate_payout_transfer(payout) -> str:
 
     record_transfer_reference(payout.id, transfer_code)
     return transfer_code
-
 
 def create_checkout(user, project):
     """Freeze price, create or reuse a PaymentIntent, initialize Paystack.
@@ -306,7 +261,6 @@ def create_checkout(user, project):
     intent.save(update_fields=['authorization_url'])
     return url
 
-
 def fulfill_signed_webhook(body: bytes, signature: str) -> tuple[int, str]:
     """Verify signature + Paystack, then fulfill the frozen PaymentIntent.
 
@@ -329,7 +283,6 @@ def fulfill_signed_webhook(body: bytes, signature: str) -> tuple[int, str]:
         int(data.get('amount') or 0),
         (data.get('currency') or PAYSTACK_CURRENCY).upper(),
     )
-
 
 def _fulfill_intent(reference: str, paid_kobo: int, currency: str) -> tuple[int, str]:
     from .models import PaymentIntent, Sale

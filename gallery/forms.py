@@ -7,16 +7,6 @@ from .taxonomy import UPLOAD_KIND_CHOICES, coerce_kind
 
 class AppUploadForm(forms.ModelForm):
     zip_file = forms.FileField(required=False, validators=[validate_zip])
-    # 5 Whys — why offer the creator a kind picker at all when we auto-detect?
-    # 1. Detection reads filenames; the creator read their own intent.
-    # 2. Why default to blank (auto)? Most uploads are obvious, and a
-    #    required dropdown is one more thing between a person and publishing.
-    # 3. Why a fixed choice list, not free text? An off-taxonomy value is
-    #    unfilterable and unlearnable (see gallery/taxonomy.py).
-    # 4. Why not let them set preview_mode too? Whether our sandbox can run
-    #    it is a fact about us, not a preference — see taxonomy.preview_mode_for.
-    # 5. Why keep it on edit as well? A creator who sees a wrong badge needs
-    #    a way to fix it that is not "email support".
     creator_kind = forms.ChoiceField(
         choices=UPLOAD_KIND_CHOICES,
         required=False,
@@ -72,12 +62,12 @@ class AppUploadForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        # 5 Whys: why skip the "provide a ZIP or snippet" error when the ZIP
-        # field already has one? The creator DID provide a ZIP — ours was
-        # rejected for a specific reason (node_modules, .env, too many files).
-        # Tacking on "Provide either a ZIP file or HTML snippet" reads as
-        # "we didn't get your file" and buries the real, fixable reason under
-        # a second error that is not true. One failure, one instruction.
+        # Skip the "provide a ZIP or snippet" error when the ZIP field already
+        # has one: the creator DID provide a ZIP — ours was rejected for a
+        # specific reason (node_modules, .env, too many files). Tacking on
+        # "Provide either a ZIP file or HTML snippet" reads as "we didn't get
+        # your file" and buries the real, fixable reason under a second error
+        # that isn't true. One failure, one instruction.
         if self.errors.get('zip_file'):
             return cleaned
         zipf = cleaned.get('zip_file')
@@ -86,20 +76,8 @@ class AppUploadForm(forms.ModelForm):
             raise forms.ValidationError("Provide either a ZIP file (full app) or HTML snippet.")
         return cleaned
 
-
 class CommentForm(forms.Form):
     """The one place comment rules live.
-
-    5 Whys: Why a form instead of parsing request.POST in the view?
-    1. Length, sanitize, and the language gate must apply no matter who
-       calls the view — a form is that one place.
-    2. Why not only Comment.save()? save() can hide a row, but the author
-       deserves an error they can act on. A hidden comment looks like a bug.
-    3. Why not JS? Anyone can POST. The browser is not a gate.
-    4. Why sanitize AND the language gate? bleach stops scripts; the
-       language gate stops slurs. They are different attacks.
-    5. Why at 10k comments? A future /api/comments/ that reuses this form
-       cannot forget the rule.
     """
     body = forms.CharField(min_length=5, max_length=2000)
     parent_id = forms.IntegerField(required=False)
@@ -111,7 +89,6 @@ class CommentForm(forms.Form):
             raise forms.ValidationError('Comment must be 5–2000 characters.')
         return validate_public_text(body, allow_blank=False)
 
-
 class ReviewForm(forms.Form):
     """Same reason as CommentForm: one gate for rating + public text."""
     rating = forms.IntegerField(min_value=1, max_value=5)
@@ -121,14 +98,11 @@ class ReviewForm(forms.Form):
         text = sanitize_prompt(self.cleaned_data.get('text') or '')[:1000]
         return validate_public_text(text)
 
-
 class CoOwnerForm(forms.Form):
-    """Add a co-owner to a vibe — username + share % of star trades.
-
-    5 Whys: Why a form instead of inline view checks? The same three rules
-    (user exists, not the owner, not already a co-owner, Σ shares ≤ 100)
-    must hold no matter who calls the view; a form is the one place they
-    live and the view stays a thin shell.
+    """Add a co-owner to a vibe — username + share % of star trades. The same
+    three rules (user exists, not the owner, not already a co-owner, shares
+    total ≤ 100) must hold no matter who calls the view; a form is the one
+    place they live, leaving the view a thin shell.
     """
     username = forms.CharField(max_length=150, widget=forms.TextInput(attrs={
         'placeholder': 'username',

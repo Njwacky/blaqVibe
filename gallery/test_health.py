@@ -8,7 +8,6 @@ from django.test import TestCase, override_settings
 
 from users.models import SiteSettings
 
-
 @override_settings(RATELIMIT_ENABLE=False)
 class HealthProbeTests(TestCase):
 

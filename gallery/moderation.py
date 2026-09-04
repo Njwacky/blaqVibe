@@ -18,26 +18,9 @@ def moderation_queue(request):
         'open_reports': open_reports,
     })
 
-
 @moderator_required
 def reports_queue(request):
     """Report triage — open reports first, resolved/ignored behind them.
-
-    5 Whys:
-    1. Why split open vs handled? A moderator's job today is the open pile;
-       putting handled rows first hides it. The queue is a work order, not
-       an archive.
-    2. Why group by count on the project row? Seeing "3 open reports on
-       this vibe" is how you know a report is credible before you open it;
-       one report can be noise, three is a pattern.
-    3. Why include a project lock banner on the action buttons? The best
-       moderator decision (quarantine/remove/delete) changes content; the
-       row must say plainly that Approve alone never does that.
-    4. Why include a note field? A resolution without a reason is an action
-       a lawyer or a support ticket cannot reconstruct.
-    5. Why show resolved/ignored at all on the same page? A moderator who
-       acted "too fast" needs to find the row again; a separate history URL
-       would be one more page for a rare need.
     """
     now = timezone.now()
     open_reports = (
@@ -87,7 +70,6 @@ def reports_queue(request):
             ('delete', 'Delete vibe (admin)'),
         ),
     })
-
 
 @moderator_required
 @require_POST

@@ -1,23 +1,4 @@
 """allauth hooks — the OAuth sign-in path (Google, GitHub, Facebook).
-
-5 Whys (why adapters instead of signal handlers):
-
-1. Why hook allauth at all? A social sign-in creates a User without ever
-   touching SignUpForm, so every rule that form enforces (reserved handles,
-   public language) would simply not exist on the OAuth path.
-2. Why the *account* adapter for usernames? allauth derives a username from
-   the provider's login/name and validates it through
-   ``clean_username`` — that one method is the only chokepoint every
-   social signup, and the socialaccount signup form, both pass through.
-3. Why not a post_save signal? A signal fires after the row exists; by then
-   "@admin" is already a real account and the fix is a rename, not a block.
-4. Why copy the provider handle onto Profile? The profile chip links to
-   github.com/<handle>; asking a GitHub user to retype what we already
-   received is a form nobody fills in.
-5. Why grant the welcome stars here? The grant is bound to a *verified
-   mailbox*, not to signup. Google/GitHub/Facebook hand us a provider-verified
-   address, so that condition is met at first login — and grant_welcome_stars
-   is ledger-idempotent, so the email link paying it later is a no-op.
 """
 import logging
 
@@ -26,7 +7,6 @@ from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.core.exceptions import ValidationError
 
 logger = logging.getLogger(__name__)
-
 
 class BlaqAccountAdapter(DefaultAccountAdapter):
     def is_open_for_signup(self, request):
@@ -52,7 +32,6 @@ class BlaqAccountAdapter(DefaultAccountAdapter):
             raise ValidationError('That username is not allowed.')
         return username
 
-
 class BlaqSocialAccountAdapter(DefaultSocialAccountAdapter):
     def is_open_for_signup(self, request, sociallogin):
         return True
@@ -68,7 +47,6 @@ class BlaqSocialAccountAdapter(DefaultSocialAccountAdapter):
         user = super().save_user(request, sociallogin, form=form)
         sync_social_profile(user, sociallogin)
         return user
-
 
 def sync_social_profile(user, sociallogin):
     """Mirror what the provider told us onto the Profile.

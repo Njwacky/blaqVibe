@@ -26,7 +26,6 @@ from gallery.models import Notification, VibeBattle
 
 from .tests import make_category, make_project, make_user
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-retention-tests')
 class BattleVisibilityTests(TestCase):
     """A battle never leaks metadata about a vibe that went non-public."""
@@ -102,7 +101,6 @@ class BattleVisibilityTests(TestCase):
         self.battle.refresh_from_db()
         self.assertEqual(self.battle.votes_a, 1)
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-retention-tests')
 class NotificationControlsTests(TestCase):
     def setUp(self):
@@ -174,13 +172,12 @@ class NotificationControlsTests(TestCase):
         request.user = AnonymousUser()
         self.assertEqual(extras(request)['unread_notifications'], 0)
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-retention-tests')
 class StarEndpointGateTests(TestCase):
     """The star write must be a logged-in POST, like every other write.
 
-    5 Whys: why gate it at all? Before the gate an unauthenticated GET/POST
-    reached ``toggle_project_star(request.user, ...)`` with ``AnonymousUser``.
+    Before the gate an unauthenticated GET/POST reached
+    ``toggle_project_star(request.user, ...)`` with ``AnonymousUser``.
     The FK to ``Star.user`` then failed on a NOT NULL constraint and the
     ``IntegrityError`` was swallowed as ``True`` — so an anonymous visitor
     was told they'd starred a vibe they never affected, and the ``if
@@ -221,31 +218,13 @@ class StarEndpointGateTests(TestCase):
         from gallery.models import Star
         self.assertTrue(Star.objects.filter(user=self.fan, project=self.project).exists())
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-retention-tests')
 class AdminTrustWritabilityTests(TestCase):
     """``AppProject.trust`` may be written only by the trust pipeline.
-
-    The marketplace ranks on ``trust`` (verified / scanned / human-checked) —
-    it is the moat. Only ``gallery/trust.py`` may set it. Letting a superuser
-    hand-edit it in the Django admin would bypass the pipeline, so the field
-    is read-only in ``AppProjectAdmin``.
-
-    5 Whys:
-    1. Why does this matter? A quarantine-bad vibe could be promoted to
-       ``trust`` by a manual admin edit, defeating the scan/slop gate.
-    2. Why read-only in admin rather than a plugin in ``save()``? The pipeline
-       writes ``trust`` through the same ``save()``; a blanket guard would need
-       a tricky ``force`` flag. Read-only-in-admin is exactly the boundary the
-       audit named.
-    3. Why test the *rendered* admin form, not the class attribute? A future
-       refactor could drop ``readonly_fields`` while the class still looks
-       right; the rendered field is what a superuser actually gets.
-    4. Why a superuser? Admin is the single human-editable surface for trust;
-       if even it cannot, the invariant holds everywhere.
-    5. Why not also freeze status/scan fields? Those legitimately change via
-       the publish/scan queues; ``trust`` is the one field only the pipeline
-       writes.
+        The marketplace ranks on ``trust`` (verified / scanned / human-checked) —
+        it is the moat. Only ``gallery/trust.py`` may set it. Letting a superuser
+        hand-edit it in the Django admin would bypass the pipeline, so the field
+        is read-only in ``AppProjectAdmin``.
     """
 
     def setUp(self):

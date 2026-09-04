@@ -1,42 +1,17 @@
 """Curated starter templates — the on-ramp for a vibe coder with nothing yet.
-
 Data, not user content. Each starter is a tiny, self-contained HTML/CSS/JS
 snippet a beginner can open in the in-browser Studio, write in the editors
 without an account, run a live preview once signed in, and publish through
 the SAME publish path every upload uses (so scan, classify, and trust all
 still apply).
-
-5 Whys — why curated data instead of, say, a folder of files or DB rows?
-
-1. Why hard-coded data? A starter must be trustworthy the instant it loads —
-   no upload, no scan pending, no user-supplied bytes. Code-reviewed data is
-   the only source we can promise is clean on first paint.
-2. Why snippets (html/css/js), not ZIPs? The Studio's whole point is instant
-   client-side editing; three text fields map straight onto
-   AppProject.html_code/css_code/js_code and the existing snippet preview.
-   A ZIP would need a build step the beginner does not have. The live
-   sandbox still runs those three fields — it just waits for a signed-in
-   session before the iframe exists.
-3. Why route publish through the normal form path? A starter the user edited
-   is user content the moment they change it — it must be scanned, classified,
-   and trust-graded like anything else. A shortcut that skipped that would be
-   a hole exactly where beginners (who trust us most) live.
-4. Why keep them tiny and framework-light? The audience is someone who has
-   never shipped. A 40-line page they can read top to bottom teaches; a
-   bundled SPA hides the very thing they came to learn.
-5. Why a stable `slug` per starter? The Studio URL is /studio/<slug>/ and the
-   "open this starter" links across the site point at it; a stable id keeps
-   those links valid and lets tests target one starter deterministically.
 """
 
 # Bumped when a starter's code changes, so the Studio cache-busts its assets.
 STARTERS_VERSION = "2026-08-30"
 
-
 def _dedent(block: str) -> str:
     """Trim a leading newline so triple-quoted blocks read cleanly."""
     return block.lstrip("\n")
-
 
 STARTERS = (
     {
@@ -55,12 +30,12 @@ A tiny, single-screen landing page — a headline, a tagline, and one clear
 call-to-action button. Everything is plain HTML and CSS, so it is easy to
 read and easy to change.
 
-## What to try
+# # What to try
 - Change the headline and tagline text.
 - Swap the two gradient colours near the top of the CSS.
 - Point the button at your own link.
 
-## How it runs
+# # How it runs
 Pure HTML/CSS/JS — it runs live in the BlaqVibes sandboxed preview and needs
 no build step.
 """
@@ -116,12 +91,12 @@ The classic first interactive app: three buttons change a number on screen.
 It is the smallest useful example of the loop every app runs on — an event
 happens, the state changes, the screen updates.
 
-## What to try
+# # What to try
 - Change the step from 1 to 5.
 - Add a button that doubles the number.
 - Stop the count going below zero.
 
-## How it runs
+# # How it runs
 Plain HTML/CSS/JS — runs live in the sandboxed preview, no build step.
 """
         ),
@@ -180,12 +155,12 @@ Add tasks, tick them off, delete them — and the list survives a refresh
 because it saves to the browser's localStorage. A complete tiny app that
 shows input handling, rendering a list, and persistence.
 
-## What to try
+# # What to try
 - Add a "clear completed" button.
 - Show a count of tasks left.
 - Change what happens when the list is empty.
 
-## How it runs
+# # How it runs
 Plain HTML/CSS/JS — runs live in the sandboxed preview, no build step.
 """
         ),
@@ -269,12 +244,12 @@ render();
 Press the button, get a random quote. A friendly first look at arrays,
 `Math.random`, and swapping text on the page.
 
-## What to try
+# # What to try
 - Add your own quotes to the list.
 - Make the background colour change with each quote.
 - Add a "copy" button.
 
-## How it runs
+# # How it runs
 Plain HTML/CSS/JS — runs live in the sandboxed preview, no build step.
 """
         ),
@@ -319,7 +294,6 @@ next();
 )
 
 STARTERS_BY_SLUG = {s["slug"]: s for s in STARTERS}
-
 
 def get_starter(slug):
     """Return one starter dict or None. The only lookup callers should use."""

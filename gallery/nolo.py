@@ -1,5 +1,5 @@
-# Nolo Compare — Backend only, no judgment, just facts side-by-side
-# 5 Whys: Why not LLM? LLM judges. Why backend extraction? Markdown is spec, parse features deterministically.
+# Nolo Compare — backend only, no judgment, just facts side by side. Feature
+# extraction is deterministic (markdown is spec), not LLM; the LLM judges.
 
 def extract_features(project):
     try:

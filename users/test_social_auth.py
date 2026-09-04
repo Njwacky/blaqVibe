@@ -15,7 +15,6 @@ from django.urls import reverse
 
 from users.models import Profile, StarEvent, WELCOME_STARS
 
-
 def _provider_settings(*slugs):
     """Build SOCIALACCOUNT_PROVIDERS the way settings.py does, for `slugs`."""
     from django.conf import settings as dj_settings
@@ -28,7 +27,6 @@ def _provider_settings(*slugs):
             **cfg['settings'],
         }
     return out
-
 
 GITHUB_ON = dict(
     GITHUB_CLIENT_ID='github-id',
@@ -53,7 +51,6 @@ ALL_ON = dict(
     RATELIMIT_ENABLE=False,
 )
 
-
 def _sign_in(client, slug, adapter_cls, provider_cls, profile_data, process='login'):
     """Drive a full OAuth round-trip with only the provider HTTP call faked."""
     start = client.post(f'/accounts/social/{slug}/login/?process={process}')
@@ -71,13 +68,11 @@ def _sign_in(client, slug, adapter_cls, provider_cls, profile_data, process='log
             f'/accounts/social/{slug}/login/callback/?code=stub-code&state={state}'
         )
 
-
 def github_sign_in(client, data, process='login'):
     from allauth.socialaccount.providers.github.provider import GitHubProvider
     from allauth.socialaccount.providers.github.views import GitHubOAuth2Adapter
 
     return _sign_in(client, 'github', GitHubOAuth2Adapter, GitHubProvider, data, process)
-
 
 def facebook_sign_in(client, data, process='login'):
     from allauth.socialaccount.providers.facebook.provider import FacebookProvider
@@ -85,20 +80,17 @@ def facebook_sign_in(client, data, process='login'):
 
     return _sign_in(client, 'facebook', FacebookOAuth2Adapter, FacebookProvider, data, process)
 
-
 def github_profile(uid=4242, login='octocat', email='octocat@example.com', verified=True):
     data = {'id': uid, 'login': login, 'name': 'Octo Cat', 'email': email}
     if email:
         data['emails'] = [{'email': email, 'primary': True, 'verified': verified}]
     return data
 
-
 def facebook_profile(uid='99001', name='Thabo Mokoena', email='thabo@example.com'):
     data = {'id': uid, 'name': name, 'first_name': 'Thabo', 'last_name': 'Mokoena'}
     if email:
         data['email'] = email
     return data
-
 
 class SocialButtonTests(TestCase):
     """A button appears only when the handshake behind it can complete."""
@@ -152,7 +144,6 @@ class SocialButtonTests(TestCase):
         """A GET must not redirect to the provider: only a CSRF-checked POST."""
         response = self.client.get('/accounts/social/github/login/?process=login')
         self.assertNotEqual(response.status_code, 302)
-
 
 @override_settings(**GITHUB_ON)
 class GitHubSignInTests(TestCase):
@@ -288,7 +279,6 @@ class GitHubSignInTests(TestCase):
         )
         self.assertEqual(User.objects.count(), 0)
 
-
 @override_settings(**FACEBOOK_ON)
 class FacebookSignInTests(TestCase):
     def test_new_user_is_created_and_signed_in(self):
@@ -355,7 +345,6 @@ class FacebookSignInTests(TestCase):
             response = self.client.get('/accounts/login/')
             self.assertNotContains(response, 'Continue with Facebook')
 
-
 @override_settings(**ALL_ON)
 class SocialConnectionManagementTests(TestCase):
     def setUp(self):
@@ -417,7 +406,6 @@ class SocialConnectionManagementTests(TestCase):
         github_sign_in(self.client, github_profile(email='other@example.com'), process='connect')
         self.assertEqual(User.objects.count(), 1)
         self.assertEqual(SocialAccount.objects.filter(user=self.user).count(), 1)
-
 
 @override_settings(**ALL_ON)
 class SocialAuthPageTests(TestCase):

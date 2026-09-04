@@ -1,22 +1,7 @@
 """Check launch guides for staleness.
-
-Usage:
     python manage.py check_guide_reviews              # warn on >90 days
     python manage.py check_guide_reviews --days=30    # stricter ceiling
     python manage.py check_guide_reviews --fail       # exit 1 if any stale
-
-5 Whys:
-1. Why a command instead of relying on the UI warning? CI and deploys need a
-   machine-readable gate, not a page a human has to open.
-2. Why default 90 days? docs/LAUNCH_GUIDE.md promises a quarterly review of
-   every URL and claim; older than a quarter is overdue by the project's own
-   policy.
-3. Why --fail? A cron job or CI step can fail the build when guidance is
-   stale, so a forgotten review cannot silently ship stale commands.
-4. Why parse with date.fromisoformat? The data stores ISO dates; a typo like
-   "20 August 2026" is caught here instead of being compared as a string.
-5. Why also list guides missing the key? A guide without last_reviewed was
-   never tracked — that is strictly worse than an old date and must surface.
 """
 
 from datetime import date
@@ -24,7 +9,6 @@ from datetime import date
 from django.core.management.base import BaseCommand
 
 from gallery.launch_guides import LAUNCH_GUIDES
-
 
 class Command(BaseCommand):
     help = "Report launch guides whose last_reviewed is missing or older than --days (default 90)."

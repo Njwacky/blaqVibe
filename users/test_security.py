@@ -5,7 +5,6 @@ from django.urls import reverse
 
 from .models import SecurityEvent
 
-
 class PasswordSecurityTests(TestCase):
     def setUp(self):
         self.user = User.objects.create_user('secure-user', 'secure@example.com', 'OldPassword123!')

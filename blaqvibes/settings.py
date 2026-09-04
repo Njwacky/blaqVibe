@@ -11,29 +11,11 @@ DEBUG = os.getenv('DEBUG', '0') == '1'
 
 # Detect local development in a virtual environment or debug mode.
 # This avoids forcing production-only HTTPS handling when running locally.
-#
-# 5 Whys: why a parser instead of `bool(os.getenv('DJANGO_LOCAL_DEV'))`?
-# 1. Why not bool() of the raw string? In Python bool('0') is True — so
-#    DJANGO_LOCAL_DEV=0, the exact line an operator writes to turn local
-#    mode OFF, turned it ON. Same for 'false'/'no'.
-# 2. Why does that matter? LOCAL_DEV gates SECURE_SSL_REDIRECT,
-#    SESSION_COOKIE_SECURE, CSRF_COOKIE_SECURE, nosniff, X_FRAME_OPTIONS,
-#    the django-insecure SECRET_KEY fallback, SEED_DEMO and CELERY_EAGER.
-#    A silent flip ships an unhardened site that looks configured.
-# 3. Why let an explicit value win in BOTH directions? `VIRTUAL_ENV or ...`
-#    meant a venv deploy could never opt out — the heuristic outranked the
-#    operator. Explicit beats inferred.
-# 4. Why keep the venv heuristic at all? Running from a venv with nothing
-#    set is a local dev box; making every developer export a flag to get
-#    CSS instead of a 400 is a worse default.
-# 5. Why treat empty as unset? `DJANGO_LOCAL_DEV=` in a .env means
-#    "no opinion", not "off" — same as the key being absent.
 def _env_flag(name, default=False):
     raw = os.getenv(name)
     if raw is None or raw.strip() == '':
         return default
     return raw.strip().lower() in ('1', 'true', 'yes', 'on')
-
 
 # Tests are detected BEFORE LOCAL_DEV, for two reasons: the suite runs with
 # DEBUG=0, and a production-shaped LOCAL_DEV=False would switch on
@@ -42,22 +24,6 @@ def _env_flag(name, default=False):
 TESTING = any(arg == 'test' for arg in sys.argv) or os.getenv('DJANGO_TEST') == '1'
 
 # Local development is EXPLICIT, or it is a genuine DEBUG run.
-#
-# 5 Whys: why remove the `VIRTUAL_ENV or PYTHONENV` inference?
-# 1. Why was it there? Laptop `runserver` inside a venv gets CSS and seeded
-#    data without exporting anything.
-# 2. Why is that wrong? A venv is also how production gets built: python
-#    buildpacks, Poetry/pipenv installs and slim images that activate a venv
-#    all set VIRTUAL_ENV on a public host.
-# 3. What did that cost? One accidental truthy value silently enabled the
-#    `django-insecure-…` SECRET_KEY (forgeable sessions and signed tokens),
-#    turned off SECURE_SSL_REDIRECT / HSTS / nosniff, downgraded
-#    X-Frame-Options to SAMEORIGIN and defaulted SEED_DEMO to on.
-# 4. Why not keep the heuristic and exempt only SECRET_KEY? LOCAL_DEV exists so
-#    that ONE flag carries the whole hardening posture; a half-trusted flag is
-#    the worst of both worlds.
-# 5. Why fail instead of guess? A clear RuntimeError at boot ("set DEBUG=1 or
-#    DJANGO_LOCAL_DEV=1") beats a site that looks configured and is not.
 if os.getenv('DJANGO_LOCAL_DEV', '').strip() != '':
     LOCAL_DEV = _env_flag('DJANGO_LOCAL_DEV')
 else:
@@ -100,20 +66,8 @@ if DEBUG or LOCAL_DEV or PREVIEW:
         if extra not in ALLOWED_HOSTS:
             ALLOWED_HOSTS.append(extra)
 
-
 def csrf_trusted_origins(raw, *, preview, local):
     """Deduped Origin allow-list. Preview/local always trust e2b.app.
-
-    5 Whys: why force https://*.e2b.app instead of trusting .env alone?
-    1. Why list it at all? Django 4+ rejects a POST whose Origin is not
-       the request host *and* not in CSRF_TRUSTED_ORIGINS.
-    2. Why a wildcard, not one hostname? The preview host is
-       `{port}-{sandbox}.e2b.app` and changes every session.
-    3. Why ignore a production-only .env list? Operators copy
-       .env.example (blaqvibes.co.za only). That list would 403 every
-       preview login even when the cookie is present.
-    4. Why keep localhost? Laptop `runserver` Origin is http://127.0.0.1.
-    5. Why dedupe? LOCAL_DEV used to append the same origin twice.
     """
     origins = [o.strip() for o in (raw or '').split(',') if o.strip()]
     if preview or local:
@@ -128,7 +82,6 @@ def csrf_trusted_origins(raw, *, preview, local):
             seen.add(origin)
             out.append(origin)
     return out
-
 
 CSRF_TRUSTED_ORIGINS = csrf_trusted_origins(
     os.getenv(
@@ -288,12 +241,6 @@ SOCIALACCOUNT_PROVIDERS = {
     if globals()[cfg['id_setting']] and globals()[cfg['secret_setting']]
 }
 
-# --- QUEUE: Celery + Redis — 5 Whys: Why queue not sync? ---
-# 1. 10 users upload at same second → sync would timeout workers, drop scans. Queue serializes.
-# 2. Why Redis not DB? Redis is in-memory, 10x faster for 100 jobs/sec, no DB lock.
-# 3. Why separate queues? scan queue (slow, 1 worker) vs default (fast). Prevents starvation.
-# 4. Why acks_late + prefetch 1? Worker crash mid-scan → job requeued, not lost.
-# 5. Why eager fallback? Dev has no Redis, but .delay() must still work (eager sync).
 CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
 CELERY_TASK_ALWAYS_EAGER = os.getenv('CELERY_EAGER', '1' if LOCAL_DEV else '0') == '1'
@@ -335,16 +282,14 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
-# --- Discovery / program-kind classification ---
-# 5 Whys: Why env-tunable? 1. Cost per LLM call is real money. 2. A traffic
-# spike must be throttleable without a redeploy. 3. Zero is a valid value —
-# it disables LLM classification entirely and leaves the heuristic. 4. The
-# floor lets ops trade accuracy against spend. 5. Defaults are safe for a
-# deployment with no key at all: nothing is called, nothing breaks.
+# Program-kind classification is env-tunable: each LLM call costs real money,
+# so the rate must be throttleable without a redeploy (0 disables LLM calls and
+# leaves the heuristic). Defaults are safe with no key at all — nothing is
+# called, nothing breaks.
 KIND_LLM_CALLS_PER_MINUTE = int(os.getenv('KIND_LLM_CALLS_PER_MINUTE', '30'))
 KIND_LLM_CONFIDENCE_FLOOR = float(os.getenv('KIND_LLM_CONFIDENCE_FLOOR', '0.55'))
 
-# --- S3 / R2 ---
+# S3 / R2
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', '')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '')
 AWS_STORAGE_BUCKET_NAME = os.getenv('AWS_STORAGE_BUCKET_NAME', 'blaqvibes-media')
@@ -495,37 +440,20 @@ CSRF_COOKIE_HTTPONLY = True
 # opts in with DJANGO_BEHIND_TLS_PROXY=1. The shipped docker-compose runs
 # gunicorn directly on :8000 with no proxy — trusting a client-supplied
 # X-Forwarded-Proto there would let an attacker claim "https" and defeat
-# SECURE_SSL_REDIRECT. 5 Whys: 1. Why not always trust it? The header is
-# client-controlled; only a proxy that OVERWRITES it makes it truth. 2. Why
-# keep PREVIEW implicit? Arena terminates TLS per-request; operators never
-# set a flag for it. 3. Why a flag for nginx? A flag documents the
-# contract: set it only after configuring the proxy to replace the header.
-# 4. Why not infer from the env? Inference is how the old virtualenv bug
-# shipped unhardened hosts. 5. Why USE_X_FORWARDED_HOST here too? Host/port
-# trust rides the same "a proxy is in front" decision.
+# SECURE_SSL_REDIRECT. The header is client-controlled; only a proxy that
+# OVERWRITES it makes it truth. PREVIEW is trusted implicitly (Arena
+# terminates TLS per-request), while an nginx deploy opts in with the flag,
+# which documents the contract: set it only after configuring the proxy to
+# replace the header. Host/port trust (USE_X_FORWARDED_HOST) rides the same
+# "a proxy is in front" decision.
 BEHIND_TLS_PROXY = PREVIEW or _env_flag('DJANGO_BEHIND_TLS_PROXY')
 if BEHIND_TLS_PROXY:
     SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
     USE_X_FORWARDED_HOST = True
     USE_X_FORWARDED_PORT = True
 
-
 def cookie_security(*, production, preview):
     """CSRF/session cookie flags. Preview is an HTTPS iframe; laptop HTTP is not.
-
-    5 Whys: why a helper instead of one if/else in settings?
-    1. Why special-case preview? Arena shows the app at
-       https://{port}-{id}.e2b.app, often inside a cross-site iframe.
-       SameSite=Lax cookies are not sent on that POST — Django then
-       renders "CSRF cookie not set" and login dies.
-    2. Why SameSite=None AND Secure together? Browsers reject
-       SameSite=None unless Secure. The preview host is always HTTPS.
-    3. Why not do this in production? blaqvibes.co.za is first-party.
-       Lax + Secure is the stronger CSRF posture, and we DENY framing.
-    4. Why not do this for local `runserver`? Secure cookies are
-       dropped on http://127.0.0.1 — laptop login would break.
-    5. Why a pure function? Tests cannot re-import settings per case
-       without polluting the process. The helper is the contract.
     """
     if preview:
         return {
@@ -550,7 +478,6 @@ def cookie_security(*, production, preview):
         'SESSION_COOKIE_SAMESITE': 'Lax',
         'partition_cookies': False,
     }
-
 
 _cookie = cookie_security(
     production=not DEBUG and not LOCAL_DEV,
@@ -598,19 +525,7 @@ BLAQVIBES_MAX_ZIP_MB = 100
 BLAQVIBES_MAX_FILES = 1000
 # Security: No sensitive data in JS — all secrets stay in os.getenv, never passed to template context
 
-# --- LOGGING ---
-# 5 Whys: why explicit LOGGING instead of Django's default?
-# 1. The default sends nothing to the console at INFO, so the first signal of
-#    a bad upload path or a dead worker is a user complaint, not a log line.
-# 2. docker compose / k8s collect stdout; a file handler would need a volume
-#    nobody created. Console-only means zero extra infrastructure.
-# 3. django.request kept at WARNING hides healthy 404 noise but still reports
-#    500s — the line "Internal Server Error: /path" with the stack trace is
-#    what an on-call actually needs first.
-# 4. propagate=False on named loggers stops each record printing twice (once
-#    for the named logger, once via the root logger).
-# 5. LOG_LEVEL is env-tunable so a bad night can be debugged with
-#    `LOG_LEVEL=DEBUG` and a restart instead of a code change.
+# LOGGING
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO').upper()
 if LOG_LEVEL not in ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'):
     LOG_LEVEL = 'INFO'

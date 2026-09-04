@@ -8,7 +8,7 @@ last, compressed and budget-capped; provider cache hints only when the prefix
 is large enough for them to be honoured; and an honest savings report back to
 the caller.
 
-5 Whys — why a dedicated prompt-economy layer instead of inline tweaks?
+ why a dedicated prompt-economy layer instead of inline tweaks?
 
 Why 1 — Why a separate module instead of editing the prompt inside each model call?
     - The three backends (Claude / Gemini / Groq) all build prompts today; a
@@ -102,7 +102,6 @@ _CODE_PUNCT_WEIGHT = 0.10
 
 _MAX_BLANK_LINES = 2
 
-
 def _int_env(name, default):
     try:
         from django.conf import settings
@@ -117,7 +116,6 @@ def _int_env(name, default):
     except (TypeError, ValueError):
         logger.warning('Invalid integer setting %s=%r, using %s', name, raw, default)
         return default
-
 
 def estimate_tokens(text: str) -> int:
     """Approximate provider token count for plain text.
@@ -136,15 +134,12 @@ def estimate_tokens(text: str) -> int:
     base = ceil(len(plain) / _CHARS_PER_TOKEN)
     return max(1, int(base * (1.0 + _CODE_PUNCT_WEIGHT * min(1.0, punct / max(1, len(plain))))))
 
-
 def _strip_crlf(text: str) -> str:
     return str(text).replace('\r\n', '\n').replace('\r', '\n')
-
 
 def _trim_trailing_ws(text: str) -> str:
     lines = text.split('\n')
     return '\n'.join(line.rstrip() for line in lines)
-
 
 def _collapse_blank_lines(text: str) -> str:
     out = []
@@ -160,12 +155,10 @@ def _collapse_blank_lines(text: str) -> str:
             out.append(line)
     return '\n'.join(out).strip()
 
-
 def _compact_prose_spaces(text: str) -> str:
     # Collapse runs of spaces to one. Do NOT touch indentation/newlines so we
     # stay safe for code; this only runs in non-code mode on prose.
     return re.sub(r'(?<!\n)\s{2,}(?!\n)', ' ', text)
-
 
 def dedupe_lines(text: str, *, preserve_code: bool = False) -> str:
     """Drop exact duplicate lines while preserving order.
@@ -184,7 +177,6 @@ def dedupe_lines(text: str, *, preserve_code: bool = False) -> str:
             out.append(line)
     return '\n'.join(out)
 
-
 def _truncate_to_budget(text: str, max_chars: int, *, preserve_code: bool) -> str:
     if len(text) <= max_chars:
         return text
@@ -200,7 +192,6 @@ def _truncate_to_budget(text: str, max_chars: int, *, preserve_code: bool) -> st
             cut = cut[:space]
     return cut.strip()
 
-
 def should_enable_prefix_cache(system_text: str, *, min_tokens: int = None) -> bool:
     """Whether the stable system prefix is big enough for a provider cache hint.
 
@@ -215,7 +206,6 @@ def should_enable_prefix_cache(system_text: str, *, min_tokens: int = None) -> b
     threshold = _int_env('NOLO_CACHE_MIN_TOKENS', min_tokens or 1024)
     return estimate_tokens(system_text) >= threshold
 
-
 def _env(name, default=''):
     try:
         from django.conf import settings
@@ -223,7 +213,6 @@ def _env(name, default=''):
     except Exception:
         val = os.getenv(name, default)
     return (val or '').strip()
-
 
 def _clamp_budget(value, default):
     try:
@@ -233,7 +222,6 @@ def _clamp_budget(value, default):
         return max(MIN_BUDGET_CHARS, val)
     except (TypeError, ValueError):
         return default
-
 
 def optimize_prompt(
     text,

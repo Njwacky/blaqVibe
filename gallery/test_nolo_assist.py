@@ -11,7 +11,6 @@ from django.test import TestCase, override_settings
 
 from gallery.nolo_assist import analyze_code, fix_code, write_readme
 
-
 class AnalyzeCodeTests(TestCase):
     def test_flags_getelementbyid_typo(self):
         findings = analyze_code(js='var x = document.getElementByID("a");')
@@ -48,14 +47,12 @@ class AnalyzeCodeTests(TestCase):
         # Must be robust to weird input — a broken analyser must not crash.
         self.assertIsInstance(analyze_code(html='<<<>>>', js='(((', css='}}}'), list)
 
-
 class FixCodeTests(TestCase):
     def test_returns_heuristic_source_without_key(self):
         summary, findings, source = fix_code(js='document.getElementByID("x")')
         self.assertEqual(source, 'heuristic')
         self.assertTrue(summary)
         self.assertTrue(findings)
-
 
 class WriteReadmeTests(TestCase):
     def test_readme_meets_publish_gate(self):
@@ -75,7 +72,6 @@ class WriteReadmeTests(TestCase):
         md, _ = write_readme()
         self.assertIn('# ', md)
         self.assertGreaterEqual(len(md.strip()), 100)
-
 
 @override_settings(RATELIMIT_ENABLE=False)
 class NoloAssistApiTests(TestCase):

@@ -1,38 +1,7 @@
 """Real git smart-HTTP daemon — clone AND push, backed by Dulwich.
-
-5 Whys:
-1. Why Dulwich and not a `git clone` STRING? A copy-paste string is a
-   promise the server never keeps. Dulwich speaks the smart-HTTP protocol
-   (upload-pack / receive-pack) in pure Python, so `git clone` and
-   `git push` actually work against `/git/<user>/<slug>.git`.
-2. Why build bare repos from the stored ZIP instead of storing repos?
-   The ZIP is the single source of truth — every scan, download, version
-   and fork reads it. Deriving the repo keeps one copy, and the repo cache
-   is disposable: it is rebuilt from the ZIP (or the version chain) whenever
-   the stored bytes change.
-3. Why must push re-enter the scan queue? The whole site's promise is
-   "every app is checked". A pushed commit is new code — it becomes the
-   project's current ZIP, the project goes back to `pending`, and the exact
-   same ClamAV → secrets → vuln → publish chain runs before it goes live
-   again. No scan bypass via git.
-4. Why Basic auth + git tokens, not session cookies? The git client does
-   not carry browser cookies. Passwords work for users who have one, and a
-   revocable per-user token (hashed at rest) covers social-login users.
-   Push REQUIRES Basic auth even from a logged-in browser session, so a
-   cross-site POST can never write refs (no CSRF surface on writes).
-5. Why a lock + marker for the repo cache? gunicorn runs several workers;
-   without a lock two requests could rebuild the same repo concurrently.
-   The marker file records which stored ZIP the repo was built from, so
-   rebuilds only happen when the bytes actually changed — an edit/upload
-   invalidates, a description tweak does not.
-
 Honest limits, documented:
 - Pushed history lives on the repo cache on local disk. If the cache is
-  ever rebuilt from stored ZIPs (server reimage, cache eviction), history
-  is reconstructed as one snapshot commit per stored version — content is
-  complete, intermediate commit graphs are not. Push again to add history.
 - The cache lives under MEDIA_ROOT/git_repos (override GIT_REPO_ROOT), so
-  it is per-instance disk, not object storage.
 """
 import base64
 try:
@@ -84,8 +53,7 @@ MAX_PUSH_MB = int(os.getenv('GIT_MAX_PUSH_MB', '200'))
 REALM = 'BlaqVibes Git'
 MAX_FILES_PER_EXPORT = 20000  # same spirit as validators.MAX_FILES
 
-
-# --- model-level helpers ------------------------------------------------------
+# model-level helpers
 
 def record_clone(project, user, source, ip=''):
     """One append-only CloneEvent + the `clones` counter bump.
@@ -123,22 +91,18 @@ def record_clone(project, user, source, ip=''):
     AppProject.objects.filter(pk=project.pk).update(clones=F('clones') + 1)
     return row
 
-
 def _ip_hash(ip):
     if not ip:
         return ''
     return hashlib.sha256(ip.encode('utf-8', 'ignore')).hexdigest()
 
-
-# --- repo cache ---------------------------------------------------------------
+# repo cache
 
 def _repo_dir(project) -> Path:
     return git_root() / f'{project.slug}.git'
 
-
 def _meta_file(project) -> Path:
     return git_root() / f'{project.slug}.git.meta'
-
 
 def _current_zip_key(project):
     """Identify the newest stored ZIP: (name, version_id)."""
@@ -150,17 +114,14 @@ def _current_zip_key(project):
         return project.zip_file.name, 0
     return None, 0
 
-
 def _marker_value(project):
     name, version_id = _current_zip_key(project)
     return f'{name or ""}|{version_id}'
-
 
 def _write_marker(project):
     tmp = _meta_file(project).with_suffix('.meta.tmp')
     tmp.write_text(_marker_value(project), encoding='utf-8')
     os.replace(tmp, _meta_file(project))
-
 
 class _RepoLock:
     """Inter-process lock so concurrent workers never rebuild/rename the
@@ -185,7 +146,6 @@ class _RepoLock:
             finally:
                 os.close(self._fd)
                 self._fd = None
-
 
 def _tree_from_dir(repo, dirpath):
     """Build a git Tree from a directory, storing blobs/trees in repo.
@@ -214,7 +174,6 @@ def _tree_from_dir(repo, dirpath):
     repo.object_store.add_object(tree)
     return tree.id
 
-
 def _commit_snapshot(repo, zip_field, message, parent=None):
     """Commit the contents of a stored ZIP into the bare repo."""
     from .validators import safe_extract_zip
@@ -237,7 +196,6 @@ def _commit_snapshot(repo, zip_field, message, parent=None):
     commit.parents = [parent] if parent else []
     repo.object_store.add_object(commit)
     return commit.id
-
 
 def ensure_repo(project):
     """Return a Repo for the project, building it from the stored ZIPs
@@ -298,8 +256,7 @@ def ensure_repo(project):
         _write_marker(project)
         return Repo(str(repo_path))
 
-
-# --- auth ---------------------------------------------------------------------
+# auth
 
 def _basic_user(request):
     """Resolve Basic credentials to a User: password OR git token.
@@ -337,13 +294,11 @@ def _basic_user(request):
             return user
     return None
 
-
 def _push_allowed(user, project) -> bool:
     from .models import ProjectCoOwner
     if user.pk == project.owner_id:
         return True
     return ProjectCoOwner.objects.filter(project=project, user=user).exists()
-
 
 def _auth_required(message):
     resp = HttpResponse(f'Authentication required to {message}.', status=401, content_type='text/plain')
@@ -351,8 +306,7 @@ def _auth_required(message):
     resp['Cache-Control'] = 'no-store'
     return resp
 
-
-# --- push pipeline ------------------------------------------------------------
+# push pipeline
 
 class PushRejected(Exception):
     """A push whose content the site refused to adopt.
@@ -363,7 +317,6 @@ class PushRejected(Exception):
     endpoint then served bytes no scan had ever looked at.
     """
 
-
 def _push_limit_bytes() -> int:
     # Read per call: `GIT_MAX_PUSH_MB` is an operator knob, and a module-level
     # constant would freeze whatever the test process happened to import first.
@@ -372,26 +325,8 @@ def _push_limit_bytes() -> int:
     except (TypeError, ValueError):
         return MAX_PUSH_MB * 1024 * 1024
 
-
 class _BoundedBodyStream:
     """Read-only view of the request body that refuses to pass a size cap.
-
-    5 Whys: why wrap the stream instead of trusting Content-Length?
-    1. Why does it matter? The cap was `if request.META.get('CONTENT_LENGTH')`,
-       so a chunked push — which is what `git push` really sends — had no
-       Content-Length at all and skipped the check entirely. An unbounded pack
-       lands on the worker's disk and in the object store.
-    2. Why not reject chunked encoding? Then `git push` stops working; the cap
-       has to apply to the bytes, not to the framing.
-    3. Why return short reads instead of raising? dulwich's pack reader treats a
-       truncation as a corrupt stream and fails the receive-pack, so refs are
-       never updated. A raised exception mid-protocol can leave a half-written
-       state the caller has to guess about.
-    4. Why expose `.oversize`? So the view can answer 413 with a sentence the
-       human git client actually shows, instead of a generic protocol error.
-    5. Why delegate everything else? The request object is also iterated and
-       asked for `readline` by different WSGI consumers; a wrapper that only
-       implements `read` would break one of them.
     """
 
     def __init__(self, inner, limit):
@@ -461,23 +396,8 @@ class _BoundedBodyStream:
         # past the cap unnoticed: dulwich's pack reader uses read().
         return getattr(self._inner, item)
 
-
 def _export_head_zip(repo, tree_id, zf, prefix='', budget=None):
     """Stream a git tree into a ZIP (ZipFile w). Refuses hostile names and oversize trees.
-
-    5 Whys: why is `budget` an argument defaulting to None instead of `count=[0]`?
-    1. Why look at it at all? A mutable default is built ONCE, at import, and
-       then shared by every call for the life of the process.
-    2. What did that do here? `MAX_FILES_PER_EXPORT` became a per-WORKER budget
-       across all projects and all pushes. Once spent, every later push raised
-       'repo too large to export'.
-    3. Why is that a security bug and not just a bug? The raise landed in
-       `_after_push`'s blanket `except Exception`, so refs had already moved
-       while no ZIP, no scan and no trust reset happened.
-    4. Why keep the counter at all? It bounds a recursive walk over
-       attacker-supplied git objects; that job still needs doing.
-    5. Why count bytes as well as files? 20 000 files is not a limit when each
-       may be 50 MB; the pair (files, bytes) is the actual bound.
     """
     # [files, uncompressed bytes, byte ceiling]. The ceiling is read ONCE per
     # push, so a 20 000-file tree costs one getenv instead of 20 000, and every
@@ -510,7 +430,6 @@ def _export_head_zip(repo, tree_id, zf, prefix='', budget=None):
         # must never survive into the ZIP that safe_extract_zip later walks.
         zf.writestr(path, data)
 
-
 def _pushed_zip_to_project_zip(repo, commit):
     """(zip_bytes) for a commit tree, validated like any upload.
 
@@ -536,7 +455,6 @@ def _pushed_zip_to_project_zip(repo, commit):
         raise PushRejected(f'pushed content rejected by the upload checks: {detail}') from exc
     return zip_bytes
 
-
 def _repo_head(project):
     """Current branch tip of the cache, or None. Best-effort by design: a
     missing branch (fresh clone-less repo) is a legal pre-push state."""
@@ -548,7 +466,6 @@ def _repo_head(project):
             repo.close()
     except Exception:
         return None
-
 
 def _restore_head(project, old_head):
     """Roll the cache's branch back so an unadopted push can never be cloned."""
@@ -572,7 +489,6 @@ def _restore_head(project, old_head):
         # If we cannot undo the ref, the cache is unvouchable: delete it so the
         # next request rebuilds from the stored, scanned ZIPs.
         _discard_repo_cache(project)
-
 
 def _discard_repo_cache(project):
     """Delete a repo cache we can no longer vouch for.
@@ -600,8 +516,6 @@ def _discard_repo_cache(project):
     except Exception:
         logger.exception('repo cache discard failed %s', project.slug)
 
-
-
 def _after_push(request, project, user, old_head=None):
     """Run AFTER a successful receive-pack: the pushed HEAD becomes the
     project's current ZIP and the vibe re-enters the scan queue.
@@ -617,18 +531,12 @@ def _after_push(request, project, user, old_head=None):
     from django.core.files.base import ContentFile
     from .models import AppVersion, ScanJob
 
-    # 'adopted' is the line between the two failure stories below, so it is set
-    # exactly where the database says the pushed bytes are now the project's.
-    # 5 Whys: why distinguish at all? 1. Because `_after_push` has one giant
-    # try/except and failures before and after that line mean opposite things.
-    # 2. What does pre-adoption failure mean? Nothing changed on the project; the
-    # ref moved, so the ref is what has to go back. 3. And post-adoption? The new
-    # ZIP and `status='pending'` are committed, so rolling the ref forward-and-
-    # back would make git and the site disagree about which bytes are live.
-    # 4. Why not raise in the second case? A 400 would tell the author to push
-    # again, creating a second version of content that is already published-pending.
-    # 5. Why is the degraded-but-adopted case safe? The vibe is `pending` with a
-    # queued ScanJob and a void trust badge, so nothing is live before it is read.
+    # 'adopted' marks where the database says the pushed bytes ARE the project's;
+    # it is the line between the two failure stories. Before adoption a failure
+    # just rolls the cache back (the ref never moved). After adoption the new ZIP
+    # and status='pending' are committed, so rolling the ref back would make git
+    # and the site disagree about which bytes are live — instead we leave a queued
+    # ScanJob and a void trust badge so nothing is live before it is re-scanned.
     adopted = False
     try:
         repo = Repo(str(_repo_dir(project)))
@@ -743,7 +651,6 @@ def _after_push(request, project, user, old_head=None):
                            're-upload the ZIP from the edit page.')
         return f'server could not process the push ({exc.__class__.__name__})'
 
-
 def _notice_push_refused(project, user, body):
     """Tell the owner a push did not become the live version.
 
@@ -758,18 +665,15 @@ def _notice_push_refused(project, user, body):
     except Exception:
         logger.exception('push refusal notice failed %s', getattr(project, 'slug', '?'))
 
-
 def transaction_atomic():
     from django.db import transaction
     return transaction.atomic()
-
 
 def _lock_project(project):
     from .models import AppProject
     return AppProject.objects.select_for_update().get(pk=project.pk)
 
-
-# --- WSGI bridge --------------------------------------------------------------
+# WSGI bridge
 
 class _ProjectBackend(Backend):
     def __init__(self, project):
@@ -779,7 +683,6 @@ class _ProjectBackend(Backend):
         # dulwich passes the URL prefix (e.g. '/slug.git'); we already
         # resolved and gated the project, so just hand back its repo.
         return ensure_repo(self.project)
-
 
 def _run_wsgi(request, project, rest, body=None):
     """Run dulwich's smart-HTTP app against a Django request and collect
@@ -829,7 +732,6 @@ def _run_wsgi(request, project, rest, body=None):
         resp.headers[key] = value
     return code, resp
 
-
 def handle_git_request(request, username, slug, rest=''):
     """Entry point wired to /git/<username>/<slug>.git[/<rest>]."""
     if getattr(request, 'limited', False):
@@ -860,15 +762,12 @@ def handle_git_request(request, username, slug, rest=''):
 
     is_push = service == 'git-receive-pack' or rest.rstrip('/') == 'git-receive-pack'
 
-    # The push cap is enforced on BYTES, not on a header.
-    # 5 Whys: why is the old `if request.META.get('CONTENT_LENGTH')` check not
-    # enough? 1. Because a missing header skipped the check entirely. 2. Why is
-    # it missing? `git push` uploads chunked, and chunked has no Content-Length.
-    # 3. So what was capped? Only the pushes that no real client sends. 4. Why
-    # keep the header check then? It rejects a declared-size push before we
-    # buffer any of it. 5. Why is the stream wrapper the real fix? dulwich reads
-    # the pack from wsgi.input, so counting there bounds every framing — and if
-    # it truncates, receive-pack fails the ref update instead of storing it.
+    # The push cap is enforced on BYTES, not on a header: a missing header made
+    # the check a no-op, and `git push` uploads chunked (no Content-Length). The
+    # header check still rejects a declared-size push before buffering, but the
+    # stream wrapper is the real fix — dulwich reads the pack from wsgi.input,
+    # so counting there bounds every framing; if it truncates, receive-pack
+    # fails the ref update instead of storing it.
     limit = _push_limit_bytes()
     limit_mb = max(1, limit // (1024 * 1024))
     declared = request.META.get('CONTENT_LENGTH')

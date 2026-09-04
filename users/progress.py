@@ -1,28 +1,9 @@
 """Creator progression — XP, levels and achievements.
-
 Everything here is server-side. There is no endpoint, form field or API
 route that writes XP: `award_xp` is the only writer and it is called from
 the code paths that already did the work (publish, star, fork, trade, PR
-merge, trust grade, challenge win). That is the anti-abuse design:
 
-5 Whys (how spam is kept out of progression)
-1. Why key every grant to a `ref`? A grant for "project 12" can only ever
-   exist once — the unique constraint in users.models.XPEvent rejects a
-   replay. Repetition cannot mint XP, so no rate limit has to be guessed.
-2. Why daily caps on top of that? Commenting and reviewing are legitimately
-   repeatable, so they can each be earned a few times a day and then stop.
-   The cap is on the *reason*, not the user, so it throttles the farmable
-   action without punishing someone publishing ten vibes.
-3. Why never award for your own action on your own content? Starring,
-   forking and tipping yourself are either blocked outright or skipped by
-   the caller, so a second account is not a shortcut.
-4. Why achievements derived from the DB rather than granted inline? A badge
-   is a fact about real state (a published, verified, traded vibe). If the
-   underlying row is deleted, the badge's facts change; deriving it keeps
-   the profile honest instead of showing a trophy for nothing.
-5. Why is XP not spendable? Stars are the currency. XP is reputation —
-   cheap to display, impossible to convert, so there is nothing to farm it
-   for except the profile itself.
+how spam is kept out of progression)
 """
 import logging
 from datetime import timedelta
@@ -36,7 +17,7 @@ from .models import Achievement, XPEvent
 logger = logging.getLogger(__name__)
 
 # XP per reason. Tuning these changes future grants only — stored rows keep
-# the amount they were paid at (see XPEvent 5 Whys #5).
+# the amount they were paid at (see XPEvent #5).
 XP_BY_REASON = {
     'publish': 20,
     'star_received': 2,
@@ -97,50 +78,41 @@ ACHIEVEMENTS = [
 
 ACHIEVEMENTS_BY_SLUG = {a['slug']: a for a in ACHIEVEMENTS}
 
-
-# --- fact helpers (all import gallery lazily: gallery imports users) ------
+# fact helpers (all import gallery lazily: gallery imports users)
 
 def _published(user):
     from gallery.models import AppProject
     return AppProject.objects.filter(owner=user, status='published').count()
 
-
 def _stars_received(user):
     from gallery.models import Star
     return Star.objects.filter(project__owner=user).exclude(user=user).count()
-
 
 def _forks_received(user):
     from gallery.models import AppProject
     return AppProject.objects.filter(forked_from__owner=user, status='published').count()
 
-
 def _trades(user):
     from gallery.models import Trade
     return Trade.objects.filter(seller=user).count()
-
 
 def _merged_prs(user):
     from gallery.models import PullRequest
     return PullRequest.objects.filter(author=user, status='merged').count()
 
-
 def _verified(user):
     from gallery.models import AppProject
     return AppProject.objects.filter(owner=user, status='published', trust='verified').count()
-
 
 def _challenge_wins(user):
     from gallery.models import Challenge
     return Challenge.objects.filter(winner__owner=user).count()
 
-
 def _remixes(user):
     from gallery.models import AppProject
     return AppProject.objects.filter(owner=user, forked_from__isnull=False).count()
 
-
-# --- XP ------------------------------------------------------------------
+# XP
 
 def award_xp(user, reason, ref=''):
     """Grant XP once for one real thing. Returns True when it was paid now.
@@ -173,12 +145,10 @@ def award_xp(user, reason, ref=''):
         logger.exception('award_xp failed user=%s reason=%s', getattr(user, 'pk', None), reason)
         return False
 
-
 def xp_total(user):
     if not user or not getattr(user, 'pk', None):
         return 0
     return XPEvent.objects.filter(user=user).aggregate(t=Sum('amount'))['t'] or 0
-
 
 def level_for(xp):
     """Level info for a raw XP number — pure, no queries."""
@@ -208,7 +178,6 @@ def level_for(xp):
         'to_next': to_go,
     }
 
-
 def progress_for(user):
     """xp_total + level in one call for templates."""
     total = xp_total(user)
@@ -216,14 +185,12 @@ def progress_for(user):
     info['badges'] = earned_badges(user)
     return info
 
-
 def earned_badges(user):
     if not user or not getattr(user, 'pk', None):
         return []
     have = set(Achievement.objects.filter(user=user).values_list('slug', flat=True))
     return [ACHIEVEMENTS_BY_SLUG[s] for s in
             [a['slug'] for a in ACHIEVEMENTS if a['slug'] in have]]
-
 
 def sync_achievements(user):
     """Award any badge whose facts are now true. Returns newly earned slugs.
@@ -254,7 +221,6 @@ def sync_achievements(user):
         except Exception:
             logger.exception('achievement write failed %s', badge['slug'])
     return earned
-
 
 def award(user, reason, ref='', notify=True):
     """award_xp + badge sync + one inbox note for a newly earned badge.

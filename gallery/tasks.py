@@ -5,13 +5,6 @@ from django.core.mail import send_mail
 from .validators import SECRET_PATTERNS
 logger = logging.getLogger(__name__)
 
-
-# 5 Whys Queue: Why chain not parallel?
-# 1. Every app MUST be checked — chain guarantees order: virus -> secrets -> vuln -> publish
-# 2. Why one queue 'scan'? Single worker processes one at a time, no race, fair FIFO.
-# 3. Why acks_late + retry? Concurrent uploads = worker OOM mid-scan → requeue, not lost.
-# 4. Why backend never JS? JS is view-source visible — secrets in JS = breach.
-
 @shared_task(bind=True, max_retries=2, queue='scan', time_limit=120, soft_time_limit=90)
 def vulnerability_scan(self, *args, project_id=None):
     """Backend only: dependency audits + Nolo review. No JS sees this.
@@ -96,15 +89,12 @@ def vulnerability_scan(self, *args, project_id=None):
     except Exception:
         logger.exception('dep existence check failed %s', p.slug)
     # Nolo Auto-Review — heuristic or LLM, backend only, crush silently.
-    # 5 Whys: Why check the profile toggle here, not in the view that
-    # queues the task? Every upload path (publish, edit, git push, fork)
-    # funnels through this single task; one gate covers them all.
-    # Why default True? 90% of creators want instant feedback after an
-    # upload; only pros who already know their quality level disable it.
-    # Why store "disabled" in the report instead of skipping entirely?
-    # The scan_status view and the detail template read scan_report to
-    # find out whether Nolo had an opinion. Writing 'disabled' gives
-    # them a clean answer instead of a missing key.
+    # The profile toggle is checked here (not in the queuing view) because
+    # every upload path (publish, edit, git push, fork) funnels through this
+    # one task, so one gate covers them all. It defaults True (most creators
+    # want instant feedback); "disabled" is recorded in the report rather than
+    # skipped, so scan_status and the detail template get a clean value instead
+    # of a missing key when asking whether Nolo had an opinion.
     try:
         from .nolo_review import nolo_review
         nolo_enabled = True
@@ -150,13 +140,11 @@ def scan_zip_with_clamav(self, project_id):
     p = AppProject.objects.get(pk=project_id)
     if not p.zip_file:
         return "no_zip"
-    # 5 Whys: Why check the site toggle here instead of skipping the
-    # entire chain? ClamAV is infra (not a user preference) and can be
-    # expensive CPU-wise; a superadmin who disables it expects the
-    # pipeline to skip the full scan, not to still run and then ignore
-    # the result. Why default True? Security is enabled out of the box;
-    # ops explicitly turn it off only when the container has no ClamAV
-    # binary or they use an external scanner.
+    # Check the site toggle here (rather than running the scan and ignoring
+    # the result): ClamAV is infra, not a user preference, and is CPU-heavy, so
+    # a superadmin who disables it expects the pipeline to skip the full scan.
+    # Defaults True (security on out of the box); ops turn it off only when the
+    # container lacks the ClamAV binary or an external scanner is used.
     try:
         from users.models import SiteSettings
         if not SiteSettings.get().clamav_enabled:
@@ -237,12 +225,11 @@ def _set_scan_job(p, status):
     except Exception:
         logger.exception('scan job update failed')
 
-
 def _apply_trust(p):
     """Write the stored trust tier for this project.
 
     The ONLY sanctioned writer of AppProject.trust is gallery.trust (see
-    its 5 Whys). 4 points on why a wrapper here: (1) every call site in
+    its ). 4 points on why a wrapper here: (1) every call site in
     the pipeline gets the same crush-silently guarantee — a badge failure
     can never fail a scan; (2) one import point, so the dependency is
     obvious in this file; (3) it logs with the project slug so a wrong
@@ -254,7 +241,6 @@ def _apply_trust(p):
         apply_trust_grade(p)
     except Exception:
         logger.exception('trust grade write failed %s', getattr(p, 'slug', '?'))
-
 
 def _send_status_email(p):
     try:
@@ -274,7 +260,6 @@ def _send_status_email(p):
             send_mail(subject, msg, getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@blaqvibes.co.za'), [p.owner.email], fail_silently=True)
     except Exception as e:
         logger.warning(f"Email fail {p.slug}: {e}")
-
 
 @shared_task(queue='scan')
 def finalize_publish(*args, project_id=None):
@@ -351,31 +336,12 @@ def finalize_publish(*args, project_id=None):
     # stored verdict can never describe a state the row has left. Published
     # → verified/scanned from evidence; held → unknown (renders no badge).
     _apply_trust(p)
-    # Email notify — Why backend? JS toast dies when tab closed, email persists.
+    # Email (backend) notifies even when the tab is closed, where a JS toast dies.
     _send_status_email(p)
     return "published" if p.status == 'published' else p.status
 
 def classify_and_score(project):
     """Label the program and give it a starting appeal score.
-
-    5 Whys — why is this one helper called from three places (publish
-    pipeline, edit, management command) instead of inlined?
-
-    1. Why not inline in the pipeline only? An edit can change the ZIP
-       entirely; a vibe that was a snippet and is now a Unity project must
-       be relabelled or the badge lies.
-    2. Why classify and score together? appeal_score reads preview_mode,
-       which classification writes. Splitting them invites a window where
-       the score was computed against the previous label.
-    3. Why let the LLM run here? This runs inside the scan queue (or an
-       explicit backfill), never inside a user's HTTP request, so a slow
-       provider costs queue time, not page time.
-    4. Why store the LLM's appeal opinion in scan_report? scan_report is
-       already the backend-only blob for machine opinions, and
-       `interest.compute_appeal` reads it back on every later rescore
-       without needing another call.
-    5. Why swallow errors? An unlabelled vibe is a degraded vibe; a vibe
-       that failed to publish because a labeller broke is a lost upload.
     """
     from .classify import classify_project
     from .interest import refresh_project
@@ -395,18 +361,14 @@ def classify_and_score(project):
     refresh_project(project)
     return verdict
 
-
 @shared_task(queue='rank')
 def refresh_appeal_scores(limit=500):
-    """Periodic rescore. Queue 'rank' so it never blocks a scan.
-
-    5 Whys: 1. Why a separate queue? Scans are latency-critical for the
-    uploader; ranking is not, and a backed-up rescore must never delay a
-    publish. 2. Why a limit argument? Ops can tune batch size to the box
-    without a redeploy. 3. Why not per-project tasks? A million tiny tasks
-    costs more in broker traffic than the work itself. 4. Why return the
-    count? Beat logs then show whether the pass is keeping up. 5. Why
-    catch everything? A ranking failure must never retry-storm the broker.
+    """Periodic rescore on the 'rank' queue so it never blocks a scan: scans
+    are latency-critical for the uploader, ranking is not. The batch `limit`
+    lets ops tune batch size to the box without a redeploy; one batched task
+    beats a million per-project tasks' broker overhead. It returns the count so
+    beat logs show whether the pass is keeping up, and catches everything so a
+    ranking failure never retry-storms the broker.
     """
     try:
         from .interest import refresh_batch
@@ -414,7 +376,6 @@ def refresh_appeal_scores(limit=500):
     except Exception:
         logger.exception('refresh_appeal_scores failed')
         return 0
-
 
 @shared_task(queue='scan')
 def process_upload_pipeline(project_id):
@@ -445,7 +406,6 @@ def run_daily_challenges():
     except Exception:
         logger.exception('run_daily_challenges failed')
         return {'tag': None, 'settled': 0}
-
 
 @shared_task
 def generate_weekly_challenges():

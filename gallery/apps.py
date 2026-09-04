@@ -1,6 +1,5 @@
 from django.apps import AppConfig
 
-
 class GalleryConfig(AppConfig):
     default = True
     default_auto_field = 'django.db.models.BigAutoField'
@@ -9,7 +8,6 @@ class GalleryConfig(AppConfig):
     def ready(self):
         from django.db.models.signals import post_migrate
         post_migrate.connect(_seed_after_migrate, sender=self)
-
 
 def _seed_after_migrate(sender, **kwargs):
     from django.conf import settings

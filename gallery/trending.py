@@ -1,22 +1,5 @@
 """Trending, rising creators and suggestions — "what's happening now".
-
 Every number here comes from an append-only event row (Star, CloneEvent,
-Trade, Comment), never from a cumulative counter. 5 Whys:
-
-1. Why not order by `AppProject.stars`? That counter never decays, so page
-   one would freeze forever and nothing new could ever be discovered — the
-   exact complaint people have about "top" pages.
-2. Why a fixed window instead of all time? Trending is a *rate*: what moved
-   this week. A 7-day window is long enough to be meaningful and short
-   enough that yesterday's upload can win.
-3. Why several small aggregate queries instead of one big join? Each one is
-   an indexed COUNT over a single table; combining them in Python keeps the
-   query count constant (five) instead of multiplying per vibe.
-4. Why is nothing cached? These are five bounded COUNTs. A cache would make
-   the rails lie (a star that does not show for five minutes) and would
-   make tests depend on clock time. Revisit if the tables hit millions.
-5. Why exclude your own vibes from "rising creators"? Recommending yourself
-   is noise; the rail exists to surface people you have not met.
 """
 import logging
 from datetime import timedelta
@@ -30,10 +13,8 @@ logger = logging.getLogger(__name__)
 
 WINDOW_DAYS = 7
 
-
 def _window(days=WINDOW_DAYS):
     return timezone.now() - timedelta(days=days)
-
 
 def trending_scores(days=WINDOW_DAYS, limit=30):
     """{project_id: score} for published vibes with activity in the window."""
@@ -65,7 +46,6 @@ def trending_scores(days=WINDOW_DAYS, limit=30):
         logger.exception('trending_scores failed')
         return {}
 
-
 def trending_vibes(days=WINDOW_DAYS, limit=6, exclude_owner=None):
     """Published vibes ordered by this week's activity — newest ties first."""
     scores = trending_scores(days=days, limit=max(30, limit * 5))
@@ -82,7 +62,6 @@ def trending_vibes(days=WINDOW_DAYS, limit=6, exclude_owner=None):
     vibes = list(qs.select_related('owner', 'owner__profile'))
     vibes.sort(key=lambda p: (-scores.get(p.id, 0), -p.id))
     return vibes[:limit], True
-
 
 def rising_creators(days=WINDOW_DAYS, limit=5, exclude_user=None):
     """Creators whose vibes were starred/traded most in the window."""
@@ -123,7 +102,6 @@ def rising_creators(days=WINDOW_DAYS, limit=5, exclude_user=None):
         logger.exception('rising_creators failed')
         return []
 
-
 def recent_remixes(limit=4):
     """Freshly published forks — the remix half of the loop, made visible."""
     try:
@@ -135,7 +113,6 @@ def recent_remixes(limit=4):
     except Exception:
         logger.exception('recent_remixes failed')
         return []
-
 
 def suggested_creators(user, limit=4):
     """Creators to follow: active publishers you do not follow yet.
@@ -161,7 +138,6 @@ def suggested_creators(user, limit=4):
     except Exception:
         logger.exception('suggested_creators failed')
         return []
-
 
 def activity_summary(days=WINDOW_DAYS):
     """Tiny counts for the 'what's happening' strip."""

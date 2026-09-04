@@ -12,7 +12,6 @@ from django.core.management.base import BaseCommand
 
 from gallery.daily import ensure_daily_challenge, settle_past_challenges
 
-
 class Command(BaseCommand):
     help = "Ensure today's daily challenge exists and pay out finished days."
 

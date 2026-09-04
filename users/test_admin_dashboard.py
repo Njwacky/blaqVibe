@@ -16,7 +16,6 @@ from gallery.tests import make_category, make_project, make_user
 
 from users.charts import daily_bars_chart, h_bars_chart
 
-
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests-admin', SEED_DEMO=False)
 class ChartBuilderTests(TestCase):
     def test_daily_bars_all_zero_returns_none(self):
@@ -47,7 +46,6 @@ class ChartBuilderTests(TestCase):
     def test_h_bars_links(self):
         chart = h_bars_chart('label', [{'label': 'Vibe', 'value': 5}], hrefs=['/app/vibe/'])
         self.assertIn('<a href="/app/vibe/">', chart)
-
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests-admin', SEED_DEMO=False)
 class AdminDashboardViewTests(TestCase):

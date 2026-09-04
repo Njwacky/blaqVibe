@@ -1,28 +1,9 @@
 """Curated, source-backed "find your framework's command" reference.
-
 Shown in the launch guide sidebar so a creator who is told "use your
 framework's production build/start command" actually knows where to find it.
 This is intentionally data with the same honesty rules as the guides
 themselves: every command is a *documented* one, and when a command is
 project-specific we say how to find it instead of guessing.
-
-5 Whys:
-1. Why a reference at all? Guides say "use your framework's real build
-   command" but a first-time publisher does not know where commands live
-   (package.json scripts, manage.py, pubspec.yaml...). Without this, they
-   paste a guessed command and the deploy fails at the platform.
-2. Why curated data in one module instead of inline text in every guide?
-   One table is maintained once, cross-referenced by all 22 guides, and
-   validated by the same source-scheme/placeholder tests the guides use.
-3. Why show documented commands AND "how to find it"? A fixed command like
-   `npm run build` is wrong for a project whose script is `npm run prod`;
-   teaching where the script lives makes the advice true for every project.
-4. Why link to the framework's official docs for every entry? The project
-   policy is "never fabricate commands" — the link is the authority, and
-   the maintenance checklist covers rechecking these URLs.
-5. Why backend data, not JS? Server-rendered like everything else: no
-   secrets, no CDN dependency, testable, and the same templates can reuse
-   it on the hub later without duplicating it in a script tag.
 """
 
 FRAMEWORK_COMMANDS = (
@@ -165,24 +146,8 @@ FRAMEWORK_COMMANDS = (
 
 FRAMEWORKS_BY_SLUG = {entry["slug"]: entry for entry in FRAMEWORK_COMMANDS}
 
-
 def framework_commands_for_guide(guide):
     """Return entries whose commands match the guide's audience.
-
-    5 Whys:
-    1. Why filter at all? A mobile-store guide does not need the Django row —
-       a short, relevant list beats a wall of 13 frameworks.
-    2. Why keyword matching instead of hand-picked lists per guide? One
-       taxonomy (`kind` + `good_for` tokens) maintained in the data module
-       stays in sync automatically when a guide changes.
-    3. Why fall back to the full table? An unmatched guide (e.g. a store
-       guide) still deserves the reference — the full table is the honest
-       default, and the template collapses it by kind.
-    4. Why compare on lowercase tokens? Guide copy mixes "React/Vue/Svelte"
-       and "Node.js"; tokenising and lowercasing keeps the match loose
-       without hand-curating per guide.
-    5. Why never return empty? The sidebar is a promise ("find your
-       framework's command"); an empty promise is worse than a long list.
     """
     blob = " ".join([
         guide.get("name", ""),

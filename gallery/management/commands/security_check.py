@@ -1,21 +1,4 @@
 """`python manage.py security_check` — is this process fit to face the public internet?
-
-5 Whys: why an auditor command when the settings already harden themselves?
-1. Why at all? The hardening in `blaqvibes/settings.py` is conditional on
-   `DEBUG`/`LOCAL_DEV`. A conditional guard is exactly what an operator
-   mis-sets, and the symptom is invisible: the site loads fine, the headers
-   are just off.
-2. Why read live settings instead of a checklist in docs? A doc says what the
-   author intended; this says what the running process actually decided, which
-   is the thing an attacker sees.
-3. Why exit non-zero? So the check can gate a deploy. `docker-compose.yml` runs
-   it before gunicorn, and `scripts/ci.sh` runs it in production posture, which
-   is what keeps the settings module honest as it is edited.
-4. Why split ERROR from WARN? Some findings are only wrong in production
-   (HSTS off, dev key), and a run of `DEBUG=1` must stay possible for the person
-   reading this file. WARNs never block; they are printed for the operator.
-5. Why no database access? It runs at container start, before migrations, on a
-   box where the DB may still be warming up. Everything here is settings-only.
 """
 import os
 
@@ -25,7 +8,6 @@ from django.core.management.base import BaseCommand
 DEV_SECRET_KEY = 'django-insecure-blaqvibes-dev-key-change-in-prod-07070A'
 DEV_HOST_SUFFIXES = ('.e2b.app', '.e2b.dev', 'localhost', '127.0.0.1', '0.0.0.0', 'testserver')
 MIN_HSTS_SECONDS = 1_555_200  # 180 days
-
 
 class Command(BaseCommand):
     help = (
@@ -82,7 +64,7 @@ class Command(BaseCommand):
         clean = host.lstrip('.').lower()
         return any(clean == suffix.lstrip('.') or clean.endswith(suffix) for suffix in DEV_HOST_SUFFIXES)
 
-    # --- findings ----------------------------------------------------------
+    # findings
     def collect(self, *, production, dev=False):
         errors, warnings = [], []
         add = (lambda msg: errors.append(msg)) if production else (lambda msg: warnings.append(msg))

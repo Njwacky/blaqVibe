@@ -5,22 +5,8 @@ from django_ratelimit.decorators import ratelimit
 from .models import AppProject
 from .taxonomy import PROGRAM_KINDS
 
-
 def _serialize(project):
     """Public JSON for one vibe.
-
-    5 Whys — why is the existing `kind` key left meaning snippet/full_app?
-    1. Because it is a published API contract; silently changing what a key
-       means breaks every consumer that already reads it.
-    2. Why not version the endpoint instead? Adding fields is backwards
-       compatible; a v2 for two new keys is disproportionate.
-    3. Why name the new one `program_kind`? It says what it is, and it can
-       never be confused with the old packaging distinction.
-    4. Why expose `preview` at all? A client rendering a grid needs the
-       same honesty the website gives — do not offer "play" on a thing
-       that cannot be played.
-    5. Why expose `appeal_score`? It is the ordering the feed uses; hiding
-       it would make the API's ordering unexplainable to its users.
     """
     return {
         'slug': project.slug,
@@ -52,7 +38,6 @@ def _serialize(project):
         'trust_label': project.trust_meta['label'],
     }
 
-
 @ratelimit(key='ip', rate='120/m')
 def api_apps(request):
     """Published vibes. `?program=game` filters, `?sort=interesting` ranks."""
@@ -76,7 +61,6 @@ def api_apps(request):
         qs = qs.order_by('-created_at')
     return JsonResponse({'results': [_serialize(p) for p in qs[:50]]})
 
-
 @ratelimit(key='ip', rate='120/m')
 def api_app_detail(request, slug):
     project = get_object_or_404(
@@ -88,7 +72,6 @@ def api_app_detail(request, slug):
     data['readme'] = project.readme
     data['file_count'] = project.file_count
     return JsonResponse(data)
-
 
 @ratelimit(key='ip', rate='120/m')
 def api_program_kinds(request):

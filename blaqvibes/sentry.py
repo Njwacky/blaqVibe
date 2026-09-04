@@ -9,7 +9,6 @@ combination is known-safe.
 
 import os
 
-
 def init_sentry() -> None:
     dsn = os.getenv('SENTRY_DSN', '').strip()
     if not dsn:

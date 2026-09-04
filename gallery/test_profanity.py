@@ -1,6 +1,6 @@
 """Public-language gate — comments and every other public write path.
 
-5 Whys: Why a dedicated test module? The filter is a new contract.
+a dedicated test module? The filter is a new contract.
 A regression that lets a slur through a comment is worse than a
 broken chart. These tests pin the matcher, the false-positive
 boundary, and every public POST that can show user text.
@@ -16,7 +16,6 @@ from gallery.profanity import (
 )
 from gallery.tests import make_category, make_project, make_user
 from users.forms import ProfileForm, SignUpForm, TipForm
-
 
 class MatcherTests(TestCase):
     def test_clean_technical_prose_is_allowed(self):
@@ -53,7 +52,6 @@ class MatcherTests(TestCase):
         message = str(ctx.exception)
         self.assertIn('reword', message.lower())
         self.assertNotIn('fuck', message.lower())
-
 
 @override_settings(RATELIMIT_ENABLE=False, SEED_DEMO=False)
 class CommentAndReviewGateTests(TestCase):
@@ -193,7 +191,6 @@ class CommentAndReviewGateTests(TestCase):
     def test_review_form_itself_rejects(self):
         form = ReviewForm(data={'rating': 3, 'text': 'this is fucking broken now'})
         self.assertFalse(form.is_valid())
-
 
 @override_settings(RATELIMIT_ENABLE=False, SEED_DEMO=False)
 class OtherPublicWriteGatesTests(TestCase):

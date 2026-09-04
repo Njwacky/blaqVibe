@@ -1,23 +1,4 @@
 """Daily challenges — one prompt a day, no AI needed to have one ready.
-
-5 Whys (why a curated pool instead of only the AI generator)
-1. Why not rely on `generate_weekly_challenges`? It needs a provider key,
-   a running Celery beat and a superadmin to approve the draft. On a fresh
-   deploy (and on this very checkout) that means the Challenges tab is
-   empty — a promise with nothing behind it.
-2. Why deterministic by date? `pool[days_since_epoch % len(pool)]` means
-   every server process derives the SAME challenge for the same day with
-   no coordination, no beat, and no row to lock.
-3. Why a curated pool at all? These prompts are small enough to finish in
-   an evening, which is the point: a challenge you cannot finish is a
-   challenge you do not enter twice.
-4. Why create real Challenge rows? Everything downstream already speaks
-   Challenge: the tag, the submissions query, the bounty, the winner
-   award. Reusing the model keeps one code path for prizes.
-5. Why settle lazily on read instead of a scheduled job? The winner is
-   only knowable after the day ends, and the page that shows the result is
-   the only place that needs it. A lazy settle also self-heals a deploy
-   that missed its beat.
 """
 import logging
 from datetime import date, datetime, time, timedelta
@@ -67,16 +48,13 @@ DAILY_POOL = [
 
 DAILY_BOUNTY = 15
 
-
 def pool_entry_for(day):
     """Same date → same prompt, on every process, forever."""
     index = (day - EPOCH).days % len(DAILY_POOL)
     return index, DAILY_POOL[index]
 
-
 def daily_tag(day):
     return f'daily-{day.isoformat()}'
-
 
 def ensure_daily_challenge(today=None):
     """Create today's Challenge row if it does not exist. Idempotent."""
@@ -104,7 +82,6 @@ def ensure_daily_challenge(today=None):
         logger.exception('ensure_daily_challenge failed')
         return None
 
-
 def today_challenge():
     try:
         challenge = ensure_daily_challenge()
@@ -117,7 +94,6 @@ def today_challenge():
         logger.exception('today_challenge failed')
         return None
 
-
 def submissions(challenge, limit=50):
     """Published vibes tagged for this challenge — newest first."""
     return (
@@ -126,10 +102,8 @@ def submissions(challenge, limit=50):
         .order_by('-stars', 'created_at')[:limit]
     )
 
-
 def leaderboard(challenge, limit=10):
     return list(submissions(challenge, limit=limit))
-
 
 def settle_past_challenges(limit=7):
     """Award winners for finished days that have submissions but no winner.

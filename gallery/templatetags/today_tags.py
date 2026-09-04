@@ -6,7 +6,6 @@ from django.utils import timezone
 
 register = template.Library()
 
-
 @register.inclusion_tag('gallery/includes/today_loop.html', takes_context=True)
 def today_loop(context):
     """Render the logged-in creator's daily return loop.

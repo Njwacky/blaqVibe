@@ -1,37 +1,9 @@
 """Static-site live runner — turn a ZIP of HTML/CSS/JS into one document
 that runs inside the *existing* sandboxed, opaque-origin preview iframe.
 
-Public entry points:
   * `detect_static_runnable(paths)` — (runnable, entry) from a file list.
   * `assemble_runnable_document(zip_field, entry)` — one self-contained
     HTML string with local CSS/JS/images inlined.
-
-5 Whys — why assemble ONE document instead of serving each file?
-
-1. Why not serve `/run/<path>` per file? The whole preview safety model is
-   an opaque-origin sandbox (`sandbox allow-scripts`, no allow-same-origin).
-   In an opaque origin `'self'` matches nothing, so an external
-   `<script src="app.js">` served from our host is either blocked by CSP or
-   forces `allow-same-origin` — which hands user JS our cookies. Inlining
-   keeps the proven single-document model with zero new origin surface.
-2. Why is that safe when the files are attacker-controlled? Identical to
-   `snippet_doc`: the bytes only ever reach a browser inside an
-   `<iframe sandbox="allow-scripts">` whose response also carries the CSP
-   `sandbox` directive, so even opened directly it is an opaque origin that
-   cannot read cookies, localStorage, or the parent DOM.
-3. Why only *static* ZIPs? A React/Django source tree does not run from raw
-   files — rendering `index.html` for it would be the fake preview the site
-   refuses to show. `detect_static_runnable` says "runnable" only when a
-   real HTML document is the entry and the archive is mostly client-side
-   assets, so the badge stays honest.
-4. Why inline images as data URIs but leave `https://` refs alone? A local
-   `logo.png` cannot load in an opaque origin (no `'self'`), so it must be
-   embedded; a CDN URL already loads under the snippet CSP's `img-src`.
-   Anything we cannot resolve is left untouched — it simply may not load,
-   which is honest, not a crash.
-5. Why cap sizes and count? A 100 MB ZIP of images inlined as base64 would
-   be a multi-hundred-MB response built in a request. Budgets keep the
-   assembled document bounded; assets over budget are dropped, not streamed.
 """
 import base64
 import logging
@@ -41,7 +13,7 @@ import re
 
 logger = logging.getLogger(__name__)
 
-# --- Budgets (why: an assembled document is built in-request; keep it bounded).
+# Budgets — an assembled document is built in-request, so keep it bounded.
 MAX_ENTRY_BYTES = 512 * 1024          # a hand-written index.html over 512 KB is not a vibe
 MAX_INLINE_TEXT_BYTES = 512 * 1024    # a single css/js file
 MAX_INLINE_IMAGE_BYTES = 512 * 1024   # a single image → data URI
@@ -71,28 +43,11 @@ _IMAGE_MIME = {
     '.ico': 'image/x-icon', '.bmp': 'image/bmp', '.avif': 'image/avif',
 }
 
-
 def _ext(name: str) -> str:
     return os.path.splitext((name or '').lower())[1]
 
-
 def detect_static_runnable(paths):
     """Return (runnable: bool, entry: str) for a list of archive paths.
-
-    5 Whys:
-    1. Why prefer a root `index.html`? It is the universal "open me first"
-       for a static site; a browser opening a folder does the same.
-    2. Why fall back to the shallowest .html? A vibe may ship `public/index.html`
-       or `home.html`; the shallowest full HTML document is the honest entry.
-    3. Why refuse when a build marker is present? `package.json` + `src/App.jsx`
-       is source, not a runnable site — the raw files render blank or broken,
-       which is the fake preview the site forbids.
-    4. Why require the archive be *mostly* static? One stray `.py` beside a
-       finished static export is fine; a tree that is 80% server code is an
-       app that needs hosting, not a browser preview.
-    5. Why return the entry, not just a bool? The assembler and the runner
-       view both need to know which document to open; deriving it twice risks
-       them disagreeing.
     """
     try:
         files = [p.replace('\\', '/').lstrip('/') for p in (paths or []) if p and not p.endswith('/')]
@@ -132,7 +87,6 @@ def detect_static_runnable(paths):
         logger.exception('detect_static_runnable failed')
         return False, ''
 
-
 def _read_member(zf, name):
     """Read a ZIP member by name, tolerant of leading './'. Returns bytes|None."""
     try:
@@ -143,7 +97,6 @@ def _read_member(zf, name):
     except Exception:
         pass
     return None
-
 
 def _resolve(base_dir, ref):
     """Resolve a relative asset ref against the entry's directory.
@@ -169,7 +122,6 @@ def _resolve(base_dir, ref):
     if joined.startswith('..') or joined.startswith('/'):
         return None
     return joined
-
 
 def assemble_runnable_document(zip_field, entry):
     """Build ONE self-contained HTML string for the entry document.
@@ -200,14 +152,12 @@ def assemble_runnable_document(zip_field, entry):
         logger.exception('assemble_runnable_document failed for entry=%s', entry)
         return ''
 
-
 def _over_budget(budget, extra):
     if budget['assets'] >= MAX_INLINE_ASSETS:
         return True
     if budget['total'] + extra > MAX_TOTAL_ASSEMBLED:
         return True
     return False
-
 
 def _inline_stylesheets(html, zf, base_dir, budget):
     def repl(m):
@@ -238,7 +188,6 @@ def _inline_stylesheets(html, zf, base_dir, budget):
     )
     return pattern.sub(repl, html)
 
-
 def _inline_scripts(html, zf, base_dir, budget):
     def repl(m):
         tag = m.group(0)
@@ -268,7 +217,6 @@ def _inline_scripts(html, zf, base_dir, budget):
         re.IGNORECASE,
     )
     return pattern.sub(repl, html)
-
 
 def _inline_images(html, zf, base_dir, budget):
     def repl(m):

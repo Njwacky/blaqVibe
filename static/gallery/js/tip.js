@@ -1,13 +1,11 @@
 // Star tipping — shared by the profile page and app-detail pages.
-// External JS, no inline secrets. Same CSRF-header pattern as follow.
+// External JS, no inline secrets; same CSRF-header pattern as follow.
 // Pairs with the _tip_button.html / _tip_panel.html includes: the button
 // carries data-username + data-csrf, the panel holds the amount/message
-// inputs. The Recent-tips section is profile-only; every reference to it
-// is guarded so app-detail pages work unchanged.
-// 5 Whys: Why a separate file instead of living inside profile.js?
-// The tip button now ships on app-detail pages too, which never load
-// profile.js (follow logic is profile-only). A page should only load the
-// JS it needs.
+// inputs. It lives in its own file (not profile.js) because the tip button
+// also ships on app-detail pages, which never load profile.js — a page only
+// loads the JS it needs. Every reference to the profile-only Recent-tips
+// section is guarded so app-detail pages work unchanged.
 (function(){
   const tipBtn = document.getElementById('tip-btn');
   const tipPanel = document.getElementById('tip-panel');
