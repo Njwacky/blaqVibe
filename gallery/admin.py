@@ -33,6 +33,12 @@ class AppProjectAdmin(admin.ModelAdmin):
     search_fields = ('title','owner__username','tech_stack')
     prepopulated_fields = {'slug': ('title',)}
     inlines = [AppFileInline]
+    # `trust` is the single field only the trust pipeline (gallery/trust.py)
+    # may write — it is the "this passed the human + scanner gauntlet"
+    # signal that the marketplace ranks on. Letting a superuser hand-edit it
+    # in admin bypasses the pipeline, so it is read-only here. Status, scan
+    # results and prices flow through the scan/publish actions, not admin.
+    readonly_fields = ('trust',)
 
 @admin.register(Comment)
 class CommentAdmin(admin.ModelAdmin):
