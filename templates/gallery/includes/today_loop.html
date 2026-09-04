@@ -1,15 +1,13 @@
 {% if today_enabled %}
-<section class="today-loop" aria-labelledby="today-loop-title" style="margin-top:14px;background:var(--card);border:1px solid var(--accent-border);border-radius:20px;padding:18px">
+<section class="today-loop" aria-labelledby="today-loop-title" style="margin-top:14px;background:linear-gradient(135deg,var(--card),var(--accent-soft-bg));border:1px solid var(--accent-border);border-radius:20px;padding:18px">
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
     <div>
       <div style="font-size:10px;letter-spacing:.12em;font-weight:800;color:var(--accent-text)">BLAQVIBES TODAY</div>
-      <h2 id="today-loop-title" style="font-size:21px;line-height:1.15;margin:4px 0 5px">Keep your momentum.</h2>
-      <div style="font-size:12px;color:var(--muted)">A few things worth checking before you leave.</div>
+      <h2 id="today-loop-title" style="font-size:22px;line-height:1.15;margin:4px 0 5px">Build. Show. Remix. Repeat.</h2>
+      <div style="font-size:12px;color:var(--muted)">Your personal command center — see what happened, choose your next move, keep building.</div>
     </div>
     {% if unread_notifications %}
-    <a href="{% url 'notifications' %}" style="text-decoration:none;background:var(--accent-soft-bg);border:1px solid var(--accent-border);border-radius:100px;padding:7px 11px;font-size:11px;color:var(--accent-text);font-weight:800">
-      🔔 {{ unread_notifications }} new
-    </a>
+    <a href="{% url 'notifications' %}" style="text-decoration:none;background:var(--accent-soft-bg);border:1px solid var(--accent-border);border-radius:100px;padding:7px 11px;font-size:11px;color:var(--accent-text);font-weight:800">🔔 {{ unread_notifications }} new</a>
     {% else %}
     <span style="font-size:11px;color:var(--muted);padding-top:6px">You're caught up ✓</span>
     {% endif %}
@@ -28,26 +26,26 @@
     </a>
 
     <div style="background:var(--input);border:1px solid var(--line);border-radius:14px;padding:13px">
-      <div style="display:flex;justify-content:space-between;gap:8px;font-size:11px">
-        <span style="font-weight:800">⚡ YOUR MOMENTUM</span>
-        <b style="color:var(--accent-text)">+{{ weekly_xp }} XP</b>
-      </div>
+      <div style="display:flex;justify-content:space-between;gap:8px;font-size:11px"><span style="font-weight:800">⚡ YOUR MOMENTUM</span><b style="color:var(--accent-text)">+{{ weekly_xp }} XP</b></div>
       <div style="font-size:13px;font-weight:800;margin-top:5px">{{ rank.name }} creator</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:4px">
-        {% if weekly_xp %}Keep shipping — every real action moves your reputation.{% else %}Publish, remix, review or help someone to start your week.{% endif %}
-      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">{{ week_stars }} stars · {{ week_comments }} comments · {{ week_reviews }} reviews this week</div>
     </div>
 
     <a href="{% if my_next_vibe %}{{ my_next_vibe.get_absolute_url }}{% else %}{% url 'publish' %}{% endif %}" style="text-decoration:none;color:inherit;background:var(--input);border:1px solid var(--line);border-radius:14px;padding:13px">
-      <div style="font-size:11px;font-weight:800">🚀 YOUR VIBES</div>
+      <div style="font-size:11px;font-weight:800">🚀 YOUR LATEST VIBE</div>
       {% if my_next_vibe %}
       <div style="font-size:13px;font-weight:800;margin-top:5px">{{ my_next_vibe.title }}</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:4px">{{ week_stars }} new stars · {{ week_comments }} comments · {{ week_reviews }} reviews this week</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">★ {{ my_next_vibe.stars }} · {{ my_vibes|length }} published vibe{{ my_vibes|length|pluralize }}</div>
       {% else %}
       <div style="font-size:13px;font-weight:800;margin-top:5px">Ship your first vibe</div>
       <div style="font-size:11px;color:var(--muted);margin-top:4px">Your creator loop starts with one published project.</div>
       {% endif %}
     </a>
+  </div>
+
+  <div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--input);border:1px solid var(--line);border-radius:14px;padding:10px 12px">
+    <span style="font-size:10px;letter-spacing:.08em;font-weight:800;color:var(--muted)">NEXT MOVE</span>
+    <a href="{{ next_action_url }}" style="font-size:12px;font-weight:800;color:var(--accent-text);text-decoration:none">{{ next_action }} →</a>
   </div>
 
   {% if recent_notifications or following_vibes %}
