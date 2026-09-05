@@ -57,10 +57,24 @@ if not SECRET_KEY:
 # and trusted origins stay correct even if an operator sets DEBUG=0.
 PREVIEW = _env_flag('E2B_SANDBOX') or _env_flag('DJANGO_PREVIEW')
 
-_raw_hosts = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0')
+_raw_hosts = os.getenv(
+    'ALLOWED_HOSTS',
+    'localhost,127.0.0.1,0.0.0.0,blaqvibes.co.za,www.blaqvibes.co.za,blaqvibe.onrender.com',
+)
 ALLOWED_HOSTS = [h.strip() for h in _raw_hosts.split(',') if h.strip()]
 if '*' in ALLOWED_HOSTS and not (DEBUG or LOCAL_DEV):
-    ALLOWED_HOSTS = ['blaqvibes.co.za', 'www.blaqvibes.co.za','blaqvibe.onrender.com']
+    ALLOWED_HOSTS = ['blaqvibes.co.za', 'www.blaqvibes.co.za', 'blaqvibe.onrender.com']
+
+# Render dynamically sets RENDER_EXTERNAL_HOSTNAME (e.g. blaqvibe.onrender.com)
+render_host = os.getenv('RENDER_EXTERNAL_HOSTNAME', '').strip()
+if render_host and render_host not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(render_host)
+
+# Ensure Render domains are always allowed
+for h in ('blaqvibe.onrender.com', '.onrender.com'):
+    if h not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(h)
+
 if DEBUG or LOCAL_DEV or PREVIEW:
     for extra in ('localhost', '127.0.0.1', '0.0.0.0', '.e2b.app', '.localhost', 'testserver'):
         if extra not in ALLOWED_HOSTS:
@@ -86,11 +100,18 @@ def csrf_trusted_origins(raw, *, preview, local):
 CSRF_TRUSTED_ORIGINS = csrf_trusted_origins(
     os.getenv(
         'CSRF_TRUSTED_ORIGINS',
-        'https://*.e2b.app,https://blaqvibes.co.za,https://www.blaqvibes.co.za',
+        'https://*.e2b.app,https://blaqvibes.co.za,https://www.blaqvibes.co.za,https://blaqvibe.onrender.com,https://*.onrender.com',
     ),
     preview=PREVIEW,
     local=LOCAL_DEV or DEBUG,
 )
+if render_host:
+    render_origin = f'https://{render_host}'
+    if render_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(render_origin)
+for default_origin in ('https://blaqvibe.onrender.com', 'https://*.onrender.com'):
+    if default_origin not in CSRF_TRUSTED_ORIGINS:
+        CSRF_TRUSTED_ORIGINS.append(default_origin)
 
 # Canonical public origin — used for emails, sitemap, Paystack callback.
 # Override via env (e.g. a custom domain) instead of hardcoding URLs in views/tasks.
