@@ -80,11 +80,9 @@
   <form id="grid" method="get" class="filter-bar">
     <input class="filter-search" type="text" name="q" value="{{ q }}" placeholder="Search a vibe, creator, stack..."
       aria-label="Search vibes" />
-    {% if program_kind %}<input type="hidden" name="program" value="{{ program_kind }}" />{% endif %}{% if runnable ==
-    '1' %}<input type="hidden" name="runnable" value="1" />{% endif %}
+    {% if program_kind %}<input type="hidden" name="program" value="{{ program_kind }}" />{% endif %}{% if runnable == '1' %}<input type="hidden" name="runnable" value="1" />{% endif %}
     <select name="category" aria-label="Filter by category">
-      <option value="">All Categories</option>{% for c in categories %}<option value="{{ c.slug }}" {% if cat==c.slug
-        %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+      <option value="">All Categories</option>{% for c in categories %}<option value="{{ c.slug }}" {% if cat==c.slug %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
     </select>
     <select name="kind" aria-label="Filter by snippet or full app">
       <option value="">Snippets + Full Apps</option>
@@ -102,8 +100,7 @@
       title="Only show vibes the scan pipeline verified — virus clean, no leaked secrets, real dependencies. See /trust/"><input
         type="checkbox" name="trust" value="verified" {% if trust=='verified' %}checked{% endif %} /> 🛡️ Checked
       only</label>
-    <label class="filter-check"><input type="checkbox" name="ai" value="1" {% if request.GET.ai=="1" %}checked{% endif
-        %} /> 🤖 AI</label>
+    <label class="filter-check"><input type="checkbox" name="ai" value="1" {% if request.GET.ai=="1" %}checked %} /> 🤖 AI</label>
     <span class="filter-actions"><button class="btnW" type="submit">Search</button><a href="{% url 'feed' %}"
         class="btnG">Reset</a></span>
   </form>
@@ -165,8 +162,7 @@
       <h3 style="font-size:12px;font-weight:800;margin:0 0 8px">👋 Creators you may like</h3>{% for u in
       suggested_creators %}<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><a
           href="/u/{{ u.username }}/" style="font-size:12px;color:var(--link);flex:1">@{{ u.username }}</a><span
-          style="font-size:11px;color:var(--muted)">{{ u.projects.count }} vibes</span></div>{% endfor %}{% if
-      following_count %}<a href="?following=1" style="font-size:11px;color:var(--link)">See vibes from the {{
+          style="font-size:11px;color:var(--muted)">{{ u.projects.count }} vibes</span></div>{% endfor %}{% if following_count %}<a href="?following=1" style="font-size:11px;color:var(--link)">See vibes from the {{
         following_count }} you follow →</a>{% endif %}
     </div>{% endif %}
   </div>{% endif %}
@@ -200,8 +196,7 @@
           class="btn-ghost">Create an account</a></div>
     </div>{% endfor %}</div>
 
-  <div style="margin-top:16px;display:flex;gap:8px;justify-content:center;align-items:center">{% if page.has_previous
-    %}<a
+  <div style="margin-top:16px;display:flex;gap:8px;justify-content:center;align-items:center">{% if page.has_previous %}<a
       href="?page={{ page.previous_page_number }}&q={{ q }}&category={{ cat }}&kind={{ kind }}&sort={{ sort }}&ai={{ request.GET.ai }}"
       class="btnG">← Prev</a>{% endif %}<span style="padding:8px 12px;color:var(--muted);font-size:13px">Page {{
       page.number }} of {{ page.paginator.num_pages }} • 12/page</span>{% if page.has_next %}<a
@@ -210,3 +205,9 @@
 </div>
 {% endblock %} {% block scripts %}
 <script src="{% static 'gallery/js/feed.js' %}?v=filter-blur-20260828" defer></script>{% endblock %}
+
+
+
+
+
+
