@@ -13,6 +13,7 @@ urlpatterns = [
     path('accounts/verify/email/', views.edit_email, name='edit_email'),
     path('accounts/verify/send/', views.resend_verify_email, name='resend_verify_email'),
     path('settings/profile/', views.edit_profile, name='edit_profile'),
+    path('payout/', views.payout_dashboard, name='payout_dashboard'),
     path('pro/activate/', views.activate_pro_trial, name='activate_pro_trial'),
     path('u/<str:username>/follow/', views.toggle_follow, name='toggle_follow'),
     path('u/<str:username>/tip/', views.tip_user, name='tip_user'),
