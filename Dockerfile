@@ -32,4 +32,4 @@ RUN freshclam || echo "freshclam failed — mock mode"
 USER appuser
 
 EXPOSE 8000
-CMD ["gunicorn", "blaqvibes.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]
+CMD ["sh", "-c", "python manage.py migrate && gunicorn blaqvibes.wsgi:application --bind 0.0.0.0:8000 --workers 3"]
