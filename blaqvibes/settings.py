@@ -60,7 +60,7 @@ PREVIEW = _env_flag('E2B_SANDBOX') or _env_flag('DJANGO_PREVIEW')
 _raw_hosts = os.getenv('ALLOWED_HOSTS', 'localhost,127.0.0.1,0.0.0.0')
 ALLOWED_HOSTS = [h.strip() for h in _raw_hosts.split(',') if h.strip()]
 if '*' in ALLOWED_HOSTS and not (DEBUG or LOCAL_DEV):
-    ALLOWED_HOSTS = ['blaqvibes.co.za', 'www.blaqvibes.co.za']
+    ALLOWED_HOSTS = ['blaqvibes.co.za', 'www.blaqvibes.co.za','blaqvibe.onrender.com']
 if DEBUG or LOCAL_DEV or PREVIEW:
     for extra in ('localhost', '127.0.0.1', '0.0.0.0', '.e2b.app', '.localhost', 'testserver'):
         if extra not in ALLOWED_HOSTS:
