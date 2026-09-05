@@ -75,8 +75,7 @@
   {% if personalized %}<div class="foryou-note"
     style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:12px;color:var(--muted)">
     <span>✦ Sorted for you — you keep opening</span>{% for k in my_kinds %}<b style="color:var(--accent-text)"><span
-        style="margin-right:4px">{{ k.icon }}</span>{{ k.label }}</b>{% if not forloop.last %}<span>,</span>{%
-    endif %}{% endfor %}<a href="?sort=newest" style="color:var(--link)">show newest instead →</a></div>{% endif %}
+        style="margin-right:4px">{{ k.icon }}</span>{{ k.label }}</b>{% if not forloop.last %}<span>,</span>{% endif %}{% endfor %}<a href="?sort=newest" style="color:var(--link)">show newest instead →</a></div>{% endif %}
 
   <form id="grid" method="get" class="filter-bar">
     <input class="filter-search" type="text" name="q" value="{{ q }}" placeholder="Search a vibe, creator, stack..."
