@@ -5,10 +5,12 @@
    stay consistent. */
 
 /* Feed grid card · <a class="card vibe-card"> */
-.vibe-card { display: block; color: inherit; }
-.vibe-card__body { padding: 12px; }
-.vibe-card__title { font-weight: 700; font-size: 14px; margin-bottom: 4px; }
-.vibe-card__meta { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+.vibe-card { display: block; color: inherit; overflow: visible; min-width: 0; }
+.vibe-card .card-thumb,
+.vibe-card .card-thumb-fallback { border-radius: 15px 15px 0 0; }
+.vibe-card__body { padding: 12px; min-width: 0; }
+.vibe-card__title { font-weight: 700; font-size: 14px; margin-bottom: 4px; overflow-wrap: anywhere; }
+.vibe-card__meta { font-size: 12px; color: var(--muted); margin-bottom: 6px; overflow-wrap: anywhere; }
 .vibe-card__meta a { color: var(--link); }
 .vibe-card__tags { display: flex; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
 
