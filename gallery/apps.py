@@ -14,6 +14,28 @@ class GalleryConfig(AppConfig):
         post_migrate.connect(_seed_after_migrate, sender=self)
 
 def _seed_after_migrate(sender, **kwargs):
+    """Always ensure the four base categories exist (needed for the publish
+    dropdown). Run SEED_DEMO content only when explicitly requested."""
+    # 1. Base categories — needed on every fresh deploy so the publish
+    #    form dropdown is never empty.
+    try:
+        from gallery.seed import CATEGORIES
+        from gallery.models import Category
+        for slug, name, typ, order in CATEGORIES:
+            cat, _ = Category.objects.get_or_create(
+                slug=slug,
+                defaults={'name': name, 'type': typ, 'order': order},
+            )
+            if cat.name != name or cat.order != order:
+                cat.name = name
+                cat.order = order
+                cat.save(update_fields=['name', 'order'])
+    except Exception:
+        # Table not yet created during an early migrate step — safe to skip;
+        # the next migrate invocation will retry.
+        pass
+
+    # 2. Demo content — only when operator explicitly sets SEED_DEMO=1.
     from django.conf import settings
     if not getattr(settings, 'SEED_DEMO', False):
         return
@@ -24,12 +46,7 @@ def _seed_after_migrate(sender, **kwargs):
         from gallery.seed import seed_demo
         seed_demo()
     except RuntimeError as exc:
-        # `seed_demo()` refuses outside a dev posture. Never break `migrate`
-        # over it — the deploy that needs its schema must still get its schema —
-        # but say so: a swallowed refusal is how "the demo data is missing"
-        # arrives as a database bug three days later.
         import logging
         logging.getLogger(__name__).error('post-migrate seed refused: %s', exc)
     except Exception:
-        # Empty DB during some migrate steps — command / first request will retry.
         pass

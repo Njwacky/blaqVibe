@@ -51,10 +51,12 @@
               <div>Welcome to Nolo Chat! Ask about new apps, templates, or how to use the latest features. I can help compare apps, explain the best fork flow, and point you to the freshest published vibes.</div>
             </div>
           </div>
-          <div id="nolo-chat-input-row" class="nolo-chat-input-row" data-api-url="{% url 'nolo_chat_api' %}" data-csrf="{{ csrf_token }}" style="display:flex;align-items:center;gap:10px;padding:16px;background:var(--card);border:1px solid var(--line);border-radius:18px">
-            <span style="width:32px;height:32px;border-radius:10px;background:var(--violet);display:grid;place-items:center;font-size:16px;color:var(--on-accent)">💬</span>
-            <input id="nolo-chat-input" type="text" placeholder="Ask a question for Nolo..." style="flex:1;min-width:0;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;color:var(--text);font-size:13px"> 
-            <button id="nolo-chat-send" class="btn-violet" style="padding:10px 16px;font-size:13px">Send</button>
+          <div id="nolo-chat-input-row" class="nolo-chat-input-row" data-api-url="{% url 'nolo_chat_api' %}" data-csrf="{{ csrf_token }}" style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--card);border:1px solid var(--line);border-radius:18px;position:relative">
+            <span style="width:28px;height:28px;border-radius:8px;background:var(--violet);display:grid;place-items:center;font-size:14px;color:var(--on-accent);flex-shrink:0">💬</span>
+            <input id="nolo-chat-input" type="text" placeholder="Ask Nolo..." style="flex:1;min-width:0;background:transparent;border:none;outline:none;padding:8px 40px 8px 4px;color:var(--text);font-size:14px">
+            <button id="nolo-chat-send" aria-label="Send" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:var(--violet);border:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;cursor:pointer;color:var(--on-accent)">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L10 6M7 3L10 6L7 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            </button>
           </div>
           <div id="nolo-chat-error" style="display:none;color:var(--danger-text);background:var(--danger-bg);border:1px solid var(--danger-border);padding:10px;border-radius:12px;font-size:12px"></div>
         </div>
