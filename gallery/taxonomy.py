@@ -11,7 +11,7 @@ PROGRAM_KINDS = (
     {
         'value': 'game',
         'label': 'Game',
-        'icon': '🎮',
+        'icon': 'GAM',
         'blurb': 'Playable game — browser, engine project, or game source.',
         'preview': 'snippet',
         'web_native': True,
@@ -19,7 +19,7 @@ PROGRAM_KINDS = (
     {
         'value': 'web_app',
         'label': 'Web app',
-        'icon': '🌐',
+        'icon': 'WEB',
         'blurb': 'Interactive app that runs in a browser.',
         'preview': 'snippet',
         'web_native': True,
@@ -27,7 +27,7 @@ PROGRAM_KINDS = (
     {
         'value': 'static_site',
         'label': 'Website',
-        'icon': '📄',
+        'icon': 'WEB',
         'blurb': 'Landing page, portfolio, or docs site.',
         'preview': 'snippet',
         'web_native': True,
@@ -35,7 +35,7 @@ PROGRAM_KINDS = (
     {
         'value': 'api_backend',
         'label': 'API / backend',
-        'icon': '🧩',
+        'icon': 'API',
         'blurb': 'Server, API, or backend service. Runs on your machine.',
         'preview': 'files',
         'web_native': False,
@@ -43,7 +43,7 @@ PROGRAM_KINDS = (
     {
         'value': 'mobile_app',
         'label': 'Mobile app',
-        'icon': '📱',
+        'icon': 'APP',
         'blurb': 'Android or iOS app. Build it in your own toolchain.',
         'preview': 'files',
         'web_native': False,
@@ -51,7 +51,7 @@ PROGRAM_KINDS = (
     {
         'value': 'desktop_app',
         'label': 'Desktop app',
-        'icon': '🖥️',
+        'icon': 'APP',
         'blurb': 'Windows, macOS, or Linux desktop program.',
         'preview': 'files',
         'web_native': False,
@@ -59,7 +59,7 @@ PROGRAM_KINDS = (
     {
         'value': 'ai_ml',
         'label': 'AI / ML',
-        'icon': '🧠',
+        'icon': 'AI',
         'blurb': 'Model, notebook, agent, or AI-powered tool.',
         'preview': 'files',
         'web_native': False,
@@ -67,7 +67,7 @@ PROGRAM_KINDS = (
     {
         'value': 'bot',
         'label': 'Bot / automation',
-        'icon': '⚙️',
+        'icon': 'BOT',
         'blurb': 'Chat bot, scraper, or scheduled automation.',
         'preview': 'files',
         'web_native': False,
@@ -78,7 +78,7 @@ PROGRAM_KINDS = (
         # unlike a snippet claiming to be an Android app.
         'value': 'data_viz',
         'label': 'Data / dashboard',
-        'icon': '📊',
+        'icon': 'DAT',
         'blurb': 'Analytics, charts, notebooks, or reporting.',
         'preview': 'snippet',
         'web_native': True,
@@ -86,7 +86,7 @@ PROGRAM_KINDS = (
     {
         'value': 'cli_tool',
         'label': 'CLI / script',
-        'icon': '⌨️',
+        'icon': 'CLI',
         'blurb': 'Command-line tool or utility script.',
         'preview': 'files',
         'web_native': False,
@@ -94,7 +94,7 @@ PROGRAM_KINDS = (
     {
         'value': 'library',
         'label': 'Library / SDK',
-        'icon': '📦',
+        'icon': 'LIB',
         'blurb': 'Package other developers import into their own code.',
         'preview': 'files',
         'web_native': False,
@@ -102,7 +102,7 @@ PROGRAM_KINDS = (
     {
         'value': 'extension',
         'label': 'Browser extension',
-        'icon': '🧷',
+        'icon': 'EXT',
         'blurb': 'Chrome / Firefox extension. Load it unpacked to try it.',
         'preview': 'files',
         'web_native': False,
@@ -110,7 +110,7 @@ PROGRAM_KINDS = (
     {
         'value': 'template',
         'label': 'Template / UI kit',
-        'icon': '🎨',
+        'icon': 'TPL',
         'blurb': 'Starter, boilerplate, theme, or component kit.',
         'preview': 'snippet',
         'web_native': True,
@@ -118,7 +118,7 @@ PROGRAM_KINDS = (
     {
         'value': 'other',
         'label': 'Other',
-        'icon': '✳️',
+        'icon': 'OTH',
         'blurb': 'Published as-is — download the files to run it.',
         'preview': 'files',
         'web_native': False,
