@@ -14,6 +14,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
+RUN rm -f /app/gallery/migrations/0031_merge_skills_notifications.py
 
 # Create media/static dirs and give the runtime user ownership.
 RUN mkdir -p /app/media/apps/zips /app/staticfiles && chown -R appuser:appuser /app
@@ -32,4 +33,4 @@ RUN freshclam || echo "freshclam failed — mock mode"
 USER appuser
 
 EXPOSE 8000
-CMD ["sh", "-c", "python manage.py migrate && gunicorn blaqvibes.wsgi:application --bind 0.0.0.0:8000 --workers 3"]
+CMD ["sh", "-c", "rm -f gallery/migrations/0031_merge_skills_notifications.py && python manage.py migrate && gunicorn blaqvibes.wsgi:application --bind 0.0.0.0:8000 --workers 3"]
