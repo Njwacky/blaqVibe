@@ -1,5 +1,29 @@
 /* Feed page — kind chips + animated terminal window */
 
+.kind-chips {
+  margin-top: 18px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.feed-hero-title {
+  font-family: Space Grotesk, sans-serif;
+  font-size: clamp(24px, 6vw, 32px);
+  line-height: 1.05;
+  margin: 12px 0;
+  font-weight: 700;
+}
+.hero-terminal { min-width: 0; }
+.pager {
+  margin-top: 16px;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
 .kind-chip {
   display: inline-flex;
   align-items: center;
@@ -104,4 +128,28 @@
   50% {
     opacity: 0;
   }
+}
+
+@media (max-width: 900px) {
+  .hero-terminal { display: none; }
+  .hero-grid { padding: 20px 16px !important; }
+  .feed-hero-actions .btn-white,
+  .feed-hero-actions .btn-ghost { flex: 1 1 140px; justify-content: center; }
+}
+@media (max-width: 640px) {
+  .kind-chips {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    margin-left: -14px;
+    margin-right: -14px;
+    padding: 2px 14px;
+  }
+  .kind-chips::-webkit-scrollbar { display: none; }
+  .kind-chip { flex: 0 0 auto; }
+  .rail__activity { display: none; }
+  .feed-hero-actions { width: 100%; }
+  .feed-hero-actions .btn-white,
+  .feed-hero-actions .btn-ghost { flex: 1 1 100%; }
 }

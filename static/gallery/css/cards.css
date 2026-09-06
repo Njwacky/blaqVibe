@@ -267,3 +267,35 @@
 .mt-8 { margin-top: 8px; }
 .mt-10 { margin-top: 10px; }
 .center { text-align: center; }
+
+@media (max-width: 900px) {
+  .mock-browser__dot,
+  .mock-browser__badge { display: none; }
+  .detail-actions .btn-ghost--primary,
+  .detail-actions .js-copy-snippet { display: none; }
+}
+@media (max-width: 640px) {
+  .mock-browser__frame { height: 240px; }
+  .mock-preview { height: 220px; }
+  .clipboard {
+    flex-wrap: wrap;
+  }
+  .clipboard__cmd {
+    flex: 1 1 100%;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+  .clipboard__copy { margin-left: 0; }
+  .download-card form,
+  #reviews form,
+  #comments form {
+    flex-wrap: wrap !important;
+  }
+  #reviews form input { flex: 1 1 100%; min-width: 0; }
+  #reviews form button { width: 100%; }
+  #comments form textarea { min-width: 0; }
+  form[action*="report"] { flex-wrap: wrap !important; }
+  form[action*="report"] select,
+  form[action*="report"] input { flex: 1 1 100%; min-width: 0; }
+}

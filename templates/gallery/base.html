@@ -15,8 +15,8 @@
 <meta property="og:image" content="{% block og_image %}{% if request.is_secure %}https{% else %}http{% endif %}://{{ request.get_host }}/static/branding/blaqvibes-icon.png{% endblock %}">
 <link rel="preload" href="{% static 'gallery/css/fonts.css' %}?v=fonts-20260830" as="style">
 <link rel="stylesheet" href="{% static 'gallery/css/fonts.css' %}?v=fonts-20260830">
-<link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=scan-panel-20260828">
-<link rel="stylesheet" href="{% static 'gallery/css/cards.css' %}?v=cards-20260830">
+<link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=mobile-20260906b">
+<link rel="stylesheet" href="{% static 'gallery/css/cards.css' %}?v=mobile-20260906b">
 <link rel="stylesheet" href="{% static 'gallery/css/footer.css' %}?v=footer-contact-20260828">
 <script src="{% static 'gallery/js/head-theme.js' %}?v=ext-20260827"></script>
 <script src="{% static 'gallery/js/alpine.min.js' %}?v=alpine-3.16.3" defer></script>
@@ -121,7 +121,7 @@
     <div class="site-footer__brand">
       <a href="{% url 'feed' %}" class="site-footer__logo">BlaqVibes<span aria-hidden="true">↗</span></a>
       <p>Publish the vibes. Clone the culture.</p>
-      <p style="margin-top: 4px; font-size: 12px">🛡️ Every vibe scanned before the feed. ★ Stars never expire. 🇿🇦 Payouts in Rands.</p>
+      <p class="desktop-only" style="margin-top: 4px; font-size: 12px">🛡️ Every vibe scanned before the feed. ★ Stars never expire. 🇿🇦 Payouts in Rands.</p>
     </div>
 
     <nav class="site-footer__links" aria-label="Explore BlaqVibes">

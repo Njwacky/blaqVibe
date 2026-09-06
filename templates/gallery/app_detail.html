@@ -124,13 +124,13 @@
       </div>
       {% endif %}
       <div class="download-card">
-        <div class="row row--between" style="margin-bottom: 6px">
+        <div class="row row--between desktop-only" style="margin-bottom: 6px">
           <span class="detail-panel__head">DOWNLOAD</span
           ><span class="download-card__counts"
             >{{ project.file_count }} files • {{ project.clones }} clones</span
           >
         </div>
-        <div class="clipboard">
+        <div class="clipboard desktop-only">
           <span class="clipboard__cmd">$</span> {{ request.scheme }}://{{          request.get_host }}{% url 'download_zip' project.slug %}
           <button
             class="btn-white js-copy clipboard__copy"
@@ -218,7 +218,7 @@
         </div>
 
         {% if project.zip_file and can_download %}
-        <div class="mt-10">
+        <div class="mt-10 desktop-only">
           <div class="row row--between" style="margin-bottom: 6px">
             <span class="detail-panel__head">GIT</span>
             <span style="font-size: 11px; color: var(--muted)">{% if can_push %}owner — push enabled{% else %}real repo, clone it{% endif %}</span>
@@ -316,7 +316,7 @@
           </div>
         </div>
         {% endif %}
-        {% if user_rank %}<div style="font-size:11px;color:var(--muted);margin-top:6px">Your rank: <b style="color:var(--warning-text)">{{ user_rank.name }}</b> ({{ user_rank.discount }}% Pro discount) • Earn stars when others star/trade your vibes → appears 1st when exploring</div>{% endif %}
+        {% if user_rank %}<div class="desktop-only" style="font-size:11px;color:var(--muted);margin-top:6px">Your rank: <b style="color:var(--warning-text)">{{ user_rank.name }}</b> ({{ user_rank.discount }}% Pro discount) • Earn stars when others star/trade your vibes → appears 1st when exploring</div>{% endif %}
         {% if project.price_zar and project.price_zar > 0 %}
         <div style="margin-top:8px;background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:10px;padding:10px">
           <div style="font-size:11px;color:var(--warning-text);font-weight:700">ZAR price — R{{ project.price_zar }}</div>
@@ -333,7 +333,7 @@
         </div>
         {% endif %}
         {% if user.is_authenticated and user == project.owner %}
-        <div style="display:flex;gap:6px;margin-top:8px">
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
           <a href="{% url 'edit_vibe' project.slug %}" class="btn-ghost" style="flex:1;text-align:center">✎ Edit / Re-upload</a>
           <a href="{% url 'vibe_stats' project.slug %}" class="btn-ghost" style="flex:1;text-align:center">📊 Stats</a>
           <form method="post" action="{% url 'delete_vibe' project.slug %}" class="js-delete-form" style="flex:1">{% csrf_token %}<button class="btn-ghost" style="width:100%;color:var(--danger-text)">🗑 Delete</button></form>
@@ -360,7 +360,7 @@
         <form
           method="post"
           action="{% url 'report_vibe' project.slug %}"
-          style="margin-top: 8px; display: flex; gap: 6px"
+          style="margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap"
         >
           {% csrf_token %}
           <select
@@ -925,13 +925,13 @@
         </a>
         <div>
           <div style="font-weight: 800">Ask Nolo to Compare</div>
-          <div style="font-size: 11px; color: var(--muted)">
+          <div class="desktop-only" style="font-size: 11px; color: var(--muted)">
             Nolo doesn’t judge — she just shows features side-by-side. You pick
             the function you want. Backend only.
           </div>
         </div>
       </div>
-      <div style="margin-top: 6px; font-size: 10px; color: var(--muted)">
+      <div class="desktop-only" style="margin-top: 6px; font-size: 10px; color: var(--muted)">
         Icon:
         <a
           href="https://www.flaticon.com/free-icons/ui"
@@ -942,7 +942,7 @@
           >Ui icons created by lakonicon - Flaticon</a
         >
       </div>
-      <div style="margin-top: 8px; font-size: 12px; color: var(--muted)">
+      <div class="desktop-only" style="margin-top: 8px; font-size: 12px; color: var(--muted)">
         Need help asking Nolo about this app or finding new templates?
         <a
           href="{% url 'nolo_chat' %}"
@@ -1012,7 +1012,7 @@
           <div style="font-weight: 800">
             Nolo Auto-Review — {{ nolo_review.score }}/10
           </div>
-          <div style="font-size: 11px; color: var(--muted)">
+          <div class="desktop-only" style="font-size: 11px; color: var(--muted)">
             Heuristic (no LLM key) • Backend only, crush silently
           </div>
         </div>
@@ -1080,7 +1080,7 @@
             >★ {{ project.avg_rating }}/5</span
           >{% endif %}
         </h3>
-        <span style="margin-left: auto; font-size: 11px; color: var(--muted)"
+        <span class="desktop-only" style="margin-left: auto; font-size: 11px; color: var(--muted)"
           >Nolo 0-10 + Humans 1-5</span
         >
       </div>
@@ -1339,7 +1339,7 @@
           ></div>
           {% endfor %}
         </div>
-        <div style="font-size: 10px; color: var(--muted); margin-top: 4px">
+        <div class="desktop-only" style="font-size: 10px; color: var(--muted); margin-top: 4px">
           Backend detected from ZIP extensions, size-weighted — no JS can fake
           it.
         </div>
@@ -1372,6 +1372,7 @@
       </div>
       {% endif %}
       <div
+        class="desktop-only"
         style="
           margin-top: 10px;
           background: var(--bg);
@@ -1567,7 +1568,7 @@
       {% endif %}
     </div>
     <div
-      class="card"
+      class="card desktop-only"
       style="margin-top: 12px; padding: 14px; background: var(--bg)"
     >
       <h4 style="font-size: 11px; letter-spacing: 0.06em; color: var(--muted)">
@@ -1589,7 +1590,7 @@
       </ol>
     </div>
     <div
-      class="card"
+      class="card desktop-only"
       style="
         margin-top: 12px;
         padding: 14px;

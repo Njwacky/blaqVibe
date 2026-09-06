@@ -8,4 +8,8 @@
   .nolo-split { grid-template-columns: minmax(0, 1fr) !important; }
   .nolo-chat-input-row { flex-wrap: wrap; }
   .nolo-chat-input-row #nolo-chat-input { flex: 1 1 200px; }
+  /* Prompt cards + the discovery aside are desktop chrome — on a phone
+     they sit above the actual chat and push the input off-screen. */
+  .nolo-prompts,
+  .nolo-split > aside { display: none; }
 }

@@ -43,9 +43,16 @@ input[type="checkbox"] {
 }
 @media (max-width: 900px) {
   .publish-shell {
+    grid-template-columns: 1fr;
     min-height: calc(100vh - 64px);
     min-height: calc(100dvh - 64px);
   }
+  /* Side inspector panels are desktop-only — the wizard already carries
+     the same progress + scan copy in the main column. */
+  .publish-shell > aside { display: none; }
+}
+@media (max-width: 480px) {
+  .wizard-progress span { display: none; }
 }
 
 @keyframes pulse {

@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}Vibe Battles — BlaqVibes{% endblock %}
 {% block head %}
-<link rel="stylesheet" href="{% static 'gallery/css/battle.css' %}?v=ext-20260827">
+<link rel="stylesheet" href="{% static 'gallery/css/battle.css' %}?v=mobile-20260906">
 {% endblock %}
 {% block content %}
 <div class="battle-shell">
@@ -126,7 +126,8 @@
             class="btnV"
             style="width: 100%; padding: 12px; font-size: 13px"
           >
-            Pick Left — {{ battle.vibe_a.title|truncatechars:20 }}
+            <span class="battle-desktop-label">Pick Left — {{ battle.vibe_a.title|truncatechars:20 }}</span>
+            <span class="battle-mobile-label">Pick this vibe</span>
           </button>
         </form>
         <a
@@ -218,7 +219,8 @@
               font-size: 13px;
             "
           >
-            Pick Right — {{ battle.vibe_b.title|truncatechars:20 }}
+            <span class="battle-desktop-label">Pick Right — {{ battle.vibe_b.title|truncatechars:20 }}</span>
+            <span class="battle-mobile-label">Pick this vibe</span>
           </button>
         </form>
         <a
@@ -236,23 +238,12 @@
     </div>
   </div>
 
-  <div
-    style="
-      height: 48px;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      justify-content: center;
-      background: var(--card);
-      border-top: 1px solid var(--line);
-      padding: 0 12px;
-      flex-shrink: 0;
-    "
-  >
-    <span style="font-size: 11px; color: var(--muted)"
+  <div class="battle-footer">
+    <span class="battle-footer-meta" style="font-size: 11px; color: var(--muted)"
       >{{ battle.votes_a }} votes</span
     >
     <span
+      class="battle-footer-meta"
       style="
         font-size: 12px;
         font-weight: 800;
@@ -260,10 +251,11 @@
       "
       >VS</span
     >
-    <span style="font-size: 11px; color: var(--muted)"
+    <span class="battle-footer-meta" style="font-size: 11px; color: var(--muted)"
       >{{ battle.votes_b }} votes</span
     >
     <div
+      class="battle-footer-meta"
       style="
         flex: 1;
         max-width: 200px;
@@ -278,7 +270,7 @@
       <div style="flex:{{ battle.votes_a|default:1 }};background:#7C3AED"></div>
       <div style="flex:{{ battle.votes_b|default:1 }};background:#F59E0B"></div>
     </div>
-    <span style="font-size: 11px; color: var(--muted)"
+    <span class="battle-footer-meta" style="font-size: 11px; color: var(--muted)"
       >{{ battle.votes_a }} — {{ battle.votes_b }}</span
     >
     <a

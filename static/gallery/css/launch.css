@@ -1282,12 +1282,8 @@
 @media (max-width: 800px) {
   .launch-shell { width: min(100% - 28px, 720px); padding-top: 24px; }
   .launch-hero { grid-template-columns: 1fr; }
-  .launch-orbit { width: 220px; }
-  .launch-orbit__node { transform: rotate(calc(var(--i) * 60deg)) translate(88px) rotate(calc(var(--i) * -60deg)); }
-  @keyframes launch-orbit {
-    from { transform: rotate(calc(var(--i) * 60deg)) translate(88px) rotate(calc(var(--i) * -60deg)); }
-    to { transform: rotate(calc(var(--i) * 60deg + 360deg)) translate(88px) rotate(calc(var(--i) * -60deg - 360deg)); }
-  }
+  .launch-orbit,
+  .launch-hero__pad { display: none; }
   .launch-guide-hero { grid-template-columns: 1fr; }
   .launch-guide-hero__facts { max-width: none; }
   .launch-guide-layout { grid-template-columns: 1fr; }

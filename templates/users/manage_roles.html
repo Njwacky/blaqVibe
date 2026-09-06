@@ -4,14 +4,15 @@
 <div style="max-width:1100px;margin:0 auto;padding:20px">
   <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">Manage Roles — Super Admin Only</h1>
   <p style="color:var(--muted);font-size:13px">Backend only, never in JS. Choose: user / moderator (queue) / admin (queue+delete+ban) / superadmin (all+assign).</p>
-  <table style="width:100%;margin-top:12px;border-collapse:collapse;font-size:13px">
+  <div style="overflow-x:auto;margin-top:12px">
+  <table style="width:100%;border-collapse:collapse;font-size:13px">
     <tr style="color:var(--muted);text-align:left;border-bottom:1px solid var(--line)"><th style="padding:8px">User</th><th>Current Role</th><th>Stars</th><th>Change To</th></tr>
     {% for u in users %}
     <tr style="border-bottom:1px solid var(--line)"><td style="padding:8px">@{{ u.username }} {% if u.is_staff %}<span style="font-size:10px;background:var(--warning-fill);color:var(--on-warning);padding:2px 6px;border-radius:6px">STAFF</span>{% endif %}</td>
       <td style="padding:8px"><span style="background:var(--input);border:1px solid var(--line);padding:4px 8px;border-radius:8px;font-size:11px">{{ u.profile.role }}</span></td>
       <td style="padding:8px">{{ u.profile.stars_balance }} ★</td>
       <td style="padding:8px">
-        <form method="post" action="{% url 'set_role' u.username %}" style="display:flex;gap:6px">{% csrf_token %}
+        <form method="post" action="{% url 'set_role' u.username %}" style="display:flex;gap:6px;flex-wrap:wrap">{% csrf_token %}
           <select name="role" style="background:var(--input);border:1px solid var(--line);border-radius:8px;padding:6px;color:var(--text);font-size:12px">
             <option value="user" {% if u.profile.role == 'user' %}selected{% endif %}>user</option>
             <option value="moderator" {% if u.profile.role == 'moderator' %}selected{% endif %}>moderator</option>
@@ -24,5 +25,6 @@
     </tr>
     {% endfor %}
   </table>
+  </div>
 </div>
 {% endblock %}
