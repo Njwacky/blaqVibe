@@ -82,25 +82,25 @@
       aria-label="Search vibes" />
     {% if program_kind %}<input type="hidden" name="program" value="{{ program_kind }}" />{% endif %}{% if runnable == '1' %}<input type="hidden" name="runnable" value="1" />{% endif %}
     <select name="category" aria-label="Filter by category">
-      <option value="">All Categories</option>{% for c in categories %}<option value="{{ c.slug }}" {% if cat==c.slug %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
+      <option value="">All Categories</option>{% for c in categories %}<option value="{{ c.slug }}" {% if cat == c.slug %}selected{% endif %}>{{ c.name }}</option>{% endfor %}
     </select>
     <select name="kind" aria-label="Filter by snippet or full app">
       <option value="">Snippets + Full Apps</option>
-      <option value="snippet" {% if kind=="snippet" %}selected{% endif %}>Snippets only</option>
-      <option value="full_app" {% if kind=="full_app" %}selected{% endif %}>Full Apps only</option>
+      <option value="snippet" {% if kind == "snippet" %}selected{% endif %}>Snippets only</option>
+      <option value="full_app" {% if kind == "full_app" %}selected{% endif %}>Full Apps only</option>
     </select>
     <select name="sort" aria-label="Sort order">
-      <option value="foryou" {% if sort=="foryou" %}selected{% endif %}>✦ For you</option>
-      <option value="newest" {% if sort=="newest" %}selected{% endif %}>Newest</option>
-      <option value="trending" {% if sort=="trending" %}selected{% endif %}>Trending</option>
-      <option value="stars" {% if sort=="stars" %}selected{% endif %}>Most Stars</option>
-      <option value="clones" {% if sort=="clones" %}selected{% endif %}>Most Clones</option>
+      <option value="foryou" {% if sort == "foryou" %}selected{% endif %}>✦ For you</option>
+      <option value="newest" {% if sort == "newest" %}selected{% endif %}>Newest</option>
+      <option value="trending" {% if sort == "trending" %}selected{% endif %}>Trending</option>
+      <option value="stars" {% if sort == "stars" %}selected{% endif %}>Most Stars</option>
+      <option value="clones" {% if sort == "clones" %}selected{% endif %}>Most Clones</option>
     </select>
     <label class="filter-check"
       title="Only show vibes the scan pipeline verified — virus clean, no leaked secrets, real dependencies. See /trust/"><input
-        type="checkbox" name="trust" value="verified" {% if trust=='verified' %}checked{% endif %} /> 🛡️ Checked
+        type="checkbox" name="trust" value="verified" {% if trust == 'verified' %}checked{% endif %} /> 🛡️ Checked
       only</label>
-    <label class="filter-check"><input type="checkbox" name="ai" value="1" {% if request.GET.ai=="1" %}checked %} /> 🤖 AI</label>
+    <label class="filter-check"><input type="checkbox" name="ai" value="1" {% if request.GET.ai == "1" %}checked{% endif %} />  AI</label>
     <span class="filter-actions"><button class="btnW" type="submit">Search</button><a href="{% url 'feed' %}"
         class="btnG">Reset</a></span>
   </form>
@@ -120,7 +120,7 @@
           style="color:var(--link)">@{{ u.username }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}</span>{%
       endif %}<a href="{% url 'starter_gallery' %}" class="btn-violet"
         style="padding:6px 12px;text-decoration:none;font-size:12px">3 · Build something →</a></div>
-  </div>{% endif %}
+  </div>{% endif %}{% endif %}
 
   {% if unfiltered %}{% today_loop %}{% endif %}
 
@@ -159,8 +159,7 @@
           style="font-size:11px;color:var(--muted)">{{ u.recent_heat }} this week</span></div>{% endfor %}
     </div>{% endif %}
     {% if suggested_creators %}<div class="card" style="padding:12px">
-      <h3 style="font-size:12px;font-weight:800;margin:0 0 8px">👋 Creators you may like</h3>{% for u in
-      suggested_creators %}<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><a
+      <h3 style="font-size:12px;font-weight:800;margin:0 0 8px">👋 Creators you may like</h3>{% for u in suggested_creators %}<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><a
           href="/u/{{ u.username }}/" style="font-size:12px;color:var(--link);flex:1">@{{ u.username }}</a><span
           style="font-size:11px;color:var(--muted)">{{ u.projects.count }} vibes</span></div>{% endfor %}{% if following_count %}<a href="?following=1" style="font-size:11px;color:var(--link)">See vibes from the {{
         following_count }} you follow →</a>{% endif %}
@@ -179,14 +178,9 @@
         <div class="vibe-card__title">{{ p.title }}</div>
         <div class="vibe-card__meta">by <a href="{% url 'profile_view' p.owner.username %}">{% include
             'users/_styled_name.html' with u=p.owner p=p.owner.profile %}</a> · ★ {{ p.stars }} · ⬇ {{ p.clones }}</div>
-        <div class="vibe-card__tags"><span class="badge badge--accent" title="{{ p.kind_meta.blurb }}"><span style="margin-right:4px">{{ p.kind_icon }}</span>{{ p.kind_label }}</span>{% if p.trust == 'verified' %}<span class="badge badge--success"
-            title="{{ p.trust_meta.title }}">🛡️ {{ p.trust_meta.label }}</span>{% elif p.trust == 'scanned' %}<span
-            class="badge badge--muted" title="{{ p.trust_meta.title }}">🛡️ {{ p.trust_meta.label }}</span>{% endif %}{%
-          if p.can_run_preview %}<span class="badge badge--success" title="Runs in a sandboxed preview">▶
+        <div class="vibe-card__tags"><span class="badge badge--accent" title="{{ p.kind_meta.blurb }}"><span style="margin-right:4px">{{ p.kind_icon }}</span>{{ p.kind_label }}</span>{% if p.trust == 'verified' %}<span class="badge badge--success" title="{{ p.trust_meta.title }}">🛡️ {{ p.trust_meta.label }}</span>{% elif p.trust == 'scanned' %}<span class="badge badge--muted" title="{{ p.trust_meta.title }}">🛡️ {{ p.trust_meta.label }}</span>{% endif %}{% if p.can_run_preview %}<span class="badge badge--success" title="Runs in a sandboxed preview">▶
             Playable</span>{% else %}<span class="badge badge--muted"
-            title="No live preview — file list, README, and ZIP download">📁 Files only</span>{% endif %}{% if
-          p.ai_generated %}<span class="badge badge--warning">🤖 {{ p.ai_tool|default:"AI" }}</span>{% endif %}{% if
-          p.forked_from %}<span class="badge badge--muted">⑂ Remix</span>{% endif %}</div>
+            title="No live preview — file list, README, and ZIP download">📁 Files only</span>{% endif %}{% if p.ai_generated %}<span class="badge badge--warning">🤖 {{ p.ai_tool|default:"AI" }}</span>{% endif %}{% if p.forked_from %}<span class="badge badge--muted">⑂ Remix</span>{% endif %}</div>
       </div></a>{% empty %}<div class="card" style="grid-column:1/-1;padding:36px;text-align:center">
       <div style="font-family:Space Grotesk,sans-serif;font-size:22px;font-weight:700">Publish your first vibe</div>
       <p class="help" style="max-width:460px;margin:10px auto 0">Zip an app or paste a snippet. We scan it, then others
@@ -205,6 +199,10 @@
 </div>
 {% endblock %} {% block scripts %}
 <script src="{% static 'gallery/js/feed.js' %}?v=filter-blur-20260828" defer></script>{% endblock %}
+
+
+
+
 
 
 
