@@ -116,7 +116,7 @@
           style="color:var(--link)">@{{ u.username }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}</span>{%
       endif %}<a href="{% url 'starter_gallery' %}" class="btn-violet"
         style="padding:6px 12px;text-decoration:none;font-size:12px">3 · Build something →</a></div>
-  </div>{% endif %}
+  </div>{% endif %}{% endif %}
 
   {% if unfiltered %}{% today_loop %}{% endif %}
 
