@@ -2,38 +2,34 @@
 {% load static %}
 {% load today_tags %}
 {% block head %}
-<link rel="stylesheet" href="{% static 'gallery/css/feed.css' %}?v=filter-blur-20260828">
+<link rel="stylesheet" href="{% static 'gallery/css/feed.css' %}?v=mobile-20260906b">
 {% endblock %} {% block content %}
-<div style="max-width: 1280px; margin: 0 auto; padding: 16px 20px">
+<div class="page">
   <div class="hero-grid"
     style="background: linear-gradient(135deg, var(--card) 0%, var(--accent-soft-bg) 50%, var(--info-bg) 100%); border: 1px solid var(--accent-border); border-radius: 20px; padding: 28px 24px;">
     <div>
       <div
+        class="desktop-only"
         style="display:inline-flex;align-items:center;gap:6px;background:var(--input);border:1px solid var(--accent-border);padding:6px 10px;border-radius:100px;font-size:11px;color:var(--warning-text);letter-spacing:.04em">
         ✦ BUILD → SHOW → REMIX → REPEAT</div>
-      <h1 style="font-family:Space Grotesk,sans-serif;font-size:32px;line-height:1.05;margin:12px 0;font-weight:700">
+      <h1 class="feed-hero-title">
         Your code can sit on GitHub.<br /><span style="color:var(--accent-text)">Your progress belongs here.</span></h1>
-      <p style="color:var(--text);font-size:14px;line-height:1.6;max-width:560px">BlaqVibes is where builders <b>show
+      <p class="feed-hero-copy desktop-only" style="color:var(--text);font-size:14px;line-height:1.6;max-width:560px">BlaqVibes is where builders <b>show
           what they made</b>, get real feedback, discover other creators, <b>remix ideas</b>, and compete through
         challenges and reputation. Publish the vibe. Let people play it, star it, remix it, and help you make the next
         version better.</p>
-      <div style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
+      <div class="feed-hero-actions" style="margin-top:16px;display:flex;gap:10px;flex-wrap:wrap">
         <a href="{% url 'starter_gallery' %}" class="btn-white" style="padding:10px 16px">✦ Start Building →</a>
         <a href="{% url 'publish' %}" class="btn-ghost" style="padding:10px 16px">Publish Your Vibe →</a>
-        <a href="#grid" class="btn-ghost" style="padding:10px 16px">Explore Vibes →</a>
+        <a href="#grid" class="btn-ghost desktop-only" style="padding:10px 16px">Explore Vibes →</a>
       </div>
-      <div style="margin-top:12px;display:flex;gap:14px;font-size:11px;color:var(--muted);flex-wrap:wrap"><span><b
+      <div class="feed-hero-loop desktop-only" style="margin-top:12px;display:flex;gap:14px;font-size:11px;color:var(--muted);flex-wrap:wrap"><span><b
             style="color:var(--text)">BUILD</b> something</span><span>•</span><span><b
             style="color:var(--text)">SHOW</b> the work</span><span>•</span><span><b style="color:var(--text)">REMIX</b>
           ideas</span><span>•</span><span><b style="color:var(--text)">REPEAT</b> tomorrow</span><span>•</span><span>🛡️
           Scanned vibes</span></div>
     </div>
-    <div style="background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:14px">
-      <div style="display:flex;gap:6px;margin-bottom:10px"><span
-          style="width:10px;height:10px;background:var(--danger-action);border-radius:50%"></span><span
-          style="width:10px;height:10px;background:#f59e0b;border-radius:50%"></span><span
-          style="width:10px;height:10px;background:#10b981;border-radius:50%"></span><span
-          style="margin-left:auto;font-size:10px;color:var(--muted)">BUILD → SHOW → REMIX</span></div>
+    <div class="hero-terminal desktop-only" aria-hidden="true">
       <div class="terminal-window">
         <div class="term-bar"><span class="term-dot" style="background:var(--danger-action)"></span><span
             class="term-dot" style="background:#f59e0b"></span><span class="term-dot"
@@ -43,7 +39,7 @@
     </div>
   </div>
 
-  <div style="margin-top:18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">
+  <div class="feed-pitch desktop-only" style="margin-top:18px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">
     <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px">
       <div style="font-weight:800;font-size:13px">⑂ Remix is part of the culture</div>
       <div style="margin-top:6px;font-size:12px;line-height:1.6;color:var(--muted)">Find a vibe you like, fork it,
@@ -62,7 +58,7 @@
     </div>
   </div>
 
-  <div class="kind-chips" style="margin-top:18px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+  <div class="kind-chips">
     <a href="?{% if q %}q={{ q }}&{% endif %}" class="kind-chip {% if not program_kind %}is-active{% endif %}">All
       programs</a>
     {% for k in program_kinds %}<a href="?program={{ k.value }}{% if q %}&q={{ q }}{% endif %}"
@@ -120,14 +116,14 @@
           style="color:var(--link)">@{{ u.username }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}</span>{%
       endif %}<a href="{% url 'starter_gallery' %}" class="btn-violet"
         style="padding:6px 12px;text-decoration:none;font-size:12px">3 · Build something →</a></div>
-  </div>{% endif %}{% endif %}
+  </div>{% endif %}
 
   {% if unfiltered %}{% today_loop %}{% endif %}
 
   {% if trending %}<div class="rail" style="margin-top:14px">
     <div class="rail__head" style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
       <h2 style="font-size:13px;font-weight:800;margin:0">{% if trending_is_hot %}🔥 Trending this week{% else %}✨ New
-        on BlaqVibes{% endif %}</h2>{% if activity %}<span style="font-size:11px;color:var(--muted)">{{
+        on BlaqVibes{% endif %}</h2>{% if activity %}<span class="rail__activity desktop-only" style="font-size:11px;color:var(--muted)">{{
         activity.published }} published · {{ activity.stars }} stars · {{ activity.downloads }} downloads · {{
         activity.trades }} trades in {{ activity.days }} days</span>{% endif %}
     </div>
@@ -142,7 +138,7 @@
       </a>{% endfor %}</div>
   </div>{% endif %}
 
-  {% if rising_creators or recent_remixes or suggested_creators %}<div class="rail-row"
+  {% if rising_creators or recent_remixes or suggested_creators %}<div class="rail-row desktop-only"
     style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
     {% if recent_remixes %}<div class="card" style="padding:12px">
       <h3 style="font-size:12px;font-weight:800;margin:0 0 8px">⑂ Recently remixed</h3>{% for p in recent_remixes %}<div
@@ -190,7 +186,7 @@
           class="btn-ghost">Create an account</a></div>
     </div>{% endfor %}</div>
 
-  <div style="margin-top:16px;display:flex;gap:8px;justify-content:center;align-items:center">{% if page.has_previous %}<a
+  <div class="pager">{% if page.has_previous %}<a
       href="?page={{ page.previous_page_number }}&q={{ q }}&category={{ cat }}&kind={{ kind }}&sort={{ sort }}&ai={{ request.GET.ai }}"
       class="btnG">← Prev</a>{% endif %}<span style="padding:8px 12px;color:var(--muted);font-size:13px">Page {{
       page.number }} of {{ page.paginator.num_pages }} • 12/page</span>{% if page.has_next %}<a
@@ -198,7 +194,7 @@
       class="btnG">Next →</a>{% endif %}</div>
 </div>
 {% endblock %} {% block scripts %}
-<script src="{% static 'gallery/js/feed.js' %}?v=filter-blur-20260828" defer></script>{% endblock %}
+<script src="{% static 'gallery/js/feed.js' %}?v=mobile-20260906" defer></script>{% endblock %}
 
 
 

@@ -81,4 +81,9 @@ async function runTerminalLoop() {
   await sleep(1500);
   runTerminalLoop();
 }
-window.addEventListener('DOMContentLoaded', runTerminalLoop);
+window.addEventListener('DOMContentLoaded', function () {
+  if (!terminalBody) return;
+  if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  if (window.matchMedia('(max-width: 900px)').matches) return;
+  runTerminalLoop();
+});

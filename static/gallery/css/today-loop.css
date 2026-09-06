@@ -188,6 +188,15 @@
   text-decoration: none;
 }
 
+@media (max-width: 900px) {
+  /* Pulse extras are desktop discovery — on a phone they sit above the
+     actual vibe grid and push the feed off-screen. Keep the header, the
+     primary action, and the recently-built row. */
+  .today-loop__sub,
+  .today-loop__feeds,
+  .today-loop__footer,
+  .today-loop__section-head span:last-child { display: none; }
+}
 @media (max-width: 560px) {
   .today-loop { padding: 15px; }
   .today-loop__title { font-size: 21px; }

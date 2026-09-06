@@ -22,6 +22,13 @@
   min-height: 60vh;
 }
 @media (max-width: 860px) { .studio-grid { grid-template-columns: 1fr; } }
+@media (max-width: 560px) {
+  .studio-row { grid-template-columns: 1fr; }
+  .studio-actions { width: 100%; flex-wrap: wrap; }
+  .studio-actions .btn-ghost,
+  .studio-actions .btn-violet { flex: 1 1 140px; justify-content: center; }
+  .studio-code, #studio-frame, .studio-preview-lock { min-height: 42vh; }
+}
 
 /* Editors */
 .studio-editors {

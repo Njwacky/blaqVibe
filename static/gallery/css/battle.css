@@ -9,9 +9,22 @@
   .battle-shell { height: calc(100vh - 64px); height: calc(100dvh - 64px); }
 }
 
+.battle-mobile-label { display: none; }
+.battle-footer {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: center;
+  background: var(--card);
+  border-top: 1px solid var(--line);
+  padding: 0 12px;
+  flex-shrink: 0;
+}
+
 @media (max-width: 720px) {
   #battle-swipe {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr !important;
     overflow: auto;
   }
   #battle-swipe .card {
@@ -20,6 +33,19 @@
   }
   .mobile-hint {
     display: inline !important;
+  }
+  /* Vote counts, VS bar and score already live on the cards — the footer
+     would overflow a phone if they stayed. Keep Next / History / swipe. */
+  .battle-footer-meta { display: none !important; }
+  .battle-desktop-label { display: none; }
+  .battle-mobile-label { display: inline; }
+  .battle-footer {
+    height: auto;
+    min-height: 48px;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px 12px;
   }
 }
 
