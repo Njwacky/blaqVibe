@@ -5,7 +5,7 @@ from datetime import date, datetime, time, timedelta
 
 from django.utils import timezone
 
-from .models import AppProject, Challenge
+from .models import AppProject, Challenge, VibeBattle
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +47,25 @@ DAILY_POOL = [
 ]
 
 DAILY_BOUNTY = 15
+
+def ensure_daily_battle(today=None):
+    """Create one published-vibe matchup for the local calendar day."""
+    try:
+        today = today or timezone.localdate()
+        existing = VibeBattle.objects.filter(battle_date=today).first()
+        if existing:
+            return existing
+        vibes = list(AppProject.objects.filter(status='published').order_by('?')[:2])
+        if len(vibes) < 2:
+            return None
+        battle, _created = VibeBattle.objects.get_or_create(
+            battle_date=today,
+            defaults={'vibe_a': vibes[0], 'vibe_b': vibes[1]},
+        )
+        return battle
+    except Exception:
+        logger.exception('ensure_daily_battle failed')
+        return None
 
 def pool_entry_for(day):
     """Same date → same prompt, on every process, forever."""

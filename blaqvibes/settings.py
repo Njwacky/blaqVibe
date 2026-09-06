@@ -310,6 +310,13 @@ CELERY_BEAT_SCHEDULE = {
 KIND_LLM_CALLS_PER_MINUTE = int(os.getenv('KIND_LLM_CALLS_PER_MINUTE', '30'))
 KIND_LLM_CONFIDENCE_FLOOR = float(os.getenv('KIND_LLM_CONFIDENCE_FLOOR', '0.55'))
 
+# Nolo providers are read once at startup so web and Celery processes use the
+# same deployment configuration. Keys never appear in templates or responses.
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '').strip()
+GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-1.5-flash').strip()
+GROQ_API_KEY = os.getenv('GROQ_API_KEY', '').strip()
+GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama-3.1-8b-instant').strip()
+
 # S3 / R2
 AWS_ACCESS_KEY_ID = os.getenv('AWS_ACCESS_KEY_ID', '')
 AWS_SECRET_ACCESS_KEY = os.getenv('AWS_SECRET_ACCESS_KEY', '')

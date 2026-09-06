@@ -386,9 +386,9 @@ def process_upload_pipeline(project_id):
     c = chain(scan_zip_with_clamav.s(project_id), vulnerability_scan.s(project_id), finalize_publish.s(project_id))
     return c.apply_async(queue='scan')
 
-@shared_task
+@shared_task(queue='scan')
 def run_daily_challenges():
-    """Create today's prompt and pay out the days that just closed.
+    """Create today's prompt and battle, then pay out closed challenges.
 
     The daily loop used to run only when somebody happened to open
     /challenges/ — which meant a quiet day could leave yesterday's bounty
@@ -399,10 +399,15 @@ def run_daily_challenges():
     challenge that already has a winner.
     """
     try:
-        from .daily import ensure_daily_challenge, settle_past_challenges
+        from .daily import ensure_daily_battle, ensure_daily_challenge, settle_past_challenges
         challenge = ensure_daily_challenge()
+        battle = ensure_daily_battle()
         settled = settle_past_challenges()
-        return {'tag': getattr(challenge, 'tag', None), 'settled': len(settled)}
+        return {
+            'tag': getattr(challenge, 'tag', None),
+            'battle_id': getattr(battle, 'id', None),
+            'settled': len(settled),
+        }
     except Exception:
         logger.exception('run_daily_challenges failed')
         return {'tag': None, 'settled': 0}

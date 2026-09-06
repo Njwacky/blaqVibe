@@ -1,12 +1,20 @@
 import os, logging, re
 logger = logging.getLogger(__name__)
 
+def _env(name):
+    try:
+        from django.conf import settings
+        value = getattr(settings, name, '') or os.getenv(name, '')
+    except Exception:
+        value = os.getenv(name, '')
+    return (value or '').strip()
+
 def generate_ai_readme(project):
     """Backend only, crush silently, no JS. Uses Gemini/Groq if keys, else heuristic template."""
     try:
         heuristic = f"# {project.title}\n{project.short_description}\n\n## What is this?\nThis vibe has {project.file_count} files. Tech: {project.tech_stack or '—'}.\n\n## How to Run\n```bash\npip install -r requirements.txt\npython manage.py runserver\n```\n\n## Features\n- {', '.join(list(project.language_stats.keys())[:3]) if project.language_stats else 'See file tree'}\n"
         # Try Gemini
-        gemini_key = os.getenv("GEMINI_API_KEY", "")
+        gemini_key = _env("GEMINI_API_KEY")
         if gemini_key:
             try:
                 import google.generativeai as genai
@@ -20,7 +28,7 @@ def generate_ai_readme(project):
             except Exception as e:
                 logger.warning(f"Gemini readme failed: {e}")
         # Try Groq
-        groq_key = os.getenv("GROQ_API_KEY", "")
+        groq_key = _env("GROQ_API_KEY")
         if groq_key:
             try:
                 from groq import Groq

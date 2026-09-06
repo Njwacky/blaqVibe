@@ -183,6 +183,15 @@ class PrivacyAndBattleTests(TestCase):
         self.assertEqual(self.a.stars, before)
         self.assertEqual(battle.votes_a, 1)
 
+    def test_battle_page_uses_one_daily_matchup(self):
+        from gallery.daily import ensure_daily_battle
+
+        first = ensure_daily_battle()
+        second = ensure_daily_battle()
+        self.assertIsNotNone(first)
+        self.assertEqual(first.pk, second.pk)
+        self.assertEqual(VibeBattle.objects.filter(battle_date=timezone.localdate()).count(), 1)
+
 @override_settings(RATELIMIT_ENABLE=False)
 class FormAndValidatorTests(TestCase):
     def setUp(self):

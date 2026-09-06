@@ -1,6 +1,14 @@
 import os, logging, json, re
 logger = logging.getLogger(__name__)
 
+def _env(name):
+    try:
+        from django.conf import settings
+        value = getattr(settings, name, '') or os.getenv(name, '')
+    except Exception:
+        value = os.getenv(name, '')
+    return (value or '').strip()
+
 # Heuristic fallback: with no OPENAI_API_KEY in dev there's still value, and it
 # degrades silently.
 
@@ -49,7 +57,7 @@ def nolo_review(project):
     try:
         heuristic = heuristic_review(project)
         # 1. Try Gemini free first
-        gemini_key = os.getenv("GEMINI_API_KEY", "")
+        gemini_key = _env("GEMINI_API_KEY")
         if gemini_key:
             try:
                 import google.generativeai as genai
@@ -65,7 +73,7 @@ def nolo_review(project):
             except Exception as e:
                 logger.warning(f"Gemini review failed, try Groq/OpenAI/heuristic: {e}")
         # 2. Try Groq (free, fastest) — placeholder, wire when you add GROQ_API_KEY
-        groq_key = os.getenv("GROQ_API_KEY", "")
+        groq_key = _env("GROQ_API_KEY")
         if groq_key:
             try:
                 from groq import Groq

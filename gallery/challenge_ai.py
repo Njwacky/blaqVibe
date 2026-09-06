@@ -1,6 +1,14 @@
 import os, logging, re, difflib, json
 logger = logging.getLogger(__name__)
 
+def _env(name):
+    try:
+        from django.conf import settings
+        value = getattr(settings, name, '') or os.getenv(name, '')
+    except Exception:
+        value = os.getenv(name, '')
+    return (value or '').strip()
+
 # Curated fallback ideas for Durban vibe coders — if AI fails
 FALLBACK_IDEAS = [
     ("Spaza Shop Stock Tracker", "Build a spaza shop stock tracker — add, sell, low-stock alert. Zulu/English mix."),
@@ -53,7 +61,7 @@ Return ONLY JSON array: [{{"title":"...", "description":"...", "bounty_stars":10
 Make them different from past and from each other.
 """
     # Try Gemini
-    gemini_key = os.getenv("GEMINI_API_KEY", "")
+    gemini_key = _env("GEMINI_API_KEY")
     if gemini_key:
         try:
             import google.generativeai as genai
@@ -74,7 +82,7 @@ Make them different from past and from each other.
             logger.warning(f"Gemini challenge gen failed: {e}")
 
     # Try Groq
-    groq_key = os.getenv("GROQ_API_KEY", "")
+    groq_key = _env("GROQ_API_KEY")
     if groq_key:
         try:
             from groq import Groq

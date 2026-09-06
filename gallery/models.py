@@ -504,6 +504,7 @@ class VibeBattle(models.Model):
     vibe_b = models.ForeignKey(AppProject, on_delete=models.CASCADE, related_name='battles_as_b')
     votes_a = models.PositiveIntegerField(default=0)
     votes_b = models.PositiveIntegerField(default=0)
+    battle_date = models.DateField(null=True, blank=True, unique=True)
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
         ordering = ['-created_at']

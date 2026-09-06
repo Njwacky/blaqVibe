@@ -387,14 +387,18 @@ def battle(request):
     """Vibe Battles — two random vibes side-by-side, crush silently."""
     try:
         from .models import VibeBattle, AppProject
+        from .daily import ensure_daily_battle
         import random
         # Pick 2 random published vibes, not same, exclude own if logged in
         qs = AppProject.objects.filter(status='published')
         if qs.count() < 2:
             return render(request, 'gallery/battle.html', {'battle': None})
+        daily_battle = ensure_daily_battle()
         # Try to find a battle not voted by this user
         if request.user.is_authenticated:
             voted_ids = request.user.battle_votes.values_list('battle_id', flat=True)
+            if daily_battle and daily_battle.id not in voted_ids and _battle_visible(request.user, daily_battle):
+                return render(request, 'gallery/battle.html', {'battle': daily_battle})
             # A battle is a view of two vibes; if either has since gone
             # non-public it must not be surfaced to this person (same rule as
             # every other content read). One helper, applied to every battle
@@ -407,6 +411,8 @@ def battle(request):
             ]
             if available:
                 return render(request, 'gallery/battle.html', {'battle': available[0]})
+        elif daily_battle:
+            return render(request, 'gallery/battle.html', {'battle': daily_battle})
         vibes = list(qs.order_by('?')[:2])
         if len(vibes) < 2:
             vibes = list(qs[:2])
