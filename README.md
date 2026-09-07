@@ -16,20 +16,13 @@ Publish what you made, get feedback, discover creators, remix ideas, take on cha
 
 ## Five places, on purpose
 
-The primary navigation is **Projects · Discover · Skills · Challenges ·
-Build**, and nothing else. Everything that is a utility — Saved, Inbox,
-Battle, Launch guides, Nolo, Trades, Sales, Settings, Admin — lives in the
-account menu, because the first thing anyone should see is what people are
-building.
+The primary navigation is **Projects · Discover · Skills · Challenges · Build**, and nothing else. Everything that is a utility — Saved, Inbox, Battle, Launch guides, Nolo, Trades, Sales, Settings, Admin — lives in the account menu, because the first thing anyone should see is what people are building.
 
 - **Projects** (`/`) — the feed of what builders published.
-- **Discover** (`/discover/`) — what is happening: most remixed ideas,
-  fastest-growing remix families, top remixers, builders gaining momentum.
-- **Skills** (`/skills/`) — Builder Skills: learn how other builders solve
-  problems, with published projects as proof.
+- **Discover** (`/discover/`) — what is happening: most remixed ideas, fastest-growing remix families, top remixers, builders gaining momentum.
+- **Skills** (`/skills/`) — Builder Skills: learn how other builders solve problems, with published projects as proof.
 - **Challenges** (`/challenges/`) — a concrete reason to build today.
-- **Build** (`/build/`) — start from scratch, remix a project, or use a
-  Builder Skill; then CREATE → UPLOAD → SHOW → FEEDBACK → IMPROVE → PUBLISH.
+- **Build** (`/build/`) — start from scratch, remix a project, or use a Builder Skill; then CREATE → UPLOAD → SHOW → FEEDBACK → IMPROVE → PUBLISH.
 
 ## AI is a tool, not a disguise
 
@@ -71,6 +64,35 @@ python manage.py create_superadmin --email you@domain --password 'A-strong-pass'
 ```
 
 Keep that password out of source control, screenshots, documentation and chat logs. Use a secret manager or environment variable for hosted deployments.
+
+### Render Free (no shell)
+
+Render Free does not require an interactive shell for this. The repository includes a guarded, non-interactive command specifically for this situation:
+
+```bash
+python manage.py bootstrap_admin
+```
+
+Set these **Environment Variables** on the Render service:
+
+- `BOOTSTRAP_ADMIN=true`
+- `OWNER_USERNAME=<your username>`
+- `OWNER_EMAIL=<your email>`
+- `OWNER_PASSWORD=<a strong password>`
+
+Do not put the password in GitHub or in the Start Command.
+
+Then temporarily change the Render **Start Command** to run the bootstrap before the normal server command. For the Docker deployment in this repository, the equivalent is:
+
+```bash
+python manage.py migrate && python manage.py bootstrap_admin && gunicorn blaqvibes.wsgi:application --bind 0.0.0.0:8000 --workers 3
+```
+
+Deploy once. The command creates a new account or promotes an existing account with the same username to `is_staff=True`, `is_superuser=True`, `profile.role=superadmin`, and verified operator email. Existing accounts keep their current password; the bootstrap password is only used when a new account is created.
+
+After the deployment succeeds and you can sign in at `/admin/`, **remove all four bootstrap environment variables and restore the normal Start Command**. With `BOOTSTRAP_ADMIN` absent, the command is a no-op.
+
+This flow deliberately has no public "make me admin" URL, so an attacker cannot promote an account through the website.
 
 Before exposing a deployment:
 
