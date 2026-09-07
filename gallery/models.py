@@ -753,6 +753,7 @@ class Notification(models.Model):
         ('payout', 'Payout'),
         ('git_push', 'Git push'),
         ('report', 'Report'),
+        ('upload', 'ZIP upload'),
         # Added with the retention work: the social half of the loop.
         ('star', 'Star'),
         ('fork', 'Fork'),

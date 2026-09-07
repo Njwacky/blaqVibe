@@ -3,6 +3,7 @@ import subprocess, logging, tempfile, shutil
 from django.conf import settings
 from django.core.mail import send_mail
 from .validators import SECRET_PATTERNS
+from .notify import notify
 logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, max_retries=2, queue='scan', time_limit=120, soft_time_limit=90)
@@ -279,6 +280,19 @@ def finalize_publish(*args, project_id=None):
     if report.get('clamav') == 'unavailable':
         _set_scan_job(p, 'queued')
         _apply_trust(p)
+        # Notify admins about scanner unavailability
+        try:
+            from .reports import moderators_to_notify
+            for staff in moderators_to_notify(p.owner):
+                notify(
+                    staff,
+                    'review_needed',
+                    f'Scanner unavailable: {p.title}',
+                    f'@{p.owner.username} uploaded "{p.title}" — ClamAV scanner unavailable, manual review required.',
+                    p.get_absolute_url(),
+                )
+        except Exception:
+            logger.exception('admin notify failed for unavailable scanner %s', p.slug)
         return "pending_no_scanner"
     if report.get('clamav') == 'disabled':
         # ClamAV disabled by site admin — skip the scanner check and
@@ -287,6 +301,19 @@ def finalize_publish(*args, project_id=None):
     if report.get('secrets'):
         _set_scan_job(p, 'pending')
         _apply_trust(p)
+        # Notify admins about project needing review
+        try:
+            from .reports import moderators_to_notify
+            for staff in moderators_to_notify(p.owner):
+                notify(
+                    staff,
+                    'review_needed',
+                    f'Project needs review: {p.title}',
+                    f'@{p.owner.username} uploaded "{p.title}" — secrets detected, manual review required.',
+                    p.get_absolute_url(),
+                )
+        except Exception:
+            logger.exception('admin notify failed for pending project with secrets %s', p.slug)
         return "pending_secrets"
     if not p.file_tree and p.zip_file:
         try:
@@ -300,8 +327,30 @@ def finalize_publish(*args, project_id=None):
         except Exception as e:
             logger.error(f"Tree rebuild fail {p.slug}: {e}")
     if p.status == 'pending':
-        p.status = 'published'
-        p.save(update_fields=['status'])
+        # Check if user has enough published projects for auto-approval
+        published_count = p.owner.projects.filter(status='published').count()
+        if published_count >= 3:
+            # Auto-publish for trusted users
+            p.status = 'published'
+            p.save(update_fields=['status'])
+        else:
+            # Keep pending and notify admins for manual review
+            try:
+                from .reports import moderators_to_notify
+                for staff in moderators_to_notify(p.owner):
+                    notify(
+                        staff,
+                        'review_needed',
+                        f'Project needs review: {p.title}',
+                        f'@{p.owner.username} uploaded "{p.title}" — new user, requires manual approval (has {published_count} published projects).',
+                        p.get_absolute_url(),
+                    )
+            except Exception:
+                logger.exception('admin notify failed for pending project %s', p.slug)
+            _set_scan_job(p, 'pending')
+            _apply_trust(p)
+            _send_status_email(p)
+            return "pending_review_needed"
     if p.status == 'published':
         # Classify BEFORE the first appeal score: appeal reads preview_mode,
         # and the feed reads both. Doing it here (not in the view) keeps the
@@ -310,7 +359,6 @@ def finalize_publish(*args, project_id=None):
             classify_and_score(p)
         except Exception:
             logger.exception('classify at publish failed %s', p.slug)
-        from .notify import notify
         # Close the publish → launch loop: detect the shippable artifact in
         # the ZIP and point the creator at the matching launch guide.
         launch_hint = ''

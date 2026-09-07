@@ -3,12 +3,13 @@
 from datetime import timedelta
 
 from django.contrib.auth.models import User
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
 from gallery.models import AppProject, AppReport, Notification, ScanJob, Trade
-from gallery.tests import make_category, make_project, make_user
+from gallery.tests import make_category, make_project, make_user, make_zip_bytes
 from users.models import AdminLog
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
@@ -40,6 +41,39 @@ class ReportQueueAccessTests(TestCase):
         self.client.login(username='adminuser', password='pass12345')
         response = self.client.get(reverse('reports_queue'))
         self.assertEqual(response.status_code, 200)
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class ZipUploadNotificationTests(TestCase):
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('owner')
+        self.mod = make_user('mod', role='moderator')
+        self.admin = make_user('adminuser', role='admin')
+        self.superadmin = make_user('superadmin', role='superadmin')
+        self.viewer = make_user('viewer')
+
+    def test_zip_upload_notifies_all_moderator_bearing_staff(self):
+        self.client.login(username='owner', password='pass12345')
+        response = self.client.post(
+            '/publish/?upload=zip',
+            {
+                'title': 'Queued ZIP',
+                'category': self.cat.id,
+                'short_description': 'A queued ZIP upload for notification testing.',
+                'readme': '# Queued ZIP\n\n' + ('Enough documentation for this upload. ' * 4),
+                'zip_file': SimpleUploadedFile(
+                    'queued.zip', make_zip_bytes({'app.py': 'print(1)\n'}), content_type='application/zip',
+                ),
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        for staff in (self.mod, self.admin, self.superadmin):
+            self.assertTrue(
+                Notification.objects.filter(user=staff, kind='upload', title='New ZIP upload: Queued ZIP').exists(),
+                f'{staff.username} should be notified about the ZIP upload.',
+            )
+        self.assertFalse(Notification.objects.filter(user=self.viewer, kind='upload').exists())
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class ReportCreationTests(TestCase):

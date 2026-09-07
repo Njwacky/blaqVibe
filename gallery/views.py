@@ -711,6 +711,18 @@ def publish(request):
                     job.save(update_fields=['task_id','status'])
                 except Exception as e:
                     logger.warning("Queue error, fallback eager for %s: %s", project.slug, e)
+                try:
+                    from .reports import moderators_to_notify
+                    for staff in moderators_to_notify(project.owner):
+                        notify(
+                            staff,
+                            'upload',
+                            f'New ZIP upload: {project.title}',
+                            f'@{project.owner.username} uploaded a project and it is waiting in the scan queue.',
+                            project.get_absolute_url(),
+                        )
+                except Exception:
+                    logger.exception('upload moderator fan-out failed slug=%s', project.slug)
                 messages.info(request, f"⏳ Your vibe “{project.title}” is in the queue — we’re checking for vulnerabilities. We’ll tell you when it’s uploaded! You’re #{ScanJob.objects.filter(status__in=['queued','scanning']).count()} in line, even with concurrent uploads every app is checked.")
                 try:
                     if SiteSettings.get().auto_run_enabled:
