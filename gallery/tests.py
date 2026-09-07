@@ -4188,3 +4188,40 @@ class ShareCardTests(TestCase):
         from gallery.share_card import _glyph_safe
         self.assertEqual(_glyph_safe('Trade 2 ★ to download'), 'Trade 2 * to download')
         self.assertEqual(_glyph_safe('go → next'), 'go -> next')
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class CommunityFirstHeroTests(TestCase):
+    """§19: the anonymous landing answers 'what are people building?' —
+    projects and live community activity before any creator pitch."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.cat = make_category()
+        self.owner = make_user('heroowner')
+        self.remixer = make_user('heroremixer')
+        make_project(self.owner, self.cat, title='Hero Original')
+        make_project(self.remixer, self.cat, title='Hero Remix', forked_from=None)
+
+    def test_landing_leads_with_the_community_question(self):
+        response = self.client.get('/')
+        self.assertContains(response, 'What are people building?')
+        self.assertContains(response, 'Your work belongs in the answer.')
+        self.assertContains(response, "Explore what's being built")
+        self.assertContains(response, 'real builders, shipping now')
+
+    def test_landing_shows_live_activity_counts(self):
+        response = self.client.get('/')
+        self.assertContains(response, '2 published')
+        self.assertContains(response, '0 remixes')
+
+    def test_landing_and_profile_render_no_literal_template_tags(self):
+        """Django template tags may not span lines — a split tag renders as
+        literal '{{ ... }}' text. Regression guard for the rails/pager."""
+        feed = self.client.get('/').content.decode()
+        self.assertNotIn('{{', feed)
+        self.assertNotIn('{%', feed)
+        profile = self.client.get('/u/%s/' % self.owner.username).content.decode()
+        self.assertNotIn('{{', profile)
+        self.assertNotIn('{%', profile)
