@@ -131,6 +131,8 @@ def feed(request):
         if trust_filter not in ('verified', 'scanned'):
             trust_filter = ''
         projects = AppProject.objects.filter(status='published').select_related('owner','owner__profile','category').prefetch_related('tags')
+        # Remix is the signature feature (§3): show how far each idea travelled.
+        projects = projects.annotate(remix_count=Count('forks', filter=Q(forks__status='published')))
         if cat:
             projects = projects.filter(category__slug=cat)
         if kind == 'snippet':
@@ -961,7 +963,7 @@ def post_review(request, slug):
                             f"your vibe “{project.title}”.\n\n"
                             f"Review: {text[:200] if text else '(no text)'}\n"
                             f"View: {settings.SITE_URL}/app/{project.slug}/#reviews\n\n"
-                            f"BlaqVibes — Publish the Vibes.\n"
+                            f"BlaqVibes — Build. Show. Remix. Compete.\n"
                         ),
                         from_email=settings.DEFAULT_FROM_EMAIL,
                         recipient_list=[project.owner.email],
@@ -1446,7 +1448,7 @@ def trade_download(request, slug):
                             f"for your vibe “{project.title}”.\n\n"
                             f"View: {settings.SITE_URL}/app/{project.slug}/\n"
                             f"Dashboard: {settings.SITE_URL}/sales/\n\n"
-                            f"BlaqVibes — Publish the Vibes.\n"
+                            f"BlaqVibes — Build. Show. Remix. Compete.\n"
                         ),
                         from_email=settings.DEFAULT_FROM_EMAIL,
                         recipient_list=[who.email],

@@ -4225,3 +4225,33 @@ class CommunityFirstHeroTests(TestCase):
         profile = self.client.get('/u/%s/' % self.owner.username).content.decode()
         self.assertNotIn('{{', profile)
         self.assertNotIn('{%', profile)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class IdentityAndShareTests(TestCase):
+    """Identity consistency (community-first tagline everywhere), the §14
+    share affordance, and §3 remix visibility on feed cards."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.cat = make_category()
+        self.owner = make_user('shareowner')
+        self.remixer = make_user('shareremixer')
+        self.original = make_project(self.owner, self.cat, title='Shared Original')
+        make_project(self.remixer, self.cat, title='Shared Remix', forked_from=self.original)
+
+    def test_site_chrome_is_community_first(self):
+        response = self.client.get('/')
+        self.assertContains(response, '<title>BlaqVibes — What are people building?</title>')
+        self.assertContains(response, 'See what builders are shipping. Build yours next.')
+        self.assertNotContains(response, 'Clone the Culture')
+
+    def test_project_page_has_a_share_button(self):
+        response = self.client.get('/app/%s/' % self.original.slug)
+        self.assertContains(response, 'Share')
+        self.assertContains(response, '/app/%s/' % self.original.slug)
+
+    def test_feed_cards_show_how_far_an_idea_travelled(self):
+        response = self.client.get('/')
+        self.assertContains(response, '⑂ 1')

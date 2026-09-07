@@ -166,7 +166,7 @@
         </div>
       </div>{% endif %}<div class="vibe-card__body">
         <div class="vibe-card__title">{{ p.title }}</div>
-        <div class="vibe-card__meta">by <a href="{% url 'profile_view' p.owner.username %}">{% include 'users/_styled_name.html' with u=p.owner p=p.owner.profile %}</a> · ★ {{ p.stars }} · ⬇ {{ p.clones }}</div>
+        <div class="vibe-card__meta">by <a href="{% url 'profile_view' p.owner.username %}">{% include 'users/_styled_name.html' with u=p.owner p=p.owner.profile %}</a> · ★ {{ p.stars }} · ⬇ {{ p.clones }}{% if p.remix_count %} · <span title="This idea travelled — published remixes">⑂ {{ p.remix_count }}</span>{% endif %}</div>
         <div class="vibe-card__tags"><span class="badge badge--accent" title="{{ p.kind_meta.blurb }}"><span style="margin-right:4px">{{ p.kind_icon }}</span>{{ p.kind_label }}</span>{% if p.trust == 'verified' %}<span class="badge badge--success" title="{{ p.trust_meta.title }}">🛡️ {{ p.trust_meta.label }}</span>{% elif p.trust == 'scanned' %}<span class="badge badge--muted" title="{{ p.trust_meta.title }}">🛡️ {{ p.trust_meta.label }}</span>{% endif %}{% if p.can_run_preview %}<span class="badge badge--success" title="Runs in a sandboxed preview">▶
             Playable</span>{% else %}<span class="badge badge--muted"
             title="No live preview — file list, README, and ZIP download">📁 Files only</span>{% endif %}{% if p.ai_generated %}<span class="badge badge--warning">🤖 {{ p.ai_tool|default:"AI" }}</span>{% endif %}{% if p.forked_from %}<span class="badge badge--muted">⑂ Remix</span>{% endif %}</div>

@@ -177,8 +177,9 @@
       </div>
       {% endif %}
 
-      {# ACTIONS — remix and unlock, the two things a visitor came to do. #}
+      {# ACTIONS — remix, share and unlock, the things a visitor came to do. #}
       <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button type="button" class="btn-ghost js-copy" data-copy="{{ request.scheme }}://{{ request.get_host }}{{ project.get_absolute_url }}" title="Copy the share link — it previews with the project's story card">⧉ Share</button>
         {% if not project.zip_file or can_download %}
         <form method="post" action="{% url 'fork_vibe' project.slug %}" class="js-fork-form">
           {% csrf_token %}<button class="btn-ghost">⑂ Remix this project</button>
