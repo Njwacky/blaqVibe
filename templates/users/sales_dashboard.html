@@ -57,7 +57,7 @@
   {% if popular_projects %}
   <div style="margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
     <h2 style="font-size:14px;font-weight:700">Popular projects — where the attention is</h2>
-    <div style="font-size:11px;color:var(--muted);margin-top:2px">Views, unlocks and remixes per project. This is buyer activity, not a balance.</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px">Views, unlocks and remixes per project. This is buyer activity, not money.</div>
     {% for p in popular_projects %}
     <div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px">
       <a href="{{ p.get_absolute_url }}" style="color:var(--link);font-weight:700;flex:1">{{ p.title }}</a>
@@ -69,7 +69,7 @@
 
   <div style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
     <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
-      <div style="font-size:11px;color:var(--muted)">Star balance</div>
+      <div style="font-size:11px;color:var(--muted)">Stars you have</div>
       <div style="font-size:20px;font-weight:800;color:var(--warning-text)">{{ stars_balance }} ★</div>
     </div>
     <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
@@ -94,9 +94,9 @@
       {% endif %}
     </div>
     <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
-      <div style="font-size:12px;font-weight:700">Star balance — last 14 days</div>
+      <div style="font-size:12px;font-weight:700">Stars you have — last 14 days</div>
       {% if chart_balance_svg %}{{ chart_balance_svg|safe }}{% else %}
-      <div style="color:var(--muted);font-size:13px;padding:18px 4px">Balance history is empty — publish, trade or tip to start the ledger.</div>
+      <div style="color:var(--muted);font-size:13px;padding:18px 4px">History is empty — publish, trade or tip to start the ledger.</div>
       {% endif %}
     </div>
   </div>
@@ -163,8 +163,8 @@
   </div>
 
   <div style="margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
-    <h2 style="font-size:14px;font-weight:700">Star ledger — every balance move</h2>
-    <div style="font-size:11px;color:var(--muted);margin-top:2px">The ledger explains your balance star for star. Positive rows are stars received, negative rows are stars spent.</div>
+    <h2 style="font-size:14px;font-weight:700">Star ledger — every star move</h2>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px">The ledger explains your stars star for star. Positive rows are stars received, negative rows are stars spent.</div>
     {% for ev in star_events %}
     <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px">
       <span>

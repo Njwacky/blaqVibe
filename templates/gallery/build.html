@@ -1,128 +1,80 @@
 {% extends 'gallery/base.html' %}
 {% load static %}
-
-{% block title %}Build something — BlaqVibes{% endblock %}
+{% block title %}What do you want to build? — BlaqVibes{% endblock %}
 {% block meta_desc %}Three ways to start on BlaqVibes: start from scratch, remix a project, or use a Builder Skill. Then create, upload, show, get feedback, improve and publish.{% endblock %}
-{% block og_title %}Build something — BlaqVibes{% endblock %}
+{% block og_title %}What do you want to build? — BlaqVibes{% endblock %}
 {% block head %}
-<link rel="stylesheet" href="{% static 'gallery/css/discover.css' %}?v=discover-20260907">
+<link rel="stylesheet" href="{% static 'gallery/css/discover.css' %}?v=builder-loop-20260907">
 {% endblock %}
-
 {% block content %}
 <div class="dsc-shell">
-  <header class="dsc-hero">
-    <p class="dsc-eyebrow">BUILD · CREATE → UPLOAD → SHOW → FEEDBACK → IMPROVE → PUBLISH</p>
-    <h1>Build something.</h1>
-    <p class="dsc-lead">
-      Three honest ways to start. Pick one — the rest of the workflow is the same, and it ends with a
-      project other builders can see, judge and remix.
-    </p>
+  <header style="padding:20px 0 8px;border-bottom:1px solid var(--line);margin-bottom:16px">
+    <p style="font-size:11px;letter-spacing:.08em;color:var(--muted);font-weight:800;margin:0">BUILD → CREATE → UPLOAD → SHOW → FEEDBACK → IMPROVE → PUBLISH</p>
+    <h1 style="font-family:Space Grotesk,sans-serif;font-size:26px;font-weight:800;margin:8px 0 6px">What do you want to build?</h1>
+    <p style="font-size:13px;color:var(--muted);line-height:1.6;max-width:640px;margin:0">Three honest ways to start. Pick one — the rest is the same, and it ends with a project other builders can see, judge and remix.</p>
   </header>
 
   {% if pending_skill_use %}
-  <div class="build-pending">
-    ⌘ You picked up the Builder Skill
-    <a href="{{ pending_skill_use.skill.get_absolute_url }}" style="color:var(--link);font-weight:700">{{ pending_skill_use.skill.title }}</a>{% if pending_skill_use.skill_version %}
-    ({{ pending_skill_use.skill_version.label }}){% endif %}.
-    The next project you publish is credited to it as proof —
-    <a href="{% url 'publish' %}" style="color:var(--link);font-weight:700">publish it now →</a>
+  <div style="background:var(--accent-soft-bg);border:1px solid var(--accent-border);border-radius:14px;padding:14px 16px;font-size:13px;line-height:1.6;margin-bottom:16px">
+    ⌘ You picked up Builder Skill <a href="{{ pending_skill_use.skill.get_absolute_url }}" style="color:var(--link);font-weight:700">{{ pending_skill_use.skill.title }}</a>{% if pending_skill_use.skill_version %} ({{ pending_skill_use.skill_version.label }}){% endif %}. The next project you publish is credited to it as proof — <a href="{% url 'publish' %}" style="color:var(--link);font-weight:700">publish it now →</a>
   </div>
   {% endif %}
 
-  <div class="build-paths">
-    <article class="build-path">
-      <h2>1 · Start from scratch</h2>
-      <p>Your own idea, your own files. Zip an app or paste a snippet — BlaqVibes scans it, then shows the story of what you built.</p>
-      <a class="btn-violet build-path__go" href="{% url 'publish' %}" style="padding:9px 14px">Start from scratch →</a>
-      <span style="font-size:11px;color:var(--muted)">Not sure what to make? <a href="{% url 'starter_gallery' %}" style="color:var(--link)">Open a starter template</a>.</span>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:8px">
+    <article style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:8px">
+      <h2 style="font-family:Space Grotesk,sans-serif;font-size:15px;margin:0">Start from scratch</h2>
+      <p style="margin:0;font-size:13px;line-height:1.6;color:var(--muted)">Your own idea, your own files. Zip an app or paste a snippet — scanned, then shown as what you built.</p>
+      <a href="{% url 'publish' %}" class="btn-violet" style="margin-top:auto;align-self:flex-start;padding:10px 16px">START FROM SCRATCH →</a>
     </article>
-
-    <article class="build-path">
-      <h2>2 · Remix a project</h2>
-      <p>Take something that already works, change it, publish your version. The original creator keeps their credit, sees where the idea travelled, and the lineage stays visible forever.</p>
-      <a class="btn-ghost build-path__go" href="{% url 'discover' %}" style="padding:9px 14px">Find something to remix →</a>
+    <article style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:8px">
+      <h2 style="font-family:Space Grotesk,sans-serif;font-size:15px;margin:0">Remix a project</h2>
+      <p style="margin:0;font-size:13px;line-height:1.6;color:var(--muted)">Take something that works, change it, publish your version. Origin preserved, lineage visible forever.</p>
+      <a href="{% url 'discover' %}" class="btn-ghost" style="margin-top:auto;align-self:flex-start;padding:10px 16px">REMIX A PROJECT →</a>
     </article>
-
-    <article class="build-path">
-      <h2>3 · Use a Builder Skill</h2>
-      <p>Learn how another builder solves this problem, then build with it. Your published project becomes that skill's proof — and the exact skill version you used is recorded.</p>
-      <a class="btn-ghost build-path__go" href="{% url 'skills' %}" style="padding:9px 14px">Browse Builder Skills →</a>
+    <article style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:8px">
+      <h2 style="font-family:Space Grotesk,sans-serif;font-size:15px;margin:0">Use a Builder Skill</h2>
+      <p style="margin:0;font-size:13px;line-height:1.6;color:var(--muted)">Learn how another builder solves it, then build with it. Your project becomes that skill's proof — exact version recorded.</p>
+      <a href="{% url 'skills' %}" class="btn-ghost" style="margin-top:auto;align-self:flex-start;padding:10px 16px">USE A BUILDER SKILL →</a>
     </article>
   </div>
 
-  <section class="dsc-section">
-    <header>
-      <h2>What happens after you start</h2>
-      <p>The same six steps, whichever path you picked.</p>
-    </header>
-    <div class="build-flow">
-      {% for name, note in steps %}
-      <div class="build-step"><b>{{ name }}</b><span>{{ note }}</span></div>
-      {% endfor %}
+  <section style="margin-top:24px">
+    <h2 style="font-size:13px;font-weight:800;letter-spacing:.06em;color:var(--muted);margin:0">WHAT HAPPENS AFTER YOU START</h2>
+    <div style="margin-top:10px;display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px">
+      {% for name,note in steps %}<div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px"><b style="display:block;font-size:11px;letter-spacing:.06em;color:var(--accent-text)">{{ name }}</b><span style="display:block;margin-top:4px;font-size:12px;line-height:1.5;color:var(--muted)">{{ note }}</span></div>{% endfor %}
     </div>
+    <div style="margin-top:8px;font-size:11px;color:var(--muted)">Progressive disclosure: only show what the builder needs at this step. The publish form reveals file upload, README, and checks one stage at a time.</div>
   </section>
 
   {% if my_drafts %}
-  <section class="dsc-section">
-    <header><h2>Finish what you started</h2><p>Your projects that are not public yet.</p></header>
-    {% for p in my_drafts %}
-    <div class="dsc-row">
-      <a href="{{ p.get_absolute_url }}">{{ p.title }}</a>
-      <span class="dsc-row__count">{{ p.get_status_display }}</span>
-    </div>
-    {% endfor %}
+  <section style="margin-top:22px">
+    <h2 style="font-size:13px;font-weight:800;letter-spacing:.06em;color:var(--muted);margin:0 0 8px">FINISH WHAT YOU STARTED</h2>
+    {% for p in my_drafts %}<div style="display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px;margin-bottom:8px"><a href="{{ p.get_absolute_url }}" style="color:var(--link);font-weight:700">{{ p.title }}</a><span style="margin-left:auto;font-size:11px;color:var(--muted)">{{ p.get_status_display }}</span></div>{% endfor %}
   </section>
   {% endif %}
 
-  <section class="dsc-section">
-    <header>
-      <h2>⑂ Worth remixing right now</h2>
-      <p>Published, scanned and already working — a good place to start changing something.</p>
-    </header>
-    <div class="dsc-grid">
-      {% for p in remixable %}{% include 'gallery/_project_card.html' with p=p cta="Open and remix →" %}{% empty %}
-      <div class="dsc-empty">No projects to remix yet — start from scratch and be the origin of the first family.</div>
-      {% endfor %}
-    </div>
+  <section style="margin-top:22px">
+    <h2 style="font-size:13px;font-weight:800;letter-spacing:.06em;color:var(--muted);margin:0 0 8px">⑂ WORTH REMIXING RIGHT NOW — PUBLISHED, SCANNED, WORKING</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px">{% for p in remixable %}{% include 'gallery/_project_card.html' with p=p cta="Open and remix →" %}{% empty %}<div style="background:var(--input);border:1px dashed var(--line);border-radius:12px;padding:16px;font-size:13px;color:var(--muted)">No projects to remix yet — start from scratch and be the origin of the first family.</div>{% endfor %}</div>
   </section>
 
-  <section class="dsc-section">
-    <header>
-      <h2>⌘ Skills that produced real projects</h2>
-      <p>SKILL → BUILD → PROJECT → PROOF. These already have proof behind them.</p>
-    </header>
-    <div class="dsc-grid">
-      {% for skill in skills %}
-      <a class="pcard" href="{{ skill.get_absolute_url }}">
-        <div class="pcard__top"><strong class="pcard__title">{{ skill.title }}</strong><span class="pcard__method">{{ skill.get_difficulty_display }}</span></div>
-        <p class="pcard__desc">{{ skill.summary }}</p>
-        <div class="pcard__meta">by @{{ skill.creator.username }} · {{ skill.projects_created }} project{{ skill.projects_created|pluralize }} built from it</div>
-        <span class="pcard__cta">Start building with it →</span>
-      </a>
-      {% empty %}
-      <div class="dsc-empty">No Builder Skills yet. <a href="{% url 'skills' %}">Publish the way you build →</a></div>
-      {% endfor %}
-    </div>
+  <section style="margin-top:22px">
+    <h2 style="font-size:13px;font-weight:800;letter-spacing:.06em;color:var(--muted);margin:0 0 8px">⌘ SKILLS THAT PRODUCED REAL PROJECTS — SKILL→VERSION→USE→BUILD→PROJECT→PROOF</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:12px">{% for skill in skills %}<a href="{{ skill.get_absolute_url }}" style="display:block;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;text-decoration:none;color:inherit"><div style="display:flex;gap:8px;align-items:baseline;justify-content:space-between"><strong style="font-size:14px;font-weight:800">{{ skill.title }}</strong><span style="font-size:10px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:100px;padding:2px 8px;white-space:nowrap">{{ skill.get_difficulty_display }}</span></div><p style="margin:6px 0 0;font-size:12px;line-height:1.55;color:var(--muted)">{{ skill.summary }}</p><div style="margin-top:8px;font-size:11px;color:var(--muted)">by @{{ skill.creator.username }} · {{ skill.projects_created }} project{{ skill.projects_created|pluralize }} built from it</div><span style="display:inline-block;margin-top:10px;font-size:12px;font-weight:700;color:var(--link)">Start building with it →</span></a>{% empty %}<div style="background:var(--input);border:1px dashed var(--line);border-radius:12px;padding:16px;font-size:13px;color:var(--muted)">No Builder Skills yet. <a href="{% url 'skills' %}" style="color:var(--link)">Publish the way you build →</a></div>{% endfor %}</div>
   </section>
 
   {% if daily %}
-  <section class="dsc-section">
-    <div class="dsc-row">
-      <span>🏆</span>
-      <span>Need a prompt to start? Today's challenge: <a href="{% url 'challenge_detail' daily.tag %}">{{ daily.title }}</a></span>
-      <span class="dsc-row__count">{{ daily.submission_count }} submission{{ daily.submission_count|pluralize }}</span>
-    </div>
-  </section>
+  <section style="margin-top:22px"><div style="display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px"><span>🏆</span><span>Need a prompt? Today's challenge: <a href="{% url 'challenge_detail' daily.tag %}" style="color:var(--link);font-weight:700">{{ daily.title }}</a></span><span style="margin-left:auto;font-size:11px;color:var(--muted)">{{ daily.submission_count }} submission{{ daily.submission_count|pluralize }}</span></div></section>
   {% endif %}
 
   {% if not user.is_authenticated %}
-  <section class="dsc-section">
-    <div class="dsc-row" style="justify-content:center;gap:12px;flex-wrap:wrap">
-      <span>Publishing needs an account — building does not have to wait.</span>
-      <a href="{% url 'signup' %}" class="btn-violet" style="padding:8px 14px">Create an account →</a>
-      <a href="{% url 'login' %}" class="btn-ghost" style="padding:8px 14px">Sign in</a>
-    </div>
-  </section>
+  <section style="margin-top:22px"><div style="display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;justify-content:center;flex-wrap:wrap;font-size:13px"><span>Publishing needs an account — building does not have to wait.</span><a href="{% url 'signup' %}" class="btn-violet" style="padding:8px 14px">Create account →</a><a href="{% url 'login' %}" class="btn-ghost" style="padding:8px 14px">Sign in</a></div></section>
   {% endif %}
+
+  {# Success state hint per spec — VIEW/SHARE/REMIX ANOTHER #}
+  <section style="margin-top:22px;background:var(--success-bg);border:1px solid var(--success-border);border-radius:12px;padding:12px">
+    <div style="font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--success-text)">AFTER YOU PUBLISH — SUCCESS STATE</div>
+    <div style="margin-top:6px;font-size:12px;color:var(--muted);line-height:1.6">Your project is live. What next? <b style="color:var(--text)">VIEW</b> it on the feed, <b style="color:var(--text)">SHARE</b> the link (it previews with story card), or <b style="color:var(--text)">REMIX ANOTHER</b> project to keep the loop going. Every published project creates next interaction.</div>
+  </section>
 </div>
 {% endblock %}

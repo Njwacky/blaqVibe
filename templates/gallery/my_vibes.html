@@ -50,7 +50,7 @@
         {% if p.status == 'published' %}<a href="{% url 'edit_vibe' slug=p.slug %}" style="font-size:11px;color:var(--link);text-decoration:none">✏️ Edit</a>{% endif %}
       </div>
     </a>
-    {% empty %}<div style="grid-column:1/-1;color:var(--muted)">No vibes yet. <a href="{% url 'publish' %}" style="color:var(--link)">Publish your first vibe</a></div>{% endfor %}
+    {% empty %}<div style="grid-column:1/-1;color:var(--muted)">Your first project starts here. Build something, show it, and let other builders react to it. <a href="{% url 'build_hub' %}" style="color:var(--link);font-weight:700">Start building →</a></div>{% endfor %}
   </div>
 </div>
 {% endblock %}
