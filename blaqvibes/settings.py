@@ -126,6 +126,9 @@ PAYSTACK_ENABLED = bool(PAYSTACK_SECRET_KEY)
 # Optional Nolo backends. Claude is used only when this key is set — never faked.
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '').strip()
 ANTHROPIC_MODEL = os.getenv('ANTHROPIC_MODEL', 'claude-3-5-haiku-latest')
+# AnyPost API key for social media posting
+ANYPOST_API_KEY = os.getenv('ANYPOST_API_KEY', '').strip()
+ANYPOST_ENABLED = bool(ANYPOST_API_KEY)
 
 # Seed the demo catalog when the published grid is empty (local / CI).
 # Production stays empty until an operator runs `python manage.py seed_demo`
