@@ -83,7 +83,7 @@
         >{% endif %}
       </div>
       <div style="font-size: 13px; color: var(--text); margin: 6px 0">
-        {{ profile.bio|default:"No bio yet — what do you build?" }}
+        {% if profile_user.username|slice:":5" == "demo_" %}<span class="badge badge--accent" style="font-size:10px;margin-right:6px">BLAQVIBES DEMO</span>{% endif %}{{ profile.bio|default:"No bio yet — what do you build?" }}
       </div>
       {% if progress %}
       <div style="margin-top:8px;max-width:420px">

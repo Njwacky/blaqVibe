@@ -53,6 +53,27 @@ DEBUG=1 python manage.py runserver 0.0.0.0:8000
 
 `DEBUG` defaults to **off** (fail-closed). Set `DEBUG=1` for local development so `runserver` serves static/media. Production must keep `DEBUG=0` and set a real `SECRET_KEY`.
 
+## Demo Content
+
+`seed_demo_content` creates an honest showcase catalogue for first-time visitors: five clearly labelled demo creator profiles, fourteen sample projects, four challenge prompts, and seven Builder Skills. The profiles use stable `demo_` usernames and say **Demo profile** in their bios; project cards and profiles display a **BLAQVIBES DEMO** badge. This content is sample work created by BlaqVibes, not user activity or testimonials.
+
+The command creates no likes, comments, follows, messages, sales, stars, or fake statistics. Demo accounts have unusable passwords, so the seed cannot create public logins. It is safe to run repeatedly and never deletes data or overwrites a real account/project with a colliding identifier.
+
+```bash
+python manage.py migrate
+python manage.py seed_demo_content
+```
+
+For Render Free, run it once as part of a temporary Start Command after migrations, then restore the normal web-server command. For example:
+
+```bash
+python manage.py migrate && python manage.py seed_demo_content && gunicorn blaqvibes.wsgi:application --bind 0.0.0.0:8000 --workers 3
+```
+
+Do not run this command automatically on every request. It is opt-in and does not add a public seed URL. To remove showcase content, review the stable `demo_` usernames, `demo-` project slugs, `demo-` skill slugs and challenge tags in the database, then delete only those records through an authenticated admin/database maintenance procedure; the command itself never deletes anything.
+
+The older `seed_demo` command remains a local development fixture for the existing starter catalogue. Use `seed_demo_content` for the production-safe showcase content described here.
+
 The demo seed is intentionally blocked on public/production-style hosts. **Demo passwords are never documented in this repository**; use the environment variables and local provisioning commands described below.
 
 ## Admin provisioning
