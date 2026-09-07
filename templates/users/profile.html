@@ -1,5 +1,7 @@
 {% extends 'gallery/base.html' %} {% block title %}@{{ profile_user.username }}
-— BlaqVibes{% endblock %} {% block content %}
+— BlaqVibes{% endblock %} {% block og_title %}@{{ profile_user.username }} on BlaqVibes — see what they're building{% endblock %} {% block og_desc %}Builder on BlaqVibes · {{ published_count }} published project{{ published_count|pluralize }} · {{ stars_received }} stars received · {{ followers_count }} follower{{ followers_count|pluralize }}{% endblock %} {% block head %}<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="@{{ profile_user.username }} on BlaqVibes" />
+<meta name="twitter:description" content="Builder on BlaqVibes · {{ published_count }} published project{{ published_count|pluralize }} · {{ stars_received }} stars received" />{% endblock %} {% block content %}
 <div style="max-width: 1100px; margin: 0 auto; padding: 20px">
   <div
     style="

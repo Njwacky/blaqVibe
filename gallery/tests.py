@@ -4255,3 +4255,33 @@ class IdentityAndShareTests(TestCase):
     def test_feed_cards_show_how_far_an_idea_travelled(self):
         response = self.client.get('/')
         self.assertContains(response, '⑂ 1')
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class ListCompletionTests(TestCase):
+    """Final items of the architecture list: §20 gamification stays in the
+    background, §14 share previews for creator links, §10 full buyer
+    clarity."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.cat = make_category()
+        self.owner = make_user('listowner')
+
+    def test_challenges_page_does_not_lead_with_xp(self):
+        response = self.client.get('/challenges/')
+        self.assertNotContains(response, 'earns XP')
+        self.assertContains(response, 'builder record')
+
+    def test_profile_page_carries_share_meta(self):
+        response = self.client.get('/u/%s/' % self.owner.username)
+        self.assertContains(response, '@listowner on BlaqVibes')
+        self.assertContains(response, 'twitter:card')
+
+    def test_buy_box_states_usage_terms(self):
+        project = make_project(self.owner, self.cat, title='Priced Clarity')
+        project.price_zar = 50
+        project.save()
+        response = self.client.get('/app/%s/' % project.slug)
+        self.assertContains(response, 'the project README carries the creator')

@@ -436,7 +436,8 @@
             {% if project.trust == 'verified' %}✓{% else %}–{% endif %} {% if project.trust == 'verified' %}Verified project — safety checked{% elif project.trust == 'scanned' %}Scanned project — pipeline ran{% else %}Scan status unknown — review before paying{% endif %}<br>
             ✓ Files included — {{ project.file_count }} file{{ project.file_count|pluralize }} in the ZIP<br>
             {% if project.can_run_preview %}✓ Preview available — try it before you buy{% else %}– No live preview — files + README only{% endif %}<br>
-            ✓ Built by <a href="{% url 'profile_view' project.owner.username %}" style="color:var(--link)">@{{ project.owner.username }}</a>
+            ✓ Built by <a href="{% url 'profile_view' project.owner.username %}" style="color:var(--link)">@{{ project.owner.username }}</a><br>
+            ✓ Usage — the project README carries the creator's license terms; downloads are for personal use unless it says more
           </div>
           {% if paystack_enabled %}
             {% if user.is_authenticated and user != project.owner and not has_bought %}
