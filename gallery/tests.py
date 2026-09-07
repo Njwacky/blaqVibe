@@ -4023,3 +4023,53 @@ class ProjectStoryTests(TestCase):
         # No creator-money language leaks into the buy path (§1).
         self.assertNotContains(response, 'creator payout')
         self.assertNotContains(response, 'cash out')
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class RemixFamilyTreeTests(TestCase):
+    """Section 3: the family tree must read 'this idea started here and
+    evolved through different builders' — nested, honest, gated."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.cat = make_category()
+        self.owner = make_user('treeowner')
+        self.r1 = make_user('remixer1')
+        self.r2 = make_user('remixer2')
+        self.r3 = make_user('remixer3')
+        self.root = make_project(self.owner, self.cat, title='Family Root')
+        self.fork_a = make_project(self.r1, self.cat, title='Fork A', forked_from=self.root)
+        self.fork_a1 = make_project(self.r3, self.cat, title='Fork A1', forked_from=self.fork_a)
+        self.fork_b = make_project(self.r2, self.cat, title='Fork B', forked_from=self.root)
+
+    def test_tree_renders_every_generation(self):
+        response = self.client.get(f'/app/{self.root.slug}/forks/')
+        self.assertEqual(response.status_code, 200)
+        for title in ('Family Root', 'Fork A', 'Fork A1', 'Fork B'):
+            self.assertContains(response, title)
+        self.assertContains(response, 'ORIGINAL PROJECT')
+        self.assertContains(response, 'Remixed from @remixer1')  # A1 knows its parent
+        self.assertContains(response, 'This idea started with')
+
+    def test_tree_stats_count_the_whole_family(self):
+        response = self.client.get(f'/app/{self.root.slug}/forks/')
+        self.assertContains(response, '>3<')   # total remixes (A, A1, B)
+        self.assertContains(response, '>2<')   # generations deep
+        self.assertContains(response, '>4<')   # builders: owner + 3 remixers
+
+    def test_opening_the_network_from_a_fork_lands_on_the_same_tree(self):
+        response = self.client.get(f'/app/{self.fork_a1.slug}/forks/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Family Root')
+        self.assertContains(response, 'Fork B')
+
+    def test_strangers_do_not_see_unpublished_remixes(self):
+        hidden = make_project(self.r3, self.cat, title='Secret Remix',
+                             forked_from=self.root, status='pending')
+        response = self.client.get(f'/app/{self.root.slug}/forks/')
+        self.assertNotContains(response, 'Secret Remix')
+        # …but the owner of the hidden remix sees their own row.
+        self.client.login(username='remixer3', password='pass12345')
+        response = self.client.get(f'/app/{self.root.slug}/forks/')
+        self.assertContains(response, 'Secret Remix')

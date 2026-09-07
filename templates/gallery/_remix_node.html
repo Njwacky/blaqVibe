@@ -1,0 +1,19 @@
+{# One node in the remix family tree — includes itself for children, so a
+   lineage of any depth renders as a real tree. Depth + width are capped in
+   gallery.views._remix_tree, never in the template. #}
+<div class="remix-tree__node">
+  <a href="{{ node.project.get_absolute_url }}" class="remix-node{% if is_root %} remix-node--root{% endif %}">
+    <div class="remix-node__title">{{ node.project.title }}</div>
+    <div class="remix-node__meta">@{{ node.project.owner.username }} · ★ {{ node.project.stars }}{% if node.children %} · {{ node.children|length }} remix{{ node.children|length|pluralize }}{% endif %}</div>
+    <div class="remix-node__origin">
+      {% if node.project.forked_from %}Remixed from @{{ node.project.forked_from.owner.username }}{% else %}ORIGINAL PROJECT · {{ node.project.tech_stack|default:"No stack listed" }}{% endif %}
+    </div>
+  </a>
+  {% if node.children %}
+  <div class="remix-tree__children">
+    {% for child in node.children %}
+      {% include 'gallery/_remix_node.html' with node=child %}
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>

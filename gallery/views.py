@@ -1700,21 +1700,69 @@ def fork_network(request, slug):
         visible = Q(status='published')
         if getattr(request.user, 'is_authenticated', False):
             visible = visible | Q(owner=request.user)
-        # All forks in network (direct + indirect)
-        forks = AppProject.objects.filter(forked_from__isnull=False).filter(visible).filter(
-            # Simple: direct forks of root + forks of forks (1 level deep for demo, at scale recursive CTE)
-            Q(forked_from=root) | Q(forked_from__forked_from=root)
-        ).select_related('owner','forked_from').order_by('-created_at')[:20]
-        # Fallback if no indirect, just direct
-        if not forks.exists():
-            forks = AppProject.objects.filter(forked_from=root).filter(visible).select_related('owner')[:20]
-        return render(request, 'gallery/fork_network.html', {'root': root, 'forks': forks})
+        tree, remix_total, tree_depth, builder_names = _remix_tree(root, visible)
+        return render(request, 'gallery/fork_network.html', {
+            'root': root,
+            'forks': AppProject.objects.none(),  # legacy context, kept harmless
+            'tree': tree,
+            'remix_total': remix_total,
+            'tree_depth': tree_depth,
+            'builder_count': len(builder_names),
+        })
     except Exception as e:
         import logging
         logging.getLogger(__name__).exception(f"fork_network crush: {e}")
         # Crush fallback: root is already visibility-gated above, so it is
         # safe to render an empty network from it (never re-fetch ungated).
-        return render(request, 'gallery/fork_network.html', {'root': root, 'forks': AppProject.objects.none()})
+        return render(request, 'gallery/fork_network.html', {
+            'root': root,
+            'forks': AppProject.objects.none(),
+            'tree': {'project': root, 'children': []},
+            'remix_total': 0,
+            'tree_depth': 0,
+            'builder_count': 0,
+        })
+
+def _remix_tree(root, visible, max_depth=4, max_children=12):
+    """Build the remix FAMILY TREE under `root` (section 3).
+
+    BFS, one query per level, capped: depth 4 and 12 children per node is
+    already a rich story, and a pathological fan-out can never DoS the
+    page. Returns (tree, total_remixes, depth_reached, builder_usernames).
+    A visitor should be able to read it as: "this idea started here and
+    evolved through different builders."
+    """
+    root_node = {'project': root, 'children': []}
+    frontier = [root_node]
+    builders = {root.owner.username}
+    total = 0
+    depth = 0
+    while frontier and depth < max_depth:
+        parents = {n['project'].pk: n for n in frontier}
+        kids = (
+            AppProject.objects.filter(forked_from_id__in=list(parents.keys()))
+            .filter(visible)
+            .select_related('owner', 'forked_from__owner')
+            .order_by('-stars', '-created_at')
+        )
+        per_parent = {}
+        for kid in kids:
+            total += 1
+            builders.add(kid.owner.username)
+            bucket = per_parent.setdefault(kid.forked_from_id, [])
+            if len(bucket) < max_children:
+                bucket.append(kid)
+        if not per_parent:
+            break  # no children at this level — depth already counted
+        next_frontier = []
+        for parent_id, bucket in per_parent.items():
+            for kid in bucket:
+                child = {'project': kid, 'children': []}
+                parents[parent_id]['children'].append(child)
+                next_frontier.append(child)
+        frontier = next_frontier
+        depth += 1
+    return root_node, total, depth, builders
 
 # Safe error pages — don't scare user with HttpResponse, show friendly fork image, "It's not you, it's me"
 def safe_404(request, exception=None):
