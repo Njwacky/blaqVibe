@@ -3,6 +3,7 @@ from . import views, trading_views, api_views, launch_views, health
 from .csp_views import csp_report
 from .moderation import moderation_queue, moderation_action, reports_queue, report_action
 from .skill_views import skill_list, skill_detail, use_skill, create_skill
+from .share_card import share_card
 urlpatterns = [
     # Ops probes: liveness (process up) and readiness (DB reachable).
     # Unauthenticated, no-store JSON — see gallery/health.py.
@@ -64,6 +65,7 @@ urlpatterns = [
     path('app/<slug:slug>/save/', views.toggle_bookmark, name='toggle_bookmark'),
     path('app/<slug:slug>/fork/', views.fork_vibe, name='fork_vibe'),
     path('app/<slug:slug>/forks/', views.fork_network, name='fork_network'),
+    path('app/<slug:slug>/share-card.png', share_card, name='share_card'),
     path('app/<slug:slug>/pr/create/', views.create_pr, name='create_pr'),
     path('app/<slug:slug>/prs/', views.pr_list, name='pr_list'),
     path('app/<slug:slug>/prs/<int:pr_id>/', views.pr_action, name='pr_action'),

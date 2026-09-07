@@ -4123,3 +4123,68 @@ class BuilderSkillLoopTests(TestCase):
         project = make_project(self.builder, self.cat, title='Unrelated App')
         response = self.client.get(f'/app/{project.slug}/')
         self.assertNotContains(response, 'Built using Builder Skill')
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class FeedDiscoveryRailsTests(TestCase):
+    """§5 + §12: the unfiltered feed shows what people are building and
+    remixing — the reason to come back tomorrow."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.cat = make_category()
+        self.owner = make_user('railowner')
+        self.remixer = make_user('railremixer')
+        self.original = make_project(self.owner, self.cat, title='Rail Original')
+        self.fork = make_project(self.remixer, self.cat, title='Rail Remix', forked_from=self.original)
+
+    def test_feed_tells_the_remix_story(self):
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Fresh remixes')
+        self.assertContains(response, 'Rail Remix')
+        self.assertContains(response, 'railremixer')
+        self.assertContains(response, 'remixed')
+        self.assertContains(response, 'Rail Original')
+
+    def test_activity_strip_counts_remixes(self):
+        response = self.client.get('/')
+        self.assertContains(response, 'remixes')
+        self.assertContains(response, 'published')
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class ShareCardTests(TestCase):
+    """§14: a shared project link must preview beautifully — name, creator,
+    what it does, build method, stars, remixes — even without a thumbnail."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.cat = make_category()
+        self.owner = make_user('cardowner')
+        self.project = make_project(self.owner, self.cat, title='Card Project')
+
+    def test_share_card_is_a_png_for_published_projects(self):
+        response = self.client.get('/app/%s/share-card.png' % self.project.slug)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'image/png')
+        self.assertEqual(response.content[:8], b'\x89PNG\r\n\x1a\n')
+
+    def test_unpublished_projects_do_not_get_a_card(self):
+        draft = make_project(self.owner, self.cat, title='Draft Card', status='scanning')
+        response = self.client.get('/app/%s/share-card.png' % draft.slug)
+        self.assertEqual(response.status_code, 404)
+
+    def test_project_page_advertises_rich_share_meta(self):
+        response = self.client.get('/app/%s/' % self.project.slug)
+        self.assertContains(response, 'summary_large_image')
+        self.assertContains(response, 'twitter:title')
+        self.assertContains(response, 'by @cardowner')
+        self.assertContains(response, 'share-card.png')
+
+    def test_glyph_safe_mapping_never_leaves_tofu_prone_symbols(self):
+        from gallery.share_card import _glyph_safe
+        self.assertEqual(_glyph_safe('Trade 2 ★ to download'), 'Trade 2 * to download')
+        self.assertEqual(_glyph_safe('go → next'), 'go -> next')

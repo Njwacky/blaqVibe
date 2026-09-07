@@ -1,4 +1,8 @@
-{% extends 'gallery/base.html' %} {% load static %} {% block title %}{{project.title }} — BlaqVibes{% endblock %} {% block og_title %}{{ project.title}} — BlaqVibes{% endblock %} {% block og_desc %}{{ project.short_description}}{% endblock %} {% block meta_desc %}{{ project.short_description }}{% endblock%} {% block og_image %}{% if project.thumbnail %}{{ request.scheme }}://{{request.get_host }}{{ project.thumbnail.url }}{% else %}{{ block.super }}{%endif %}{% endblock %} {% block head %}
+{% extends 'gallery/base.html' %} {% load static %} {% block title %}{{project.title }} — BlaqVibes{% endblock %} {% block og_title %}{{ project.title}} by @{{ project.owner.username }} — BlaqVibes{% endblock %} {% block og_desc %}{{ project.short_description|truncatechars:160 }} · Built by @{{ project.owner.username }} · {{ project.build_method_label }} · ★ {{ project.stars }}{% endblock %} {% block meta_desc %}{{ project.short_description|truncatechars:160 }} · by @{{ project.owner.username }}{% endblock%} {% block og_image %}{% if project.thumbnail %}{{ request.scheme }}://{{request.get_host }}{{ project.thumbnail.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% url 'share_card' project.slug %}{% endif %}{% endblock %} {% block head %}
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="{{ project.title }} by @{{ project.owner.username }} — BlaqVibes" />
+<meta name="twitter:description" content="{{ project.short_description|truncatechars:160 }}" />
+<meta name="twitter:image" content="{% if project.thumbnail %}{{ request.scheme }}://{{ request.get_host }}{{ project.thumbnail.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% url 'share_card' project.slug %}{% endif %}" />
 <script type="application/ld+json">
   {
     "@context": "https://schema.org",

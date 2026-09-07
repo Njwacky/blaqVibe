@@ -94,8 +94,7 @@
     </select>
     <label class="filter-check"
       title="Only show vibes the scan pipeline verified — virus clean, no leaked secrets, real dependencies. See /trust/"><input
-        type="checkbox" name="trust" value="verified" {% if trust == 'verified' %}checked{% endif %} /> 🛡️ Checked
-      only</label>
+        type="checkbox" name="trust" value="verified" {% if trust == 'verified' %}checked{% endif %} /> 🛡️ Checked only</label>
     <label class="filter-check"><input type="checkbox" name="ai" value="1" {% if request.GET.ai == "1" %}checked{% endif %} />  AI</label>
     <span class="filter-actions"><button class="btnW" type="submit">Search</button><a href="{% url 'feed' %}"
         class="btnG">Reset</a></span>
@@ -124,8 +123,8 @@
     <div class="rail__head" style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px">
       <h2 style="font-size:13px;font-weight:800;margin:0">{% if trending_is_hot %}🔥 Trending this week{% else %}✨ New
         on BlaqVibes{% endif %}</h2>{% if activity %}<span class="rail__activity desktop-only" style="font-size:11px;color:var(--muted)">{{
-        activity.published }} published · {{ activity.stars }} stars · {{ activity.downloads }} downloads · {{
-        activity.trades }} trades in {{ activity.days }} days</span>{% endif %}
+        activity.published }} published · {{ activity.remixes }} remixes · {{ activity.stars }} stars · {{
+        activity.downloads }} downloads · {{ activity.trades }} trades in {{ activity.days }} days</span>{% endif %}
     </div>
     <div class="rail__row" style="display:flex;gap:10px;overflow-x:auto;padding-bottom:4px">{% for p in trending %}<a
         href="{{ p.get_absolute_url }}" class="card rail-card"
@@ -141,11 +140,12 @@
   {% if rising_creators or recent_remixes or suggested_creators %}<div class="rail-row desktop-only"
     style="margin-top:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
     {% if recent_remixes %}<div class="card" style="padding:12px">
-      <h3 style="font-size:12px;font-weight:800;margin:0 0 8px">⑂ Recently remixed</h3>{% for p in recent_remixes %}<div
+      <h3 style="font-size:12px;font-weight:800;margin:0 0 8px">⑂ Fresh remixes — ideas on the move</h3>{% for p in recent_remixes %}<div
         style="margin-bottom:6px;font-size:12px"><a href="{{ p.get_absolute_url }}" style="color:var(--link)">{{
           p.title|truncatechars:26 }}</a>
-        <div style="font-size:11px;color:var(--muted)">by @{{ p.owner.username }}{% if p.forked_from %} · remix of {{
-          p.forked_from.title|truncatechars:18 }}{% endif %}</div>
+        <div style="font-size:11px;color:var(--muted)">@{{ p.owner.username }} remixed {% if p.forked_from %}<a
+            href="{{ p.forked_from.get_absolute_url }}" style="color:var(--link)">{{
+            p.forked_from.title|truncatechars:18 }}</a> by @{{ p.forked_from.owner.username }}{% else %}another project{% endif %}</div>
       </div>{% endfor %}
     </div>{% endif %}
     {% if rising_creators %}<div class="card" style="padding:12px">
