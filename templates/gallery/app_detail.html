@@ -31,7 +31,7 @@
   <div>
     {# ── PROJECT → WHAT IS THIS → WHO BUILT — title before badges per B ── #}
     <div class="card" style="padding:16px;margin-bottom:14px">
-      <h1 style="font-family:Space Grotesk,sans-serif;font-size:26px;line-height:1.15;font-weight:800;margin:0">{{ project.title }}</h1>
+      <h1 style="font-family:Space Grotesk,sans-serif;font-size:26px;line-height:1.15;font-weight:800;margin:0">{{ project.title }} {% if project.owner.username|slice:":5" == "demo_" %}<span class="badge badge--accent" style="font-size:10px;vertical-align:middle">BLAQVIBES DEMO</span>{% endif %}</h1>
       <p style="font-size:14px;color:var(--text);margin-top:8px;line-height:1.6">{{ project.short_description }}</p>
       <div style="margin-top:10px;font-size:13px;display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span style="color:var(--muted)">Built by</span><a href="{% url 'profile_view' project.owner.username %}" style="color:var(--link);font-weight:700">@{{ project.owner.username }}</a>{% if project.owner.profile.rank %}<span style="font-size:10px;background:var(--warning-bg);color:var(--warning-text);padding:2px 6px;border-radius:6px">{{ project.owner.profile.rank.name }}</span>{% endif %}{% for co in project.co_owners.all %}{% if forloop.first %}<span style="color:var(--muted)">with</span>{% endif %}<a href="{% url 'profile_view' co.user.username %}" style="color:var(--link)">@{{ co.user.username }}</a>{% if not forloop.last %},{% endif %}{% endfor %}</div>
       <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
