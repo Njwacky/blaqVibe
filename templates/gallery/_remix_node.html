@@ -1,6 +1,6 @@
-{# One node in the remix family tree — includes itself for children, so a
+{% comment %}One node in the remix family tree — includes itself for children, so a
    lineage of any depth renders as a real tree. Depth + width are capped in
-   gallery.views._remix_tree, never in the template. #}
+   gallery.views._remix_tree, never in the template.{% endcomment %}
 <div class="remix-tree__node">
   <a href="{{ node.project.get_absolute_url }}" class="remix-node{% if is_root %} remix-node--root{% endif %}">
     <div class="remix-node__title">{{ node.project.title }}</div>

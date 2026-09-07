@@ -1092,11 +1092,21 @@ class LaunchGuideTests(TestCase):
         self.assertContains(response, 'Docker Hub stores and distributes images')
         self.assertContains(response, 'Deploy it on a real runtime')
 
-    def test_navigation_links_to_launch_hub(self):
+    def test_launch_hub_is_reachable_but_not_primary_navigation(self):
+        """§4: primary nav is five destinations; Launch is a utility.
+
+        Launch guides stay one click away (footer, and the account menu for
+        signed-in builders) — they are just not allowed to compete with
+        "what are people building?" at the top of every page.
+        """
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'href="/launch/"', html=False)
-        self.assertContains(response, 'Launch')
+        body = response.content.decode()
+        nav = body[body.index('<div class="nav-links"'):body.index('</nav>')]
+        self.assertNotIn('/launch/', nav)
+        for destination in ('/discover/', '/skills/', '/challenges/', '/build/'):
+            self.assertIn(destination, nav)
 
     def test_unknown_artifact_is_surfaced(self):
         response = self.client.get('/launch/?artifact=aws-s3')
@@ -4097,14 +4107,20 @@ class BuilderSkillLoopTests(TestCase):
             difficulty='beginner',
         )
 
-    def test_nav_says_builder_skills(self):
+    def test_nav_is_the_five_primary_destinations(self):
+        """§4: PROJECTS | DISCOVER | SKILLS | CHALLENGES | BUILD, and the
+        prompt-era vocabulary is gone from the chrome (§15)."""
         response = self.client.get('/')
-        self.assertContains(response, 'Builder skills')
-        self.assertNotContains(response, 'Prompt skills')
+        body = response.content.decode()
+        nav = body[body.index('<div class="nav-links"'):body.index('</nav>')]
+        for label in ('Projects', 'Discover', 'Skills', 'Challenges', 'Build'):
+            self.assertIn(f'>{label}</a>', nav)
+        self.assertNotIn('Prompt skills', body)
+        self.assertNotIn('/prompt-skills/', body)
 
     def test_use_then_publish_links_the_project_as_proof(self):
         self.client.login(username='skillbuilder', password='pass12345')
-        response = self.client.post(f'/prompt-skills/{self.skill.slug}/use/')
+        response = self.client.post(f'/skills/{self.skill.slug}/use/')
         self.assertEqual(response.status_code, 302)
         project = make_project(self.builder, self.cat, title='My Inventory App')
         self.skill.refresh_from_db()
@@ -4114,7 +4130,7 @@ class BuilderSkillLoopTests(TestCase):
         self.assertContains(response, 'Built using Builder Skill')
         self.assertContains(response, 'Build a Django Inventory System')
         # …and the skill page shows the proof.
-        response = self.client.get(f'/prompt-skills/{self.skill.slug}/')
+        response = self.client.get(f'/skills/{self.skill.slug}/')
         self.assertContains(response, 'My Inventory App')
         self.assertContains(response, 'Produced 1 published project')
         self.assertContains(response, 'Start building with this skill')

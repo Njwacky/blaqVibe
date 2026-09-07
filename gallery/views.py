@@ -388,7 +388,7 @@ def app_detail(request, slug):
     # Skill attribution (§8): SKILL → BUILDER → PROJECT → PROOF, visible.
     built_from_skill = (
         SkillUse.objects.filter(project=project)
-        .select_related('skill')
+        .select_related('skill', 'skill_version')
         .order_by('-created_at')
         .first()
     )
@@ -1857,6 +1857,10 @@ def sitemap_xml(request):
     rows = ['<?xml version="1.0" encoding="UTF-8"?>',
             '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
             f'<url><loc>{settings.SITE_URL}/</loc></url>']
+    # The five primary destinations (§4) are public pages worth indexing —
+    # projects (/) plus the community, skills, challenge and build entries.
+    for path in ('/discover/', '/skills/', '/challenges/', '/build/'):
+        rows.append(f'<url><loc>{settings.SITE_URL}{path}</loc></url>')
     for p in projects:
         rows.append(f'<url><loc>{settings.SITE_URL}/app/{p.slug}/</loc><lastmod>{p.updated_at.date().isoformat()}</lastmod></url>')
     rows.append('</urlset>')

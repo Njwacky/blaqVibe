@@ -219,7 +219,9 @@ class ProfileAndFollowTests(TestCase):
         response = self.client.get('/u/maker/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '@maker')
-        self.assertContains(response, 'VIBES')
+        # §13: a profile is about the work — PROJECTS/REMIXES, not "vibes".
+        self.assertContains(response, 'PROJECTS')
+        self.assertContains(response, 'REMIXES')
         self.assertContains(response, 'FOLLOWERS')
         self.assertContains(response, 'Joined')
 
@@ -722,3 +724,138 @@ class PayoutRemovalTests(TestCase):
     def test_payments_module_has_no_creator_transfer_path(self):
         import gallery.payments as payments
         self.assertFalse(hasattr(payments, 'initiate_payout_transfer'))
+
+
+@override_settings(RATELIMIT_ENABLE=False)
+class BuilderProfileTests(TestCase):
+    """§13 — the profile answers "what does this person build?".
+
+    Projects, remixes, skills, activity and reputation are the hierarchy.
+    Gamification is present but never the headline.
+    """
+
+    def setUp(self):
+        from gallery.models import Category
+        self.cat = Category.objects.create(name='Apps', slug='profile-apps', type='full_app')
+        self.builder = User.objects.create_user('profilebuilder', password='pass12345', email='pb@test.com')
+        self.origin = User.objects.create_user('profileorigin', password='pass12345', email='po@test.com')
+
+    def _project(self, owner, title, **kw):
+        from gallery.models import AppProject
+        return AppProject.objects.create(
+            owner=owner, title=title, category=self.cat,
+            short_description='A short description of this project used in tests.',
+            readme='# Test\n\n' + ('Readme with enough characters. ' * 5),
+            status=kw.pop('status', 'published'), **kw,
+        )
+
+    def test_tabs_lead_with_the_work(self):
+        response = self.client.get('/u/profilebuilder/')
+        for label in ('Projects (', 'Remixes (', 'Skills (', 'Activity', 'Reputation'):
+            self.assertContains(response, label)
+
+    def test_legacy_vibes_tab_lands_on_projects(self):
+        self._project(self.builder, 'Legacy Landing')
+        response = self.client.get('/u/profilebuilder/?tab=vibes')
+        self.assertEqual(response.context['tab'], 'projects')
+        self.assertContains(response, 'Legacy Landing')
+
+    def test_remixes_tab_shows_lineage_and_counts_both_directions(self):
+        root = self._project(self.origin, 'Root Idea')
+        self._project(self.builder, 'My Remix', forked_from=root)
+        self._project(self.origin, 'Their Own Remix', forked_from=root)
+        response = self.client.get('/u/profilebuilder/?tab=remixes')
+        self.assertContains(response, 'My Remix')
+        self.assertContains(response, 'Remix of')
+        self.assertContains(response, 'Root Idea')
+        self.assertEqual(response.context['remix_count'], 1)
+        # And the origin's profile shows they were built upon.
+        response = self.client.get('/u/profileorigin/?tab=remixes')
+        self.assertEqual(response.context['remixed_by_others'], 1)
+
+    def test_skills_tab_shows_published_skills_and_proof(self):
+        from gallery.skill_models import Skill, SkillUse
+        skill = Skill.objects.create(
+            creator=self.builder, title='Ship weekly',
+            summary='A weekly shipping rhythm that survives real life.',
+            problem='Projects stall between weekends.',
+            workflow='Pick one slice, timebox it, publish it, write the next slice down.',
+        )
+        project = self._project(self.builder, 'Weekly Result')
+        SkillUse.objects.create(skill=skill, user=self.builder, project=project)
+        response = self.client.get('/u/profilebuilder/?tab=skills')
+        self.assertContains(response, 'Ship weekly')
+        self.assertContains(response, 'Weekly Result')
+        self.assertContains(response, 'v1')
+        self.assertEqual(response.context['skills_count'], 1)
+
+    def test_activity_tab_shows_platform_written_history_only(self):
+        self._project(self.builder, 'Evidence Project')
+        response = self.client.get('/u/profilebuilder/?tab=activity')
+        self.assertContains(response, 'Evidence Project')
+        self.assertContains(response, 'First version published')
+
+    def test_activity_tab_hides_unpublished_work_from_strangers(self):
+        self._project(self.builder, 'Secret Draft', status='pending')
+        response = self.client.get('/u/profilebuilder/?tab=activity')
+        self.assertNotContains(response, 'Secret Draft')
+
+    def test_reputation_tab_is_reputation_not_the_headline(self):
+        response = self.client.get('/u/profilebuilder/?tab=reputation')
+        self.assertContains(response, 'Stars received')
+        self.assertContains(response, 'Remixed by others')
+        self.assertContains(response, 'not the reason to be here')
+
+
+@override_settings(RATELIMIT_ENABLE=False)
+class SalesActivityMetricsTests(TestCase):
+    """§11 — Sales describes buyer ACTIVITY, never promised income."""
+
+    def setUp(self):
+        from gallery.models import Category
+        self.cat = Category.objects.create(name='Apps', slug='sales-apps', type='full_app')
+        self.seller = User.objects.create_user('metricseller', password='pass12345', email='ms@test.com')
+        self.buyer = User.objects.create_user('metricbuyer', password='pass12345', email='mb@test.com')
+        self.client.login(username='metricseller', password='pass12345')
+
+    def _project(self, title, **kw):
+        from gallery.models import AppProject
+        return AppProject.objects.create(
+            owner=self.seller, title=title, category=self.cat,
+            short_description='A short description of this project used in tests.',
+            readme='# Test\n\n' + ('Readme with enough characters. ' * 5),
+            status='published', **kw,
+        )
+
+    def test_metrics_report_activity_not_a_balance(self):
+        from gallery.models import AppProject, Sale, Trade
+        sold = self._project('Sold Project', star_cost=2, views=40)
+        AppProject.objects.filter(pk=sold.pk).update(views=40)
+        Trade.objects.create(buyer=self.buyer, seller=self.seller, project=sold, cost=2)
+        Sale.objects.create(buyer=self.buyer, seller=self.seller, project=sold, amount_zar=50)
+        self._project('Quiet Project')
+        response = self.client.get('/sales/')
+        metrics = response.context['metrics']
+        self.assertEqual(metrics['published'], 2)
+        self.assertEqual(metrics['projects_sold'], 1)
+        self.assertEqual(metrics['unlocks'], 2)
+        self.assertEqual(metrics['views'], 40)
+        self.assertEqual(metrics['conversion_rate'], 5.0)
+        self.assertContains(response, 'Projects sold')
+        self.assertContains(response, 'Conversion rate')
+        self.assertContains(response, 'Popular projects')
+
+    def test_conversion_stays_silent_until_the_number_means_something(self):
+        from gallery.models import AppProject, Trade
+        project = self._project('Thin Data')
+        AppProject.objects.filter(pk=project.pk).update(views=3)
+        Trade.objects.create(buyer=self.buyer, seller=self.seller, project=project, cost=1)
+        response = self.client.get('/sales/')
+        self.assertIsNone(response.context['metrics']['conversion_rate'])
+        self.assertContains(response, 'Needs 20+ views to mean anything')
+
+    def test_sales_page_still_makes_no_income_promise(self):
+        self._project('No Promise')
+        response = self.client.get('/sales/')
+        for banned in ('Earnings', 'Cash out', 'Payout', 'Creator balance', 'you will be paid'):
+            self.assertNotContains(response, banned)

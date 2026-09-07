@@ -1,0 +1,19 @@
+{% comment %}
+Compact project card used by DISCOVER and BUILD (§2: the project is the
+product, so even a rail card leads with what it is and who built it).
+Context: `p` = AppProject, optional `cta` = call-to-action label.
+{% endcomment %}
+<a class="pcard" href="{{ p.get_absolute_url }}">
+  <div class="pcard__top">
+    <strong class="pcard__title">{{ p.title }}</strong>
+    <span class="pcard__method">{{ p.build_method_label }}</span>
+  </div>
+  <p class="pcard__desc">{{ p.short_description }}</p>
+  <div class="pcard__meta">
+    by @{{ p.owner.username }} · ★ {{ p.stars }}
+    {% if p.remix_count %} · ⑂ {{ p.remix_count }} remix{{ p.remix_count|pluralize:"es" }}{% endif %}
+    {% if p.trust == 'verified' %} · 🛡️ Verified{% elif p.trust == 'scanned' %} · 🛡️ Scanned{% endif %}
+  </div>
+  {% if p.forked_from %}<div class="pcard__lineage">⑂ Remix of {{ p.forked_from.title }} by @{{ p.forked_from.owner.username }}</div>{% endif %}
+  <span class="pcard__cta">{{ cta|default:"View project →" }}</span>
+</a>
