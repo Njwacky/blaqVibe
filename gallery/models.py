@@ -163,6 +163,15 @@ class AppProject(models.Model):
             models.Index(fields=['status', 'kind', '-appeal_score'], name='gallery_app_kind_appeal_idx'),
         ]
     def save(self, *args, **kwargs):
+        # History needs the transition, so capture it BEFORE any mutation:
+        # first save vs. a later status flip into 'published'.
+        _is_new = self.pk is None
+        _old_status = None
+        if not _is_new:
+            try:
+                _old_status = AppProject.objects.filter(pk=self.pk).values_list('status', flat=True).first()
+            except Exception:
+                _old_status = None
         try:
             if not self.slug:
                 base = slugify(self.title)[:200]
@@ -217,6 +226,33 @@ class AppProject(models.Model):
             import logging
             logging.getLogger(__name__).exception('AppProject.save pre-process failed')
         super().save(*args, **kwargs)
+        # Project history (section: PROJECT HISTORY). The page must show that
+        # somebody actually built this — every flip INTO 'published' is one
+        # honest timeline row. Recording is best-effort: a history row must
+        # never block a publish.
+        try:
+            self._record_publish_event(_is_new, _old_status)
+        except Exception:
+            import logging
+            logging.getLogger(__name__).exception('project history record failed %s', self.slug)
+
+    def _record_publish_event(self, is_new, old_status):
+        if self.status != 'published':
+            return
+        if not is_new and old_status == 'published':
+            return  # no transition — counters/metadata save only
+        already = ProjectEvent.objects.filter(project_id=self.pk, kind='published').exists()
+        if not already:
+            ProjectEvent.objects.create(
+                project_id=self.pk, kind='published', label='First version published',
+            )
+        else:
+            version = ProjectEvent.objects.filter(
+                project_id=self.pk, kind__in=('published', 'version'),
+            ).count() + 1
+            ProjectEvent.objects.create(
+                project_id=self.pk, kind='version', label=f'Published v{version}',
+            )
     def get_absolute_url(self):
         return reverse('app_detail', args=[self.slug])
     def __str__(self): return self.title
@@ -259,9 +295,86 @@ class AppProject(models.Model):
             return 'No live preview — browse the file list and README, or download the ZIP.'
         return 'No live preview available.'
 
+    # ------------------------------------------------------------------
+    # Build method (architecture §6): PROJECT → CREATOR → EVIDENCE →
+    # BUILD METHOD → AI DETAILS. The method is DERIVED from facts the
+    # pipeline and publisher already recorded — never a free-text claim,
+    # and never the headline. AI involvement is shown, not hidden.
+    # ------------------------------------------------------------------
+    BUILD_METHOD_LABELS = {
+        'human_built': 'Human-built',
+        'ai_assisted': 'AI-assisted',
+        'ai_generated': 'AI-generated',
+        'remixed': 'Remixed',
+    }
+
+    @property
+    def build_method(self):
+        if self.forked_from_id:
+            return 'remixed'
+        if self.ai_generated:
+            return 'ai_generated'
+        if (self.ai_tool or '').strip():
+            return 'ai_assisted'
+        return 'human_built'
+
+    @property
+    def build_method_label(self):
+        return self.BUILD_METHOD_LABELS[self.build_method]
+
+    @property
+    def build_method_note(self):
+        """One honest sentence for the detail page — provenance, not hype."""
+        method = self.build_method
+        if method == 'remixed':
+            source = self.forked_from
+            base = (
+                f'Remixed from @{source.owner.username}/{source.slug}'
+                if source is not None else 'Remixed from another project'
+            )
+            if self.ai_generated or (self.ai_tool or '').strip():
+                base += f' — AI helped build this version ({self.ai_tool or "tool not named"})'
+            return base
+        if method == 'ai_generated':
+            tool = (self.ai_tool or '').strip()
+            return (
+                f'Substantially produced from an AI workflow using {tool}.'
+                if tool else 'Substantially produced from an AI workflow.'
+            )
+        if method == 'ai_assisted':
+            return (
+                f'The builder used {(self.ai_tool or "").strip()} during development '
+                'and remains responsible for the published work.'
+            )
+        return 'Created without material AI assistance.'
+
     def rank_bonus(self):
         from .ranks import contributor_bonus
         return contributor_bonus(self.owner)['bonus']
+
+class ProjectEvent(models.Model):
+    """Project history — the evolution timeline shown on the project page.
+
+    Rows are written by the platform (publish transitions, remixes), never
+    by free-text user input, so the timeline is evidence: "somebody really
+    built this, version by version." Labels are server-fixed sentences.
+    """
+    KIND_CHOICES = [
+        ('published', 'First publish'),
+        ('version', 'New version'),
+        ('remixed', 'Remixed'),
+    ]
+    project = models.ForeignKey(AppProject, on_delete=models.CASCADE, related_name='history')
+    kind = models.CharField(max_length=12, choices=KIND_CHOICES)
+    label = models.CharField(max_length=160)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['project', '-created_at'])]
+
+    def __str__(self):
+        return f'{self.project_id} {self.kind}: {self.label}'
 
 class AppFile(models.Model):
     project = models.ForeignKey(AppProject, on_delete=models.CASCADE, related_name='files')

@@ -55,6 +55,20 @@
 
 .remix-network__root { max-width: 440px; }
 
+/* Remix FAMILY TREE — nested children with connector lines, any depth. */
+.remix-tree { max-width: 560px; }
+
+.remix-tree__node { position: relative; }
+
+.remix-tree__children {
+  margin: 10px 0 0 20px;
+  padding-left: 14px;
+  border-left: 2px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .remix-network__children {
   margin: 10px 0 0 20px;
   padding-left: 14px;

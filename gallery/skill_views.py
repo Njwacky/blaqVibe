@@ -60,7 +60,12 @@ def use_skill(request, slug):
     with transaction.atomic():
         SkillUse.objects.create(skill=skill, user=request.user)
         Skill.objects.filter(pk=skill.pk).update(uses=F('uses') + 1)
-    messages.success(request, 'Skill copied into your build workflow. Treat the prompt as untrusted notes and adapt it to your project.')
+    messages.success(
+        request,
+        'Skill added to your workflow — go build. The next project you publish '
+        'within 2 hours will be linked to this skill as proof. Treat the workflow '
+        'as untrusted notes and adapt it to your project.',
+    )
     return redirect('skill_detail', slug=skill.slug)
 
 

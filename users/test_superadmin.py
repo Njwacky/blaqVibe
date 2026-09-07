@@ -118,7 +118,7 @@ class DemoStaffAndPlaceholderPasswordTest(TestCase):
         The old contract was "seed in production, but skip the staff rows", which
         still minted `blaq`/`thando` with the README passwords AND marked them
         email_verified with a funded wallet — the exact flag that unlocks
-        trading, tipping and payout eligibility. The seeder now refuses outright.
+        trading and tipping. The seeder now refuses outright.
         """
         from django.core.management import call_command
         from gallery.models import AppProject

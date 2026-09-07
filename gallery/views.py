@@ -131,6 +131,8 @@ def feed(request):
         if trust_filter not in ('verified', 'scanned'):
             trust_filter = ''
         projects = AppProject.objects.filter(status='published').select_related('owner','owner__profile','category').prefetch_related('tags')
+        # Remix is the signature feature (§3): show how far each idea travelled.
+        projects = projects.annotate(remix_count=Count('forks', filter=Q(forks__status='published')))
         if cat:
             projects = projects.filter(category__slug=cat)
         if kind == 'snippet':
@@ -363,6 +365,33 @@ def app_detail(request, slug):
                 launch_next = {'value': detected, 'name': route['name'], 'icon': route['icon'], 'note': route['note']}
         except Exception:
             logger.exception('artifact detect failed %s', project.slug)
+    # ------------------------------------------------------------------
+    # PROJECT HISTORY + REMIX LINEAGE — the page must answer "was it
+    # remixed, and what changed?" from real rows, not vibes.
+    # ------------------------------------------------------------------
+    from .models import AppVersion, ProjectEvent
+    from .skill_models import SkillUse
+    events = [{'date': ev.created_at, 'label': ev.label, 'kind': ev.kind}
+              for ev in ProjectEvent.objects.filter(project=project).order_by('-created_at')[:12]]
+    versions = [{'date': v.created_at, 'kind': 'version',
+                 'label': f'Updated to v{v.version}' + (f' — {v.changelog}' if v.changelog else '')}
+                for v in AppVersion.objects.filter(project=project).order_by('-created_at')[:12]]
+    project_history = sorted(events + versions, key=lambda r: r['date'], reverse=True)[:12]
+    # Walk the remix chain up to the original (capped: a 4-deep chain is
+    # already a story; deeper chains link through the fork network page).
+    lineage = []
+    ancestor = project.forked_from
+    while ancestor is not None and len(lineage) < 4:
+        lineage.append(ancestor)
+        ancestor = ancestor.forked_from
+    lineage.reverse()  # original first → this project last
+    # Skill attribution (§8): SKILL → BUILDER → PROJECT → PROOF, visible.
+    built_from_skill = (
+        SkillUse.objects.filter(project=project)
+        .select_related('skill')
+        .order_by('-created_at')
+        .first()
+    )
     return render(request, 'gallery/app_detail.html', {
         'project': project,
         'comments': top_comments,
@@ -397,6 +426,9 @@ def app_detail(request, slug):
         'forks_count': getattr(project, 'forks_count', 0),
         'prs_count': getattr(project, 'prs_count', 0),
         'show_language': getattr(project.owner.profile, 'show_language', True),
+        'project_history': project_history,
+        'lineage': lineage,
+        'built_from_skill': built_from_skill,
     })
 
 def scan_status(request, slug):
@@ -931,7 +963,7 @@ def post_review(request, slug):
                             f"your vibe “{project.title}”.\n\n"
                             f"Review: {text[:200] if text else '(no text)'}\n"
                             f"View: {settings.SITE_URL}/app/{project.slug}/#reviews\n\n"
-                            f"BlaqVibes — Publish the Vibes.\n"
+                            f"BlaqVibes — Build. Show. Remix. Compete.\n"
                         ),
                         from_email=settings.DEFAULT_FROM_EMAIL,
                         recipient_list=[project.owner.email],
@@ -1415,8 +1447,8 @@ def trade_download(request, slug):
                             f"@{request.user.username} just traded {r.cost} ★ "
                             f"for your vibe “{project.title}”.\n\n"
                             f"View: {settings.SITE_URL}/app/{project.slug}/\n"
-                            f"Dashboard: {settings.SITE_URL}/payout/\n\n"
-                            f"BlaqVibes — Publish the Vibes.\n"
+                            f"Dashboard: {settings.SITE_URL}/sales/\n\n"
+                            f"BlaqVibes — Build. Show. Remix. Compete.\n"
                         ),
                         from_email=settings.DEFAULT_FROM_EMAIL,
                         recipient_list=[who.email],
@@ -1488,6 +1520,16 @@ def fork_vibe(request, slug):
             status='pending',
         )
         fork.save()  # generates slug
+        # Remix lineage is history: record that this project started as
+        # somebody else's idea (best-effort, never blocks the fork).
+        try:
+            from .models import ProjectEvent
+            ProjectEvent.objects.create(
+                project=fork, kind='remixed',
+                label=f'Remixed from @{original.owner.username}/{original.slug}',
+            )
+        except Exception:
+            logger.exception('remix history record failed %s', fork.slug)
         # Forking is a loud statement of interest in this kind of program.
         taste.record(request.user, original, 'fork', project=original)
         # The remix loop: the original creator hears about it and is paid in
@@ -1669,21 +1711,69 @@ def fork_network(request, slug):
         visible = Q(status='published')
         if getattr(request.user, 'is_authenticated', False):
             visible = visible | Q(owner=request.user)
-        # All forks in network (direct + indirect)
-        forks = AppProject.objects.filter(forked_from__isnull=False).filter(visible).filter(
-            # Simple: direct forks of root + forks of forks (1 level deep for demo, at scale recursive CTE)
-            Q(forked_from=root) | Q(forked_from__forked_from=root)
-        ).select_related('owner','forked_from').order_by('-created_at')[:20]
-        # Fallback if no indirect, just direct
-        if not forks.exists():
-            forks = AppProject.objects.filter(forked_from=root).filter(visible).select_related('owner')[:20]
-        return render(request, 'gallery/fork_network.html', {'root': root, 'forks': forks})
+        tree, remix_total, tree_depth, builder_names = _remix_tree(root, visible)
+        return render(request, 'gallery/fork_network.html', {
+            'root': root,
+            'forks': AppProject.objects.none(),  # legacy context, kept harmless
+            'tree': tree,
+            'remix_total': remix_total,
+            'tree_depth': tree_depth,
+            'builder_count': len(builder_names),
+        })
     except Exception as e:
         import logging
         logging.getLogger(__name__).exception(f"fork_network crush: {e}")
         # Crush fallback: root is already visibility-gated above, so it is
         # safe to render an empty network from it (never re-fetch ungated).
-        return render(request, 'gallery/fork_network.html', {'root': root, 'forks': AppProject.objects.none()})
+        return render(request, 'gallery/fork_network.html', {
+            'root': root,
+            'forks': AppProject.objects.none(),
+            'tree': {'project': root, 'children': []},
+            'remix_total': 0,
+            'tree_depth': 0,
+            'builder_count': 0,
+        })
+
+def _remix_tree(root, visible, max_depth=4, max_children=12):
+    """Build the remix FAMILY TREE under `root` (section 3).
+
+    BFS, one query per level, capped: depth 4 and 12 children per node is
+    already a rich story, and a pathological fan-out can never DoS the
+    page. Returns (tree, total_remixes, depth_reached, builder_usernames).
+    A visitor should be able to read it as: "this idea started here and
+    evolved through different builders."
+    """
+    root_node = {'project': root, 'children': []}
+    frontier = [root_node]
+    builders = {root.owner.username}
+    total = 0
+    depth = 0
+    while frontier and depth < max_depth:
+        parents = {n['project'].pk: n for n in frontier}
+        kids = (
+            AppProject.objects.filter(forked_from_id__in=list(parents.keys()))
+            .filter(visible)
+            .select_related('owner', 'forked_from__owner')
+            .order_by('-stars', '-created_at')
+        )
+        per_parent = {}
+        for kid in kids:
+            total += 1
+            builders.add(kid.owner.username)
+            bucket = per_parent.setdefault(kid.forked_from_id, [])
+            if len(bucket) < max_children:
+                bucket.append(kid)
+        if not per_parent:
+            break  # no children at this level — depth already counted
+        next_frontier = []
+        for parent_id, bucket in per_parent.items():
+            for kid in bucket:
+                child = {'project': kid, 'children': []}
+                parents[parent_id]['children'].append(child)
+                next_frontier.append(child)
+        frontier = next_frontier
+        depth += 1
+    return root_node, total, depth, builders
 
 # Safe error pages — don't scare user with HttpResponse, show friendly fork image, "It's not you, it's me"
 def safe_404(request, exception=None):
@@ -1771,11 +1861,6 @@ def sitemap_xml(request):
         rows.append(f'<url><loc>{settings.SITE_URL}/app/{p.slug}/</loc><lastmod>{p.updated_at.date().isoformat()}</lastmod></url>')
     rows.append('</urlset>')
     return HttpResponse('\n'.join(rows), content_type='application/xml')
-
-def prompt_skills(request):
-    """A practical, provider-neutral prompt efficiency workbench.
-    """
-    return render(request, 'gallery/prompt_skills.html')
 
 def trust_legend(request):
     """Public "what does the badge mean" page — the anti-fake read.

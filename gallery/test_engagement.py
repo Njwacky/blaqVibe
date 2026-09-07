@@ -143,9 +143,9 @@ class FollowAndFollowingTabTests(TestCase):
         (same rule as trending / rising creators)."""
         self.client.force_login(self.alice)
         self.client.post('/u/bob/follow/')
-        self.assertIn('BLAQVIBES TODAY', self.client.get('/').content.decode())
+        self.assertIn('BUILDER PULSE', self.client.get('/').content.decode())
         for url in ('/?q=Zebra', '/?following=1', '/?kind=snippet', '/?sort=stars&q=x'):
-            self.assertNotIn('BLAQVIBES TODAY', self.client.get(url).content.decode(), url)
+            self.assertNotIn('BUILDER PULSE', self.client.get(url).content.decode(), url)
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-engagement-tests')
 class DailyChallengeTests(TestCase):

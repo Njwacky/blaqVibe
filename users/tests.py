@@ -7,7 +7,7 @@ from django.test import TestCase, override_settings
 from django.utils import timezone
 
 from users.forms import SignUpForm
-from users.models import AdminLog, Follow, Payout, Profile, StarEvent
+from users.models import AdminLog, Follow, Profile, StarEvent
 from gallery.models import AppProject, Category, Notification
 
 @override_settings(RATELIMIT_ENABLE=False)
@@ -164,7 +164,7 @@ class AuthAndProTests(TestCase):
         response = self.client.post('/settings/delete-account/', {'confirm': 'goner'})
         self.assertFalse(User.objects.filter(username='goner').exists())
 
-    def test_earnings_shows_real_star_totals(self):
+    def test_sales_dashboard_shows_real_star_totals(self):
         from gallery.models import AppProject, Category, Trade
         owner = User.objects.create_user('seller', password='pass12345', email='s@test.com')
         buyer = User.objects.create_user('buyer', password='pass12345', email='b@test.com')
@@ -180,11 +180,11 @@ class AuthAndProTests(TestCase):
         )
         Trade.objects.create(buyer=buyer, seller=owner, project=project, cost=3)
         self.client.login(username='seller', password='pass12345')
-        response = self.client.get('/payout/')
+        response = self.client.get('/sales/')
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Earnings')
+        self.assertContains(response, 'Sales')
         self.assertContains(response, '3 ★')
-        self.assertContains(response, 'stars are the complete money path')
+        self.assertContains(response, 'Stars are never redeemable for cash')
         self.assertNotContains(response, 'YOUR PAYOUT (85%)')
 
 @override_settings(RATELIMIT_ENABLE=False)
@@ -528,18 +528,18 @@ class TipTests(TestCase):
         self.assertContains(response, '+2★')
         self.assertContains(response, 'dope')
 
-    def test_payout_dashboard_shows_tips(self):
+    def test_sales_dashboard_shows_tips(self):
         self._make_user('giver2')
         self._make_user('boss')
         self.client.login(username='giver2', password='pass12345')
         self.client.post('/u/boss/tip/', {'amount': '4'})
         self.client.login(username='boss', password='pass12345')
-        response = self.client.get('/payout/')
+        response = self.client.get('/sales/')
         self.assertContains(response, 'Tips received')
         self.assertContains(response, '+4 ★')
 
 class ChartTests(TestCase):
-    """Earnings-page charts — real ledger data, honest empty states.
+    """Sales-page charts — real ledger data, honest empty states.
 
     The SVG markup is tested because charts are the one place the template
     renders Python-built HTML with |safe. The generators only emit dates and
@@ -566,7 +566,7 @@ class ChartTests(TestCase):
         self._ledger(user, 3, 'tip_earn', days_ago=0)      # earned today
         self._ledger(user, -2, 'trade_spend', days_ago=1)  # spent yesterday
         self.client.login(username='chartstar', password='pass12345')
-        response = self.client.get('/payout/')
+        response = self.client.get('/sales/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, '<svg')
         self.assertContains(response, '#10B981')  # earned bar fill
@@ -578,7 +578,7 @@ class ChartTests(TestCase):
     def test_activity_chart_empty_state_when_no_events(self):
         user = self._user_with_balance('nomo', 0)
         self.client.login(username='nomo', password='pass12345')
-        response = self.client.get('/payout/')
+        response = self.client.get('/sales/')
         self.assertContains(response, 'No wallet activity in the last 14 days')
         self.assertNotContains(response, 'Stars earned vs spent')
 
@@ -586,13 +586,13 @@ class ChartTests(TestCase):
         user = self._user_with_balance('oldie', 0)
         self._ledger(user, 9, 'tip_earn', days_ago=20)  # outside 14-day window
         self.client.login(username='oldie', password='pass12345')
-        response = self.client.get('/payout/')
+        response = self.client.get('/sales/')
         self.assertContains(response, 'No wallet activity in the last 14 days')
 
     def test_balance_chart_draws_flat_real_balance(self):
         user = self._user_with_balance('steady', 5)
         self.client.login(username='steady', password='pass12345')
-        response = self.client.get('/payout/')
+        response = self.client.get('/sales/')
         self.assertContains(response, '<polyline')       # the line exists
         self.assertContains(response, 'Wallet balance, last 14 days')
         self.assertContains(response, '5★')              # end-dot label = real balance
@@ -600,7 +600,7 @@ class ChartTests(TestCase):
     def test_balance_chart_empty_state_when_nothing_real(self):
         user = self._user_with_balance('zero', 0)
         self.client.login(username='zero', password='pass12345')
-        response = self.client.get('/payout/')
+        response = self.client.get('/sales/')
         self.assertContains(response, 'Balance history is empty')
         self.assertNotContains(response, '<polyline')
 
@@ -619,7 +619,7 @@ class ChartTests(TestCase):
         )
         StarEvent.objects.filter(pk=ev.pk).update(created_at=timezone.now())
         self.client.login(username='safechart', password='pass12345')
-        response = self.client.get('/payout/')
+        response = self.client.get('/sales/')
         self.assertNotContains(response, '<script>alert(1)</script>')
         self.assertNotContains(response, 'javascript:')
         # The payload still exists in the DB — it was just rendered escaped.
@@ -683,214 +683,42 @@ class AppDetailTipTests(TestCase):
         self.assertEqual(self.fan.profile.stars_balance, 3)
 
 @override_settings(RATELIMIT_ENABLE=False)
-class PayoutTests(TestCase):
-    """Cash-outs — the star→ZAR exit of the money path.
 
-    The rules under test (users/payouts.py): stars are HELD at request,
-    one open payout per user, rejection refunds as a new ledger row, and
-    only a human decision flips paid — a transfer reference never does.
+class PayoutRemovalTests(TestCase):
+    """BlaqVibes no longer carries a payout identity (architecture §1).
+
+    Money path: BUYER → PAY → BLAQVIBES → UNLOCK PROJECT. Stars stay the
+    in-platform economy (reputation + unlocks) and are never redeemable for
+    ZAR. These tests pin the REMOVAL: every old cash-out route is gone and
+    the sales page makes no cash-out promise. The legacy Payout TABLE stays
+    for data safety, so it is not asserted on here.
     """
 
     def setUp(self):
-        self.creator = User.objects.create_user('cashout', password='pass12345', email='cash@test.com')
-        profile = self.creator.profile
-        profile.email_verified = True
-        profile.stars_balance = 1000
-        profile.save(update_fields=['email_verified', 'stars_balance'])
-        # Seed the wallet through the ledger, not just the integer — the
-        # balance must always be explainable by StarEvent rows
-        # (users.wallet.wallet_reconciles). 'backfill' is the honest
-        # reason for pre-existing balances.
-        StarEvent.objects.create(user=self.creator, delta=1000, reason='backfill', ref='test-setup')
-        self.admin = User.objects.create_user('moneyadmin', password='pass12345', email='m@test.com')
-        self.admin.profile.role = 'admin'
-        self.admin.profile.save(update_fields=['role'])
-
-    def _request(self, amount='500', bank='Capitec', account='1234567890', holder='Cash Out'):
-        return self.client.post('/payout/request/', {
-            'amount_stars': amount,
-            'bank_name': bank,
-            'account_number': account,
-            'holder_name': holder,
-        })
-
-    def test_request_requires_login(self):
-        response = self._request()
-        self.assertEqual(response.status_code, 302)
-        self.assertIn('/accounts/login/', response.url)
-
-    def test_request_below_minimum_is_refused(self):
-        self.client.login(username='cashout', password='pass12345')
-        self._request(amount='100')
-        self.creator.profile.refresh_from_db()
-        self.assertEqual(self.creator.profile.stars_balance, 1000)
-        self.assertFalse(Payout.objects.exists())
-
-    def test_request_needs_verified_email(self):
-        self.creator.profile.email_verified = False
+        self.creator = User.objects.create_user('nocashout', password='pass12345', email='nc@test.com')
+        self.creator.profile.email_verified = True
         self.creator.profile.save(update_fields=['email_verified'])
-        self.client.login(username='cashout', password='pass12345')
-        self._request()
-        self.creator.profile.refresh_from_db()
-        self.assertEqual(self.creator.profile.stars_balance, 1000)
-        self.assertFalse(Payout.objects.exists())
 
-    def test_request_needs_whole_zar_multiples(self):
-        self.client.login(username='cashout', password='pass12345')
-        self._request(amount='505')
-        self.assertFalse(Payout.objects.exists())
+    def test_old_payout_routes_are_gone(self):
+        self.client.login(username='nocashout', password='pass12345')
+        self.assertEqual(self.client.get('/payout/').status_code, 404)
+        self.assertEqual(self.client.post('/payout/request/', {'amount_stars': '500'}).status_code, 404)
+        self.assertEqual(self.client.get('/admin/payouts/').status_code, 404)
+        self.assertEqual(self.client.post('/admin/payouts/1/decide/', {'action': 'pay'}).status_code, 404)
 
-    def test_request_holds_stars_and_writes_ledger(self):
-        from users.wallet import wallet_reconciles
-        self.client.login(username='cashout', password='pass12345')
-        response = self._request()
-        self.assertEqual(response.status_code, 302)
-        payout = Payout.objects.get(user=self.creator)
-        self.assertEqual(payout.status, 'requested')
-        self.assertEqual(payout.amount_stars, 500)
-        self.assertEqual(payout.amount_zar, 50)
-        self.creator.profile.refresh_from_db()
-        self.assertEqual(self.creator.profile.stars_balance, 500)
-        hold = StarEvent.objects.filter(user=self.creator, reason='payout_hold').get()
-        self.assertEqual(hold.delta, -500)
-        self.assertEqual(hold.ref, f'payout:{payout.pk}')
-        self.assertTrue(wallet_reconciles(self.creator))
-        self.assertTrue(
-            Notification.objects.filter(user=self.creator, kind='payout').exists()
-        )
+    def test_sales_page_makes_no_cash_out_promise(self):
+        self.client.login(username='nocashout', password='pass12345')
+        response = self.client.get('/sales/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Sales')
+        self.assertContains(response, 'Stars are never redeemable for cash')
+        for banned in ('Cash out', 'cash-out', 'cash out', 'Payout', 'payout', 'Earnings', 'Rands back'):
+            self.assertNotContains(response, banned)
 
-    def test_second_request_blocked_while_one_open(self):
-        self.client.login(username='cashout', password='pass12345')
-        self._request()
-        self._request(amount='500')
-        self.assertEqual(Payout.objects.filter(user=self.creator).count(), 1)
-        self.creator.profile.refresh_from_db()
-        self.assertEqual(self.creator.profile.stars_balance, 500)
+    def test_payout_module_is_gone(self):
+        with self.assertRaises(ImportError):
+            import users.payouts  # noqa: F401
 
-    def test_reject_refunds_stars(self):
-        from users.wallet import wallet_reconciles
-        self.client.login(username='cashout', password='pass12345')
-        self._request()
-        payout = Payout.objects.get(user=self.creator)
-        self.client.login(username='moneyadmin', password='pass12345')
-        response = self.client.post(f'/admin/payouts/{payout.pk}/decide/', {
-            'action': 'reject', 'note': 'account number typo',
-        })
-        self.assertEqual(response.status_code, 302)
-        payout.refresh_from_db()
-        self.assertEqual(payout.status, 'rejected')
-        self.assertEqual(payout.admin_note, 'account number typo')
-        self.creator.profile.refresh_from_db()
-        self.assertEqual(self.creator.profile.stars_balance, 1000)
-        refund = StarEvent.objects.get(user=self.creator, reason='payout_refund')
-        self.assertEqual(refund.delta, 500)
-        self.assertTrue(wallet_reconciles(self.creator))
-        self.assertTrue(AdminLog.objects.filter(action='payout_reject').exists())
-
-    def test_pay_marks_paid_without_touching_balance(self):
-        self.client.login(username='cashout', password='pass12345')
-        self._request()
-        payout = Payout.objects.get(user=self.creator)
-        self.client.login(username='moneyadmin', password='pass12345')
-        self.client.post(f'/admin/payouts/{payout.pk}/decide/', {
-            'action': 'pay', 'note': 'EFT 8842',
-        })
-        payout.refresh_from_db()
-        self.assertEqual(payout.status, 'paid')
-        self.assertEqual(payout.reviewed_by, self.admin)
-        self.creator.profile.refresh_from_db()
-        self.assertEqual(self.creator.profile.stars_balance, 500)  # hold stands, no mint
-        self.assertTrue(AdminLog.objects.filter(action='payout_pay').exists())
-
-    def test_double_decide_is_refused(self):
-        self.client.login(username='cashout', password='pass12345')
-        self._request()
-        payout = Payout.objects.get(user=self.creator)
-        self.client.login(username='moneyadmin', password='pass12345')
-        self.client.post(f'/admin/payouts/{payout.pk}/decide/', {'action': 'pay'})
-        # A second click (double-submit, stale tab) must not refund a paid row.
-        from users.payouts import PayoutError, decide_payout
-        with self.assertRaises(PayoutError):
-            decide_payout(self.admin, payout.pk, 'reject')
-        payout.refresh_from_db()
-        self.assertEqual(payout.status, 'paid')
-        self.creator.profile.refresh_from_db()
-        self.assertEqual(self.creator.profile.stars_balance, 500)
-
-    def test_non_admin_cannot_open_queue(self):
-        self.client.login(username='cashout', password='pass12345')
-        response = self.client.get('/admin/payouts/')
-        self.assertEqual(response.status_code, 403)
-        response = self.client.post('/admin/payouts/1/decide/', {'action': 'pay'})
-        self.assertEqual(response.status_code, 403)
-
-    def test_dashboard_shows_cashout_panel(self):
-        self.client.login(username='cashout', password='pass12345')
-        response = self.client.get('/payout/')
-        self.assertContains(response, 'Cash out stars')
-        self.assertContains(response, '500')  # minimum in the form label
-
-    def test_admin_queue_lists_open_payout(self):
-        self.client.login(username='cashout', password='pass12345')
-        self._request()
-        self.client.login(username='moneyadmin', password='pass12345')
-        response = self.client.get('/admin/payouts/')
-        self.assertContains(response, '500 ★ → R50')
-        self.assertContains(response, '1234567890')  # money admins see full digits
-
-class PaystackTransferTests(TestCase):
-    """initiate_payout_transfer — real API shape, mocked wire.
-
-    Never pretends: a successful initiation records the transfer code and
-    leaves the payout 'requested'; only a human flips it to 'paid'.
-    """
-
-    class FakeResponse:
-        def __init__(self, payload):
-            self._payload = payload
-        def raise_for_status(self):
-            return None
-        def json(self):
-            return self._payload
-
-    def setUp(self):
-        self.creator = User.objects.create_user('payee', password='pass12345', email='p@test.com')
-        self.payout = Payout.objects.create(
-            user=self.creator, amount_stars=500, amount_zar=50,
-            bank_name='Capitec Bank', account_number='1234567890', holder_name='Payee Name',
-        )
-
-    def test_unconfigured_paystack_refuses_transfer(self):
-        from gallery.payments import PaymentError, initiate_payout_transfer
-        with self.assertRaises(PaymentError):
-            initiate_payout_transfer(self.payout)
-
-    @override_settings(PAYSTACK_SECRET_KEY='sk_test_123')
-    def test_transfer_records_reference_and_stays_requested(self):
-        from gallery.payments import initiate_payout_transfer
-        banks = self.FakeResponse({'status': True, 'data': [
-            {'name': 'First National Bank', 'code': '250655'},
-            {'name': 'Capitec Bank', 'code': '470010'},
-        ]})
-        recipient = self.FakeResponse({'status': True, 'data': {'recipient_code': 'RCP_1'}})
-        transfer = self.FakeResponse({'status': True, 'data': {'transfer_code': 'TRF_99', 'status': 'pending'}})
-        with patch('gallery.payments.requests.get', return_value=banks), \
-             patch('gallery.payments.requests.post', side_effect=[recipient, transfer]) as post:
-            code = initiate_payout_transfer(self.payout)
-        self.assertEqual(code, 'TRF_99')
-        self.payout.refresh_from_db()
-        self.assertEqual(self.payout.provider_ref, 'TRF_99')
-        self.assertEqual(self.payout.status, 'requested')  # transfer ≠ payment
-        sent = [call.kwargs['json'] for call in post.call_args_list]
-        self.assertEqual(sent[1]['recipient'], 'RCP_1')
-        self.assertEqual(sent[1]['amount'], 5000)  # R50 in cents
-
-    @override_settings(PAYSTACK_SECRET_KEY='sk_test_123')
-    def test_unknown_bank_is_refused_not_guessed(self):
-        from gallery.payments import PaymentError, initiate_payout_transfer
-        banks = self.FakeResponse({'status': True, 'data': [
-            {'name': 'First National Bank', 'code': '250655'},
-        ]})
-        with patch('gallery.payments.requests.get', return_value=banks):
-            with self.assertRaises(PaymentError):
-                initiate_payout_transfer(self.payout)
+    def test_payments_module_has_no_creator_transfer_path(self):
+        import gallery.payments as payments
+        self.assertFalse(hasattr(payments, 'initiate_payout_transfer'))

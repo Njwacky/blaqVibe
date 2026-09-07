@@ -7,44 +7,28 @@
   <div class="remix-network__eyebrow">BLAQVIBES REMIX NETWORK</div>
   <h1 class="remix-network__title">One idea. Many directions.</h1>
   <p class="remix-network__intro">
-    {{ root.title }} is the starting point. Every fork is a new creator taking the idea somewhere else.
-    Discover the lineage, compare the directions, then make your own version.
+    This idea started with <b>@{{ root.owner.username }}</b> and evolved through different builders.
+    Follow the tree to see how it changed, then make your own version.
   </p>
 
   <div class="remix-network__layout">
     <section class="remix-network__tree" aria-labelledby="remix-tree-title">
-      <h2 id="remix-tree-title" class="sr-only">Remix lineage</h2>
-      <div class="remix-network__root">
-        <a href="{{ root.get_absolute_url }}" class="remix-node remix-node--root">
-          <div class="remix-node__title">{{ root.title }}</div>
-          <div class="remix-node__meta">@{{ root.owner.username }} · {{ root.forks.count }} forks · ★ {{ root.stars }}</div>
-          <div class="remix-node__origin">ORIGINAL VIBE · {{ root.tech_stack|default:"No stack listed" }}</div>
-        </a>
-
-        <div class="remix-network__children">
-          {% for fork in forks %}
-            <a href="{{ fork.get_absolute_url }}" class="remix-node">
-              <div class="remix-node__title">{{ fork.title }}</div>
-              <div class="remix-node__meta">@{{ fork.owner.username }} · {{ fork.forks.count }} forks · ★ {{ fork.stars }}</div>
-              {% if fork.forked_from.slug != root.slug %}
-                <div class="remix-node__origin">Remixed from @{{ fork.forked_from.owner.username }}</div>
-              {% else %}
-                <div class="remix-node__origin">Direct remix of this vibe</div>
-              {% endif %}
-            </a>
-          {% empty %}
-            <div class="remix-empty">No remixes yet. Be the first creator to take this idea somewhere new.</div>
-          {% endfor %}
-        </div>
+      <h2 id="remix-tree-title" class="sr-only">Remix family tree</h2>
+      <div class="remix-tree">
+        {% include 'gallery/_remix_node.html' with node=tree is_root=True %}
+        {% if remix_total == 0 %}
+          <div class="remix-empty">No remixes yet. Be the first creator to take this idea somewhere new.</div>
+        {% endif %}
       </div>
     </section>
 
     <aside class="remix-network__side">
       <div class="remix-panel">
-        <div class="remix-panel__title">THE NETWORK</div>
+        <div class="remix-panel__title">THE FAMILY TREE</div>
         <div class="remix-stats">
-          <div class="remix-stat"><div class="remix-stat__value">{{ forks.count }}</div><div class="remix-stat__label">Remixes shown</div></div>
-          <div class="remix-stat"><div class="remix-stat__value">{{ root.forks.count }}</div><div class="remix-stat__label">Direct remixes</div></div>
+          <div class="remix-stat"><div class="remix-stat__value">{{ remix_total }}</div><div class="remix-stat__label">Total remixes</div></div>
+          <div class="remix-stat"><div class="remix-stat__value">{{ tree_depth }}</div><div class="remix-stat__label">Generations deep</div></div>
+          <div class="remix-stat"><div class="remix-stat__value">{{ builder_count }}</div><div class="remix-stat__label">Builders involved</div></div>
         </div>
         <div class="remix-panel__copy">The goal isn't to copy the original. It's to prove what you can do with the idea.</div>
       </div>

@@ -110,4 +110,4 @@ CI covers migrations, demo seeding, tests, security posture and feed smoke check
 
 Never commit passwords, API keys, webhook secrets, OAuth secrets, database credentials or other credentials. If a credential has ever appeared in a public Git history, treat it as compromised and rotate it even after removing the text from the latest README.
 
-For architecture and detailed behaviour, see `docs/specs/`, `docs/demos/` and `docs/STABILITY.md`.
+For the product architecture as shipped, read `docs/ARCHITECTURE.md` (source of truth). Older notes live in `docs/specs/`, `docs/demos/` and `docs/STABILITY.md`.

@@ -145,6 +145,8 @@ def activity_summary(days=WINDOW_DAYS):
         since = _window(days)
         return {
             'published': AppProject.objects.filter(status='published', created_at__gte=since).count(),
+            'remixes': AppProject.objects.filter(
+                status='published', forked_from__isnull=False, created_at__gte=since).count(),
             'stars': Star.objects.filter(created_at__gte=since).count(),
             'downloads': CloneEvent.objects.filter(created_at__gte=since).count(),
             'trades': Trade.objects.filter(created_at__gte=since).count(),
@@ -152,4 +154,4 @@ def activity_summary(days=WINDOW_DAYS):
         }
     except Exception:
         logger.exception('activity_summary failed')
-        return {'published': 0, 'stars': 0, 'downloads': 0, 'trades': 0, 'days': days}
+        return {'published': 0, 'remixes': 0, 'stars': 0, 'downloads': 0, 'trades': 0, 'days': days}

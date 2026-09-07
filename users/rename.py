@@ -1,7 +1,7 @@
 """Identity rules — PUBG-style rename cards and name styling.
 One module owns every username mutation, same pattern as wallet.py
-(every balance move) and payouts.py (every cash-out). The view is a thin
-shell; every future caller (admin tool, API) hits the same walls.
+(every star balance move). The view is a thin shell; every future caller
+(admin tool, API) hits the same walls.
 """
 from datetime import timedelta
 
@@ -28,11 +28,12 @@ from .models import (
 # signup-only check: "admin"/"support"/"nolo" phishing works wherever the name
 # appears, and a rename is a second registration. The words cover the three
 # phishing templates that work — official-sounding (admin, staff, security),
-# brand (blaqvibes, nolo) and money-path (billing, payouts) handles.
+# brand (blaqvibes, nolo) and money-path (billing, sales) handles. The words
+# stay reserved even where the path no longer exists.
 RESERVED_USERNAMES = frozenset({
     'admin', 'administrator', 'root', 'system', 'official', 'team',
     'staff', 'moderator', 'mod', 'support', 'help', 'security',
-    'blaqvibes', 'blaqvibe', 'nolo', 'billing', 'payouts', 'api',
+    'blaqvibes', 'blaqvibe', 'nolo', 'billing', 'sales', 'payouts', 'api',
 })
 
 class RenameError(Exception):
@@ -47,7 +48,7 @@ def cooldown_remaining(profile) -> timedelta | None:
 
     One helper (rather than inline math in the template/view) because the
     settings page, the rename view and tests must all agree on "can I rename
-    now"; this is the single truth, same as payouts.py.
+    now"; this is the single truth.
     """
     if not profile.last_rename_at:
         return None

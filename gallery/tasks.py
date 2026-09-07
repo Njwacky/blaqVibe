@@ -255,7 +255,7 @@ def _send_status_email(p):
                 f"Your vibe '{p.title}' ({p.slug}) is {p.status}.\n\n"
                 f"View: {site}/app/{p.slug}/\n"
                 f"My Vibes: {site}/my-vibes/\n\n"
-                f"BlaqVibes — Publish the Vibes.\n"
+                f"BlaqVibes — Build. Show. Remix. Compete.\n"
             )
             send_mail(subject, msg, getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@blaqvibes.co.za'), [p.owner.email], fail_silently=True)
     except Exception as e:

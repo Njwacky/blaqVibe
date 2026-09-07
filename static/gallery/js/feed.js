@@ -30,16 +30,16 @@ if (filterBar) {
 }
 const PROMPT_HTML = `<span class="c-path">~/vibe</span><span class="c-prompt">$</span> `;
 const MAX_LINES = 6;
+/* The loop we actually sell: build, show, remix, compete (§5, §19). */
 const sequence = [
-  { type: 'cmd', text: 'pip install vibe-cli' },
-  { type: 'log', text: 'Collecting packages...' },
-  { type: 'success', text: 'Installed v2.0.0' },
-  { type: 'cmd', text: 'vibe generate "neon city"' },
-  { type: 'log', text: 'Processing assets...' },
-  { type: 'log', text: 'Optimizing shaders...' },
-  { type: 'success', text: 'Build complete!' },
-  { type: 'cmd', text: 'publish vibe' },
-  { type: 'success', text: 'On the feed — preview files' },
+  { type: 'cmd', text: 'blaq publish stock-tracker' },
+  { type: 'success', text: 'Published — live preview on' },
+  { type: 'log', text: '@thando starred your project' },
+  { type: 'log', text: '@zanele remixed it: dark-mode edition' },
+  { type: 'cmd', text: 'blaq forks stock-tracker' },
+  { type: 'success', text: 'Family tree: 2 remixes, 3 builders' },
+  { type: 'cmd', text: 'blaq join daily-challenge' },
+  { type: 'success', text: 'Entry in — see you on the feed' },
 ];
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function typeText(element, text, speed = 20) {

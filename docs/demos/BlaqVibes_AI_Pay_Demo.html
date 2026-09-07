@@ -28,7 +28,7 @@
 
 <div style="max-width:1100px;margin:0 auto;padding:20px">
   <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">🤖 AI README + 💰 Pay — Live Demo</h1>
-  <p style="color:var(--muted);font-size:13px">AI README: Gemini/Groq → markdown. Pay: Paystack R50 → 85% to seller. Both backend only, crush silently.</p>
+  <p style="color:var(--muted);font-size:13px">AI README: Gemini/Groq → markdown. Pay: buyer pays R50 via Paystack → project unlocks (BUYER → BLAQVIBES → UNLOCK). Both backend only, crush silently.</p>
 
   <div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:14px">
     <!-- AI README -->
@@ -88,7 +88,7 @@ cd frontend && npm i && npm run dev
         <span style="font-size:22px">💰</span>
         <div style="flex:1">
           <div style="font-weight:800">Pay — Real Money via Paystack</div>
-          <div style="font-size:11px;color:var(--muted)">Price in Publish: R50 • Buyer pays → 85% to seller</div>
+          <div style="font-size:11px;color:var(--muted)">Price in Publish: R50 • Buyer pays BlaqVibes → project unlocks</div>
         </div>
         <span style="font-size:11px;background:#10B981;color:#fff;padding:4px 8px;border-radius:8px">R50</span>
       </div>
@@ -103,26 +103,26 @@ cd frontend && npm i && npm run dev
       </div>
 
       <div style="margin-top:10px;background:var(--bg);border:1px solid #F59E0B;border-radius:10px;padding:10px">
-        <div style="font-size:11px;color:#F59E0B;font-weight:700">💳 Buy for R50 — Seller gets R42 (85%)</div>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px">Demo mode if <code>PAYSTACK_SECRET_KEY</code> not set → creates <code>Sale</code> without real Paystack. Real: <code>POST https://api.paystack.co/transaction/initialize</code> → <code>authorization_url</code></div>
-        <button class="btnV" style="width:100%;margin-top:8px;background:#10B981" onclick="toast('✓ Bought Stock App Vibes for R50 — seller @nolo.ai gets R42! Download ZIP...')">💳 Buy for R50 — Paystack</button>
+        <div style="font-size:11px;color:#F59E0B;font-weight:700">💳 Buy for R50 — project unlocks instantly</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Money path: BUYER → PAYSTACK → BLAQVIBES → UNLOCK. Demo mode if <code>PAYSTACK_SECRET_KEY</code> not set → creates <code>Sale</code> without real Paystack. Real: <code>POST https://api.paystack.co/transaction/initialize</code> → <code>authorization_url</code></div>
+        <button class="btnV" style="width:100%;margin-top:8px;background:#10B981" onclick="toast('✓ Bought Stock App Vibes for R50 — payment verified, ZIP unlocked!')">💳 Buy for R50 — Paystack</button>
         <button class="btnG" style="width:100%;margin-top:6px" onclick="toast('Traded 2 ★ to download — stars economy')">⬇ Trade 2 ★ to Download (alternative)</button>
       </div>
 
       <div style="margin-top:8px;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px">
-        <div style="font-size:11px;font-weight:700">Payout Dashboard — Seller</div>
+        <div style="font-size:11px;font-weight:700">Sales Dashboard — Creator</div>
         <div style="margin-top:6px;display:grid;grid-template-columns:1fr 1fr;gap:8px">
-          <div style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:var(--muted)">TOTAL SALES</div><div style="font-weight:800">R50</div></div>
-          <div style="background:var(--bg);border:1px solid #10B981;border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:var(--muted)">YOUR PAYOUT (85%)</div><div style="font-weight:800;color:#10B981">R42</div></div>
+          <div style="background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:var(--muted)">PROJECT SALES</div><div style="font-weight:800">R50</div></div>
+          <div style="background:var(--bg);border:1px solid #10B981;border-radius:8px;padding:8px;text-align:center"><div style="font-size:11px;color:var(--muted)">BUYER ACTIVITY</div><div style="font-weight:800;color:#10B981">1 unlock</div></div>
         </div>
-        <div style="margin-top:6px;font-size:11px;color:var(--muted)">Live at <code>/payout/</code> — shows Sales + Trades + Pro trial. Webhook <code>POST /paystack/webhook/</code> verifies <code>x-paystack-signature</code> HMAC.</div>
+        <div style="margin-top:6px;font-size:11px;color:var(--muted)">Live at <code>/sales/</code> — shows Sales + Trades + Purchases + Pro trial. No creator cash-outs: BlaqVibes never promises creators money. Webhook <code>POST /paystack/webhook/</code> verifies <code>x-paystack-signature</code> HMAC.</div>
       </div>
     </div>
   </div>
 
   <div style="margin-top:14px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
     <div style="font-weight:700">Live at port 8000 — try it</div>
-    <div style="font-size:12px;color:var(--muted);margin-top:4px">1. Login <b>nolo.ai</b> → <b>/app/stock-app-vibes/</b> → <b>Generate AI README</b> → <b>Apply</b><br>2. Publish new vibe → set <b>Price R50</b> → as <b>blaq</b> → <b>Buy for R50</b> → check <b>/payout/</b> → R42 payout<br>3. Without <code>PAYSTACK_SECRET_KEY</code> → demo Sale, no real charge.</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:4px">1. Login <b>nolo.ai</b> → <b>/app/stock-app-vibes/</b> → <b>Generate AI README</b> → <b>Apply</b><br>2. Publish new vibe → set <b>Price R50</b> → as <b>blaq</b> → <b>Buy for R50</b> → check <b>/sales/</b> → sale recorded, project unlocked<br>3. Without <code>PAYSTACK_SECRET_KEY</code> → demo Sale, no real charge.</div>
   </div>
 </div>
 

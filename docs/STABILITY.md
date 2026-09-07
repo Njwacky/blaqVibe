@@ -115,7 +115,7 @@ Fail-closed design: it **refuses** in-memory databases (a backup that hangs/corr
 2. **Object storage + Postgres in prod** — `DATABASE_URL` to managed Postgres, R2/S3 keys set, so `backup_db` (or the provider's snapshot) covers real data. Currently backups of SQLite are the default.
 3. **Scheduled backups off-box** — cron inside the container is fine; an off-box copy (R2 versioning, restic, S3 lifecycle) survives a lost server.
 4. **Celery worker monitoring** — count `ScanJob` rows by status per hour; alert when `pending` age > threshold (abandoned jobs are the top silent failure in queue-based apps).
-5. **Rate limiting + abuse defences on money paths** — `/publish`, trades, payouts already carry limits; add alerting when they trip (that is how farming attempts look).
+5. **Rate limiting + abuse defences on money paths** — `/publish`, trades and purchases already carry limits; add alerting when they trip (that is how farming attempts look).
 6. **Load test the scan pipeline** — 10 concurrent 50 MB ZIP uploads is your realistic peak; the scan queue is the bottleneck by design (1 worker, 2 min time limit).
 7. **Backup and restore drills** — a backup that has never been restored is a hope, not a plan. Do one restore in staging per quarter.
 

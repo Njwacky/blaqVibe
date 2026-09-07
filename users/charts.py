@@ -1,4 +1,4 @@
-"""Server-rendered SVG charts for the earnings page.
+"""Server-rendered SVG charts for the sales page.
 All output is generated from dates and integers only — no user text ever
 reaches these strings, so the template's |safe is XSS-free by
 construction.

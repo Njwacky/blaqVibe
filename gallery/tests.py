@@ -3606,9 +3606,11 @@ class TrustFilterTests(TestCase):
         self.assertIn(self.unknown.slug, slugs)
 
 # ==========================================================================
-# Marketing copy — the three promises on the feed (value strip, hero stat,
-# meta description, footer). Every claim is pinned to something the code
-# really does: a claim that stops being true is a bug, not marketing.
+# Marketing copy — the promises on the feed (hero, meta description,
+# footer). Every claim is pinned to something the code really does: a
+# claim that stops being true is a bug, not marketing. No claim may
+# promise creators money — BUYER → PAY → BLAQVIBES → UNLOCK is the whole
+# money path.
 # ==========================================================================
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class MarketingCopyTests(TestCase):
@@ -3620,15 +3622,20 @@ class MarketingCopyTests(TestCase):
         self.cat = make_category()
         self.owner = make_user('marketer')
 
-    def test_value_strip_promises_render_and_link_the_standard(self):
+    def test_feed_promises_render_and_link_the_standard(self):
         # "Scanned before the feed" is true: gallery.trust + the scan chain.
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, '🛡️ Scanned before the feed')
-        self.assertContains(response, 'Read the standard →')      # /trust/ link
-        self.assertContains(response, '★ Stars never expire')     # ledger, no expiry
-        self.assertContains(response, '🇿🇦 Priced in Rands')      # price_zar + payouts
-        self.assertContains(response, '10 ★ = R1')                # economy.py rate
+        self.assertContains(response, '🛡️ Every vibe scanned before the feed')
+        self.assertContains(response, 'Read the standard →')              # /trust/ link
+        self.assertContains(response, '★ Stars never expire')             # ledger, no expiry
+        self.assertContains(response, '🇿🇦 Projects priced in Rands')     # price_zar, buyer pricing
+
+    def test_feed_makes_no_creator_money_promise(self):
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        for banned in ('Payouts in Rands', 'payouts in Rands', 'Cash out', 'cash-out', '10 ★ = R1'):
+            self.assertNotContains(response, banned)
 
     def test_logged_in_users_still_see_the_promises(self):
         self.client.force_login(self.owner)
@@ -3638,23 +3645,12 @@ class MarketingCopyTests(TestCase):
 
     def test_meta_description_carries_the_trust_line(self):
         response = self.client.get('/')
-        self.assertContains(response, 'Every vibe is scanned before it reaches your feed')
+        self.assertContains(response, 'Every project is scanned before it reaches the feed')
 
     def test_footer_carries_the_promises_on_every_page(self):
         # Any page inheriting base.html — the legend page is a cheap proxy.
         response = self.client.get('/trust/')
         self.assertContains(response, '★ Stars never expire')
-
-    def test_payout_claim_matches_the_real_economy(self):
-        """'10 ★ = R1' and 'min 500 ★' in the copy must match the real
-        constants — if the economy ever changes, this breaks BEFORE the
-        marketing lies."""
-        from users.models import MIN_PAYOUT_STARS, MAX_PAYOUT_STARS
-        self.assertEqual(MIN_PAYOUT_STARS, 500)          # "min 500 ★" on the feed
-        self.assertEqual(MAX_PAYOUT_STARS, 50000)        # R5 000 cap, human-sized EFT
-        # 500 ★ = R50 (the comment on MIN_PAYOUT_STARS) ⇒ 10 ★ = R1,
-        # exactly the rate the value strip states.
-        self.assertEqual(MIN_PAYOUT_STARS // 50, 10)
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class CredentialFileBlockTests(TestCase):
@@ -3931,3 +3927,361 @@ class SecurityCheckCommandTests(SimpleTestCase):
                                    SECRET_KEY='django-insecure-blaqvibes-dev-key-change-in-prod-07070A')
         self.assertIsNone(failed, output)
         self.assertIn('dev posture', output)
+
+
+# ==========================================================================
+# The project page is the heart of BlaqVibes (architecture §2). It must
+# answer: what is this, who built it, is it safe, was it remixed, what
+# changed, can I buy it. Build method (§6) is DERIVED from facts, never a
+# headline. Project history (§9) is evidence somebody really built it.
+# ==========================================================================
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class ProjectStoryTests(TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.cat = make_category()
+        self.owner = make_user('storyowner')
+        self.other = make_user('remixer')
+
+    def test_build_method_is_human_built_by_default(self):
+        p = make_project(self.owner, self.cat)
+        self.assertEqual(p.build_method, 'human_built')
+        self.assertEqual(p.build_method_label, 'Human-built')
+        self.assertEqual(p.build_method_note, 'Created without material AI assistance.')
+
+    def test_build_method_ai_assisted_when_tool_named(self):
+        p = make_project(self.owner, self.cat, ai_tool='Cursor', ai_generated=False)
+        self.assertEqual(p.build_method, 'ai_assisted')
+        self.assertIn('Cursor', p.build_method_note)
+
+    def test_build_method_ai_generated(self):
+        p = make_project(self.owner, self.cat, ai_tool='Lovable', ai_generated=True)
+        self.assertEqual(p.build_method, 'ai_generated')
+        self.assertIn('AI workflow', p.build_method_note)
+
+    def test_build_method_remixed_when_forked(self):
+        original = make_project(self.owner, self.cat, title='Origin Vibe')
+        fork = make_project(self.other, self.cat, title='Remixed Vibe', forked_from=original)
+        self.assertEqual(fork.build_method, 'remixed')
+        self.assertIn('Remixed from @storyowner', fork.build_method_note)
+
+    def test_first_publish_records_history(self):
+        from gallery.models import ProjectEvent
+        p = make_project(self.owner, self.cat)  # created published
+        events = ProjectEvent.objects.filter(project=p)
+        self.assertEqual(events.count(), 1)
+        self.assertEqual(events.first().kind, 'published')
+        self.assertEqual(events.first().label, 'First version published')
+
+    def test_republish_records_new_version(self):
+        from gallery.models import ProjectEvent
+        p = make_project(self.owner, self.cat)
+        p.status = 'pending'
+        p.save()
+        p.status = 'published'
+        p.save()
+        labels = list(ProjectEvent.objects.filter(project=p).order_by('created_at').values_list('label', flat=True))
+        self.assertEqual(labels, ['First version published', 'Published v2'])
+
+    def test_fork_records_remix_history_on_the_fork(self):
+        from gallery.models import ProjectEvent
+        original = make_project(self.owner, self.cat, title='Loop Origin')
+        self.client.login(username='remixer', password='pass12345')
+        response = self.client.post(f'/app/{original.slug}/fork/')
+        self.assertEqual(response.status_code, 302)
+        fork = AppProject.objects.get(owner=self.other, forked_from=original)
+        remix_events = ProjectEvent.objects.filter(project=fork, kind='remixed')
+        self.assertEqual(remix_events.count(), 1)
+        self.assertIn('Remixed from @storyowner', remix_events.first().label)
+
+    def test_detail_page_shows_story_header(self):
+        p = make_project(self.owner, self.cat, ai_tool='Cursor')
+        response = self.client.get(f'/app/{p.slug}/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Build method')
+        self.assertContains(response, 'AI-assisted')
+        self.assertContains(response, 'WHY YOU CAN TRUST THIS PROJECT')
+        self.assertContains(response, 'PROJECT HISTORY')
+        self.assertContains(response, 'First version published')
+
+    def test_detail_page_shows_remix_lineage(self):
+        original = make_project(self.owner, self.cat, title='Origin Story')
+        fork = make_project(self.other, self.cat, title='Child Story', forked_from=original)
+        response = self.client.get(f'/app/{fork.slug}/')
+        self.assertContains(response, 'REMIX LINEAGE')
+        self.assertContains(response, 'Origin Story')
+
+    def test_buy_unlock_block_lists_the_terms(self):
+        p = make_project(self.owner, self.cat, price_zar=50)
+        published_zip(p)
+        response = self.client.get(f'/app/{p.slug}/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'PROJECT PRICE')
+        self.assertContains(response, 'R50')
+        self.assertContains(response, 'Files included')
+        # No creator-money language leaks into the buy path (§1).
+        self.assertNotContains(response, 'creator payout')
+        self.assertNotContains(response, 'cash out')
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class RemixFamilyTreeTests(TestCase):
+    """Section 3: the family tree must read 'this idea started here and
+    evolved through different builders' — nested, honest, gated."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.cat = make_category()
+        self.owner = make_user('treeowner')
+        self.r1 = make_user('remixer1')
+        self.r2 = make_user('remixer2')
+        self.r3 = make_user('remixer3')
+        self.root = make_project(self.owner, self.cat, title='Family Root')
+        self.fork_a = make_project(self.r1, self.cat, title='Fork A', forked_from=self.root)
+        self.fork_a1 = make_project(self.r3, self.cat, title='Fork A1', forked_from=self.fork_a)
+        self.fork_b = make_project(self.r2, self.cat, title='Fork B', forked_from=self.root)
+
+    def test_tree_renders_every_generation(self):
+        response = self.client.get(f'/app/{self.root.slug}/forks/')
+        self.assertEqual(response.status_code, 200)
+        for title in ('Family Root', 'Fork A', 'Fork A1', 'Fork B'):
+            self.assertContains(response, title)
+        self.assertContains(response, 'ORIGINAL PROJECT')
+        self.assertContains(response, 'Remixed from @remixer1')  # A1 knows its parent
+        self.assertContains(response, 'This idea started with')
+
+    def test_tree_stats_count_the_whole_family(self):
+        response = self.client.get(f'/app/{self.root.slug}/forks/')
+        self.assertContains(response, '>3<')   # total remixes (A, A1, B)
+        self.assertContains(response, '>2<')   # generations deep
+        self.assertContains(response, '>4<')   # builders: owner + 3 remixers
+
+    def test_opening_the_network_from_a_fork_lands_on_the_same_tree(self):
+        response = self.client.get(f'/app/{self.fork_a1.slug}/forks/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Family Root')
+        self.assertContains(response, 'Fork B')
+
+    def test_strangers_do_not_see_unpublished_remixes(self):
+        hidden = make_project(self.r3, self.cat, title='Secret Remix',
+                             forked_from=self.root, status='pending')
+        response = self.client.get(f'/app/{self.root.slug}/forks/')
+        self.assertNotContains(response, 'Secret Remix')
+        # …but the owner of the hidden remix sees their own row.
+        self.client.login(username='remixer3', password='pass12345')
+        response = self.client.get(f'/app/{self.root.slug}/forks/')
+        self.assertContains(response, 'Secret Remix')
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class BuilderSkillLoopTests(TestCase):
+    """§5 + §8: Builder Skills (not "prompt skills") connect
+    SKILL → BUILDER → PROJECT → PROOF, and the connection is VISIBLE."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        from gallery.skill_models import Skill
+        self.cat = make_category()
+        self.creator = make_user('skillauthor')
+        self.builder = make_user('skillbuilder')
+        self.skill = Skill.objects.create(
+            creator=self.creator,
+            title='Build a Django Inventory System',
+            summary='From idea to a working inventory page in one sitting.',
+            problem='Small businesses lose stock counts in spreadsheets.',
+            workflow='1. Model Item + StockMove. 2. List view. 3. Adjust form.',
+            tools='Django, SQLite',
+            difficulty='beginner',
+        )
+
+    def test_nav_says_builder_skills(self):
+        response = self.client.get('/')
+        self.assertContains(response, 'Builder skills')
+        self.assertNotContains(response, 'Prompt skills')
+
+    def test_use_then_publish_links_the_project_as_proof(self):
+        self.client.login(username='skillbuilder', password='pass12345')
+        response = self.client.post(f'/prompt-skills/{self.skill.slug}/use/')
+        self.assertEqual(response.status_code, 302)
+        project = make_project(self.builder, self.cat, title='My Inventory App')
+        self.skill.refresh_from_db()
+        self.assertEqual(self.skill.projects_created, 1)
+        # The project page shows the attribution…
+        response = self.client.get(f'/app/{project.slug}/')
+        self.assertContains(response, 'Built using Builder Skill')
+        self.assertContains(response, 'Build a Django Inventory System')
+        # …and the skill page shows the proof.
+        response = self.client.get(f'/prompt-skills/{self.skill.slug}/')
+        self.assertContains(response, 'My Inventory App')
+        self.assertContains(response, 'Produced 1 published project')
+        self.assertContains(response, 'Start building with this skill')
+
+    def test_skill_without_use_gets_no_attribution(self):
+        project = make_project(self.builder, self.cat, title='Unrelated App')
+        response = self.client.get(f'/app/{project.slug}/')
+        self.assertNotContains(response, 'Built using Builder Skill')
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class FeedDiscoveryRailsTests(TestCase):
+    """§5 + §12: the unfiltered feed shows what people are building and
+    remixing — the reason to come back tomorrow."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.cat = make_category()
+        self.owner = make_user('railowner')
+        self.remixer = make_user('railremixer')
+        self.original = make_project(self.owner, self.cat, title='Rail Original')
+        self.fork = make_project(self.remixer, self.cat, title='Rail Remix', forked_from=self.original)
+
+    def test_feed_tells_the_remix_story(self):
+        response = self.client.get('/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Fresh remixes')
+        self.assertContains(response, 'Rail Remix')
+        self.assertContains(response, 'railremixer')
+        self.assertContains(response, 'remixed')
+        self.assertContains(response, 'Rail Original')
+
+    def test_activity_strip_counts_remixes(self):
+        response = self.client.get('/')
+        self.assertContains(response, 'remixes')
+        self.assertContains(response, 'published')
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class ShareCardTests(TestCase):
+    """§14: a shared project link must preview beautifully — name, creator,
+    what it does, build method, stars, remixes — even without a thumbnail."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.cat = make_category()
+        self.owner = make_user('cardowner')
+        self.project = make_project(self.owner, self.cat, title='Card Project')
+
+    def test_share_card_is_a_png_for_published_projects(self):
+        response = self.client.get('/app/%s/share-card.png' % self.project.slug)
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response['Content-Type'], 'image/png')
+        self.assertEqual(response.content[:8], b'\x89PNG\r\n\x1a\n')
+
+    def test_unpublished_projects_do_not_get_a_card(self):
+        draft = make_project(self.owner, self.cat, title='Draft Card', status='scanning')
+        response = self.client.get('/app/%s/share-card.png' % draft.slug)
+        self.assertEqual(response.status_code, 404)
+
+    def test_project_page_advertises_rich_share_meta(self):
+        response = self.client.get('/app/%s/' % self.project.slug)
+        self.assertContains(response, 'summary_large_image')
+        self.assertContains(response, 'twitter:title')
+        self.assertContains(response, 'by @cardowner')
+        self.assertContains(response, 'share-card.png')
+
+    def test_glyph_safe_mapping_never_leaves_tofu_prone_symbols(self):
+        from gallery.share_card import _glyph_safe
+        self.assertEqual(_glyph_safe('Trade 2 ★ to download'), 'Trade 2 * to download')
+        self.assertEqual(_glyph_safe('go → next'), 'go -> next')
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class CommunityFirstHeroTests(TestCase):
+    """§19: the anonymous landing answers 'what are people building?' —
+    projects and live community activity before any creator pitch."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.cat = make_category()
+        self.owner = make_user('heroowner')
+        self.remixer = make_user('heroremixer')
+        make_project(self.owner, self.cat, title='Hero Original')
+        make_project(self.remixer, self.cat, title='Hero Remix', forked_from=None)
+
+    def test_landing_leads_with_the_community_question(self):
+        response = self.client.get('/')
+        self.assertContains(response, 'What are people building?')
+        self.assertContains(response, 'Your work belongs in the answer.')
+        self.assertContains(response, "Explore what's being built")
+        self.assertContains(response, 'real builders, shipping now')
+
+    def test_landing_shows_live_activity_counts(self):
+        response = self.client.get('/')
+        self.assertContains(response, '2 published')
+        self.assertContains(response, '0 remixes')
+
+    def test_landing_and_profile_render_no_literal_template_tags(self):
+        """Django template tags may not span lines — a split tag renders as
+        literal '{{ ... }}' text. Regression guard for the rails/pager."""
+        feed = self.client.get('/').content.decode()
+        self.assertNotIn('{{', feed)
+        self.assertNotIn('{%', feed)
+        profile = self.client.get('/u/%s/' % self.owner.username).content.decode()
+        self.assertNotIn('{{', profile)
+        self.assertNotIn('{%', profile)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class IdentityAndShareTests(TestCase):
+    """Identity consistency (community-first tagline everywhere), the §14
+    share affordance, and §3 remix visibility on feed cards."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.cat = make_category()
+        self.owner = make_user('shareowner')
+        self.remixer = make_user('shareremixer')
+        self.original = make_project(self.owner, self.cat, title='Shared Original')
+        make_project(self.remixer, self.cat, title='Shared Remix', forked_from=self.original)
+
+    def test_site_chrome_is_community_first(self):
+        response = self.client.get('/')
+        self.assertContains(response, '<title>BlaqVibes — What are people building?</title>')
+        self.assertContains(response, 'See what builders are shipping. Build yours next.')
+        self.assertNotContains(response, 'Clone the Culture')
+
+    def test_project_page_has_a_share_button(self):
+        response = self.client.get('/app/%s/' % self.original.slug)
+        self.assertContains(response, 'Share')
+        self.assertContains(response, '/app/%s/' % self.original.slug)
+
+    def test_feed_cards_show_how_far_an_idea_travelled(self):
+        response = self.client.get('/')
+        self.assertContains(response, '⑂ 1')
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class ListCompletionTests(TestCase):
+    """Final items of the architecture list: §20 gamification stays in the
+    background, §14 share previews for creator links, §10 full buyer
+    clarity."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.cat = make_category()
+        self.owner = make_user('listowner')
+
+    def test_challenges_page_does_not_lead_with_xp(self):
+        response = self.client.get('/challenges/')
+        self.assertNotContains(response, 'earns XP')
+        self.assertContains(response, 'builder record')
+
+    def test_profile_page_carries_share_meta(self):
+        response = self.client.get('/u/%s/' % self.owner.username)
+        self.assertContains(response, '@listowner on BlaqVibes')
+        self.assertContains(response, 'twitter:card')
+
+    def test_buy_box_states_usage_terms(self):
+        project = make_project(self.owner, self.cat, title='Priced Clarity')
+        project.price_zar = 50
+        project.save()
+        response = self.client.get('/app/%s/' % project.slug)
+        self.assertContains(response, 'the project README carries the creator')

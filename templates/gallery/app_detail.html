@@ -1,4 +1,8 @@
-{% extends 'gallery/base.html' %} {% load static %} {% block title %}{{project.title }} — BlaqVibes{% endblock %} {% block og_title %}{{ project.title}} — BlaqVibes{% endblock %} {% block og_desc %}{{ project.short_description}}{% endblock %} {% block meta_desc %}{{ project.short_description }}{% endblock%} {% block og_image %}{% if project.thumbnail %}{{ request.scheme }}://{{request.get_host }}{{ project.thumbnail.url }}{% else %}{{ block.super }}{%endif %}{% endblock %} {% block head %}
+{% extends 'gallery/base.html' %} {% load static %} {% block title %}{{project.title }} — BlaqVibes{% endblock %} {% block og_title %}{{ project.title}} by @{{ project.owner.username }} — BlaqVibes{% endblock %} {% block og_desc %}{{ project.short_description|truncatechars:160 }} · Built by @{{ project.owner.username }} · {{ project.build_method_label }} · ★ {{ project.stars }}{% endblock %} {% block meta_desc %}{{ project.short_description|truncatechars:160 }} · by @{{ project.owner.username }}{% endblock%} {% block og_image %}{% if project.thumbnail %}{{ request.scheme }}://{{request.get_host }}{{ project.thumbnail.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% url 'share_card' project.slug %}{% endif %}{% endblock %} {% block head %}
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="{{ project.title }} by @{{ project.owner.username }} — BlaqVibes" />
+<meta name="twitter:description" content="{{ project.short_description|truncatechars:160 }}" />
+<meta name="twitter:image" content="{% if project.thumbnail %}{{ request.scheme }}://{{ request.get_host }}{{ project.thumbnail.url }}{% else %}{{ request.scheme }}://{{ request.get_host }}{% url 'share_card' project.slug %}{% endif %}" />
 <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -84,6 +88,114 @@
 {% endif %}
 <div class="page detail-layout">
   <div>
+    <div class="card project-story" id="project-story" style="margin-bottom:16px">
+      {# ── THE STORY HEADER ─────────────────────────────────────────────
+         Hierarchy: PROJECT → CREATOR → EVIDENCE → BUILD METHOD →
+         HISTORY → REMIX LINEAGE → COMMUNITY → BUY / UNLOCK.
+         Every row answers one visitor question from real data. #}
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <span class="badge" style="background:var(--accent-soft-bg);color:var(--accent-text)">{{ project.kind_label }}</span>
+        {% if project.build_method == 'remixed' %}
+        <span class="badge" style="background:var(--warning-bg);color:var(--warning-text)" title="{{ project.build_method_note }}">⑂ {{ project.build_method_label }}</span>
+        {% elif project.build_method == 'human_built' %}
+        <span class="badge" style="background:var(--success-bg);color:var(--success-text)" title="{{ project.build_method_note }}">🛠 {{ project.build_method_label }}</span>
+        {% else %}
+        <span class="badge" style="border:1px solid var(--warning-border);color:var(--warning-text)" title="{{ project.build_method_note }}">🛠 {{ project.build_method_label }}</span>
+        {% endif %}
+        {% if project.trust == 'verified' %}
+        <span class="badge" style="background:var(--success-bg);color:var(--success-text)">🛡️ Safety checked</span>
+        {% elif project.trust == 'scanned' %}
+        <span class="badge" style="background:var(--input);border:1px solid var(--line);color:var(--muted)">🛡️ Scanned</span>
+        {% endif %}
+        {% if project.can_run_preview %}
+        <span class="badge" style="background:var(--success-bg);color:var(--success-text)">▶ Preview available</span>
+        {% else %}
+        <span class="badge" style="background:var(--input);border:1px solid var(--line);color:var(--muted)">📁 Files only</span>
+        {% endif %}
+      </div>
+
+      <h1 style="font-family:Space Grotesk,sans-serif;font-size:24px;margin-top:10px">{{ project.title }}</h1>
+      <p style="font-size:13px;color:var(--text);margin-top:4px;line-height:1.6">{{ project.short_description }}</p>
+
+      <div style="margin-top:10px;font-size:13px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span style="color:var(--muted)">Built by</span>
+        <a href="{% url 'profile_view' project.owner.username %}" style="color:var(--link);font-weight:700">@{{ project.owner.username }}</a>
+        {% if project.owner.profile.rank %}<span style="font-size:10px;background:var(--warning-bg);color:var(--warning-text);padding:2px 6px;border-radius:6px">{{ project.owner.profile.rank.name }}</span>{% endif %}
+        {% for co in project.co_owners.all %}{% if forloop.first %}<span style="color:var(--muted)">with</span>{% endif %}<a href="{% url 'profile_view' co.user.username %}" style="color:var(--link)">@{{ co.user.username }}</a>{% if not forloop.last %},{% endif %}{% endfor %}
+      </div>
+      <div style="margin-top:6px;font-size:12px;color:var(--muted)">Build method: <b style="color:var(--text)">{{ project.build_method_label }}</b> — {{ project.build_method_note }}</div>
+      {% if built_from_skill and built_from_skill.skill.is_published %}
+      <div style="margin-top:4px;font-size:12px;color:var(--muted)">⌘ Built using Builder Skill: <a href="{{ built_from_skill.skill.get_absolute_url }}" style="color:var(--link);font-weight:700">{{ built_from_skill.skill.title }}</a> — this project is the skill's proof.</div>
+      {% endif %}
+
+      {% if lineage %}
+      <div style="margin-top:12px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.05em">⑂ REMIX LINEAGE — this idea started elsewhere</div>
+        <div style="margin-top:6px;font-size:12px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          {% for ancestor in lineage %}
+          <a href="{{ ancestor.get_absolute_url }}" style="color:var(--link);white-space:nowrap">{{ ancestor.title }} <span style="color:var(--muted)">@{{ ancestor.owner.username }}</span></a>
+          <span style="color:var(--muted)">→</span>
+          {% endfor %}
+          <b style="white-space:nowrap">{{ project.title }} <span style="color:var(--muted);font-weight:400">@{{ project.owner.username }}</span></b>
+        </div>
+        {% if forks_count %}<div style="margin-top:6px;font-size:12px;color:var(--muted)">This version has been remixed {{ forks_count }} time{{ forks_count|pluralize }} — <a href="{% url 'fork_network' project.slug %}" style="color:var(--link)">see the family tree →</a></div>{% endif %}
+      </div>
+      {% elif forks_count %}
+      <div style="margin-top:12px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:12px;color:var(--muted)">
+        ⑂ Original project — remixed {{ forks_count }} time{{ forks_count|pluralize }}. <a href="{% url 'fork_network' project.slug %}" style="color:var(--link)">See the family tree →</a>
+      </div>
+      {% endif %}
+
+      {# EVIDENCE — trust is architectural: every claim links to proof. #}
+      <div style="margin-top:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.05em">WHY YOU CAN TRUST THIS PROJECT</div>
+        <div style="margin-top:6px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 16px;font-size:12px">
+          <div>✓ Creator identity — <a href="{% url 'profile_view' project.owner.username %}" style="color:var(--link)">@{{ project.owner.username }}</a></div>
+          <div>{% if project.zip_file %}✓ Project files — {{ project.file_count }} files in the ZIP{% else %}✓ Project code — snippet published inline{% endif %}</div>
+          <div>✓ README — required before publishing</div>
+          <div>{% if project.can_run_preview %}✓ Live preview — runs sandboxed on this page{% else %}– Live preview — {{ project.preview_note|lower }}{% endif %}</div>
+          <div>{% if project.trust == 'verified' %}✓ Security scan — virus clean, no secrets, deps checked{% elif project.trust == 'scanned' %}◐ Security scan — pipeline ran, some checks incomplete{% else %}– Security scan — no complete scan evidence yet{% endif %}</div>
+          <div>{% if project_history %}✓ Project history — {{ project_history|length }} event{{ project_history|length|pluralize }} on the timeline{% else %}– Project history — just published{% endif %}</div>
+          <div>{% if project.review_count %}✓ Reviews — {{ project.review_count }} review{{ project.review_count|pluralize }}{% if project.avg_rating %}, {{ project.avg_rating|floatformat:1 }}★ average{% endif %}{% else %}– Reviews — none yet{% endif %}</div>
+          <div>★ {{ project.stars }} star{{ project.stars|pluralize }} from the community</div>
+          <div>{% if project.forked_from %}✓ Remix lineage — remixed, origin preserved{% else %}✓ Remix lineage — original project{% endif %}</div>
+          <div>✓ Build method — {{ project.build_method_label }}{% if project.ai_tool %} ({{ project.ai_tool }}){% endif %}</div>
+        </div>
+      </div>
+
+      {% if project_history %}
+      <div style="margin-top:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.05em">PROJECT HISTORY</div>
+        <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px;font-size:12px">
+          {% for row in project_history|slice:":6" %}
+          <div style="display:flex;gap:10px">
+            <span style="color:var(--muted);white-space:nowrap">{{ row.date|date:"M j" }}</span>
+            <span>{% if row.kind == 'remixed' %}⑂{% elif row.kind == 'published' %}🚀{% else %}✦{% endif %} {{ row.label }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
+      {# ACTIONS — remix, share and unlock, the things a visitor came to do. #}
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        <button type="button" class="btn-ghost js-copy" data-copy="{{ request.scheme }}://{{ request.get_host }}{{ project.get_absolute_url }}" title="Copy the share link — it previews with the project's story card">⧉ Share</button>
+        {% if not project.zip_file or can_download %}
+        <form method="post" action="{% url 'fork_vibe' project.slug %}" class="js-fork-form">
+          {% csrf_token %}<button class="btn-ghost">⑂ Remix this project</button>
+        </form>
+        {% else %}
+        <button class="btn-ghost" type="button" disabled title="Unlock to remix">⑂ Unlock to remix</button>
+        {% endif %}
+        {% if project.price_zar and project.price_zar > 0 and paystack_enabled and not has_bought and user != project.owner %}
+        <a href="#buy-unlock" class="btn-violet">💳 Buy &amp; unlock — R{{ project.price_zar }}</a>
+        {% endif %}
+        {% if can_download and project.zip_file %}
+        <a href="{% url 'download_zip' project.slug %}" class="btn-violet">⬇ Download ZIP</a>
+        {% endif %}
+      </div>
+    </div>
+
     <div class="card">
       <div class="mock-browser__bar">
         <div class="mock-browser__left">
@@ -318,17 +430,25 @@
         {% endif %}
         {% if user_rank %}<div class="desktop-only" style="font-size:11px;color:var(--muted);margin-top:6px">Your rank: <b style="color:var(--warning-text)">{{ user_rank.name }}</b> ({{ user_rank.discount }}% Pro discount) • Earn stars when others star/trade your vibes → appears 1st when exploring</div>{% endif %}
         {% if project.price_zar and project.price_zar > 0 %}
-        <div style="margin-top:8px;background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:10px;padding:10px">
-          <div style="font-size:11px;color:var(--warning-text);font-weight:700">ZAR price — R{{ project.price_zar }}</div>
+        <div id="buy-unlock" style="margin-top:8px;background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:10px;padding:10px">
+          <div style="font-size:11px;color:var(--warning-text);font-weight:700">PROJECT PRICE — R{{ project.price_zar }}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:6px;line-height:1.7">
+            {% if project.trust == 'verified' %}✓{% else %}–{% endif %} {% if project.trust == 'verified' %}Verified project — safety checked{% elif project.trust == 'scanned' %}Scanned project — pipeline ran{% else %}Scan status unknown — review before paying{% endif %}<br>
+            ✓ Files included — {{ project.file_count }} file{{ project.file_count|pluralize }} in the ZIP<br>
+            {% if project.can_run_preview %}✓ Preview available — try it before you buy{% else %}– No live preview — files + README only{% endif %}<br>
+            ✓ Built by <a href="{% url 'profile_view' project.owner.username %}" style="color:var(--link)">@{{ project.owner.username }}</a><br>
+            ✓ Usage — the project README carries the creator's license terms; downloads are for personal use unless it says more
+          </div>
           {% if paystack_enabled %}
             {% if user.is_authenticated and user != project.owner and not has_bought %}
-              <form method="post" action="{% url 'buy_vibe' project.slug %}" style="margin-top:6px">{% csrf_token %}<button class="btnV" style="width:100%">💳 Pay R{{ project.price_zar }} with Paystack</button></form>
-              <div style="font-size:11px;color:var(--muted);margin-top:4px">Real Paystack checkout. The ZIP unlocks only after a verified charge.</div>
-            {% elif has_bought %}<div style="font-size:11px;color:var(--success-text);margin-top:4px">✓ You bought this — <a href="{% url 'download_zip' project.slug %}" style="color:var(--success-text)">Download ZIP</a></div>
-            {% elif user == project.owner %}<div style="font-size:11px;color:var(--muted);margin-top:4px">Listed at R{{ project.price_zar }}. Bank payouts to you are not wired yet.</div>
+              <form method="post" action="{% url 'buy_vibe' project.slug %}" style="margin-top:8px">{% csrf_token %}<button class="btnV" style="width:100%">💳 BUY &amp; UNLOCK — R{{ project.price_zar }}</button></form>
+              <div style="font-size:11px;color:var(--muted);margin-top:4px">Buyer → Paystack → payment verified → project unlocked. Real checkout — the ZIP unlocks only after a verified charge.</div>
+            {% elif has_bought %}<div style="font-size:11px;color:var(--success-text);margin-top:6px">✓ You bought this — <a href="{% url 'download_zip' project.slug %}" style="color:var(--success-text)">Download ZIP</a></div>
+            {% elif user == project.owner %}<div style="font-size:11px;color:var(--muted);margin-top:6px">Listed at R{{ project.price_zar }}. Buyers pay BlaqVibes to unlock this project — every sale shows on your Sales page.</div>
+            {% else %}<div style="font-size:11px;color:var(--muted);margin-top:6px"><a href="{% url 'login' %}?next={{ request.path }}" style="color:var(--link)">Sign in</a> to buy &amp; unlock.</div>
             {% endif %}
           {% else %}
-            <div style="font-size:11px;color:var(--muted);margin-top:4px">Card checkout is off (no PAYSTACK_SECRET_KEY). {% if project.star_cost %}Trade {{ project.star_cost }} ★ to unlock.{% else %}Ask the creator or use stars.{% endif %}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:6px">Card checkout is off (no PAYSTACK_SECRET_KEY). {% if project.star_cost %}Trade {{ project.star_cost }} ★ to unlock.{% else %}Ask the creator or use stars.{% endif %}</div>
           {% endif %}
         </div>
         {% endif %}
@@ -1558,7 +1678,7 @@
         <div style="font-size: 12px; color: var(--muted); margin-top: 4px">
           {{ viewer_count }} views —
           <a
-            href="{% url 'payout_dashboard' %}"
+            href="{% url 'sales_dashboard' %}"
             style="color: var(--warning-text)"
             >start a 7-day Pro trial</a
           >

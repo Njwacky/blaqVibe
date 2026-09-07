@@ -2,10 +2,10 @@
 // receive layout fixes immediately while retaining an offline fallback.
 // No secrets in JS — no S3 keys, no scan_report.
 // Bump this whenever the app shell changes; activation removes older caches.
-const CACHE = 'blaqvibes-v5-footer-contact';
+const CACHE = 'blaqvibes-v6-sales';
 // Account-specific pages — never cache (they contain per-user data).
 const PRIVATE_PREFIXES = [
-  '/my-vibes/', '/inbox/', '/saved/', '/settings/', '/payout/',
+  '/my-vibes/', '/inbox/', '/saved/', '/settings/', '/sales/',
   '/trades/', '/moderation/', '/blaq-admin', '/admin/',
 ];
 const STATIC_ASSETS = [

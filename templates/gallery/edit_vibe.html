@@ -26,7 +26,7 @@
 
   <div style="margin-top:16px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px">
     <div style="font-size:12px;font-weight:700">Co-owners — split star trade revenue</div>
-    <div style="font-size:11px;color:var(--muted);margin-top:2px">Each trade on this vibe pays every co-owner their % of the star cost, atomically; you keep the remainder. Paystack card sales still pay you (the owner) only — payouts aren't wired yet. Splits are rounded so every star is accounted for.</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px">Each star trade on this vibe pays every co-owner their % of the star cost, atomically; you keep the remainder. Card sales are paid to BlaqVibes and unlock the project for the buyer. Splits are rounded so every star is accounted for.</div>
     {% for co in project.co_owners.all %}
     <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px">
       <span><a href="{% url 'profile_view' co.user.username %}" style="color:var(--link)">@{{ co.user.username }}</a> — <b>{{ co.share_percent }}%</b></span>

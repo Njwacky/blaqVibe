@@ -1,0 +1,146 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Sales — BlaqVibes{% endblock %}
+{% block content %}
+<div style="max-width:1100px;margin:0 auto;padding:20px">
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">📈 Sales — @{{ user.username }}</h1>
+  <p style="color:var(--muted);font-size:13px;max-width:720px">
+    Buyer activity on your projects: card sales, star trades, purchases and the star ledger.
+    Stars are the BlaqVibes platform economy — they unlock downloads and build reputation.
+    Stars are never redeemable for cash, and BlaqVibes makes no creator money promises:
+    buyers pay to unlock projects, and that is the whole money path.
+  </p>
+
+  {% if not is_pro %}
+  <form method="post" action="{% url 'activate_pro_trial' %}" style="margin-top:12px;background:var(--accent-soft-bg);border:1px solid var(--accent-border);border-radius:12px;padding:12px 14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    {% csrf_token %}
+    <span style="font-size:13px">✦ <b>Pro trial</b> — see who viewed your vibes and use AI README for 7 days.</span>
+    <button class="btnV" style="padding:7px 12px;font-size:12px">Start free 7-day trial</button>
+  </form>
+  {% else %}
+  <div style="margin-top:12px;background:var(--accent-soft-bg);border:1px solid var(--accent-border);border-radius:12px;padding:12px 14px;font-size:13px">
+    ✦ <b>Pro active</b>{% if pro_until %} until {{ pro_until|date:"Y-m-d" }}{% endif %} — Who Viewed + AI README unlocked.
+  </div>
+  {% endif %}
+
+  <div style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+      <div style="font-size:11px;color:var(--muted)">Star balance</div>
+      <div style="font-size:20px;font-weight:800;color:var(--warning-text)">{{ stars_balance }} ★</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+      <div style="font-size:11px;color:var(--muted)">Stars received (trades)</div>
+      <div style="font-size:20px;font-weight:800;color:var(--success-text)">+{{ stars_earned }} ★</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+      <div style="font-size:11px;color:var(--muted)">Stars spent</div>
+      <div style="font-size:20px;font-weight:800;color:var(--danger-text)">{{ stars_spent }} ★</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+      <div style="font-size:11px;color:var(--muted)">Tips received</div>
+      <div style="font-size:20px;font-weight:800">+{{ tips_total }} ★</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+      <div style="font-size:11px;color:var(--muted)">Project sales (card)</div>
+      <div style="font-size:20px;font-weight:800">R{{ total_zar }}</div>
+    </div>
+  </div>
+
+  <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px" class="sales-grid">
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+      <div style="font-size:12px;font-weight:700">Star activity — last 14 days</div>
+      {% if chart_activity_svg %}{{ chart_activity_svg|safe }}{% else %}
+      <div style="color:var(--muted);font-size:13px;padding:18px 4px">No wallet activity in the last 14 days.</div>
+      {% endif %}
+    </div>
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+      <div style="font-size:12px;font-weight:700">Star balance — last 14 days</div>
+      {% if chart_balance_svg %}{{ chart_balance_svg|safe }}{% else %}
+      <div style="color:var(--muted);font-size:13px;padding:18px 4px">Balance history is empty — publish, trade or tip to start the ledger.</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px" class="sales-grid">
+    <div>
+      <h2 style="font-size:14px;font-weight:700">Sales — buyers unlocked your projects</h2>
+      {% for s in sales %}
+      <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:8px;display:flex;gap:10px;align-items:center">
+        <div style="flex:1">
+          <div style="font-weight:700">{{ s.project.title }} <span style="font-size:11px;background:var(--success-bg);color:var(--success-text);padding:3px 7px;border-radius:8px">R{{ s.amount_zar }}</span></div>
+          <div style="font-size:12px;color:var(--muted)">Buyer: <a href="{% url 'profile_view' s.buyer.username %}" style="color:var(--link)">@{{ s.buyer.username }}</a> • {{ s.created_at|date:"Y-m-d H:i" }}</div>
+        </div>
+        <a href="{{ s.project.get_absolute_url }}" class="btnG" style="padding:6px 10px;font-size:11px">View</a>
+      </div>
+      {% empty %}
+      <div style="color:var(--muted);font-size:13px;padding:12px;background:var(--input);border:1px dashed var(--line);border-radius:10px;margin-top:8px">
+        No card sales yet. Set a Rand price on a published project — buyers pay BlaqVibes and the project unlocks instantly.
+      </div>
+      {% endfor %}
+      {% if not paystack_enabled %}
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">Card checkout is currently off (no PAYSTACK_SECRET_KEY) — star trades still work.</div>
+      {% endif %}
+
+      <h2 style="font-size:14px;font-weight:700;margin-top:16px">Star trades — buyer activity on your projects</h2>
+      {% for t in trades %}
+      <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:8px;display:flex;gap:10px;align-items:center">
+        <div style="flex:1">
+          <div style="font-weight:700">{{ t.project.title }} <span style="font-size:11px;background:var(--success-bg);color:var(--success-text);padding:3px 7px;border-radius:8px">+{{ t.cost }} ★</span></div>
+          <div style="font-size:12px;color:var(--muted)">Buyer: <a href="{% url 'profile_view' t.buyer.username %}" style="color:var(--link)">@{{ t.buyer.username }}</a> • {{ t.created_at|date:"Y-m-d H:i" }}</div>
+        </div>
+        <a href="{{ t.project.get_absolute_url }}" class="btnG" style="padding:6px 10px;font-size:11px">View</a>
+      </div>
+      {% empty %}
+      <div style="color:var(--muted);font-size:13px;padding:12px;background:var(--input);border:1px dashed var(--line);border-radius:10px;margin-top:8px">No star trades yet — when someone trades stars for your project it lands here.</div>
+      {% endfor %}
+    </div>
+
+    <div>
+      <h2 style="font-size:14px;font-weight:700">Purchases — projects you unlocked</h2>
+      {% for t in bought %}
+      <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:8px;display:flex;gap:10px;align-items:center">
+        <div style="flex:1">
+          <div style="font-weight:700">{{ t.project.title }} <span style="font-size:11px;background:var(--warning-bg);color:var(--warning-text);padding:3px 7px;border-radius:8px">{{ t.cost }} ★</span></div>
+          <div style="font-size:12px;color:var(--muted)">Creator: <a href="{% url 'profile_view' t.seller.username %}" style="color:var(--link)">@{{ t.seller.username }}</a> • {{ t.created_at|date:"Y-m-d H:i" }}</div>
+        </div>
+        <a href="{{ t.project.get_absolute_url }}" class="btnG" style="padding:6px 10px;font-size:11px">View</a>
+      </div>
+      {% empty %}
+      <div style="color:var(--muted);font-size:13px;padding:12px;background:var(--input);border:1px dashed var(--line);border-radius:10px;margin-top:8px">You haven't unlocked any projects yet — explore the feed.</div>
+      {% endfor %}
+
+      <h2 style="font-size:14px;font-weight:700;margin-top:16px">Tips received</h2>
+      {% for tip in tips_received %}
+      <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;margin-top:8px">
+        <div style="font-weight:700">+{{ tip.amount }} ★ from <a href="{% url 'profile_view' tip.sender.username %}" style="color:var(--link)">@{{ tip.sender.username }}</a></div>
+        {% if tip.message %}<div style="font-size:12px;color:var(--muted);margin-top:2px">“{{ tip.message }}”</div>{% endif %}
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">{{ tip.created_at|date:"Y-m-d H:i" }}</div>
+      </div>
+      {% empty %}
+      <div style="color:var(--muted);font-size:13px;padding:12px;background:var(--input);border:1px dashed var(--line);border-radius:10px;margin-top:8px">No tips yet — tips are stars other builders send to say thanks.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <div style="margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+    <h2 style="font-size:14px;font-weight:700">Star ledger — every balance move</h2>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px">The ledger explains your balance star for star. Positive rows are stars received, negative rows are stars spent.</div>
+    {% for ev in star_events %}
+    <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px">
+      <span>
+        <b style="color:{% if ev.delta >= 0 %}var(--success-text){% else %}var(--danger-text){% endif %}">{% if ev.delta >= 0 %}+{% endif %}{{ ev.delta }} ★</b>
+        — {{ ev.get_reason_display }}
+        {% if ev.ref %}<span style="color:var(--muted);font-size:11px">({{ ev.ref }})</span>{% endif %}
+      </span>
+      <span style="font-size:11px;color:var(--muted)">{{ ev.created_at|date:"Y-m-d H:i" }}</span>
+    </div>
+    {% empty %}
+    <div style="color:var(--muted);font-size:13px;padding:12px 0">No ledger rows yet.</div>
+    {% endfor %}
+  </div>
+</div>
+<style>
+@media (max-width: 800px) {
+  .sales-grid { grid-template-columns: 1fr !important; }
+}
+</style>
+{% endblock %}

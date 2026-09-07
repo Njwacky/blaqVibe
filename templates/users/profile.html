@@ -1,5 +1,7 @@
 {% extends 'gallery/base.html' %} {% block title %}@{{ profile_user.username }}
-— BlaqVibes{% endblock %} {% block content %}
+— BlaqVibes{% endblock %} {% block og_title %}@{{ profile_user.username }} on BlaqVibes — see what they're building{% endblock %} {% block og_desc %}Builder on BlaqVibes · {{ published_count }} published project{{ published_count|pluralize }} · {{ stars_received }} stars received · {{ followers_count }} follower{{ followers_count|pluralize }}{% endblock %} {% block head %}<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="@{{ profile_user.username }} on BlaqVibes" />
+<meta name="twitter:description" content="Builder on BlaqVibes · {{ published_count }} published project{{ published_count|pluralize }} · {{ stars_received }} stars received" />{% endblock %} {% block content %}
 <div style="max-width: 1100px; margin: 0 auto; padding: 20px">
   <div
     style="
@@ -211,7 +213,7 @@
     >
       {% if is_own %}
       <a href="{% url 'edit_profile' %}" class="btn-ghost">Edit Profile</a>
-      <a href="{% url 'payout_dashboard' %}" class="btn-ghost">⭐ Earnings</a>
+      <a href="{% url 'sales_dashboard' %}" class="btn-ghost">📈 Sales</a>
       {% elif user.is_authenticated %}
       <button
         id="follow-btn"
@@ -222,8 +224,7 @@
       >
         {% if is_following %}✓ Following{% else %}Follow{% endif %}
       </button>
-      {% include 'gallery/_tip_button.html' with
-      tip_recipient_username=profile_user.username %} {% if next_rank %}
+      {% include 'gallery/_tip_button.html' with tip_recipient_username=profile_user.username %} {% if next_rank %}
       <div style="font-size: 11px; color: var(--muted); text-align: center">
         Next: {{ next_rank.name }} at {{ next_rank.threshold }} ★
       </div>
@@ -233,8 +234,7 @@
         class="btn-ghost"
         >Follow</a
       >
-      {% include 'gallery/_tip_button.html' with
-      tip_recipient_username=profile_user.username %} {% if next_rank %}
+      {% include 'gallery/_tip_button.html' with tip_recipient_username=profile_user.username %} {% if next_rank %}
       <div style="font-size: 11px; color: var(--muted); text-align: center">
         Next: {{ next_rank.name }} at {{ next_rank.threshold }} ★
       </div>
@@ -276,8 +276,7 @@
         <a
           href="{% url 'profile_view' t.sender.username %}"
           style="color: var(--link); font-weight: 700"
-          >{% include 'users/_styled_name.html' with u=t.sender
-          p=t.sender.profile %}</a
+          >{% include 'users/_styled_name.html' with u=t.sender p=t.sender.profile %}</a
         >
         <span style="font-weight: 800; color: var(--warning-text)"
           >+{{ t.amount }}★</span
@@ -402,8 +401,7 @@
         <a
           href="{% url 'profile_view' f.follower.username %}"
           style="font-weight: 700; font-size: 14px; color: var(--link)"
-          >{% include 'users/_styled_name.html' with u=f.follower
-          p=f.follower.profile %}</a
+          >{% include 'users/_styled_name.html' with u=f.follower p=f.follower.profile %}</a
         >
         <div
           style="
@@ -424,8 +422,7 @@
         data-username="{{ f.follower.username }}"
         data-csrf="{{ csrf_token }}"
       >
-        {% if f.follower.username in following_set %}✓ Following{% else
-        %}Follow{% endif %}
+        {% if f.follower.username in following_set %}✓ Following{% else %}Follow{% endif %}
       </button>
       {% elif not user.is_authenticated %}
       <a
@@ -485,8 +482,7 @@
         <a
           href="{% url 'profile_view' f.following.username %}"
           style="font-weight: 700; font-size: 14px; color: var(--link)"
-          >{% include 'users/_styled_name.html' with u=f.following
-          p=f.following.profile %}</a
+          >{% include 'users/_styled_name.html' with u=f.following p=f.following.profile %}</a
         >
         <div
           style="
@@ -507,8 +503,7 @@
         data-username="{{ f.following.username }}"
         data-csrf="{{ csrf_token }}"
       >
-        {% if f.following.username in following_set %}✓ Following{% else
-        %}Follow{% endif %}
+        {% if f.following.username in following_set %}✓ Following{% else %}Follow{% endif %}
       </button>
       {% endif %}
     </div>
