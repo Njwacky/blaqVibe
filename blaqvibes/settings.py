@@ -118,7 +118,9 @@ for default_origin in ('https://blaqvibe.onrender.com', 'https://*.onrender.com'
 SITE_URL = os.getenv('SITE_URL', 'https://blaqvibes.co.za').rstrip('/')
 
 # Paystack — real card checkout only when a secret key is present.
-# Leave blank to run the stars path alone. We never fake a charge or a bank payout.
+# Leave blank to run the stars path alone. We never fake a charge. Paystack
+# is buyer checkout only (BUYER → PAY → BLAQVIBES → UNLOCK); there is no
+# transfer path back to creators.
 PAYSTACK_SECRET_KEY = os.getenv('PAYSTACK_SECRET_KEY', '').strip()
 PAYSTACK_ENABLED = bool(PAYSTACK_SECRET_KEY)
 # Optional Nolo backends. Claude is used only when this key is set — never faked.

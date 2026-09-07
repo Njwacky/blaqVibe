@@ -1415,7 +1415,7 @@ def trade_download(request, slug):
                             f"@{request.user.username} just traded {r.cost} ★ "
                             f"for your vibe “{project.title}”.\n\n"
                             f"View: {settings.SITE_URL}/app/{project.slug}/\n"
-                            f"Dashboard: {settings.SITE_URL}/payout/\n\n"
+                            f"Dashboard: {settings.SITE_URL}/sales/\n\n"
                             f"BlaqVibes — Publish the Vibes.\n"
                         ),
                         from_email=settings.DEFAULT_FROM_EMAIL,

@@ -1,7 +1,8 @@
-"""Stars economy — the working money path.
-No external API. Buyer spends star_cost, seller receives the same amount,
-a Trade row is the receipt, a pair of StarEvent rows is the ledger, and
-that Trade unlocks the ZIP.
+"""Stars economy — the in-platform economy.
+No external API, and no ZAR: stars are reputation and unlocks, never cash.
+Buyer spends star_cost, seller receives the same amount, a Trade row is the
+receipt, a pair of StarEvent rows is the ledger, and that Trade unlocks the
+ZIP.
 """
 from django.db import IntegrityError, transaction
 from django.db.models import F, Sum
@@ -105,9 +106,10 @@ def trade_for_download(buyer, project):
                 )
             # One Trade + ledger row PER RECIPIENT (owner + each co-owner)
             # rather than one row with multiple sellers: Trade.seller is a
-            # single FK used by ranks, payout dashboard, trading history and
-            # ledger refs. Per-recipient rows keep every existing query correct
-            # unchanged — each person's "sold" list shows exactly their share.
+            # single FK used by ranks, the sales dashboard, trading history
+            # and ledger refs. Per-recipient rows keep every existing query
+            # correct unchanged — each person's sales list shows exactly
+            # their share.
             # Lock order follows split_shares (owner first, then co-owners by
             # id) so concurrent trades never deadlock.
             shares = split_shares(locked, cost)

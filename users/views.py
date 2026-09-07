@@ -16,9 +16,6 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from django_ratelimit.decorators import ratelimit
 from .models import (
-    MAX_PAYOUT_STARS,
-    MIN_PAYOUT_STARS,
-    Payout,
     Profile,
     Follow,
     SiteSettings,
@@ -29,7 +26,6 @@ from .models import (
 )
 from .forms import ChangeEmailForm, NameStyleForm, ProfileForm, RenameForm, TipForm
 from .security import revoke_user_sessions
-from .payouts import PayoutError, payout_rate_label, request_payout as request_payout_hold
 from .social import social_connection_context
 from .rename import (
     RENAME_COOLDOWN_DAYS,
@@ -279,7 +275,14 @@ def tip_user(request, username):
     })
 
 @login_required
-def payout_dashboard(request):
+def sales_dashboard(request):
+    """Sales — buyer activity on this creator's projects.
+
+    Money architecture: BUYER → PAY → BLAQVIBES → UNLOCK PROJECT. The page
+    shows sales, star trades, purchases and the star ledger. It makes no
+    cash-out or creator-money promise: stars are reputation and platform
+    economy, ZAR purchases unlock projects.
+    """
     from gallery.models import Sale, Trade
     from gallery.economy import stars_earned, stars_spent
     from gallery.payments import paystack_enabled
@@ -335,7 +338,7 @@ def payout_dashboard(request):
     chart_activity_svg = activity_chart(chart_days, max_val)
     chart_balance_svg = balance_chart(trend, min(trend), max(trend))
 
-    return render(request, 'users/payout_dashboard.html', {
+    return render(request, 'users/sales_dashboard.html', {
         'sales': sales,
         'trades': trades,
         'bought': bought,
@@ -352,40 +355,7 @@ def payout_dashboard(request):
         'is_pro': request.user.profile.is_pro_active,
         'pro_since': getattr(request.user.profile, 'pro_since', None),
         'pro_until': getattr(request.user.profile, 'pro_until', None),
-        # Cash-out panel (users/payouts.py holds the rules)
-        'payouts': Payout.objects.filter(user=request.user)[:10],
-        'open_payout': Payout.objects.filter(user=request.user, status='requested').first(),
-        'payout_rate_label': payout_rate_label(),
-        'payout_min_stars': MIN_PAYOUT_STARS,
-        'payout_max_stars': MAX_PAYOUT_STARS,
     })
-
-@login_required
-@require_POST
-@ratelimit(key='user', rate='5/h', method='POST')
-def request_payout(request):
-    """Queue a cash-out. All money rules live in users.payouts — the view
-    only carries the user's input and the outcome back to the dashboard."""
-    try:
-        payout = request_payout_hold(
-            request.user,
-            request.POST.get('amount_stars'),
-            request.POST.get('bank_name'),
-            request.POST.get('account_number'),
-            request.POST.get('holder_name'),
-        )
-        messages.success(
-            request,
-            f'Cash-out queued: {payout.amount_stars} ★ → R{payout.amount_zar} to '
-            f'{payout.bank_name} {payout.account_masked}. A money admin reviews it next.',
-        )
-    except PayoutError as e:
-        messages.error(request, e.message)
-    except Exception:
-        import logging
-        logging.getLogger(__name__).exception('payout view crush')
-        messages.error(request, 'Cash-out failed — nothing was debited. Try again.')
-    return redirect('payout_dashboard')
 
 @login_required
 @require_POST
@@ -395,10 +365,10 @@ def activate_pro_trial(request):
         profile,_ = Profile.objects.get_or_create(user=request.user)
         if profile.is_pro_active:
             messages.info(request, "You are already Pro — enjoy Who Viewed + AI README.")
-            return redirect('payout_dashboard')
+            return redirect('sales_dashboard')
         if profile.pro_until:
             messages.error(request, "Your free Pro trial already ended. Pro is a paid upgrade now.")
-            return redirect('payout_dashboard')
+            return redirect('sales_dashboard')
         now = timezone.now()
         from datetime import timedelta
         profile.is_pro = True
@@ -406,12 +376,12 @@ def activate_pro_trial(request):
         profile.pro_until = now + timedelta(days=7)
         profile.save(update_fields=['is_pro', 'pro_since', 'pro_until'])
         messages.success(request, "Pro trial activated for 7 days — see who viewed your vibes and use AI README.")
-        return redirect('payout_dashboard')
+        return redirect('sales_dashboard')
     except Exception as e:
         import logging
         logging.getLogger(__name__).exception(f"pro trial crush: {e}")
         messages.error(request, "Pro activation failed silently")
-        return redirect('payout_dashboard')
+        return redirect('sales_dashboard')
 
 # Rendered by the settings page. Keys match Profile fields handled by
 # toggle_setting, so the generic switch JS needs no special case.

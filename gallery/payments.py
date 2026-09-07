@@ -1,8 +1,9 @@
 """Customer checkout via Paystack.
 
-BlaqVibes charges buyers for published projects. It does not initiate creator
-cash-outs or bank transfers. Creator compensation/payback is deliberately not
-part of this payment boundary.
+Money architecture: BUYER → PAYSTACK → PAYMENT VERIFIED → SALE RECORDED →
+PROJECT UNLOCKED. BlaqVibes charges buyers for published projects; this
+module only ever moves money FROM buyers TO BlaqVibes. There is no transfer
+path back to creators — no creator money promises live here.
 """
 import hashlib
 import hmac
@@ -59,10 +60,6 @@ def _authorization_headers():
         'Authorization': f'Bearer {paystack_secret()}',
         'Content-Type': 'application/json',
     }
-
-def initiate_payout_transfer(*args, **kwargs):
-    """Disabled permanently: this application does not pay creators out."""
-    raise PaymentError('Creator cash-outs are disabled. Paystack is for customer purchases only.')
 
 def create_checkout(user, project):
     """Charge a buyer for a published project and return its Paystack URL."""

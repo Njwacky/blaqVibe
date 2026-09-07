@@ -211,7 +211,7 @@
     >
       {% if is_own %}
       <a href="{% url 'edit_profile' %}" class="btn-ghost">Edit Profile</a>
-      <a href="{% url 'payout_dashboard' %}" class="btn-ghost">⭐ Earnings</a>
+      <a href="{% url 'sales_dashboard' %}" class="btn-ghost">📈 Sales</a>
       {% elif user.is_authenticated %}
       <button
         id="follow-btn"

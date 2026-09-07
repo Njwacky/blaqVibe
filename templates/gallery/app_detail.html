@@ -325,7 +325,7 @@
               <form method="post" action="{% url 'buy_vibe' project.slug %}" style="margin-top:6px">{% csrf_token %}<button class="btnV" style="width:100%">💳 Pay R{{ project.price_zar }} with Paystack</button></form>
               <div style="font-size:11px;color:var(--muted);margin-top:4px">Real Paystack checkout. The ZIP unlocks only after a verified charge.</div>
             {% elif has_bought %}<div style="font-size:11px;color:var(--success-text);margin-top:4px">✓ You bought this — <a href="{% url 'download_zip' project.slug %}" style="color:var(--success-text)">Download ZIP</a></div>
-            {% elif user == project.owner %}<div style="font-size:11px;color:var(--muted);margin-top:4px">Listed at R{{ project.price_zar }}. Bank payouts to you are not wired yet.</div>
+            {% elif user == project.owner %}<div style="font-size:11px;color:var(--muted);margin-top:4px">Listed at R{{ project.price_zar }}. Buyers pay BlaqVibes to unlock this project — every sale shows on your Sales page.</div>
             {% endif %}
           {% else %}
             <div style="font-size:11px;color:var(--muted);margin-top:4px">Card checkout is off (no PAYSTACK_SECRET_KEY). {% if project.star_cost %}Trade {{ project.star_cost }} ★ to unlock.{% else %}Ask the creator or use stars.{% endif %}</div>
@@ -1558,7 +1558,7 @@
         <div style="font-size: 12px; color: var(--muted); margin-top: 4px">
           {{ viewer_count }} views —
           <a
-            href="{% url 'payout_dashboard' %}"
+            href="{% url 'sales_dashboard' %}"
             style="color: var(--warning-text)"
             >start a 7-day Pro trial</a
           >

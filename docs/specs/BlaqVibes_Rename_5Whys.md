@@ -40,8 +40,9 @@ tests in `users/test_rename.py`. Ledger reasons added: `rename_spend`,
    hourly to dodge moderation searches and follower blocklists.
 5. **Why burn the stars instead of paying them to anyone?** Currency moved to
    a fake "house" account is still in the economy. Burned is a **sink** —
-   before this feature the ledger had mints (welcome, trades in) and only
-   payout holds as sinks. Every sink makes every remaining star worth more.
+   before this feature the ledger had mints (welcome, trades in) and no real
+   sinks (stars are never exchanged for cash). Every sink makes every
+   remaining star worth more.
 
 ### 2. Why reserve the OLD username for 90 days?
 
@@ -164,7 +165,7 @@ rendered or embedded, and the identity-adjacent economy.
 | 3 | **Impersonation via freed names** (would have shipped with any naive rename feature). | Critical (latent) | ✅ Fixed — 90-day reservation + owner-reclaim rule |
 | 4 | **Link rot**: every `/u/<name>/` link in old notifications/comments 404s after a rename. | High | ✅ Fixed — history-backed 302 redirect |
 | 5 | **Feed cards had no creator link and no full title** — the card redesign dropped both; `test_feed_links_creator_names_to_profiles` and `test_seed_fills_the_feed` were failing on master. Profile discovery from the feed was gone. | High | ✅ Fixed — title + `by @creator` (styled) + ★/⬇ restored |
-| 6 | **No star sinks** besides payout holds → inflation pressure. | Medium | ✅ Improved — rename (100 ★) and restyle (20 ★) burns |
+| 6 | **No star sinks** → inflation pressure. | Medium | ✅ Improved — rename (100 ★) and restyle (20 ★) burns |
 | 7 | **Pro had no visible perks** to a stranger (who-viewed/AI README are private to the Pro user). | Medium | ✅ Improved — rename card + name styling are public flexes |
 | 8 | **Rename oracle**: a free endpoint would let a bot probe which names are taken/reserved. | Medium | ✅ Mitigated — 5/h ratelimit + cooldown on the failure path |
 | 9 | **Username uniqueness is case-insensitive only at the form layer** (Django `UserCreationForm`), the DB unique is case-sensitive. The rename path re-implements the `iexact` check so it cannot become the side door. | Low (documented) | ✅ Kept consistent |

@@ -691,10 +691,9 @@ class Scenario10_UploadAndZipSafety(TestCase):
 class AntiAbuseRateLimitTests(TestCase):
     """P9 — every write that costs money, stars or attention is bounded.
 
-    These five endpoints had no limit at all: the AI README calls a hosted
-    LLM (someone else's bill), a payout request moves real money, and
-    reviews/bookmarks/PR actions are the public write surface a bot would
-    hammer first.
+    These endpoints had no limit at all: the AI README calls a hosted
+    LLM (someone else's bill), and reviews/bookmarks/PR actions are the
+    public write surface a bot would hammer first.
     """
 
     def setUp(self):
@@ -723,13 +722,6 @@ class AntiAbuseRateLimitTests(TestCase):
             for _ in range(11):  # rate is 10/h
                 last = self.client.post(url)
             self.assertEqual(last.status_code, 403)
-
-    def test_payout_requests_are_capped_at_5_per_hour(self):
-        self.client.force_login(self.owner)
-        last = None
-        for _ in range(6):
-            last = self.client.post('/payout/request/', {'stars': 1000})
-        self.assertEqual(last.status_code, 403)
 
     def test_bookmark_toggle_is_capped_at_60_per_hour(self):
         self.client.force_login(self.other)

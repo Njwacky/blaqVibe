@@ -5,6 +5,12 @@
 (`662 tests, 1 failure`), and drove the publish / edit / fork / trade paths with throwaway
 accounts. Every claim below is either a code reference (`file:line`) or something I reproduced.
 
+> **STATUS NOTE (2026-09-07):** this is a historical audit. Every recommendation in it
+> about cash-outs, "earned Rands", star→ZAR rates, or a creator payout program is
+> **superseded and rejected**. BlaqVibes' money architecture is now
+> BUYER → PAY → BLAQVIBES → UNLOCK PROJECT, with no creator cash-out promise and stars
+> that are never redeemable for ZAR. See `docs/specs/BlaqVibes_Money_Architecture.md`.
+
 ---
 
 ## 0. Short answer: is it boring?

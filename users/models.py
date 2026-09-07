@@ -548,18 +548,13 @@ class Tip(models.Model):
     def __str__(self):
         return f'@{self.sender} → @{self.recipient} {self.amount}★'
 
-# Star -> ZAR cash-out rules (users/payouts.py is the only writer). The rate and
-# minimum are money policy, kept next to the ledger they debit. Amounts are whole
-# ZAR: Paystack takes integer cents, so a fractional rate would round differently
-# per request and the frozen amount_zar would stop matching the quote.
-STARS_PER_ZAR = 10          # 10 stars = R1
-MIN_PAYOUT_STARS = 500      # R50 — below this a bank transfer fee eats the payout
-MAX_PAYOUT_STARS = 50000    # R5 000 per request — one human-sized EFT, not a whale exit
+# Money architecture: BUYER → PAY → BLAQVIBES → UNLOCK PROJECT. Stars are the
+# platform economy (reputation, unlocks, competition) and are NOT redeemable
+# for ZAR — there is no star→ZAR rate and no creator cash-out program.
 
 # Identity money rules (users/rename.py is the only writer)
 # PUBG rule: a name is not free to change. Pro accounts carry a rename card;
-# everyone else burns stars. These are money policy next to the ledger they
-# debit, same rule as the payout constants above.
+# everyone else burns stars. Star sinks live next to the ledger they debit.
 RENAME_COST_STARS = 100     # a rename card — 10× the welcome grant, not farmable
 STYLE_COST_STARS = 20       # restyle your display name — cosmetic sink
 RENAME_COOLDOWN_DAYS = 30   # PUBG-style cooldown: one rename per window, no exceptions
@@ -587,7 +582,12 @@ class UsernameHistory(models.Model):
         return f'@{self.old_username} → @{self.new_username} ({self.method})'
 
 class Payout(models.Model):
-    """A creator cash-out request — stars held, ZAR paid by an admin.
+    """LEGACY table — kept only so historical rows survive migrations.
+
+    BlaqVibes no longer runs a creator cash-out program and never promises
+    creators money: BUYER → PAY → BLAQVIBES → UNLOCK PROJECT. No code path
+    writes new rows here; the model stays temporarily for data safety and
+    can be dropped in a later migration once the history is archived.
     """
     STATUS_CHOICES = [
         ('requested', 'Requested'),
