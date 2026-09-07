@@ -351,6 +351,61 @@ def _seed_zip_app(owner, cats):
         )
     return 1
 
+def _seed_repo_zip_apps(owner, cats):
+    """Import the two checked-in ZIP demos as admin-owned catalog entries."""
+    repo_zips = [
+        {
+            'source': Path(settings.BASE_DIR) / 'media' / 'apps' / 'zips' / 'app.zip',
+            'slug': 'random-quote-app',
+            'title': 'Random Quote App',
+            'short': 'Small Python app uploaded by the BlaqVibes admin.',
+        },
+        {
+            'source': Path(settings.BASE_DIR) / 'media' / 'apps' / 'zips' / 'stock-tracker-starter.zip',
+            'slug': 'stock-tracker-starter',
+            'title': 'Stock Tracker Starter',
+            'short': 'Full-app ZIP uploaded by the BlaqVibes admin.',
+        },
+    ]
+    created = 0
+    for item in repo_zips:
+        source = item['source']
+        if not source.exists():
+            logger.warning('Seed ZIP missing: %s', source)
+            continue
+        project, was_created = AppProject.objects.get_or_create(
+            slug=item['slug'],
+            defaults={
+                'owner': owner,
+                'title': item['title'],
+                'category': cats['full-apps'],
+                'short_description': item['short'],
+                'readme': f"# {item['title']}\n\nUploaded by the BlaqVibes admin.",
+                'tech_stack': 'Python',
+                'status': 'published',
+                'file_count': 0,
+                'file_tree': {},
+                'language_stats': {'Python': 100},
+            },
+        )
+        if not was_created:
+            continue
+        with zipfile.ZipFile(source) as archive:
+            files = [info for info in archive.infolist() if not info.is_dir()]
+            project.file_tree = {info.filename: {} for info in files}
+            project.file_count = len(files)
+            project.save(update_fields=['file_tree', 'file_count'])
+            for info in files:
+                AppFile.objects.get_or_create(
+                    project=project,
+                    path=info.filename,
+                    defaults={'size': info.file_size},
+                )
+        with source.open('rb') as handle:
+            project.zip_file.save(source.name, ContentFile(handle.read()), save=True)
+        created += 1
+    return created
+
 def _ensure_demo_staff():
     """Local/debug only — the accounts the docs already tell people to use.
 
@@ -410,6 +465,7 @@ def seed_demo():
     cats = _categories()
     created = _seed_snippets(owner, cats)
     created += _seed_zip_app(owner, cats)
+    created += _seed_repo_zip_apps(owner, cats)
     # Label and score the demo catalog too. Why? A fresh install would
     # otherwise show every demo vibe as kind='other' with appeal 0, which
     # looks exactly like the discovery feature being broken. Heuristic only:
