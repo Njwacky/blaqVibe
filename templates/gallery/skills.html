@@ -10,8 +10,8 @@
 <main class="skills-shell">
   <header class="skills-hero">
     <p class="skills-eyebrow">BUILDER SKILLS</p>
-    <h1>Share how you build.</h1>
-    <p>Reusable workflows, prompts, debugging recipes and starter patterns — backed by the projects people actually make.</p>
+    <h1>Learn how other builders solve problems.</h1>
+    <p>Knowledge shared by builders: the problem, the workflow, the tools, and the projects that prove it works. AI can be one tool inside a workflow — the builder is the point.</p>
     {% if user.is_authenticated %}
       <form class="skill-create" method="post" action="{% url 'create_skill' %}">
         {% csrf_token %}

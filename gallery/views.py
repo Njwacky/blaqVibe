@@ -368,6 +368,7 @@ def app_detail(request, slug):
     # remixed, and what changed?" from real rows, not vibes.
     # ------------------------------------------------------------------
     from .models import AppVersion, ProjectEvent
+    from .skill_models import SkillUse
     events = [{'date': ev.created_at, 'label': ev.label, 'kind': ev.kind}
               for ev in ProjectEvent.objects.filter(project=project).order_by('-created_at')[:12]]
     versions = [{'date': v.created_at, 'kind': 'version',
@@ -382,6 +383,13 @@ def app_detail(request, slug):
         lineage.append(ancestor)
         ancestor = ancestor.forked_from
     lineage.reverse()  # original first → this project last
+    # Skill attribution (§8): SKILL → BUILDER → PROJECT → PROOF, visible.
+    built_from_skill = (
+        SkillUse.objects.filter(project=project)
+        .select_related('skill')
+        .order_by('-created_at')
+        .first()
+    )
     return render(request, 'gallery/app_detail.html', {
         'project': project,
         'comments': top_comments,
@@ -418,6 +426,7 @@ def app_detail(request, slug):
         'show_language': getattr(project.owner.profile, 'show_language', True),
         'project_history': project_history,
         'lineage': lineage,
+        'built_from_skill': built_from_skill,
     })
 
 def scan_status(request, slug):
@@ -1850,11 +1859,6 @@ def sitemap_xml(request):
         rows.append(f'<url><loc>{settings.SITE_URL}/app/{p.slug}/</loc><lastmod>{p.updated_at.date().isoformat()}</lastmod></url>')
     rows.append('</urlset>')
     return HttpResponse('\n'.join(rows), content_type='application/xml')
-
-def prompt_skills(request):
-    """A practical, provider-neutral prompt efficiency workbench.
-    """
-    return render(request, 'gallery/prompt_skills.html')
 
 def trust_legend(request):
     """Public "what does the badge mean" page — the anti-fake read.

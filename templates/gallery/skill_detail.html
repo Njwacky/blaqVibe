@@ -13,14 +13,15 @@
     <p class="skills-eyebrow">BUILDER SKILL · {{ skill.get_difficulty_display|upper }}</p>
     <h1>{{ skill.title }}</h1>
     <p class="skill-lead">{{ skill.summary }}</p>
-    <p class="skill-byline">Shared by <strong>@{{ skill.creator.username }}</strong> · {{ skill.uses }} uses</p>
+    <p class="skill-byline">Shared by <strong>@{{ skill.creator.username }}</strong> · Used by {{ skill.uses }} builder{{ skill.uses|pluralize }} · Produced {{ skill.projects_created }} published project{{ skill.projects_created|pluralize }}</p>
     {% if user.is_authenticated %}
       <form method="post" action="{% url 'use_skill' skill.slug %}">
         {% csrf_token %}
-        <button class="use-skill" type="submit">Use this skill</button>
+        <button class="use-skill" type="submit">Start building with this skill</button>
       </form>
+      <p class="skill-login-note">The next project you publish within 2 hours is linked to this skill as proof.</p>
     {% else %}
-      <p class="skill-login-note">Sign in to record a use and keep building from this workflow.</p>
+      <p class="skill-login-note">Sign in to start building from this workflow.</p>
     {% endif %}
   </header>
 

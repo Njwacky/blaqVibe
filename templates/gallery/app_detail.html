@@ -120,6 +120,9 @@
         {% for co in project.co_owners.all %}{% if forloop.first %}<span style="color:var(--muted)">with</span>{% endif %}<a href="{% url 'profile_view' co.user.username %}" style="color:var(--link)">@{{ co.user.username }}</a>{% if not forloop.last %},{% endif %}{% endfor %}
       </div>
       <div style="margin-top:6px;font-size:12px;color:var(--muted)">Build method: <b style="color:var(--text)">{{ project.build_method_label }}</b> — {{ project.build_method_note }}</div>
+      {% if built_from_skill and built_from_skill.skill.is_published %}
+      <div style="margin-top:4px;font-size:12px;color:var(--muted)">⌘ Built using Builder Skill: <a href="{{ built_from_skill.skill.get_absolute_url }}" style="color:var(--link);font-weight:700">{{ built_from_skill.skill.title }}</a> — this project is the skill's proof.</div>
+      {% endif %}
 
       {% if lineage %}
       <div style="margin-top:12px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px">

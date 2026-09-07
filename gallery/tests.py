@@ -4073,3 +4073,53 @@ class RemixFamilyTreeTests(TestCase):
         self.client.login(username='remixer3', password='pass12345')
         response = self.client.get(f'/app/{self.root.slug}/forks/')
         self.assertContains(response, 'Secret Remix')
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class BuilderSkillLoopTests(TestCase):
+    """§5 + §8: Builder Skills (not "prompt skills") connect
+    SKILL → BUILDER → PROJECT → PROOF, and the connection is VISIBLE."""
+
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        from gallery.skill_models import Skill
+        self.cat = make_category()
+        self.creator = make_user('skillauthor')
+        self.builder = make_user('skillbuilder')
+        self.skill = Skill.objects.create(
+            creator=self.creator,
+            title='Build a Django Inventory System',
+            summary='From idea to a working inventory page in one sitting.',
+            problem='Small businesses lose stock counts in spreadsheets.',
+            workflow='1. Model Item + StockMove. 2. List view. 3. Adjust form.',
+            tools='Django, SQLite',
+            difficulty='beginner',
+        )
+
+    def test_nav_says_builder_skills(self):
+        response = self.client.get('/')
+        self.assertContains(response, 'Builder skills')
+        self.assertNotContains(response, 'Prompt skills')
+
+    def test_use_then_publish_links_the_project_as_proof(self):
+        self.client.login(username='skillbuilder', password='pass12345')
+        response = self.client.post(f'/prompt-skills/{self.skill.slug}/use/')
+        self.assertEqual(response.status_code, 302)
+        project = make_project(self.builder, self.cat, title='My Inventory App')
+        self.skill.refresh_from_db()
+        self.assertEqual(self.skill.projects_created, 1)
+        # The project page shows the attribution…
+        response = self.client.get(f'/app/{project.slug}/')
+        self.assertContains(response, 'Built using Builder Skill')
+        self.assertContains(response, 'Build a Django Inventory System')
+        # …and the skill page shows the proof.
+        response = self.client.get(f'/prompt-skills/{self.skill.slug}/')
+        self.assertContains(response, 'My Inventory App')
+        self.assertContains(response, 'Produced 1 published project')
+        self.assertContains(response, 'Start building with this skill')
+
+    def test_skill_without_use_gets_no_attribution(self):
+        project = make_project(self.builder, self.cat, title='Unrelated App')
+        response = self.client.get(f'/app/{project.slug}/')
+        self.assertNotContains(response, 'Built using Builder Skill')
