@@ -6,6 +6,12 @@
 {% endblock %}
 {% block content %}
 <div style="max-width:640px;margin:0 auto;padding:20px">
+  {% if challenge_tag %}
+  <div style="background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:12px;padding:12px;margin-bottom:16px;display:flex;gap:8px;align-items:center">
+    <span style="font-size:18px">🏆</span>
+    <div style="flex:1;font-size:13px"><b>Challenge Mode:</b> Publishing for <b>#{{ challenge_tag }}</b>. Your project will be tagged automatically.</div>
+  </div>
+  {% endif %}
   <div style="display:flex;gap:10px;align-items:flex-start;background:color-mix(in srgb,#7C3AED 9%,var(--card));border:1px solid color-mix(in srgb,#7C3AED 45%,var(--line));border-radius:12px;padding:12px 14px;margin-bottom:16px">
     <span style="color:var(--launch-text);font-weight:900">↗</span>
     <div style="font-size:12px;line-height:1.55"><b>This publishes a BlaqVibes listing and safe preview—not a production host or app-store release.</b><div style="color:var(--muted);margin-top:3px">Need a real public URL or store listing? <a href="{% url 'launch_hub' %}" style="color:var(--accent-text);font-weight:700">Find the correct launch path →</a></div></div>
@@ -45,8 +51,8 @@
           <label style="display:flex;gap:8px;align-items:center;font-size:13px">{{ form.ai_generated }} 🤖 AI-generated</label>
           {% if challenge %}
           <div style="background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:10px;padding:10px;display:flex;gap:8px;align-items:center">
-            <input type="checkbox" name="challenge_join" id="challenge_join" style="width:auto">
-            <label for="challenge_join" style="flex:1;font-size:12px">Join Challenge of the Week — <b style="color:var(--warning-text)">{{ challenge.title }}</b> ({{ challenge.bounty_stars }} ★ bounty, tag #{{ challenge.tag }})<br><span style="color:var(--muted)">{{ challenge.description|truncatechars:80 }}</span></label>
+            <input type="checkbox" name="challenge_join" id="challenge_join" style="width:auto" {% if challenge_tag %}checked{% endif %}>
+            <label for="challenge_join" style="flex:1;font-size:12px">Join Challenge — <b style="color:var(--warning-text)">{{ challenge.title }}</b> ({{ challenge.bounty_stars }} ★ bounty, tag #{{ challenge.tag }})<br><span style="color:var(--muted)">{{ challenge.description|truncatechars:80 }}</span></label>
           </div>
           {% endif %}
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -62,6 +68,11 @@
       <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px">
         <h2 style="font-family:Space Grotesk,sans-serif;font-size:18px">Step 2 — Upload</h2>
         <p style="font-size:12px;color:var(--muted);margin-top:4px">Drop ZIP or paste snippet — we auto-block bad files, count files, detect languages.</p>
+        {% if upload_zip %}
+        <div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:10px;padding:10px;margin-bottom:12px;font-size:12px">
+          <b>💡 Challenge Mode:</b> Upload your ZIP file to participate in the challenge.
+        </div>
+        {% endif %}
         <div style="margin-top:12px;border:1px dashed var(--line);border-radius:12px;padding:14px;background:var(--card);text-align:center" id="zip-drop">
           <div style="font-weight:700;font-size:13px">ZIP file (for Full App) — Max 100MB</div>
           <div style="font-size:11px;color:var(--muted)">Drop a ZIP here or browse. We block .env, .exe, path traversal, and zip bombs.</div>

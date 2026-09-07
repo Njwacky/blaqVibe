@@ -144,13 +144,16 @@ BlaqVibes{% endblock %} {% block content %}
     {% endfor %}
   </div>
 
-  <div style="margin-top: 12px; display: flex; gap: 8px">
-    <a href="{% url 'publish' %}" class="btnV" style="text-decoration: none"
-      >Publish for this Challenge →</a
+  <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap">
+    <a href="{% url 'publish' %}?challenge={{ challenge.tag }}" class="btnV" style="text-decoration: none"
+      >📝 Start from Scratch →</a
+    >
+    <a href="{% url 'publish' %}?challenge={{ challenge.tag }}&upload=zip" class="btnG" style="text-decoration: none"
+      >📦 Upload Your ZIP →</a
     >
     <a
       href="{% url 'challenge_list' %}"
-      class="btnG"
+      class="btn-ghost"
       style="text-decoration: none"
       >All Challenges</a
     >

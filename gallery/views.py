@@ -663,7 +663,16 @@ def publish(request):
     from gallery.models import Challenge
     from django.utils import timezone
     site = SiteSettings.get()
-    challenge = Challenge.objects.filter(is_active=True, start__lte=timezone.now(), end__gte=timezone.now()).first()
+    # Get challenge from URL parameter or fallback to active challenge
+    challenge_tag = request.GET.get('challenge')
+    if challenge_tag:
+        challenge = Challenge.objects.filter(tag=challenge_tag).first()
+    else:
+        challenge = Challenge.objects.filter(is_active=True, start__lte=timezone.now(), end__gte=timezone.now()).first()
+    
+    # Check if user wants to upload ZIP directly
+    upload_zip = request.GET.get('upload') == 'zip'
+    
     if getattr(request, 'limited', False):
         return HttpResponse("Rate limit: 5 uploads/hour", status=429)
     if request.method == 'POST':
@@ -676,8 +685,8 @@ def publish(request):
                 project.star_cost = 0
             project.save()
             form.save_m2m()
-            # Challenge — if checked, add tag
-            if challenge and request.POST.get('challenge_join') == 'on':
+            # Challenge — if checked or from URL, add tag
+            if challenge and (request.POST.get('challenge_join') == 'on' or challenge_tag):
                 from gallery.models import Tag
                 tag, _ = Tag.objects.get_or_create(slug=challenge.tag, defaults={'name': challenge.tag})
                 project.tags.add(tag)
@@ -795,7 +804,12 @@ def publish(request):
             return redirect(project.get_absolute_url())
     else:
         form = AppUploadForm()
-    return render(request, 'gallery/publish.html', {'form': form, 'challenge': challenge})
+    return render(request, 'gallery/publish.html', {
+        'form': form, 
+        'challenge': challenge,
+        'challenge_tag': challenge_tag,
+        'upload_zip': upload_zip
+    })
 
 def download_zip(request, slug):
     # 'removed' and 'pending' are reachable on purpose: buyers of a
