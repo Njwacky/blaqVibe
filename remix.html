@@ -1,0 +1,998 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stock Tracker Starter (builder remix) — BlaqVibes</title>
+<link rel="icon" type="image/png" href="/static/branding/icon-32.png">
+<link rel="apple-touch-icon" href="/static/branding/icon-180.png">
+<link rel="manifest" href="/static/branding/manifest.json">
+<meta name="theme-color" id="theme-color-meta" content="#07070A">
+<meta name="description" content="Full-app ZIP. Trade 2 ★ to download and run it on your machine.">
+<meta property="og:title" content="Stock Tracker Starter (builder remix) — BlaqVibes">
+<meta property="og:description" content="Full-app ZIP. Trade 2 ★ to download and run it on your machine.">
+<meta property="og:image" content="http://localhost:8000/static/branding/blaqvibes-icon.png">
+<link rel="preload" href="/static/gallery/css/fonts.css?v=fonts-20260830" as="style">
+<link rel="stylesheet" href="/static/gallery/css/fonts.css?v=fonts-20260830">
+<link rel="stylesheet" href="/static/gallery/css/blaqvibes.css?v=mobile-20260906b">
+<link rel="stylesheet" href="/static/gallery/css/cards.css?v=mobile-20260906b">
+<link rel="stylesheet" href="/static/gallery/css/footer.css?v=footer-contact-20260828">
+<script src="/static/gallery/js/head-theme.js?v=ext-20260827"></script>
+<script src="/static/gallery/js/alpine.min.js?v=alpine-3.16.3" defer></script>
+<script src="/static/gallery/js/blaqvibes.js?v=nav-icons-20260821" defer></script>
+
+<script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Stock Tracker Starter (builder remix)",
+    "description": "Full\u002Dapp ZIP. Trade 2 ★ to download and run it on your machine.",
+    "author": {
+      "@type": "Person",
+      "name": "builder"
+    },
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "ZAR"
+    }
+  }
+</script>
+
+</head>
+<body>
+<svg aria-hidden="true" focusable="false" style="position:absolute;width:0;height:0;overflow:hidden">
+  <symbol id="bv-ico-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4 12H2m20 0h-2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></symbol>
+  <symbol id="bv-ico-moon" viewBox="0 0 24 24"><path d="M20 14.5A7.8 7.8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z"/></symbol>
+  <symbol id="bv-ico-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="bv-ico-launch" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/><path d="M6 7H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1"/></symbol>
+  <symbol id="bv-ico-profile" viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
+  <symbol id="bv-ico-inbox" viewBox="0 0 24 24"><path d="M4 5h16l-1.5 14h-13L4 5Z"/><path d="M4.6 13h4.2l1.4 2h3.6l1.4-2h4.2"/><path d="M12 4v6m0 0-2-2m2 2 2-2"/></symbol>
+  <symbol id="bv-ico-vibes" viewBox="0 0 24 24"><path d="M4 7.5 12 3l8 4.5-8 4.5L4 7.5Z"/><path d="m4 12 8 4.5L20 12"/><path d="m4 16.5 8 4.5 8-4.5"/></symbol>
+  <symbol id="bv-ico-saved" viewBox="0 0 24 24"><path d="M6 4h12v17l-6-3.5L6 21V4Z"/><path d="M9 8h6"/></symbol>
+  <symbol id="bv-ico-battle" viewBox="0 0 24 24"><path d="m5 19 14-14"/><path d="m14 5 5 5"/><path d="m10 19-5-5"/><path d="M4 20h6"/><path d="M14 4h6"/></symbol>
+  <symbol id="bv-ico-challenges" viewBox="0 0 24 24"><path d="M8 4h8v3a4 4 0 0 1-8 0V4Z"/><path d="M8 6H5a2 2 0 0 0 2 4"/><path d="M16 6h3a2 2 0 0 1-2 4"/><path d="M12 11v5"/><path d="M8 20h8"/><path d="M10 16h4v4h-4z"/></symbol>
+  <symbol id="bv-ico-chat" viewBox="0 0 24 24"><path d="M5 6h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-8l-5 3v-3H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"/><path d="M8 10h8M8 14h5"/></symbol>
+  <symbol id="bv-ico-trades" viewBox="0 0 24 24"><path d="M7 7h12m0 0-3-3m3 3-3 3"/><path d="M17 17H5m0 0 3-3m-3 3 3 3"/></symbol>
+  <symbol id="bv-ico-sales" viewBox="0 0 24 24"><path d="M4 19V5m0 14h16M7 15l3.5-4 3 2.5L18 8"/><path d="M14.8 8H18v3.2"/></symbol>
+  <symbol id="bv-ico-settings" viewBox="0 0 24 24"><path d="M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8Z"/><path d="M4 12h2m12 0h2M12 4v2m0 12v2M6.6 6.6 8 8m8 8 1.4 1.4M17.4 6.6 16 8m-8 8-1.4 1.4"/></symbol>
+  <symbol id="bv-ico-shield" viewBox="0 0 24 24"><path d="M12 3 20 6v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3Z"/><path d="m8.5 12 2.2 2.2 4.8-5"/></symbol>
+  <symbol id="bv-ico-report" viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 4V4Z"/><path d="M8 9h8M8 12h5"/></symbol>
+  <symbol id="bv-ico-admin" viewBox="0 0 24 24"><path d="M8 11a4 4 0 1 1 3.5 3.97"/><path d="M11.5 15H21v3h-3v3h-3v-3h-3.5"/><path d="M8 11h.01"/></symbol>
+  <symbol id="bv-ico-logout" viewBox="0 0 24 24"><path d="M10 5H5v14h5"/><path d="M13 17l5-5-5-5"/><path d="M18 12H9"/></symbol>
+</svg>
+<a href="#main" class="skip-link">Skip to content</a>
+<nav class="nav" aria-label="Primary">
+  <a href="/" class="logo"><img src="/static/branding/ai_assistance.jpeg" alt="" style="width:32px;height:32px;border-radius:8px;box-shadow:0 0 12px rgba(124,58,237,.5)"> BlaqVibes</a>
+  <div class="nav-actions">
+    <button type="button" id="theme-toggle" class="icon-btn" aria-label="Toggle theme"><svg class="bv-icon"><use href="#bv-ico-sun"></use></svg></button>
+    <button type="button" id="nav-toggle" class="icon-btn nav-burger" aria-label="Open menu" aria-expanded="false" aria-controls="nav-links"><svg class="bv-icon"><use href="#bv-ico-menu"></use></svg></button>
+  </div>
+  <div class="nav-links" id="nav-links">
+    <a href="/">Vibes</a>
+    <a href="/start/" style="color:var(--accent-text);font-weight:700">✦ Start</a>
+    <a href="/prompt-skills/" style="color:var(--warning-text);font-weight:700">⌘ Prompt skills</a>
+    <a href="/launch/" style="color:var(--launch-text);font-weight:700"><svg class="bv-icon"><use href="#bv-ico-launch"></use></svg> Launch</a>
+    
+      <a href="/battle/"><svg class="bv-icon"><use href="#bv-ico-battle"></use></svg> Battle</a>
+      <a href="/challenges/"><svg class="bv-icon"><use href="#bv-ico-challenges"></use></svg> Challenges</a>
+      <a href="/accounts/login/" class="btn-ghost">Sign in</a>
+      <a href="/accounts/signup/" class="btn-white">Sign up</a>
+    
+  </div>
+</nav>
+<div id="nav-resizer" class="nav-resizer" role="separator" aria-label="Resize sidebar" aria-orientation="vertical" aria-valuemin="180" aria-valuemax="380" aria-valuenow="230" tabindex="0">
+  <button type="button" id="nav-collapse" class="nav-collapse-btn" aria-label="Collapse sidebar" aria-expanded="true">&lt;&lt;</button>
+</div>
+
+
+<main id="main"> 
+<div class="page detail-layout">
+  <div>
+    <div class="card project-story" id="project-story" style="margin-bottom:16px">
+      {# ── THE STORY HEADER ─────────────────────────────────────────────
+         Hierarchy: PROJECT → CREATOR → EVIDENCE → BUILD METHOD →
+         HISTORY → REMIX LINEAGE → COMMUNITY → BUY / UNLOCK.
+         Every row answers one visitor question from real data. #}
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <span class="badge" style="background:var(--accent-soft-bg);color:var(--accent-text)">API / backend</span>
+        
+        <span class="badge" style="background:var(--warning-bg);color:var(--warning-text)" title="Remixed from @blaq/stock-tracker-starter">⑂ Remixed</span>
+        
+        
+        <span class="badge" style="background:var(--input);border:1px solid var(--line);color:var(--muted)">🛡️ Scanned</span>
+        
+        
+        <span class="badge" style="background:var(--input);border:1px solid var(--line);color:var(--muted)">📁 Files only</span>
+        
+      </div>
+
+      <h1 style="font-family:Space Grotesk,sans-serif;font-size:24px;margin-top:10px">Stock Tracker Starter (builder remix)</h1>
+      <p style="font-size:13px;color:var(--text);margin-top:4px;line-height:1.6">Full-app ZIP. Trade 2 ★ to download and run it on your machine.</p>
+
+      <div style="margin-top:10px;font-size:13px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <span style="color:var(--muted)">Built by</span>
+        <a href="/u/builder/" style="color:var(--link);font-weight:700">@builder</a>
+        <span style="font-size:10px;background:var(--warning-bg);color:var(--warning-text);padding:2px 6px;border-radius:6px">Bronze</span>
+        
+      </div>
+      <div style="margin-top:6px;font-size:12px;color:var(--muted)">Build method: <b style="color:var(--text)">Remixed</b> — Remixed from @blaq/stock-tracker-starter</div>
+
+      
+      <div style="margin-top:12px;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.05em">⑂ REMIX LINEAGE — this idea started elsewhere</div>
+        <div style="margin-top:6px;font-size:12px;display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          
+          <a href="/app/stock-tracker-starter/" style="color:var(--link);white-space:nowrap">Stock Tracker Starter <span style="color:var(--muted)">@blaq</span></a>
+          <span style="color:var(--muted)">→</span>
+          
+          <b style="white-space:nowrap">Stock Tracker Starter (builder remix) <span style="color:var(--muted);font-weight:400">@builder</span></b>
+        </div>
+        
+      </div>
+      
+
+      
+      <div style="margin-top:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.05em">WHY YOU CAN TRUST THIS PROJECT</div>
+        <div style="margin-top:6px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:4px 16px;font-size:12px">
+          <div>✓ Creator identity — <a href="/u/builder/" style="color:var(--link)">@builder</a></div>
+          <div>✓ Project code — snippet published inline</div>
+          <div>✓ README — required before publishing</div>
+          <div>– Live preview — no live preview available.</div>
+          <div>◐ Security scan — pipeline ran, some checks incomplete</div>
+          <div>✓ Project history — 2 events on the timeline</div>
+          <div>– Reviews — none yet</div>
+          <div>★ 0 stars from the community</div>
+          <div>✓ Remix lineage — remixed, origin preserved</div>
+          <div>✓ Build method — Remixed</div>
+        </div>
+      </div>
+
+      
+      <div style="margin-top:12px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);letter-spacing:.05em">PROJECT HISTORY</div>
+        <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px;font-size:12px">
+          
+          <div style="display:flex;gap:10px">
+            <span style="color:var(--muted);white-space:nowrap">Sep 7</span>
+            <span>⑂ Remixed from @blaq/stock-tracker-starter</span>
+          </div>
+          
+          <div style="display:flex;gap:10px">
+            <span style="color:var(--muted);white-space:nowrap">Sep 7</span>
+            <span>🚀 First version published</span>
+          </div>
+          
+        </div>
+      </div>
+      
+
+      
+      <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        
+        <form method="post" action="/app/stock-tracker-starter-builder-remix/fork/" class="js-fork-form">
+          <input type="hidden" name="csrfmiddlewaretoken" value="ne1V4HJjKxcws81xBWhSnN47RfFhOC0PNEdNUTT2yRpO3ZyJrb8docV1LtWs5dx0"><button class="btn-ghost">⑂ Remix this project</button>
+        </form>
+        
+        
+        
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="mock-browser__bar">
+        <div class="mock-browser__left">
+          <span class="mock-browser__dot mock-browser__dot--red"></span
+          ><span class="mock-browser__dot mock-browser__dot--amber"></span
+          ><span class="mock-browser__dot mock-browser__dot--green"></span
+          ><span class="mock-browser__label">stock-tracker-starter-builder-remix — Preview</span>
+        </div>
+        <span class="mock-browser__badge">● Secure</span>
+      </div>
+      
+      <div class="mock-preview">
+        <div class="mock-preview__inner">
+          <div class="mock-preview__icon">
+            API
+          </div>
+          <div class="mock-preview__title">
+            Stock Tracker Starter (builder remix)
+          </div>
+          <div class="mock-preview__meta">
+            API / backend • Python, Django • 3 files
+          </div>
+          <div class="mock-preview__tag">
+            No live preview for a api / backend
+          </div>
+          <div class="mock-preview__note">
+            No live preview available. Server, API, or backend service. Runs on your machine.
+          </div>
+        </div>
+      </div>
+      
+      <div class="download-card">
+        <div class="row row--between desktop-only" style="margin-bottom: 6px">
+          <span class="detail-panel__head">DOWNLOAD</span
+          ><span class="download-card__counts"
+            >3 files • 0 clones</span
+          >
+        </div>
+        <div class="clipboard desktop-only">
+          <span class="clipboard__cmd">$</span> http://localhost:8000/app/stock-tracker-starter-builder-remix/download/
+          <button
+            class="btn-white js-copy clipboard__copy"
+            data-copy="http://localhost:8000/app/stock-tracker-starter-builder-remix/download/"
+          >
+            Copy
+          </button>
+        </div>
+        <div class="detail-actions">
+           
+          <button class="btn-ghost js-copy-snippet" data-target="html-code">
+            ⎘ Copy Snippet
+          </button>
+          <form
+            method="post"
+            action="/app/stock-tracker-starter-builder-remix/star/"
+            class="js-star-form"
+          >
+            <input type="hidden" name="csrfmiddlewaretoken" value="ne1V4HJjKxcws81xBWhSnN47RfFhOC0PNEdNUTT2yRpO3ZyJrb8docV1LtWs5dx0"><button class="btn-ghost">
+              ☆ Star 0
+            </button>
+          </form>
+          
+          <form
+            method="post"
+            action="/app/stock-tracker-starter-builder-remix/fork/"
+            class="js-fork-form"
+          >
+            <input type="hidden" name="csrfmiddlewaretoken" value="ne1V4HJjKxcws81xBWhSnN47RfFhOC0PNEdNUTT2yRpO3ZyJrb8docV1LtWs5dx0"><button class="btn-ghost">
+              ⑂ Fork 0
+            </button>
+          </form>
+          
+          
+          
+        </div>
+
+        
+
+        
+        
+        
+        
+        <form
+          method="post"
+          action="/app/stock-tracker-starter-builder-remix/report/"
+          style="margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap"
+        >
+          <input type="hidden" name="csrfmiddlewaretoken" value="ne1V4HJjKxcws81xBWhSnN47RfFhOC0PNEdNUTT2yRpO3ZyJrb8docV1LtWs5dx0">
+          <select
+            name="reason"
+            style="
+              flex: 1;
+              background: var(--input);
+              border: 1px solid var(--line);
+              border-radius: 8px;
+              padding: 6px;
+              color: var(--text);
+              font-size: 12px;
+            "
+          >
+            <option value="spam">Spam</option>
+            <option value="malware">Malware</option>
+            <option value="copyright">Copyright</option>
+            <option value="other">Other</option>
+          </select>
+          <input
+            name="details"
+            placeholder="Details (optional)"
+            style="
+              flex: 2;
+              min-width: 0;
+              background: var(--input);
+              border: 1px solid var(--line);
+              border-radius: 8px;
+              padding: 6px;
+              color: var(--text);
+              font-size: 12px;
+            "
+          />
+          <button class="btn-ghost" style="padding: 6px 10px; font-size: 12px">
+            Report
+          </button>
+        </form>
+      </div>
+    </div>
+
+    
+
+    <div
+      class="card"
+      style="margin-top: 12px; padding-bottom: 12px"
+      x-data="{tab:'readme'}"
+    >
+      <div style="display: flex; gap: 6px; margin: 12px 12px 0">
+        <button
+          @click="tab='readme'"
+          :class="tab==='readme'?'btn-white':'btn-ghost'"
+          style="flex: 1"
+        >
+          📄 README.md
+        </button>
+        <button
+          @click="tab='tree'"
+          :class="tab==='tree'?'btn-white':'btn-ghost'"
+          style="flex: 1"
+        >
+          📁 Files (3)
+        </button>
+        
+      </div>
+
+      <div
+        x-show="tab==='readme'"
+        style="
+          margin: 12px;
+          background: var(--bg);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 14px;
+        "
+      >
+        <div
+          style="
+            font-size: 11px;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+            font-weight: 700;
+            margin-bottom: 8px;
+          "
+        >
+          README — REQUIRED FOR EVERY VIBE
+        </div>
+        <div style="font-size: 13px; line-height: 1.7; color: var(--text)">
+          <h1>Stock Tracker Starter</h1>
+<p>Small full-app ZIP so you can try the stars trade path.</p>
+<h1># What is this?</h1>
+<p>A starter Django-style project: README, app module, and requirements.</p>
+<h1># How to run</h1>
+<pre><code>pip install -r requirements.txt
+python app.py
+</code></pre>
+
+<h1># Trade</h1>
+<p>This vibe costs 2 ★ to download. New accounts start with 5 ★.</p>
+        </div>
+      </div>
+
+      <div
+        x-show="tab==='tree'"
+        style="
+          margin: 12px;
+          background: var(--bg);
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          padding: 12px;
+        "
+        x-data="{open:true}"
+      >
+        <div
+          style="
+            font-size: 11px;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+            font-weight: 700;
+            margin-bottom: 8px;
+          "
+        >
+          FILE TREE — stock_app_vibes
+        </div>
+        
+        <div
+          style="
+            font-family:
+              JetBrains Mono,
+              monospace;
+            font-size: 12px;
+            line-height: 1.8;
+          "
+        >
+          <script id="tree-data" type="application/json">{"README.md": {}, "app.py": {}, "requirements.txt": {}}</script>
+          <div id="tree-root" data-slug="stock-tracker-starter-builder-remix"></div>
+        </div>
+        <div
+          id="filePreview"
+          style="
+            display: none;
+            margin-top: 12px;
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 10px;
+          "
+        >
+          <div style="display: flex; justify-content: space-between">
+            <b
+              id="fileName"
+              style="
+                font-family:
+                  JetBrains Mono,
+                  monospace;
+                font-size: 12px;
+              "
+            ></b
+            ><button
+              class="btn-ghost js-close-preview"
+              style="padding: 4px 8px; font-size: 11px"
+            >
+              ✕
+            </button>
+          </div>
+          <pre
+            id="fileCode"
+            style="
+              font-family:
+                JetBrains Mono,
+                monospace;
+              font-size: 11px;
+              white-space: pre-wrap;
+              overflow: auto;
+              max-height: 240px;
+              margin-top: 6px;
+              color: var(--text);
+            "
+          ></pre>
+        </div>
+        
+        <div style="margin-top: 8px; font-size: 11px; color: var(--muted)">
+          Click any file to preview (200KB max). Full ZIP has everything.
+        </div>
+      </div>
+
+      
+    </div>
+
+    <div class="card" id="comments" style="margin-top: 12px; padding: 14px">
+      <h3 style="font-weight: 700">Comments • 0</h3>
+      
+      <div
+        style="
+          margin-top: 10px;
+          background: var(--bg);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          font-size: 13px;
+          color: var(--muted);
+        "
+      >
+        Please
+        <a href="/accounts/login/" style="color: var(--link)">sign in</a> to
+        comment.
+      </div>
+      
+      <div
+        style="
+          margin-top: 14px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        "
+      >
+        
+        <div
+          style="
+            color: var(--muted);
+            font-size: 13px;
+            text-align: center;
+            padding: 12px;
+          "
+        >
+          No comments yet. Be the first to vibe!
+        </div>
+        
+      </div>
+    </div>
+
+    <div
+      class="card"
+      style="margin-top: 12px; padding: 14px; background: var(--bg)"
+    >
+      <div style="display: flex; align-items: center; gap: 8px">
+        <a
+          href="https://www.flaticon.com/free-icons/ui"
+          title="Ui icons created by lakonicon - Flaticon"
+          target="_blank"
+          rel="noopener noreferrer"
+          style="
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            background: var(--input);
+            border: 1px solid var(--line);
+            border-radius: 8px;
+            color: var(--warning-text);
+            text-decoration: none;
+            font-size: 16px;
+          "
+        >
+          🤖
+        </a>
+        <div>
+          <div style="font-weight: 800">Ask Nolo to Compare</div>
+          <div class="desktop-only" style="font-size: 11px; color: var(--muted)">
+            Nolo doesn’t judge — she just shows features side-by-side. You pick
+            the function you want. Backend only.
+          </div>
+        </div>
+      </div>
+      <div class="desktop-only" style="margin-top: 6px; font-size: 10px; color: var(--muted)">
+        Icon:
+        <a
+          href="https://www.flaticon.com/free-icons/ui"
+          title="Ui icons created by lakonicon - Flaticon"
+          target="_blank"
+          rel="noopener noreferrer"
+          style="color: var(--link); text-decoration: none"
+          >Ui icons created by lakonicon - Flaticon</a
+        >
+      </div>
+      <div class="desktop-only" style="margin-top: 8px; font-size: 12px; color: var(--muted)">
+        Need help asking Nolo about this app or finding new templates?
+        <a
+          href="/nolo/chat/"
+          style="color: var(--link); text-decoration: none"
+          >Open Nolo Chat</a
+        >.
+      </div>
+      <form
+        id="nolo-form"
+        data-url="/nolo/compare/"
+        style="margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap"
+      >
+        <input type="hidden" name="csrfmiddlewaretoken" value="ne1V4HJjKxcws81xBWhSnN47RfFhOC0PNEdNUTT2yRpO3ZyJrb8docV1LtWs5dx0">
+        <input type="hidden" name="a_slug" value="stock-tracker-starter-builder-remix" />
+        <select
+          name="b_slug"
+          id="nolo-b"
+          style="
+            flex: 1;
+            background: var(--input);
+            border: 1px solid var(--line);
+            border-radius: 10px;
+            padding: 8px;
+            color: var(--text);
+            font-size: 12px;
+          "
+        >
+          <option value="">Compare with...</option>
+          
+          <option value="stock-tracker-starter">
+            Stock Tracker Starter — Python, Django
+          </option>
+          
+        </select>
+        <button class="btn-violet" style="padding: 8px 14px; font-size: 12px">
+          Compare
+        </button>
+      </form>
+      <div
+        id="nolo-result"
+        style="
+          display: none;
+          margin-top: 10px;
+          background: var(--card);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+          font-size: 12px;
+          line-height: 1.6;
+        "
+      ></div>
+    </div>
+
+    
+
+    <div class="card" id="reviews" style="margin-top: 12px; padding: 14px">
+      <div style="display: flex; align-items: center; gap: 10px">
+        <h3 style="font-weight: 700">
+          Reviews • 0 
+        </h3>
+        <span class="desktop-only" style="margin-left: auto; font-size: 11px; color: var(--muted)"
+          >Nolo 0-10 + Humans 1-5</span
+        >
+      </div>
+      
+      <div style="margin-top: 8px; font-size: 12px; color: var(--muted)">
+        Please
+        <a href="/accounts/login/" style="color: var(--link)">sign in</a> to
+        review. Trade or star first.
+      </div>
+      
+      <div
+        style="
+          margin-top: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        "
+      >
+        
+        <div
+          style="
+            color: var(--muted);
+            font-size: 12px;
+            text-align: center;
+            padding: 8px;
+          "
+        >
+          No human reviews yet. Be the first!
+        </div>
+        
+      </div>
+    </div>
+  </div>
+
+  <div>
+    <div class="card" style="padding: 14px">
+      
+      <div
+        style="
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          padding: 8px 10px;
+          margin-bottom: 10px;
+          border-radius: 10px;
+          border: 1px solid var(--line);
+          background: var(--input);
+        "
+      >
+        <span style="font-size: 16px">🛡️</span>
+        <div style="font-size: 12px; line-height: 1.5">
+          <b style="color: var(--muted)">Scanned</b>
+          — Went through the scan pipeline — some checks were incomplete.
+          
+          <a href="/trust/" style="color: var(--link)">What does this mean?</a>
+        </div>
+      </div>
+      
+      <div style="display: flex; gap: 6px; margin-bottom: 8px">
+        <a
+          href="/?program=api_backend"
+          class="badge"
+          style="
+            background: var(--accent-soft-bg);
+            color: var(--accent-text);
+            text-decoration: none;
+          "
+          title="Server, API, or backend service. Runs on your machine."
+          >API API / backend</a
+        >
+        <span
+          class="badge"
+          style="background: var(--accent-soft-bg); color: var(--accent-text)"
+          >Snippet</span
+        > <span
+          class="badge"
+          style="
+            background: var(--input);
+            border: 1px solid var(--line);
+            color: var(--muted);
+          "
+          title="No live preview available."
+          >📁 Files only</span
+        >  
+      </div>
+      <h3 style="font-weight:700">Stock Tracker Starter (builder remix)</h3>
+      <p style="font-size:12px;color:var(--muted);margin:6px 0;line-height:1.5">Full-app ZIP. Trade 2 ★ to download and run it on your machine.</p>
+      <div style="font-size:12px;display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Publisher</span><b><a href="/u/builder/" style="color:var(--link)">@builder</a> <span style="font-size:10px;background:var(--warning-bg);color:var(--warning-text);padding:2px 6px;border-radius:6px">Bronze</span></b></div>
+        
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Stack</span><b>Python, Django</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Files</span><b>3 • 0 clones</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Trade Cost</span><b>0 ★ Free</b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--line)"><span style="color:var(--muted)">Forks</span><b>⑂ 0 • Forked from <a href="/app/stock-tracker-starter/" style="color:var(--link)">@blaq</a></b></div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0"><span style="color:var(--muted)">License</span><b>MIT</b></div>
+      </div>
+      <div style="margin-top:10px">
+        
+  <a href="/accounts/login/?next=/app/stock-tracker-starter-builder-remix/" class="btn-ghost">⭐ Tip</a>
+
+
+        
+
+      </div>
+      
+      <div
+        style="
+          margin-top: 10px;
+          background: var(--bg);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--muted); font-weight: 700">
+          LANGUAGES — % OF CODE
+        </div>
+        <div style="margin-top: 8px; display: flex; gap: 6px; flex-wrap: wrap">
+          
+          <span
+            style="
+              background: var(--input);
+              border: 1px solid var(--line);
+              padding: 4px 8px;
+              border-radius: 8px;
+              font-size: 11px;
+            "
+            ><span
+              style="width:8px;height:8px;border-radius:50%;background:#3776AB;display:inline-block"
+            ></span>
+            Python 70%</span
+          >
+          
+          <span
+            style="
+              background: var(--input);
+              border: 1px solid var(--line);
+              padding: 4px 8px;
+              border-radius: 8px;
+              font-size: 11px;
+            "
+            ><span
+              style="width:8px;height:8px;border-radius:50%;background:#7C3AED;display:inline-block"
+            ></span>
+            Markdown 30%</span
+          >
+          
+        </div>
+        <div
+          style="
+            margin-top: 8px;
+            height: 8px;
+            border-radius: 100px;
+            display: flex;
+            overflow: hidden;
+            background: var(--input);
+          "
+        >
+          
+          <div
+            style="width:70%;background:#3776AB"
+          ></div>
+          
+          <div
+            style="width:30%;background:#7C3AED"
+          ></div>
+          
+        </div>
+        <div class="desktop-only" style="font-size: 10px; color: var(--muted); margin-top: 4px">
+          Backend detected from ZIP extensions, size-weighted — no JS can fake
+          it.
+        </div>
+      </div>
+       
+      <div
+        class="desktop-only"
+        style="
+          margin-top: 10px;
+          background: var(--bg);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+        "
+      >
+        <div
+          style="font-size: 11px; color: var(--success-text); font-weight: 700"
+        >
+          🔒 SECURITY
+        </div>
+        <div style="font-size: 12px; line-height: 1.6; margin-top: 4px">
+          ✅ Sanitized README<br />✅ Path traversal blocked<br />✅ Sandboxed
+          preview
+        </div>
+      </div>
+      
+      <div
+        style="
+          margin-top: 10px;
+          background: var(--bg);
+          border: 1px solid var(--line);
+          border-radius: 10px;
+          padding: 10px;
+        "
+      >
+        <div style="font-size: 11px; color: var(--muted); font-weight: 700">
+          ⑂ FORKS —
+          <a
+            href="/app/stock-tracker-starter-builder-remix/forks/"
+            style="color: var(--link)"
+            >View network →</a
+          >
+          •
+          <a href="/app/stock-tracker-starter-builder-remix/prs/" style="color: var(--link)"
+            >PRs (0) →</a
+          >
+        </div>
+        <div style="font-size: 12px; color: var(--muted)">
+          No forks yet — be the first!
+        </div>
+      </div>
+       
+      <div
+        style="
+          margin-top: 10px;
+          background: var(--warning-bg);
+          border: 1px solid var(--warning-border);
+          border-radius: 10px;
+          padding: 10px;
+        "
+      >
+        <div
+          style="font-size: 11px; color: var(--warning-text); font-weight: 700"
+        >
+          ⑂ Forked from
+          <a
+            href="/app/stock-tracker-starter/"
+            style="color: var(--warning-text)"
+            >@blaq/stock-tracker-starter</a
+          >
+        </div>
+        
+      </div>
+      
+      
+    </div>
+    <div
+      class="card desktop-only"
+      style="margin-top: 12px; padding: 14px; background: var(--bg)"
+    >
+      <h4 style="font-size: 11px; letter-spacing: 0.06em; color: var(--muted)">
+        HOW TO ACCESS
+      </h4>
+      <ol
+        style="
+          font-size: 12px;
+          line-height: 1.7;
+          margin-top: 6px;
+          padding-left: 16px;
+          color: var(--text);
+        "
+      >
+        <li>Read README</li>
+        <li>Explore Files tree</li>
+        <li>Read comments</li>
+        <li>Download ZIP</li>
+      </ol>
+    </div>
+    <div
+      class="card desktop-only"
+      style="
+        margin-top: 12px;
+        padding: 14px;
+        background: linear-gradient(
+          145deg,
+          color-mix(in srgb, #7c3aed 12%, var(--card)),
+          var(--card)
+        );
+        border-color: color-mix(in srgb, #7c3aed 45%, var(--line));
+      "
+    >
+      <div
+        style="
+          color: var(--launch-text);
+          font-size: 10px;
+          font-weight: 800;
+          letter-spacing: 0.1em;
+          text-transform: uppercase;
+        "
+      >
+        Ready for real users?
+      </div>
+      <h4
+        style="
+          font-family:
+            Space Grotesk,
+            sans-serif;
+          font-size: 16px;
+          margin-top: 5px;
+        "
+      >
+        Take this vibe beyond preview.
+      </h4>
+      <p
+        style="
+          font-size: 11px;
+          line-height: 1.55;
+          color: var(--muted);
+          margin-top: 5px;
+        "
+      >
+        Choose the right host or store, prepare its required artifact, and
+        follow official publishing steps.
+      </p>
+      <a
+        href="/launch/"
+        class="btnV"
+        style="width: 100%; margin-top: 10px"
+        >Open launch guide ↗</a
+      >
+    </div>
+  </div>
+</div>
+</main>
+<footer class="site-footer" aria-label="BlaqVibes footer">
+  <div class="site-footer__inner">
+    <div class="site-footer__brand">
+      <a href="/" class="site-footer__logo">BlaqVibes<span aria-hidden="true">↗</span></a>
+      <p>Publish the vibes. Clone the culture.</p>
+      <p class="desktop-only" style="margin-top: 4px; font-size: 12px">🛡️ Every vibe scanned before the feed. ★ Stars never expire. 🇿🇦 Projects priced in Rands.</p>
+    </div>
+
+    <nav class="site-footer__links" aria-label="Explore BlaqVibes">
+      <div>
+        <h2>Explore</h2>
+        <a href="/">Vibes</a>
+        <a href="/launch/">Launch guides</a>
+        <a href="/prompt-skills/">Prompt skills</a>
+        <a href="/battle/">Battle</a>
+        <a href="/challenges/">Challenges</a>
+      </div>
+      <div>
+        <h2>Build</h2>
+        
+          <a href="/accounts/signup/">Create an account</a>
+          <a href="/accounts/login/">Sign in to publish</a>
+          <a href="/launch/">Plan a launch</a>
+        
+      </div>
+      <div>
+        <h2>Community</h2>
+        
+          <a href="/accounts/login/">Sign in</a>
+          <a href="/accounts/signup/">Join BlaqVibes</a>
+        
+      </div>
+      <div>
+        <h2>Contact</h2>
+        <a href="mailto:admin@blaqvibes.co.za">✉️ admin@blaqvibes.co.za</a>
+        <a href="https://github.com/Njwacky" rel="noopener">🐙 GitHub @Njwacky</a>
+        <a href="/nolo/help/">🤖 Ask Nolo (AI help)</a>
+      </div>
+    </nav>
+  </div>
+  <div class="site-footer__bottom">
+    <span>© 2026 BlaqVibes</span>
+    <span>Previews are not production hosting.</span>
+  </div>
+</footer>
+<div id="toast" class="toast">✓ Copied!</div>
+
+<div id="pwa-install-banner" style="display:none;position:fixed;bottom:20px;background:var(--card);border:1px solid var(--accent-border);border-radius:16px;padding:14px 16px;max-width:380px;width:calc(100% - 32px);box-shadow:0 12px 40px rgba(0,0,0,.5);z-index:999;align-items:center;gap:12px">
+  <img src="/static/branding/icon-48.png" style="width:48px;height:48px;border-radius:10px;flex-shrink:0">
+  <div style="flex:1">
+    <div style="font-weight:800;font-size:13px">Install BlaqVibes</div>
+    <div style="font-size:11px;color:var(--muted)">Publish the Vibes — install as app for offline & fast clone.</div>
+  </div>
+  <button id="pwa-install-btn" class="btnV" style="padding:8px 12px;font-size:12px;flex-shrink:0">Install</button>
+  <button id="pwa-dismiss-btn" class="btnG" style="padding:8px 10px;font-size:11px;flex-shrink:0">Not now</button>
+</div>
+<div id="pwa-ios-hint" style="display:none;position:fixed;bottom:20px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;max-width:340px;width:calc(100% - 32px);z-index:999;text-align:center">
+  <div style="font-weight:700;font-size:13px">Install BlaqVibes</div>
+  <div style="font-size:11px;color:var(--muted);margin-top:4px">Tap <span style="background:var(--line);padding:2px 6px;border-radius:6px">Share</span> → <b>Add to Home Screen</b> to install.</div>
+  <button class="btnG" style="margin-top:8px;padding:6px 12px;font-size:11px;width:100%">Got it</button>
+</div>
+<script src="/static/gallery/js/pwa.js?v=ext-20260827"></script>
+
+
+<script src="/static/gallery/js/detail.js?v=scan-panel-20260828"></script>
+<script src="/static/gallery/js/tip.js?v=shared-tip-20260816"></script>
+
+</body>
+</html>

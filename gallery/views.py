@@ -363,6 +363,25 @@ def app_detail(request, slug):
                 launch_next = {'value': detected, 'name': route['name'], 'icon': route['icon'], 'note': route['note']}
         except Exception:
             logger.exception('artifact detect failed %s', project.slug)
+    # ------------------------------------------------------------------
+    # PROJECT HISTORY + REMIX LINEAGE — the page must answer "was it
+    # remixed, and what changed?" from real rows, not vibes.
+    # ------------------------------------------------------------------
+    from .models import AppVersion, ProjectEvent
+    events = [{'date': ev.created_at, 'label': ev.label, 'kind': ev.kind}
+              for ev in ProjectEvent.objects.filter(project=project).order_by('-created_at')[:12]]
+    versions = [{'date': v.created_at, 'kind': 'version',
+                 'label': f'Updated to v{v.version}' + (f' — {v.changelog}' if v.changelog else '')}
+                for v in AppVersion.objects.filter(project=project).order_by('-created_at')[:12]]
+    project_history = sorted(events + versions, key=lambda r: r['date'], reverse=True)[:12]
+    # Walk the remix chain up to the original (capped: a 4-deep chain is
+    # already a story; deeper chains link through the fork network page).
+    lineage = []
+    ancestor = project.forked_from
+    while ancestor is not None and len(lineage) < 4:
+        lineage.append(ancestor)
+        ancestor = ancestor.forked_from
+    lineage.reverse()  # original first → this project last
     return render(request, 'gallery/app_detail.html', {
         'project': project,
         'comments': top_comments,
@@ -397,6 +416,8 @@ def app_detail(request, slug):
         'forks_count': getattr(project, 'forks_count', 0),
         'prs_count': getattr(project, 'prs_count', 0),
         'show_language': getattr(project.owner.profile, 'show_language', True),
+        'project_history': project_history,
+        'lineage': lineage,
     })
 
 def scan_status(request, slug):
@@ -1488,6 +1509,16 @@ def fork_vibe(request, slug):
             status='pending',
         )
         fork.save()  # generates slug
+        # Remix lineage is history: record that this project started as
+        # somebody else's idea (best-effort, never blocks the fork).
+        try:
+            from .models import ProjectEvent
+            ProjectEvent.objects.create(
+                project=fork, kind='remixed',
+                label=f'Remixed from @{original.owner.username}/{original.slug}',
+            )
+        except Exception:
+            logger.exception('remix history record failed %s', fork.slug)
         # Forking is a loud statement of interest in this kind of program.
         taste.record(request.user, original, 'fork', project=original)
         # The remix loop: the original creator hears about it and is paid in

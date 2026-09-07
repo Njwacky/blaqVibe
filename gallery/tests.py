@@ -3927,3 +3927,99 @@ class SecurityCheckCommandTests(SimpleTestCase):
                                    SECRET_KEY='django-insecure-blaqvibes-dev-key-change-in-prod-07070A')
         self.assertIsNone(failed, output)
         self.assertIn('dev posture', output)
+
+
+# ==========================================================================
+# The project page is the heart of BlaqVibes (architecture §2). It must
+# answer: what is this, who built it, is it safe, was it remixed, what
+# changed, can I buy it. Build method (§6) is DERIVED from facts, never a
+# headline. Project history (§9) is evidence somebody really built it.
+# ==========================================================================
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class ProjectStoryTests(TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+        cache.clear()
+        self.cat = make_category()
+        self.owner = make_user('storyowner')
+        self.other = make_user('remixer')
+
+    def test_build_method_is_human_built_by_default(self):
+        p = make_project(self.owner, self.cat)
+        self.assertEqual(p.build_method, 'human_built')
+        self.assertEqual(p.build_method_label, 'Human-built')
+        self.assertEqual(p.build_method_note, 'Created without material AI assistance.')
+
+    def test_build_method_ai_assisted_when_tool_named(self):
+        p = make_project(self.owner, self.cat, ai_tool='Cursor', ai_generated=False)
+        self.assertEqual(p.build_method, 'ai_assisted')
+        self.assertIn('Cursor', p.build_method_note)
+
+    def test_build_method_ai_generated(self):
+        p = make_project(self.owner, self.cat, ai_tool='Lovable', ai_generated=True)
+        self.assertEqual(p.build_method, 'ai_generated')
+        self.assertIn('AI workflow', p.build_method_note)
+
+    def test_build_method_remixed_when_forked(self):
+        original = make_project(self.owner, self.cat, title='Origin Vibe')
+        fork = make_project(self.other, self.cat, title='Remixed Vibe', forked_from=original)
+        self.assertEqual(fork.build_method, 'remixed')
+        self.assertIn('Remixed from @storyowner', fork.build_method_note)
+
+    def test_first_publish_records_history(self):
+        from gallery.models import ProjectEvent
+        p = make_project(self.owner, self.cat)  # created published
+        events = ProjectEvent.objects.filter(project=p)
+        self.assertEqual(events.count(), 1)
+        self.assertEqual(events.first().kind, 'published')
+        self.assertEqual(events.first().label, 'First version published')
+
+    def test_republish_records_new_version(self):
+        from gallery.models import ProjectEvent
+        p = make_project(self.owner, self.cat)
+        p.status = 'pending'
+        p.save()
+        p.status = 'published'
+        p.save()
+        labels = list(ProjectEvent.objects.filter(project=p).order_by('created_at').values_list('label', flat=True))
+        self.assertEqual(labels, ['First version published', 'Published v2'])
+
+    def test_fork_records_remix_history_on_the_fork(self):
+        from gallery.models import ProjectEvent
+        original = make_project(self.owner, self.cat, title='Loop Origin')
+        self.client.login(username='remixer', password='pass12345')
+        response = self.client.post(f'/app/{original.slug}/fork/')
+        self.assertEqual(response.status_code, 302)
+        fork = AppProject.objects.get(owner=self.other, forked_from=original)
+        remix_events = ProjectEvent.objects.filter(project=fork, kind='remixed')
+        self.assertEqual(remix_events.count(), 1)
+        self.assertIn('Remixed from @storyowner', remix_events.first().label)
+
+    def test_detail_page_shows_story_header(self):
+        p = make_project(self.owner, self.cat, ai_tool='Cursor')
+        response = self.client.get(f'/app/{p.slug}/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Build method')
+        self.assertContains(response, 'AI-assisted')
+        self.assertContains(response, 'WHY YOU CAN TRUST THIS PROJECT')
+        self.assertContains(response, 'PROJECT HISTORY')
+        self.assertContains(response, 'First version published')
+
+    def test_detail_page_shows_remix_lineage(self):
+        original = make_project(self.owner, self.cat, title='Origin Story')
+        fork = make_project(self.other, self.cat, title='Child Story', forked_from=original)
+        response = self.client.get(f'/app/{fork.slug}/')
+        self.assertContains(response, 'REMIX LINEAGE')
+        self.assertContains(response, 'Origin Story')
+
+    def test_buy_unlock_block_lists_the_terms(self):
+        p = make_project(self.owner, self.cat, price_zar=50)
+        published_zip(p)
+        response = self.client.get(f'/app/{p.slug}/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'PROJECT PRICE')
+        self.assertContains(response, 'R50')
+        self.assertContains(response, 'Files included')
+        # No creator-money language leaks into the buy path (§1).
+        self.assertNotContains(response, 'creator payout')
+        self.assertNotContains(response, 'cash out')
