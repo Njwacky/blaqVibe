@@ -899,3 +899,23 @@ html { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 3
     margin-top: 4px;
   }
 }
+
+/* ── Builder-loop mobile polish F: 5 nav Projects|Discover|Skills|Challenges|Build with Build prominent ── */
+@media(max-width:900px){
+  .nav{padding:8px 12px;gap:8px}
+  .nav-links{display:flex!important;flex-direction:row;flex-wrap:nowrap;overflow-x:auto;gap:6px;padding:6px 0 2px;max-height:none;scrollbar-width:none}
+  .nav-links::-webkit-scrollbar{display:none}
+  .nav-links a{flex:0 0 auto;padding:7px 10px;border-radius:100px;font-size:12px;font-weight:600;background:var(--card);border:1px solid var(--line);white-space:nowrap}
+  .nav-links a[aria-current=page]{background:var(--text);color:var(--bg);border-color:var(--text)}
+  .nav-links .btn-violet{flex:0 0 auto;padding:7px 14px;border-radius:100px;font-size:12px;font-weight:800;background:var(--violet);color:#fff;box-shadow:0 4px 14px color-mix(in srgb,var(--violet) 35%, transparent)}
+  .nav-user{flex:0 0 auto;margin-left:auto}
+  .nav-burger{display:none!important}
+}
+/* Sticky action bar for project page — Remix/Share/Buy */
+.sticky-actions{display:none;position:fixed;bottom:0;left:0;right:0;z-index:90;background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:10px 12px;gap:8px}
+.sticky-actions a,.sticky-actions button{flex:1;justify-content:center;padding:10px 12px;font-size:13px}
+@media(max-width:900px){.sticky-actions{display:flex}.page.detail-layout{padding-bottom:72px}}
+/* Builder evidence grid scannable */
+.builder-evidence{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;margin-top:10px}
+.builder-evidence div{font-size:12px;line-height:1.5;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.builder-evidence b{font-size:11px;letter-spacing:.04em;color:var(--muted);display:block;margin-bottom:2px}

@@ -40,7 +40,7 @@
       <div
         style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap"
       >
-        {% include 'users/_styled_name.html' with u=profile_user p=profile %}{% if profile_user.is_staff %}<span
+        {% include 'users/_styled_name.html' with u=profile_user p=profile %} <span style='font-size:10px;letter-spacing:.08em;background:var(--accent-soft-bg);color:var(--accent-text);border:1px solid var(--accent-border);padding:3px 8px;border-radius:100px;font-weight:800'>BUILDER</span>{% if profile_user.is_staff %}<span
           style="
             font-size: 11px;
             background: var(--warning-fill);
@@ -736,10 +736,10 @@
         text-align: center;
       "
     >
-      No vibes yet. {% if is_own %}<a
+      Your first project starts here. Build something, show it, and let other builders react to it. {% if is_own %}<a
         href="{% url 'publish' %}"
         style="color: var(--link)"
-        >Publish your first vibe</a
+        >Start building →</a
       >{% endif %}
     </div>
     {% endfor %}

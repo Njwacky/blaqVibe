@@ -596,14 +596,14 @@ class ChartTests(TestCase):
         self.client.login(username='steady', password='pass12345')
         response = self.client.get('/sales/')
         self.assertContains(response, '<polyline')       # the line exists
-        self.assertContains(response, 'Wallet balance, last 14 days')
+        self.assertContains(response, 'Stars you have — last 14 days')
         self.assertContains(response, '5★')              # end-dot label = real balance
 
     def test_balance_chart_empty_state_when_nothing_real(self):
         user = self._user_with_balance('zero', 0)
         self.client.login(username='zero', password='pass12345')
         response = self.client.get('/sales/')
-        self.assertContains(response, 'Balance history is empty')
+        self.assertContains(response, 'History is empty')
         self.assertNotContains(response, '<polyline')
 
     def test_chart_never_contains_user_text(self):

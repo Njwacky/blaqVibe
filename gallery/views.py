@@ -273,7 +273,7 @@ def app_detail(request, slug):
     qs = AppProject.objects.select_related(
         'owner', 'owner__profile', 'category', 'forked_from', 'forked_from__owner'
     ).prefetch_related('forks__owner', 'files', 'co_owners__user').annotate(
-        forks_count=Count('forks', distinct=True),
+        forks_count=Count('forks', filter=Q(forks__status='published'), distinct=True),
         prs_count=Count('prs_incoming', distinct=True),
         comment_count=Count('comments', filter=Q(comments__is_hidden=False), distinct=True),
     )
@@ -1573,7 +1573,7 @@ def fork_vibe(request, slug):
             process_upload_pipeline.delay(fork.id)
         except Exception:
             pass
-        messages.success(request, f"✓ Forked “{original.title}” → “{fork.title}” — now edit your remix! Original: @{original.owner.username}/{original.slug}")
+        messages.success(request, f"You remixed {original.title} by @{original.owner.username}. Your version is now part of the project's remix family.")
         return redirect('edit_vibe', slug=fork.slug)
     except Exception as e:
         import logging

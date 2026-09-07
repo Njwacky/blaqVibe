@@ -1,19 +1,17 @@
-{% comment %}
-Compact project card used by DISCOVER and BUILD (§2: the project is the
-product, so even a rail card leads with what it is and who built it).
-Context: `p` = AppProject, optional `cta` = call-to-action label.
-{% endcomment %}
-<a class="pcard" href="{{ p.get_absolute_url }}">
-  <div class="pcard__top">
-    <strong class="pcard__title">{{ p.title }}</strong>
-    <span class="pcard__method">{{ p.build_method_label }}</span>
+{% comment %}Builder-first card: Preview → Title → @builder → one-line → build method/checked/remixes → View →{% endcomment %}
+<a class="pcard" href="{{ p.get_absolute_url }}" style="display:block">
+  <div style="height:90px;background:var(--surface-subtle);border-radius:10px 10px 0 0;display:grid;place-items:center;font-size:22px;color:var(--muted);overflow:hidden">
+    {% if p.thumbnail %}<img src="{{ p.thumbnail.url }}" alt="" style="width:100%;height:100%;object-fit:cover" loading="lazy" />{% else %}{{ p.kind_icon }}{% endif %}
   </div>
-  <p class="pcard__desc">{{ p.short_description }}</p>
-  <div class="pcard__meta">
-    by @{{ p.owner.username }} · ★ {{ p.stars }}
-    {% if p.remix_count %} · ⑂ {{ p.remix_count }} remix{{ p.remix_count|pluralize:"es" }}{% endif %}
-    {% if p.trust == 'verified' %} · 🛡️ Verified{% elif p.trust == 'scanned' %} · 🛡️ Scanned{% endif %}
+  <div style="padding:12px">
+    <div style="font-weight:800;font-size:14px;line-height:1.3">{{ p.title }}</div>
+    <div style="font-size:12px;color:var(--muted);margin-top:2px">@{{ p.owner.username }}</div>
+    <div style="font-size:12px;color:var(--text);margin-top:6px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden">{{ p.short_description|truncatechars:72 }}</div>
+    <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap">
+      <span class="pcard__method">{{ p.build_method_label }}</span>
+      {% if p.trust == 'verified' %}<span class="pcard__method" style="border-color:var(--success-border);color:var(--success-text)">🛡️ Checked</span>{% elif p.trust == 'scanned' %}<span class="pcard__method">🛡️ Scanned</span>{% endif %}
+      {% if p.remix_count %}<span class="pcard__method">⑂ {{ p.remix_count }}</span>{% endif %}
+    </div>
+    <span class="pcard__cta">{{ cta|default:"View project →" }}</span>
   </div>
-  {% if p.forked_from %}<div class="pcard__lineage">⑂ Remix of {{ p.forked_from.title }} by @{{ p.forked_from.owner.username }}</div>{% endif %}
-  <span class="pcard__cta">{{ cta|default:"View project →" }}</span>
 </a>
