@@ -1,8 +1,10 @@
 from django.urls import path
+from django.views.generic import RedirectView
 from . import views, trading_views, api_views, launch_views, health
+from .build_views import build_hub, discover
 from .csp_views import csp_report
 from .moderation import moderation_queue, moderation_action, reports_queue, report_action
-from .skill_views import skill_list, skill_detail, use_skill, create_skill
+from .skill_views import skill_list, skill_detail, use_skill, create_skill, update_skill
 from .share_card import share_card
 urlpatterns = [
     # Ops probes: liveness (process up) and readiness (DB reachable).
@@ -11,10 +13,27 @@ urlpatterns = [
     path('readyz', health.readiness, name='readyz'),
     path('', views.feed, name='feed'),
     path('trust/', views.trust_legend, name='trust_legend'),
-    path('prompt-skills/', skill_list, name='prompt_skills'),
-    path('prompt-skills/new/', create_skill, name='create_skill'),
-    path('prompt-skills/<slug:slug>/', skill_detail, name='skill_detail'),
-    path('prompt-skills/<slug:slug>/use/', use_skill, name='use_skill'),
+    # Primary navigation (§4): PROJECTS | DISCOVER | SKILLS | CHALLENGES | BUILD.
+    # '' is PROJECTS (the feed); the other four live here.
+    path('discover/', discover, name='discover'),
+    path('build/', build_hub, name='build_hub'),
+    # Builder Skills. '/skills/' is canonical — the old '/prompt-skills/'
+    # prefix belonged to the prompt-marketplace era (§5/§15) and now
+    # permanently redirects, so shared links keep working. `prompt_skills`
+    # survives as a second NAME for the canonical route (same trick the
+    # login/account_login aliases use) so older reverses keep resolving.
+    path('skills/', skill_list, name='skills'),
+    path('skills/', skill_list, name='prompt_skills'),
+    path('skills/new/', create_skill, name='create_skill'),
+    path('skills/<slug:slug>/', skill_detail, name='skill_detail'),
+    path('skills/<slug:slug>/use/', use_skill, name='use_skill'),
+    path('skills/<slug:slug>/update/', update_skill, name='update_skill'),
+    path('prompt-skills/', RedirectView.as_view(pattern_name='skills', permanent=True)),
+    path('prompt-skills/new/', RedirectView.as_view(pattern_name='skills', permanent=True)),
+    path('prompt-skills/<slug:slug>/', RedirectView.as_view(pattern_name='skill_detail', permanent=True)),
+    # A stale form POST would lose its body on a 301, so send it to the
+    # skill page (GET) instead of pretending the use was recorded.
+    path('prompt-skills/<slug:slug>/use/', RedirectView.as_view(pattern_name='skill_detail', permanent=False)),
     path('sitemap.xml', views.sitemap_xml, name='sitemap'),
     path('api/v1/apps/', api_views.api_apps, name='api_apps'),
     path('api/v1/program-kinds/', api_views.api_program_kinds, name='api_program_kinds'),

@@ -79,6 +79,27 @@ class AppProject(models.Model):
     )
     ai_readme = models.TextField(blank=True, help_text="AI-generated README, backend only")
     forked_from = models.ForeignKey('self', null=True, blank=True, on_delete=models.SET_NULL, related_name='forks')
+    # ------------------------------------------------------------------
+    # Provenance as data, not as prose (§17/§18). A project knows its
+    # creator (owner), its source project (forked_from), the Builder Skill
+    # and the exact immutable skill version it was built from, and when it
+    # first went public. Everything the platform claims about how a project
+    # came to exist is one of these columns.
+    # ------------------------------------------------------------------
+    source_skill = models.ForeignKey(
+        'gallery.Skill', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='built_projects',
+        help_text='Builder Skill this project was built from, when one was used.',
+    )
+    source_skill_version = models.ForeignKey(
+        'gallery.SkillVersion', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='built_projects',
+        help_text='The exact skill version used — immutable, so the proof cannot drift.',
+    )
+    published_at = models.DateTimeField(
+        null=True, blank=True, db_index=True,
+        help_text='First time this project became public. Written by the platform.',
+    )
     scan_report = models.JSONField(default=dict, blank=True)  # backend only, never sent raw to JS
     avg_rating = models.FloatField(default=0)  # cached from Reviews
     review_count = models.PositiveIntegerField(default=0)
@@ -253,6 +274,15 @@ class AppProject(models.Model):
             ProjectEvent.objects.create(
                 project_id=self.pk, kind='version', label=f'Published v{version}',
             )
+        # published_at is the *first* time the project became public and it
+        # never moves again: a re-queue → re-publish cycle is a new version
+        # in the history, not a new birthday. update() rather than save()
+        # so recording history can never recurse into save().
+        if self.published_at is None:
+            from django.utils import timezone as _tz
+            stamp = _tz.now()
+            AppProject.objects.filter(pk=self.pk, published_at__isnull=True).update(published_at=stamp)
+            self.published_at = stamp
     def get_absolute_url(self):
         return reverse('app_detail', args=[self.slug])
     def __str__(self): return self.title
@@ -351,6 +381,37 @@ class AppProject(models.Model):
     def rank_bonus(self):
         from .ranks import contributor_bonus
         return contributor_bonus(self.owner)['bonus']
+
+    # ------------------------------------------------------------------
+    # Remix as a first-class relationship (§3/§18). Depth is derived from
+    # the forked_from chain — never stored, never guessable by a creator.
+    # Capped walk: a cycle or a pathological chain must not hang a page.
+    # ------------------------------------------------------------------
+    @property
+    def is_remix(self):
+        return self.forked_from_id is not None
+
+    @property
+    def remix_generation(self, _max_walk=12):
+        """0 = original idea, 1 = remix of an original, 2 = remix of a remix…"""
+        depth = 0
+        seen = {self.pk}
+        node = self.forked_from
+        while node is not None and depth < _max_walk and node.pk not in seen:
+            seen.add(node.pk)
+            depth += 1
+            node = node.forked_from
+        return depth
+
+    @property
+    def root_project(self):
+        """The original at the top of this project's remix family."""
+        node, seen, walked = self, {self.pk}, 0
+        while node.forked_from is not None and walked < 12 and node.forked_from_id not in seen:
+            node = node.forked_from
+            seen.add(node.pk)
+            walked += 1
+        return node
 
 class ProjectEvent(models.Model):
     """Project history — the evolution timeline shown on the project page.

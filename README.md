@@ -14,6 +14,23 @@ Publish what you made, get feedback, discover creators, remix ideas, take on cha
 4. **Compete** through challenges, battles, stars and reputation.
 5. **Repeat** with BlaqVibes Today showing what happened and what to do next.
 
+## Five places, on purpose
+
+The primary navigation is **Projects · Discover · Skills · Challenges ·
+Build**, and nothing else. Everything that is a utility — Saved, Inbox,
+Battle, Launch guides, Nolo, Trades, Sales, Settings, Admin — lives in the
+account menu, because the first thing anyone should see is what people are
+building.
+
+- **Projects** (`/`) — the feed of what builders published.
+- **Discover** (`/discover/`) — what is happening: most remixed ideas,
+  fastest-growing remix families, top remixers, builders gaining momentum.
+- **Skills** (`/skills/`) — Builder Skills: learn how other builders solve
+  problems, with published projects as proof.
+- **Challenges** (`/challenges/`) — a concrete reason to build today.
+- **Build** (`/build/`) — start from scratch, remix a project, or use a
+  Builder Skill; then CREATE → UPLOAD → SHOW → FEEDBACK → IMPROVE → PUBLISH.
+
 ## AI is a tool, not a disguise
 
 BlaqVibes does not try to make AI-built projects look human-built. If AI materially helped create a project, the publisher can mark it as AI-assisted and provide the tool and a short creation note. That provenance is part of the project's story.
@@ -90,7 +107,10 @@ CI covers migrations, demo seeding, tests, security posture and feed smoke check
 - **Paystack checkout is gated.** Buy flows only appear when the required payment configuration is present and webhooks are verified. Paystack is used for customer purchases, not creator cash-outs.
 - **There is no creator cash-out program.** BlaqVibes does not promise to convert stars into ZAR, reimburse creators for stars, or transfer creator earnings to bank accounts. Stars stay inside the platform's economy.
 - **Battle votes do not inflate project stars.** Competitive voting and creator popularity remain separate signals.
-- **Remix lineage is preserved.** Forks keep a `forked_from` relationship so visitors can see where an idea came from and how it travelled.
+- **Remix lineage is preserved.** Forks keep a `forked_from` relationship so visitors can see where an idea came from and how it travelled. Discover turns that one column into real family statistics — remix depth, most remixed, fastest-growing families and top remixers — and never counts an unpublished remix.
+- **Builder Skills carry immutable versions.** Editing a skill publishes a new version instead of rewriting the old one, and a project records the exact `source_skill_version` it was built from. “Built using Builder Skill X (v1)” still means v1 after the author rewrites the workflow.
+- **Provenance is columns, not prose.** A project knows its creator, source project, source skill and skill version, build method, history and `published_at` (first publish, never moved).
+- **Sales is activity, not income.** Projects sold, unlocks, views, conversion (withheld until it means something), purchases and popular projects. No earnings, no cash out, no creator balance.
 - **BlaqVibes Today is the return loop.** It combines the daily mission, creator momentum, feedback, notifications and remixable work into one short command center.
 - **AI tooling is honest.** Claude/Gemini/Groq are used only when configured; otherwise the built-in helper is presented as such. AI assistance is disclosed rather than hidden.
 - **AI creation metadata is validated.** A publisher who marks a project as AI-assisted must name the tool and provide a short creation/workflow note. This makes the origin legible instead of turning AI into a mystery badge.

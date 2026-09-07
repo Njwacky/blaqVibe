@@ -1,0 +1,128 @@
+{% extends 'gallery/base.html' %}
+{% load static %}
+
+{% block title %}Build something — BlaqVibes{% endblock %}
+{% block meta_desc %}Three ways to start on BlaqVibes: start from scratch, remix a project, or use a Builder Skill. Then create, upload, show, get feedback, improve and publish.{% endblock %}
+{% block og_title %}Build something — BlaqVibes{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'gallery/css/discover.css' %}?v=discover-20260907">
+{% endblock %}
+
+{% block content %}
+<div class="dsc-shell">
+  <header class="dsc-hero">
+    <p class="dsc-eyebrow">BUILD · CREATE → UPLOAD → SHOW → FEEDBACK → IMPROVE → PUBLISH</p>
+    <h1>Build something.</h1>
+    <p class="dsc-lead">
+      Three honest ways to start. Pick one — the rest of the workflow is the same, and it ends with a
+      project other builders can see, judge and remix.
+    </p>
+  </header>
+
+  {% if pending_skill_use %}
+  <div class="build-pending">
+    ⌘ You picked up the Builder Skill
+    <a href="{{ pending_skill_use.skill.get_absolute_url }}" style="color:var(--link);font-weight:700">{{ pending_skill_use.skill.title }}</a>{% if pending_skill_use.skill_version %}
+    ({{ pending_skill_use.skill_version.label }}){% endif %}.
+    The next project you publish is credited to it as proof —
+    <a href="{% url 'publish' %}" style="color:var(--link);font-weight:700">publish it now →</a>
+  </div>
+  {% endif %}
+
+  <div class="build-paths">
+    <article class="build-path">
+      <h2>1 · Start from scratch</h2>
+      <p>Your own idea, your own files. Zip an app or paste a snippet — BlaqVibes scans it, then shows the story of what you built.</p>
+      <a class="btn-violet build-path__go" href="{% url 'publish' %}" style="padding:9px 14px">Start from scratch →</a>
+      <span style="font-size:11px;color:var(--muted)">Not sure what to make? <a href="{% url 'starter_gallery' %}" style="color:var(--link)">Open a starter template</a>.</span>
+    </article>
+
+    <article class="build-path">
+      <h2>2 · Remix a project</h2>
+      <p>Take something that already works, change it, publish your version. The original creator keeps their credit, sees where the idea travelled, and the lineage stays visible forever.</p>
+      <a class="btn-ghost build-path__go" href="{% url 'discover' %}" style="padding:9px 14px">Find something to remix →</a>
+    </article>
+
+    <article class="build-path">
+      <h2>3 · Use a Builder Skill</h2>
+      <p>Learn how another builder solves this problem, then build with it. Your published project becomes that skill's proof — and the exact skill version you used is recorded.</p>
+      <a class="btn-ghost build-path__go" href="{% url 'skills' %}" style="padding:9px 14px">Browse Builder Skills →</a>
+    </article>
+  </div>
+
+  <section class="dsc-section">
+    <header>
+      <h2>What happens after you start</h2>
+      <p>The same six steps, whichever path you picked.</p>
+    </header>
+    <div class="build-flow">
+      {% for name, note in steps %}
+      <div class="build-step"><b>{{ name }}</b><span>{{ note }}</span></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if my_drafts %}
+  <section class="dsc-section">
+    <header><h2>Finish what you started</h2><p>Your projects that are not public yet.</p></header>
+    {% for p in my_drafts %}
+    <div class="dsc-row">
+      <a href="{{ p.get_absolute_url }}">{{ p.title }}</a>
+      <span class="dsc-row__count">{{ p.get_status_display }}</span>
+    </div>
+    {% endfor %}
+  </section>
+  {% endif %}
+
+  <section class="dsc-section">
+    <header>
+      <h2>⑂ Worth remixing right now</h2>
+      <p>Published, scanned and already working — a good place to start changing something.</p>
+    </header>
+    <div class="dsc-grid">
+      {% for p in remixable %}{% include 'gallery/_project_card.html' with p=p cta="Open and remix →" %}{% empty %}
+      <div class="dsc-empty">No projects to remix yet — start from scratch and be the origin of the first family.</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="dsc-section">
+    <header>
+      <h2>⌘ Skills that produced real projects</h2>
+      <p>SKILL → BUILD → PROJECT → PROOF. These already have proof behind them.</p>
+    </header>
+    <div class="dsc-grid">
+      {% for skill in skills %}
+      <a class="pcard" href="{{ skill.get_absolute_url }}">
+        <div class="pcard__top"><strong class="pcard__title">{{ skill.title }}</strong><span class="pcard__method">{{ skill.get_difficulty_display }}</span></div>
+        <p class="pcard__desc">{{ skill.summary }}</p>
+        <div class="pcard__meta">by @{{ skill.creator.username }} · {{ skill.projects_created }} project{{ skill.projects_created|pluralize }} built from it</div>
+        <span class="pcard__cta">Start building with it →</span>
+      </a>
+      {% empty %}
+      <div class="dsc-empty">No Builder Skills yet. <a href="{% url 'skills' %}">Publish the way you build →</a></div>
+      {% endfor %}
+    </div>
+  </section>
+
+  {% if daily %}
+  <section class="dsc-section">
+    <div class="dsc-row">
+      <span>🏆</span>
+      <span>Need a prompt to start? Today's challenge: <a href="{% url 'challenge_detail' daily.tag %}">{{ daily.title }}</a></span>
+      <span class="dsc-row__count">{{ daily.submission_count }} submission{{ daily.submission_count|pluralize }}</span>
+    </div>
+  </section>
+  {% endif %}
+
+  {% if not user.is_authenticated %}
+  <section class="dsc-section">
+    <div class="dsc-row" style="justify-content:center;gap:12px;flex-wrap:wrap">
+      <span>Publishing needs an account — building does not have to wait.</span>
+      <a href="{% url 'signup' %}" class="btn-violet" style="padding:8px 14px">Create an account →</a>
+      <a href="{% url 'login' %}" class="btn-ghost" style="padding:8px 14px">Sign in</a>
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

@@ -24,6 +24,51 @@
 
   <div style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
     <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+      <div style="font-size:11px;color:var(--muted)">Projects sold</div>
+      <div style="font-size:20px;font-weight:800">{{ metrics.projects_sold }}</div>
+      <div style="font-size:11px;color:var(--muted)">of {{ metrics.published }} published</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+      <div style="font-size:11px;color:var(--muted)">Unlocks</div>
+      <div style="font-size:20px;font-weight:800">{{ metrics.unlocks }}</div>
+      <div style="font-size:11px;color:var(--muted)">{{ metrics.card_unlocks }} card · {{ metrics.star_unlocks }} star</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+      <div style="font-size:11px;color:var(--muted)">Views on your projects</div>
+      <div style="font-size:20px;font-weight:800">{{ metrics.views }}</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+      <div style="font-size:11px;color:var(--muted)">Conversion rate</div>
+      <div style="font-size:20px;font-weight:800">{% if metrics.conversion_rate is not None %}{{ metrics.conversion_rate }}%{% else %}—{% endif %}</div>
+      <div style="font-size:11px;color:var(--muted)">{% if metrics.conversion_rate is not None %}views → unlocks{% else %}Needs 20+ views to mean anything{% endif %}</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+      <div style="font-size:11px;color:var(--muted)">Your purchases</div>
+      <div style="font-size:20px;font-weight:800">{{ metrics.purchases }}</div>
+      <div style="font-size:11px;color:var(--muted)">projects you unlocked</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+      <div style="font-size:11px;color:var(--muted)">Project sales (card)</div>
+      <div style="font-size:20px;font-weight:800">R{{ total_zar }}</div>
+      <div style="font-size:11px;color:var(--muted)">paid by buyers to unlock</div>
+    </div>
+  </div>
+
+  {% if popular_projects %}
+  <div style="margin-top:16px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+    <h2 style="font-size:14px;font-weight:700">Popular projects — where the attention is</h2>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px">Views, unlocks and remixes per project. This is buyer activity, not a balance.</div>
+    {% for p in popular_projects %}
+    <div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px">
+      <a href="{{ p.get_absolute_url }}" style="color:var(--link);font-weight:700;flex:1">{{ p.title }}</a>
+      <span style="color:var(--muted);font-size:12px;white-space:nowrap">👁 {{ p.views }} · 🔓 {{ p.unlock_count }} · ⑂ {{ p.remix_count }}</span>
+    </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <div style="margin-top:16px;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px">
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
       <div style="font-size:11px;color:var(--muted)">Star balance</div>
       <div style="font-size:20px;font-weight:800;color:var(--warning-text)">{{ stars_balance }} ★</div>
     </div>
@@ -38,10 +83,6 @@
     <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
       <div style="font-size:11px;color:var(--muted)">Tips received</div>
       <div style="font-size:20px;font-weight:800">+{{ tips_total }} ★</div>
-    </div>
-    <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
-      <div style="font-size:11px;color:var(--muted)">Project sales (card)</div>
-      <div style="font-size:20px;font-weight:800">R{{ total_zar }}</div>
     </div>
   </div>
 

@@ -6,7 +6,7 @@ from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
 from django.http import JsonResponse
 from django.views.decorators.http import require_POST
-from django.db.models import Count, Sum
+from django.db.models import Count, Q, Sum
 from django.contrib import messages
 from django.core.mail import send_mail
 from django.conf import settings
@@ -79,13 +79,66 @@ def profile_view(request, username):
     published_count = counts.get('published', 0)
     all_count = sum(counts.values())
 
+    # §13 — a profile answers "what does this person build?", so the tabs
+    # are PROJECTS · REMIXES · SKILLS · ACTIVITY · REPUTATION first, and the
+    # social/utility lists after. 'vibes' stays as a legacy alias so old
+    # links and bookmarks still land on the projects tab.
+    tab = request.GET.get('tab', 'projects')
+    if tab == 'vibes':
+        tab = 'projects'
+    if tab not in ('projects', 'remixes', 'skills', 'activity', 'reputation',
+                   'stars', 'followers', 'following'):
+        tab = 'projects'
+
+    # ------------------------------------------------------------------
+    # Builder identity (§13). These are counts of *work*, not of points:
+    # what they built, what they remixed, what they taught other builders.
+    # ------------------------------------------------------------------
+    remix_qs = AppProject.objects.filter(
+        owner=user, status='published', forked_from__isnull=False
+    )
+    remix_count = remix_qs.count()
+    original_count = max(published_count - remix_count, 0)
+    remixed_by_others = AppProject.objects.filter(
+        forked_from__owner=user, status='published'
+    ).exclude(owner=user).count()
+    from gallery.skill_models import Skill as _Skill
+    skills_count = _Skill.objects.filter(creator=user, is_published=True).count()
+
+    remixes = []
+    skills_published = []
+    skills_used = []
+    activity = []
+    if tab == 'remixes':
+        remixes = list(
+            remix_qs.select_related('forked_from', 'forked_from__owner')
+            .order_by('-created_at')[:24]
+        )
+    elif tab == 'skills':
+        from gallery.skill_models import Skill, SkillUse
+        skills_published = list(
+            Skill.objects.filter(creator=user, is_published=True).order_by('-projects_created', '-uses')[:20]
+        )
+        skills_used = [
+            use for use in SkillUse.objects.filter(user=user, project__isnull=False)
+            .select_related('skill', 'skill_version', 'project')
+            .order_by('-created_at')[:20]
+            if use.skill.is_published and user_can_see_project(request.user, use.project)
+        ]
+    elif tab == 'activity':
+        # Real evidence of building: publish/version/remix rows the platform
+        # wrote itself, filtered to projects this visitor may see.
+        from gallery.models import ProjectEvent
+        activity = [
+            event for event in ProjectEvent.objects.filter(project__owner=user)
+            .select_related('project')
+            .order_by('-created_at')[:40]
+            if user_can_see_project(request.user, event.project)
+        ][:20]
+
     is_following = False
     if request.user.is_authenticated and not is_own:
         is_following = Follow.objects.filter(follower=request.user, following=user).exists()
-
-    tab = request.GET.get('tab', 'vibes')
-    if tab not in ('vibes', 'stars', 'followers', 'following'):
-        tab = 'vibes'
 
     # Fetch the follower/following lists only when their tab is open: they
     # used to be fetched on every profile load and never rendered (dead
@@ -160,6 +213,11 @@ def profile_view(request, username):
         'is_following': is_following, 'followers': followers, 'following': following,
         'following_set': following_set,
         'tab': tab, 'starred': starred,
+        'remixes': remixes, 'remix_count': remix_count,
+        'original_count': original_count, 'remixed_by_others': remixed_by_others,
+        'skills_published': skills_published, 'skills_used': skills_used,
+        'activity': activity,
+        'skills_count': skills_count,
         'rank': rank, 'next_rank': next_rank, 'stars_received': stars_received,
         'followers_count': user.followers.count(),
         'following_count': user.following.count(),
@@ -291,6 +349,49 @@ def sales_dashboard(request):
     trades = Trade.objects.filter(seller=request.user).select_related('project','buyer').order_by('-created_at')[:20]
     bought = Trade.objects.filter(buyer=request.user).select_related('project','seller').order_by('-created_at')[:20]
     total_zar = sum(s.amount_zar for s in Sale.objects.filter(seller=request.user))
+
+    # ------------------------------------------------------------------
+    # §11 — SALES, not earnings. Every number here describes *activity*
+    # (who unlocked what, how often, from how many views). None of it is a
+    # balance owed to the creator, because BlaqVibes owes creators nothing:
+    # buyers pay BlaqVibes to unlock a project.
+    # ------------------------------------------------------------------
+    from django.db.models import Count as _Count, Sum as _Sum
+    my_projects = AppProject.objects.filter(owner=request.user)
+    published_projects = my_projects.filter(status='published')
+    total_views = published_projects.aggregate(v=_Sum('views'))['v'] or 0
+    card_unlocks = Sale.objects.filter(seller=request.user).count()
+    star_unlocks = Trade.objects.filter(seller=request.user).count()
+    unlocks = card_unlocks + star_unlocks
+    projects_sold = (
+        Sale.objects.filter(seller=request.user).values('project_id').distinct().count()
+        + Trade.objects.filter(seller=request.user)
+        .exclude(project_id__in=Sale.objects.filter(seller=request.user).values('project_id'))
+        .values('project_id').distinct().count()
+    )
+    purchases = (
+        Trade.objects.filter(buyer=request.user).count()
+        + Sale.objects.filter(buyer=request.user).count()
+    )
+    # Conversion is views → unlocks. Shown only when there is enough traffic
+    # to mean anything: 3 views and 1 unlock is not "33%", it is noise.
+    conversion_rate = round((unlocks / total_views) * 100, 1) if total_views >= 20 else None
+    popular_projects = list(
+        published_projects.annotate(
+            unlock_count=_Count('trades', distinct=True) + _Count('sales', distinct=True),
+            remix_count=_Count('forks', filter=Q(forks__status='published'), distinct=True),
+        ).order_by('-views', '-stars')[:5]
+    )
+    sales_metrics = {
+        'published': published_projects.count(),
+        'views': total_views,
+        'unlocks': unlocks,
+        'card_unlocks': card_unlocks,
+        'star_unlocks': star_unlocks,
+        'projects_sold': projects_sold,
+        'purchases': purchases,
+        'conversion_rate': conversion_rate,
+    }
     # The append-only ledger — every wallet move, newest first. This is the
     # answer to "why is my balance N ★?" without a support ticket.
     star_events = StarEvent.objects.filter(user=request.user)[:50]
@@ -351,6 +452,8 @@ def sales_dashboard(request):
         'chart_activity_svg': chart_activity_svg,
         'chart_balance_svg': chart_balance_svg,
         'total_zar': total_zar,
+        'metrics': sales_metrics,
+        'popular_projects': popular_projects,
         'paystack_enabled': paystack_enabled(),
         'is_pro': request.user.profile.is_pro_active,
         'pro_since': getattr(request.user.profile, 'pro_since', None),
