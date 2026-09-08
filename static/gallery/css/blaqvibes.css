@@ -507,6 +507,18 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
 @media (max-width: 900px) {
   .vibe-grid { grid-template-columns: 1fr 1fr; }
   .detail-layout { grid-template-columns: minmax(0, 1fr); }
+  /* Keep the mobile header attached to the viewport. Sticky can inherit an
+     intermediate containing block from page-specific layouts and appear
+     stranded halfway down the page. */
+  .nav {
+    position: fixed;
+    top: 0;
+    right: 0;
+    left: 0;
+    width: 100%;
+    z-index: 50;
+  }
+  body { padding-top: 64px; }
   .nav-burger { display: inline-flex; }
   .nav-links {
     display: none;
