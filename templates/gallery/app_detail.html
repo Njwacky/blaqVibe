@@ -72,6 +72,18 @@
       </div>
     </div>
 
+    {% if readiness %}
+    <div class="card" id="ship-readiness" style="padding:14px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--muted)">SHIP READINESS — PRECISE CHECKS</div>
+      <ul style="margin:10px 0 0;padding-left:18px;font-size:13px;line-height:1.7">
+        {% for row in readiness.rows %}
+        <li>{% if row.ok %}✓{% else %}—{% endif %} {{ row.label }}</li>
+        {% endfor %}
+      </ul>
+      <p style="font-size:12px;color:var(--muted);margin-top:10px">{{ readiness.disclaimer }}</p>
+    </div>
+    {% endif %}
+
     {# ── EVIDENCE — scannable Available/Not available/Checked/Unknown ── #}
     <div class="card" style="padding:14px;margin-bottom:14px">
       <div style="font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--muted)">EVIDENCE — WHY YOU CAN TRUST THIS PROJECT</div>

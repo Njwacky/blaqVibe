@@ -409,6 +409,12 @@ def app_detail(request, slug):
             similar_pool = similar_builds(project, pool, limit=4)
         except Exception:
             logger.exception('similar builds failed %s', project.slug)
+    readiness = None
+    try:
+        from .ship_readiness import ship_readiness
+        readiness = ship_readiness(project)
+    except Exception:
+        logger.exception('ship readiness failed %s', project.slug)
     return render(request, 'gallery/app_detail.html', {
         'project': project,
         'comments': top_comments,
@@ -447,6 +453,7 @@ def app_detail(request, slug):
         'lineage': lineage,
         'built_from_skill': built_from_skill,
         'similar_builds': similar_pool,
+        'readiness': readiness,
     })
 
 def scan_status(request, slug):

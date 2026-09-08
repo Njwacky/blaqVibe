@@ -123,7 +123,7 @@ Skills counted from published evidence only. No giant Builder Score. AI maturity
 
 Problems and challenges as work-shaped quests. Matching via **projects**, not talent profiles. Proof CV generated from work.
 
-### Phase 5 — Trust depth
+### Phase 5 — Trust depth (IN CODE)
 
 Ship-readiness as **precise checks** (tests detected, scan completed, 3 vulns found). Maintenance history. Never “BlaqVibes guarantees this is secure.”
 
