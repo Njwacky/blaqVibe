@@ -49,7 +49,7 @@ class TodayLoopTemplateTagTests(TestCase):
             url='/app/example/',
         )
         output = self.render(user)
-        self.assertIn('BUILDER PULSE', output)
+        self.assertIn('TODAY ON BLAQVIBES', output)
         self.assertIn('What are people building?', output)
         self.assertIn('1 new', output)
         self.assertIn('Build → Show → Remix → Compete', output)
@@ -79,11 +79,13 @@ class TodayLoopTemplateTagTests(TestCase):
         self._publish(stranger, 'Fresh Network Vibe')
         self._publish(user, 'My Own Vibe')
         output = self.render(user)
-        self.assertIn('RECENTLY BUILT', output)
+        self.assertIn('WHAT ARE PEOPLE BUILDING', output)
         self.assertIn('Fresh Network Vibe', output)
         # Discovery is about OTHER builders — your own project has its own slot.
-        self.assertNotIn('My Own Vibe', output.split('RECENTLY BUILT')[1].split('YOUR LATEST PROJECT')[0])
+        self.assertNotIn('My Own Vibe', output.split('WHAT ARE PEOPLE BUILDING')[1].split('YOUR LATEST PROJECT')[0])
         self.assertIn('YOUR LATEST PROJECT', output)
+        self.assertIn("Today's remix", output)
+        self.assertIn("Today's review", output)
 
     def test_worth_remixing_surfaces_followed_creators(self):
         user = self._make_user('follower')

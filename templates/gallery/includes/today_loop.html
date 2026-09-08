@@ -13,7 +13,9 @@
 
   <div class="today-loop__actions">
     <a href="{% url 'publish' %}" class="today-loop__primary">＋ Build something</a>
-    {% if daily %}<a href="{% url 'challenge_detail' daily.tag %}" class="today-loop__secondary">Join today's challenge</a>{% endif %}
+    {% if daily %}<a href="{% url 'challenge_detail' daily.tag %}" class="today-loop__secondary">Today's problem</a>{% endif %}
+    {% if next_remix %}<a href="{{ next_remix.get_absolute_url }}" class="today-loop__secondary">Today's remix</a>{% endif %}
+    {% if next_review %}<a href="{{ next_review.get_absolute_url }}#reviews" class="today-loop__secondary">Today's review</a>{% endif %}
   </div>
 
   {# 1. WHAT ARE PEOPLE BUILDING — recently built #}

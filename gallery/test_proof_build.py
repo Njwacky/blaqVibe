@@ -68,3 +68,46 @@ class ProofCardTests(TestCase):
         self.assertIn('problem_statement', AppUploadForm.base_fields)
         self.assertIn('human_did', AppUploadForm.base_fields)
         self.assertNotIn('trust', AppUploadForm.base_fields)
+
+    def _form_data(self, **extra):
+        data = {
+            'title': 'Remix Form Vibe',
+            'category': self.cat.id,
+            'short_description': 'A short description of this vibe.',
+            'readme': '# Heading\n\n' + ('Enough characters in this readme for the form. ' * 3),
+            'html_code': '<div>hi</div>',
+            'star_cost': 0,
+            'price_zar': 0,
+        }
+        data.update(extra)
+        return data
+
+    def test_remix_edit_requires_delta(self):
+        original = make_project(self.owner, self.cat, title='Need Delta Parent')
+        other = make_user('needdelta')
+        fork = make_project(other, self.cat, title='Need Delta Child', forked_from=original, html_code='<div>hi</div>')
+        form = AppUploadForm(data=self._form_data(), instance=fork)
+        self.assertFalse(form.is_valid())
+        self.assertIn('remix_changed', form.errors)
+        form = AppUploadForm(data=self._form_data(remix_changed='Added SMS stock alerts.'), instance=fork)
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_review_witness_flags_persist(self):
+        from gallery.models import Review, Star
+        p = make_project(self.owner, self.cat)
+        fan = make_user('witnessfan')
+        Star.objects.create(user=fan, project=p)
+        self.client.force_login(fan)
+        response = self.client.post(f'/app/{p.slug}/review/', {
+            'rating': '4',
+            'text': 'README got me running.',
+            'ran_it': 'on',
+            'readme_clear': 'on',
+        })
+        self.assertEqual(response.status_code, 302)
+        review = Review.objects.get(user=fan, project=p)
+        self.assertTrue(review.ran_it)
+        self.assertTrue(review.readme_clear)
+        page = self.client.get(f'/app/{p.slug}/')
+        self.assertContains(page, 'Ran it')
+        self.assertContains(page, 'README clear')

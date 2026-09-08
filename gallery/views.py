@@ -970,7 +970,15 @@ def post_review(request, slug):
         text = form.cleaned_data['text']
         if Trade.objects.filter(buyer=request.user, project=project).exists() or Star.objects.filter(user=request.user, project=project).exists() or project.owner == request.user:
             # Allow review if traded/starred/owner
-            review, created = Review.objects.update_or_create(user=request.user, project=project, defaults={'rating': rating, 'text': text})
+            review, created = Review.objects.update_or_create(
+                user=request.user, project=project,
+                defaults={
+                    'rating': rating,
+                    'text': text,
+                    'ran_it': bool(form.cleaned_data.get('ran_it')),
+                    'readme_clear': bool(form.cleaned_data.get('readme_clear')),
+                },
+            )
             if created:
                 messages.success(request, f"Review {rating}★ posted — Nolo and human ratings now show.")
             else:
@@ -1546,6 +1554,7 @@ def fork_vibe(request, slug):
             ai_generated=original.ai_generated,
             ai_tool=original.ai_tool,
             ai_prompt=original.ai_prompt,
+            problem_statement=original.problem_statement,
             file_tree=original.file_tree,
             file_count=original.file_count,
             language_stats=original.language_stats,

@@ -681,6 +681,8 @@ class Review(models.Model):
     project = models.ForeignKey(AppProject, on_delete=models.CASCADE, related_name='reviews')
     rating = models.PositiveSmallIntegerField(choices=[(1,'1'),(2,'2'),(3,'3'),(4,'4'),(5,'5')])
     text = models.TextField(max_length=1000, blank=True)
+    ran_it = models.BooleanField(default=False, help_text='Reviewer actually ran or opened the files.')
+    readme_clear = models.BooleanField(default=False, help_text='README was enough to understand the Build.')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     class Meta:

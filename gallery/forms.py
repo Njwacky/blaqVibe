@@ -120,6 +120,13 @@ class AppUploadForm(forms.ModelForm):
         html = (cleaned.get('html_code') or '').strip()
         if not zipf and not html:
             raise forms.ValidationError("Provide either a ZIP file (full app) or HTML snippet.")
+        # Remix is learning through continuation: a child without a delta is theft-shaped.
+        if self.instance and getattr(self.instance, 'forked_from_id', None):
+            if not (cleaned.get('remix_changed') or '').strip():
+                self.add_error(
+                    'remix_changed',
+                    'Say what you changed. Remix without a delta is just a copy.',
+                )
         return cleaned
 
 class CommentForm(forms.Form):
@@ -136,9 +143,11 @@ class CommentForm(forms.Form):
         return validate_public_text(body, allow_blank=False)
 
 class ReviewForm(forms.Form):
-    """Same reason as CommentForm: one gate for rating + public text."""
+    """Witness, not a like. Can I run it? Is the README honest?"""
     rating = forms.IntegerField(min_value=1, max_value=5)
     text = forms.CharField(required=False, max_length=1000)
+    ran_it = forms.BooleanField(required=False)
+    readme_clear = forms.BooleanField(required=False)
 
     def clean_text(self):
         text = sanitize_prompt(self.cleaned_data.get('text') or '')[:1000]

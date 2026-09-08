@@ -111,9 +111,9 @@ Build object fields that make a Proof Card: problem, human contribution, AI-got-
 Verification list already on the detail page, made shareable.  
 WhatsApp share of the public Build URL.
 
-### Phase 2 — Community
+### Phase 2 — Community (IN CODE)
 
-Reviews as “can I run it / is the README honest.” Remix “what I changed / why.” Today as next action. Momentum ≠ views.
+Reviews as “can I run it / is the README honest.” Remix “what I changed / why” **required** on a remix edit. Today as next action (build / problem / remix / review).
 
 ### Phase 3 — Skill
 
