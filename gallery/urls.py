@@ -93,6 +93,7 @@ urlpatterns = [
     path('app/<slug:slug>/prs/', views.pr_list, name='pr_list'),
     path('app/<slug:slug>/prs/<int:pr_id>/', views.pr_action, name='pr_action'),
     path('app/<slug:slug>/prs/<int:pr_id>/view/', views.pr_detail, name='pr_detail'),
+    path('problems/', views.problems_board, name='problems_board'),
     path('challenges/', views.challenge_list, name='challenge_list'),
     path('challenges/generate/', views.generate_challenges, name='generate_challenges'),
     path('challenges/<str:tag>/', views.challenge_detail, name='challenge_detail'),

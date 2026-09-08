@@ -130,6 +130,20 @@
       <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">{% for r in reviews %}<div style="padding:10px;background:var(--bg);border:1px solid var(--line);border-radius:10px;display:flex;gap:10px"><div style="width:28px;height:28px;border-radius:50%;background:var(--line);display:grid;place-items:center;font-weight:700;font-size:11px">{{ r.user.username|first|upper }}</div><div style="flex:1"><div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap"><b style="font-size:13px">@{{ r.user.username }}</b><span style="color:var(--warning-text)">★ {{ r.rating }}/5</span>{% if r.ran_it %}<span class="badge" style="font-size:10px">Ran it</span>{% endif %}{% if r.readme_clear %}<span class="badge" style="font-size:10px">README clear</span>{% endif %}<span style="font-size:11px;color:var(--muted)">{{ r.created_at|timesince }} ago</span></div><div style="font-size:12px;margin-top:2px">{{ r.text|default:"—" }}</div></div></div>{% empty %}<div style="color:var(--muted);font-size:12px;text-align:center;padding:8px">No witnesses yet.</div>{% endfor %}</div>
     </div>
 
+    {% if similar_builds %}
+    <div class="card" style="padding:14px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--muted)">OTHERS SOLVING A SIMILAR PROBLEM</div>
+      <p style="font-size:12px;color:var(--muted);margin-top:6px">Matched on the work, not on a talent profile.</p>
+      {% for p in similar_builds %}
+      <a href="{{ p.get_absolute_url }}" style="display:block;margin-top:8px;font-size:13px">
+        <b>{{ p.title }}</b> <span style="color:var(--muted)">@{{ p.owner.username }}</span>
+        {% if p.problem_statement %}<div style="font-size:12px;color:var(--muted);margin-top:2px">{{ p.problem_statement|truncatechars:120 }}</div>{% endif %}
+      </a>
+      {% endfor %}
+      <a href="{% url 'problems_board' %}" style="display:inline-block;margin-top:10px;font-size:12px;color:var(--link)">More open problems →</a>
+    </div>
+    {% endif %}
+
     {# ── NEXT ACTION — Remix first + subtitle, Share, Buy & Unlock ── #}
     <div class="card" id="next-action" style="padding:16px;margin-bottom:14px;border-color:var(--accent-border)">
       <div style="font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--muted)">NEXT ACTION — WHAT YOU CAN DO WITH THIS PROJECT</div>

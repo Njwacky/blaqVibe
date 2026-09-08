@@ -396,6 +396,19 @@ def app_detail(request, slug):
         .order_by('-created_at')
         .first()
     )
+    similar_pool = []
+    if project.status == 'published' and (project.problem_statement or '').strip():
+        try:
+            from .opportunity import similar_builds
+            pool = list(
+                AppProject.objects.filter(status='published')
+                .exclude(pk=project.pk)
+                .select_related('owner')
+                .order_by('-stars', '-created_at')[:80]
+            )
+            similar_pool = similar_builds(project, pool, limit=4)
+        except Exception:
+            logger.exception('similar builds failed %s', project.slug)
     return render(request, 'gallery/app_detail.html', {
         'project': project,
         'comments': top_comments,
@@ -433,6 +446,7 @@ def app_detail(request, slug):
         'project_history': project_history,
         'lineage': lineage,
         'built_from_skill': built_from_skill,
+        'similar_builds': similar_pool,
     })
 
 def scan_status(request, slug):
@@ -1915,6 +1929,12 @@ def sitemap_xml(request):
         rows.append(f'<url><loc>{settings.SITE_URL}/app/{p.slug}/</loc><lastmod>{p.updated_at.date().isoformat()}</lastmod></url>')
     rows.append('</urlset>')
     return HttpResponse('\n'.join(rows), content_type='application/xml')
+
+def problems_board(request):
+    """Open problems from published Builds — work-shaped quests, not jobs."""
+    from .opportunity import open_problems
+    return render(request, 'gallery/problems.html', {'problems': open_problems()})
+
 
 def trust_legend(request):
     """Public "what does the badge mean" page — the anti-fake read.

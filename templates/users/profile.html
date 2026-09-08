@@ -230,6 +230,7 @@
         align-items: stretch;
       "
     >
+      <a href="{% url 'proof_cv' profile_user.username %}" class="btn-ghost">Proof of work</a>
       {% if is_own %}
       <a href="{% url 'edit_profile' %}" class="btn-ghost">Edit Profile</a>
       <a href="{% url 'sales_dashboard' %}" class="btn-ghost">📈 Sales</a>

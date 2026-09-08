@@ -119,7 +119,7 @@ Reviews as “can I run it / is the README honest.” Remix “what I changed / 
 
 Skills counted from published evidence only. No giant Builder Score. AI maturity only from work.
 
-### Phase 4 — Opportunity
+### Phase 4 — Opportunity (IN CODE)
 
 Problems and challenges as work-shaped quests. Matching via **projects**, not talent profiles. Proof CV generated from work.
 
