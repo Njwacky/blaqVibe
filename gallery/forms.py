@@ -16,7 +16,7 @@ class AppUploadForm(forms.ModelForm):
 
     class Meta:
         model = AppProject
-        fields = ['title','category','creator_kind','short_description','readme','tech_stack','ai_generated','ai_tool','ai_prompt','html_code','css_code','js_code','zip_file','thumbnail','star_cost','price_zar']
+        fields = ['title','category','creator_kind','short_description','readme','tech_stack','ai_generated','ai_tool','ai_prompt','problem_statement','human_did','ai_got_wrong','remix_changed','remix_why','html_code','css_code','js_code','zip_file','thumbnail','star_cost','price_zar']
         widgets = {
             'readme': forms.Textarea(attrs={'rows':10, 'placeholder':'# My App\n## What is this?\n## How to Run\n```bash\npip install -r requirements.txt\n```'}),
             'short_description': forms.TextInput(attrs={'placeholder':'One-line what it does'}),
@@ -36,6 +36,11 @@ class AppUploadForm(forms.ModelForm):
             'ai_generated': 'Be transparent if AI materially helped create this project. This is shown as provenance, not a quality score.',
             'ai_tool': 'Optional unless you mark the project as AI-assisted. You can name more than one tool.',
             'ai_prompt': 'Share the useful prompt or workflow when you can. Do not include secrets, API keys, or private data.',
+            'problem_statement': 'Makes the Build evidence, not a dump.',
+            'human_did': 'In an AI world the scarce proof is your judgment.',
+            'ai_got_wrong': 'Turns AI failure into a lesson. Optional.',
+            'remix_changed': 'Required in spirit when this is a remix — credit plus delta.',
+            'remix_why': 'Learning through continuation.',
         }
 
     def clean_title(self):
@@ -61,6 +66,26 @@ class AppUploadForm(forms.ModelForm):
         if prompt and len(prompt) > 5000:
             raise forms.ValidationError("Prompt max 5000 chars")
         return validate_public_text(sanitize_prompt(prompt))
+
+    def _clean_proof_line(self, key):
+        txt = (self.cleaned_data.get(key) or '').strip()
+        import bleach
+        return validate_public_text(bleach.clean(txt, tags=[], strip=True)[:400])
+
+    def clean_problem_statement(self):
+        return self._clean_proof_line('problem_statement')
+
+    def clean_human_did(self):
+        return self._clean_proof_line('human_did')
+
+    def clean_ai_got_wrong(self):
+        return self._clean_proof_line('ai_got_wrong')
+
+    def clean_remix_changed(self):
+        return self._clean_proof_line('remix_changed')
+
+    def clean_remix_why(self):
+        return self._clean_proof_line('remix_why')
 
     def clean_short_description(self):
         txt = self.cleaned_data.get('short_description', '') or ''

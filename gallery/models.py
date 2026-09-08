@@ -63,6 +63,27 @@ class AppProject(models.Model):
     ai_generated = models.BooleanField(default=False)
     ai_tool = models.CharField(max_length=50, blank=True)
     ai_prompt = models.TextField(blank=True)
+    # Phase 1 Proof — publisher-written evidence, not a score.
+    problem_statement = models.CharField(
+        max_length=400, blank=True, default='',
+        help_text='What problem this Build tries to solve.',
+    )
+    human_did = models.CharField(
+        max_length=400, blank=True, default='',
+        help_text='What the human actually did (spec, review, tests, architecture…).',
+    )
+    ai_got_wrong = models.CharField(
+        max_length=400, blank=True, default='',
+        help_text='Where AI failed and the builder had to think.',
+    )
+    remix_changed = models.CharField(
+        max_length=400, blank=True, default='',
+        help_text='If remixed: what this version changed.',
+    )
+    remix_why = models.CharField(
+        max_length=400, blank=True, default='',
+        help_text='If remixed: why it changed.',
+    )
     thumbnail = models.ImageField(upload_to='thumbnails/', blank=True, null=True)
     file_tree = models.JSONField(default=dict, blank=True)
     file_count = models.PositiveIntegerField(default=0)
@@ -377,6 +398,30 @@ class AppProject(models.Model):
                 'and remains responsible for the published work.'
             )
         return 'Created without material AI assistance.'
+
+    def proof_checks(self):
+        """Precise evidence rows for the Proof Card. Never a fake universal badge."""
+        scan = self.scan_report if isinstance(self.scan_report, dict) else {}
+        vulns = scan.get('vulnerabilities') or scan.get('vuln_count')
+        return [
+            {'ok': bool((self.readme or '').strip()), 'label': 'README'},
+            {'ok': bool(self.zip_file) or bool((self.html_code or '').strip()), 'label': 'Files or snippet'},
+            {'ok': self.trust in ('verified', 'scanned'), 'label': 'Security scan ran'},
+            {'ok': self.trust == 'verified', 'label': 'Checked — virus/secrets clean'},
+            {'ok': bool((self.ai_tool or '').strip()) if self.ai_generated or (self.ai_tool or '').strip() else True,
+             'label': 'AI tool named' if (self.ai_generated or (self.ai_tool or '').strip()) else 'AI not claimed'},
+            {'ok': bool((self.ai_prompt or '').strip()) if self.ai_generated else True,
+             'label': 'AI workflow note' if self.ai_generated else 'AI workflow optional'},
+            {'ok': bool((self.human_did or '').strip()) or self.build_method == 'human_built',
+             'label': 'Human contribution stated'},
+            {'ok': (not self.forked_from_id) or bool((self.remix_changed or '').strip()),
+             'label': 'Remix delta stated' if self.forked_from_id else 'Original (no parent)'},
+            {'ok': self.can_run_preview, 'label': 'Live preview' if self.can_run_preview else 'No live preview (honest)'},
+            {'ok': bool(self.published_at), 'label': 'Published in public record'},
+        ]
+
+    def proof_ok_count(self):
+        return sum(1 for row in self.proof_checks() if row['ok'])
 
     def rank_bonus(self):
         from .ranks import contributor_bonus

@@ -12,6 +12,10 @@
       {% if project.kind_evidence %}<div style="font-size:11px;color:var(--muted);margin-top:4px">We labelled this a <b>{{ project.kind_label }}</b> because: {{ project.kind_evidence|join:", " }}. Pick a kind above to override us.</div>{% endif %}
     </div>
     <div><label class="field-label">Short desc</label>{{ form.short_description }}</div>
+    <div><label class="field-label">Problem this Build solves</label>{{ form.problem_statement }}</div>
+    <div><label class="field-label">What you (the human) actually did</label>{{ form.human_did }}</div>
+    <div><label class="field-label">What AI got wrong</label>{{ form.ai_got_wrong }}</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><label class="field-label">Remix — what changed</label>{{ form.remix_changed }}</div><div><label class="field-label">Remix — why</label>{{ form.remix_why }}</div></div>
     <div><label class="field-label">README</label>{{ form.readme }}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><label class="field-label">Tech stack</label>{{ form.tech_stack }}</div><div><label class="field-label">ZIP (re-upload to version)</label>{{ form.zip_file }}</div></div>
     <div><label class="field-label">Changelog (for version)</label><input name="changelog" placeholder="Fixed chart bug, added TwelveData" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--text);font-size:13px"></div>

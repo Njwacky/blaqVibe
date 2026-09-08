@@ -52,6 +52,26 @@
       {% if project.can_run_preview %}<iframe src="{% url 'preview' project.slug %}" sandbox="allow-scripts allow-forms" referrerpolicy="no-referrer" style="width:100%;height:380px;border:none;background:var(--surface-subtle)" title="{{ project.title }} preview"></iframe>{% else %}<div style="height:260px;background:var(--surface-subtle);display:grid;place-items:center;padding:20px;text-align:center"><div><div style="font-size:28px">{{ project.kind_icon }}</div><div style="font-weight:700;margin-top:6px">{{ project.title }}</div><div style="font-size:12px;color:var(--muted);margin-top:4px">{{ project.kind_label }} · {{ project.file_count }} files</div><div style="margin-top:8px;font-size:11px;color:var(--muted);background:var(--input);border:1px solid var(--line);border-radius:8px;padding:6px 10px;display:inline-block">No live preview — {{ project.preview_note }}</div></div></div>{% endif %}
     </div>
 
+    {# ── PROOF CARD — Phase 1: shareable evidence, not a score ── #}
+    <div class="card" id="proof-card" style="padding:14px;margin-bottom:14px;border-color:var(--accent-border)">
+      <div style="font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--muted)">PROOF CARD — WHAT THIS BUILD DEMONSTRATES</div>
+      <div style="margin-top:8px;font-size:18px;font-weight:800;font-family:Space Grotesk,sans-serif">{{ project.title }}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px">@{{ project.owner.username }} · {{ project.build_method_label }}{% if project.ai_tool %} · {{ project.ai_tool }}{% endif %} · {{ project.proof_ok_count }}/{{ project.proof_checks|length }} checks</div>
+      {% if project.problem_statement %}<div style="margin-top:10px;font-size:13px;line-height:1.55"><b>Problem.</b> {{ project.problem_statement }}</div>{% endif %}
+      {% if project.human_did %}<div style="margin-top:6px;font-size:13px;line-height:1.55"><b>Human did.</b> {{ project.human_did }}</div>{% endif %}
+      {% if project.ai_got_wrong %}<div style="margin-top:6px;font-size:13px;line-height:1.55"><b>AI got this wrong.</b> {{ project.ai_got_wrong }}</div>{% endif %}
+      {% if project.forked_from and project.remix_changed %}<div style="margin-top:6px;font-size:13px;line-height:1.55"><b>Remix.</b> {{ project.remix_changed }}{% if project.remix_why %} — {{ project.remix_why }}{% endif %}</div>{% endif %}
+      <ul style="margin:10px 0 0;padding-left:18px;font-size:12px;line-height:1.7">
+        {% for row in project.proof_checks %}
+        <li>{% if row.ok %}✓{% else %}—{% endif %} {{ row.label }}</li>
+        {% endfor %}
+      </ul>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <a class="btn-violet" style="flex:1;text-align:center" href="https://wa.me/?text={{ request.scheme }}%3A%2F%2F{{ request.get_host }}{{ project.get_absolute_url|urlencode }}%20{{ project.title|urlencode }}%20by%20%40{{ project.owner.username }}">Share to WhatsApp</a>
+        <button type="button" class="btn-ghost js-copy" data-copy="{{ request.scheme }}://{{ request.get_host }}{{ project.get_absolute_url }}#proof-card" style="flex:1">Copy proof link</button>
+      </div>
+    </div>
+
     {# ── EVIDENCE — scannable Available/Not available/Checked/Unknown ── #}
     <div class="card" style="padding:14px;margin-bottom:14px">
       <div style="font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--muted)">EVIDENCE — WHY YOU CAN TRUST THIS PROJECT</div>
