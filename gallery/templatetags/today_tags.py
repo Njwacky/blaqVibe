@@ -12,7 +12,7 @@ def today_loop(context):
     if not user or not user.is_authenticated:
         return {'today_enabled': False}
 
-    cache_key = f'blaqvibes:today:v3:{user.pk}'
+    cache_key = f'blaqvibes:today:v4:{user.pk}'
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
@@ -75,6 +75,15 @@ def today_loop(context):
             .select_related('owner')
             .only('id', 'title', 'slug', 'stars', 'created_at', 'owner__username')
             .order_by('-created_at')[:5]
+        )
+        data['next_remix'] = data['discovery_vibes'][0] if data['discovery_vibes'] else None
+        data['next_review'] = (
+            AppProject.objects.filter(status='published', review_count=0)
+            .exclude(owner=user)
+            .select_related('owner')
+            .only('id', 'title', 'slug', 'stars', 'created_at', 'owner__username')
+            .order_by('-created_at')
+            .first()
         )
     except Exception:
         pass

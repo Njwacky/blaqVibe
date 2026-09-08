@@ -1,0 +1,25 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Open problems — BlaqVibes{% endblock %}
+{% block content %}
+<div style="max-width:900px;margin:0 auto;padding:20px">
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">Open problems</h1>
+  <p style="color:var(--muted);font-size:13px;margin-top:6px">
+    Work-shaped quests from published Builds. Opportunity is remixing or continuing
+    the object — not a Jobs tab, not an HR meat aisle.
+  </p>
+  {% for p in problems %}
+  <div class="card" style="padding:14px;margin-top:10px">
+    <div style="font-size:11px;color:var(--muted)">@{{ p.owner.username }} · {{ p.remixes }} remix{{ p.remixes|pluralize:"es" }}</div>
+    <div style="font-weight:800;margin-top:4px">{{ p.title }}</div>
+    <div style="font-size:13px;margin-top:6px">{{ p.problem_statement }}</div>
+    <div style="margin-top:10px;display:flex;gap:8px">
+      <a href="{{ p.get_absolute_url }}" class="btn-ghost" style="font-size:12px">Open the Build</a>
+      <a href="{% url 'app_detail' p.slug %}#next-action" class="btn-violet" style="font-size:12px">Remix this problem</a>
+    </div>
+  </div>
+  {% empty %}
+  <p style="color:var(--muted);margin-top:16px">No named problems yet. Publish a Build with a problem statement.</p>
+  {% endfor %}
+  <p style="margin-top:16px;font-size:12px"><a href="{% url 'challenge_list' %}" style="color:var(--link)">Daily challenges →</a></p>
+</div>
+{% endblock %}

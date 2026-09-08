@@ -42,6 +42,8 @@
             <div style="font-size:11px;color:var(--muted);margin-top:4px">Everything is welcome here — games, APIs, mobile apps, scripts. Leave it on auto-detect and we work it out from your files. Anything we can’t run in the browser is published with an honest “files only” label.</div>
           </div>
           <div><label class="field-label">Short description*</label>{{ form.short_description }}</div>
+          <div><label class="field-label">Problem this Build solves</label>{{ form.problem_statement }}</div>
+          <div><label class="field-label">What you (the human) actually did</label>{{ form.human_did }}</div>
           <div><label class="field-label">README.md* — min 100 chars, must include heading</label>{{ form.readme }}</div>
           <div id="readme-preview" class="help" style="display:none;white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;max-height:160px;overflow:auto"></div>
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
@@ -58,6 +60,11 @@
           <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
             <div><label class="field-label">AI tool</label>{{ form.ai_tool }}</div>
             <div><label class="field-label">AI prompt</label>{{ form.ai_prompt }}</div>
+          </div>
+          <div><label class="field-label">What AI got wrong (optional)</label>{{ form.ai_got_wrong }}</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div><label class="field-label">If remixed — what changed</label>{{ form.remix_changed }}</div>
+            <div><label class="field-label">If remixed — why</label>{{ form.remix_why }}</div>
           </div>
         </div>
         <div style="margin-top:14px;display:flex;justify-content:flex-end"><button type="button" class="btnV" data-wizard-step="2">Next → Upload</button></div>

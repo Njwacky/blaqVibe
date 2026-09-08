@@ -16,7 +16,7 @@ class AppUploadForm(forms.ModelForm):
 
     class Meta:
         model = AppProject
-        fields = ['title','category','creator_kind','short_description','readme','tech_stack','ai_generated','ai_tool','ai_prompt','html_code','css_code','js_code','zip_file','thumbnail','star_cost','price_zar']
+        fields = ['title','category','creator_kind','short_description','readme','tech_stack','ai_generated','ai_tool','ai_prompt','problem_statement','human_did','ai_got_wrong','remix_changed','remix_why','html_code','css_code','js_code','zip_file','thumbnail','star_cost','price_zar']
         widgets = {
             'readme': forms.Textarea(attrs={'rows':10, 'placeholder':'# My App\n## What is this?\n## How to Run\n```bash\npip install -r requirements.txt\n```'}),
             'short_description': forms.TextInput(attrs={'placeholder':'One-line what it does'}),
@@ -36,6 +36,11 @@ class AppUploadForm(forms.ModelForm):
             'ai_generated': 'Be transparent if AI materially helped create this project. This is shown as provenance, not a quality score.',
             'ai_tool': 'Optional unless you mark the project as AI-assisted. You can name more than one tool.',
             'ai_prompt': 'Share the useful prompt or workflow when you can. Do not include secrets, API keys, or private data.',
+            'problem_statement': 'Makes the Build evidence, not a dump.',
+            'human_did': 'In an AI world the scarce proof is your judgment.',
+            'ai_got_wrong': 'Turns AI failure into a lesson. Optional.',
+            'remix_changed': 'Required in spirit when this is a remix — credit plus delta.',
+            'remix_why': 'Learning through continuation.',
         }
 
     def clean_title(self):
@@ -61,6 +66,26 @@ class AppUploadForm(forms.ModelForm):
         if prompt and len(prompt) > 5000:
             raise forms.ValidationError("Prompt max 5000 chars")
         return validate_public_text(sanitize_prompt(prompt))
+
+    def _clean_proof_line(self, key):
+        txt = (self.cleaned_data.get(key) or '').strip()
+        import bleach
+        return validate_public_text(bleach.clean(txt, tags=[], strip=True)[:400])
+
+    def clean_problem_statement(self):
+        return self._clean_proof_line('problem_statement')
+
+    def clean_human_did(self):
+        return self._clean_proof_line('human_did')
+
+    def clean_ai_got_wrong(self):
+        return self._clean_proof_line('ai_got_wrong')
+
+    def clean_remix_changed(self):
+        return self._clean_proof_line('remix_changed')
+
+    def clean_remix_why(self):
+        return self._clean_proof_line('remix_why')
 
     def clean_short_description(self):
         txt = self.cleaned_data.get('short_description', '') or ''
@@ -95,6 +120,13 @@ class AppUploadForm(forms.ModelForm):
         html = (cleaned.get('html_code') or '').strip()
         if not zipf and not html:
             raise forms.ValidationError("Provide either a ZIP file (full app) or HTML snippet.")
+        # Remix is learning through continuation: a child without a delta is theft-shaped.
+        if self.instance and getattr(self.instance, 'forked_from_id', None):
+            if not (cleaned.get('remix_changed') or '').strip():
+                self.add_error(
+                    'remix_changed',
+                    'Say what you changed. Remix without a delta is just a copy.',
+                )
         return cleaned
 
 class CommentForm(forms.Form):
@@ -111,9 +143,11 @@ class CommentForm(forms.Form):
         return validate_public_text(body, allow_blank=False)
 
 class ReviewForm(forms.Form):
-    """Same reason as CommentForm: one gate for rating + public text."""
+    """Witness, not a like. Can I run it? Is the README honest?"""
     rating = forms.IntegerField(min_value=1, max_value=5)
     text = forms.CharField(required=False, max_length=1000)
+    ran_it = forms.BooleanField(required=False)
+    readme_clear = forms.BooleanField(required=False)
 
     def clean_text(self):
         text = sanitize_prompt(self.cleaned_data.get('text') or '')[:1000]

@@ -1,0 +1,39 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Proof of work — @{{ profile_user.username }}{% endblock %}
+{% block content %}
+<div style="max-width:780px;margin:0 auto;padding:20px">
+  <p style="font-size:11px;letter-spacing:.08em;color:var(--muted);font-weight:800">PROOF OF WORK — GENERATED FROM PUBLISHED BUILDS</p>
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:26px;margin-top:6px">@{{ profile_user.username }}</h1>
+  <p style="font-size:13px;color:var(--muted);margin-top:6px">Not a CV of claims. Not a Jobs tab. This page lists objects other people can open.</p>
+  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-top:12px;font-size:13px">
+    <div><b>{{ cv.builds|length }}</b> published</div>
+    <div><b>{{ cv.original_count }}</b> original</div>
+    <div><b>{{ cv.remix_count }}</b> remixes</div>
+    <div><b>{{ cv.stars }}</b> ★ on work</div>
+    <div><b>{{ cv.witness_reviews }}</b> reviews</div>
+  </div>
+  <div style="font-size:12px;margin-top:10px">AI-era stage: <b>{{ cv.maturity.label }}</b> — {{ cv.maturity.blurb }}</div>
+  {% if cv.demonstrated %}
+  <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap">
+    {% for skill in cv.demonstrated|slice:":10" %}
+    <span style="font-size:11px;background:var(--input);border:1px solid var(--line);border-radius:999px;padding:3px 9px">{{ skill.name }} · {{ skill.count }}</span>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  <h2 style="font-size:15px;font-weight:800;margin-top:22px">Builds</h2>
+  {% for p in cv.builds %}
+  <a href="{{ p.get_absolute_url }}" class="card" style="display:block;padding:14px;margin-top:8px">
+    <div style="font-weight:800">{{ p.title }}</div>
+    {% if p.problem_statement %}<div style="font-size:13px;margin-top:4px"><b>Problem.</b> {{ p.problem_statement }}</div>{% endif %}
+    {% if p.human_did %}<div style="font-size:12px;color:var(--muted);margin-top:4px">Human did: {{ p.human_did }}</div>{% endif %}
+    <div style="font-size:11px;color:var(--muted);margin-top:6px">{{ p.build_method_label }} · ★ {{ p.stars }} · {{ p.proof_ok_count }}/{{ p.proof_checks|length }} checks</div>
+  </a>
+  {% empty %}
+  <p style="color:var(--muted);font-size:13px">No published Builds yet — ability is invisible until there is an object.</p>
+  {% endfor %}
+
+  <p style="font-size:11px;color:var(--muted);margin-top:18px">Stars are status, not salary. Remix keeps the parent named.</p>
+  <a href="{% url 'profile_view' profile_user.username %}" class="btn-ghost" style="margin-top:10px;display:inline-block">← Profile</a>
+</div>
+{% endblock %}
