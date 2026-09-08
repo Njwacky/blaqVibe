@@ -85,6 +85,14 @@
       <div style="font-size: 13px; color: var(--text); margin: 6px 0">
         {% if profile_user.username|slice:":5" == "demo_" %}<span class="badge badge--accent" style="font-size:10px;margin-right:6px">BLAQVIBES DEMO</span>{% endif %}{{ profile.bio|default:"No bio yet — what do you build?" }}
       </div>
+      {% if demonstrated %}
+      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap" aria-label="Demonstrated from published Builds">
+        {% for skill in demonstrated|slice:":8" %}
+        <span title="{{ skill.count }} published Build{{ skill.count|pluralize }}" style="font-size:11px;background:var(--input);border:1px solid var(--line);border-radius:999px;padding:3px 9px">{{ skill.name }} · {{ skill.count }}</span>
+        {% endfor %}
+      </div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">AI-era stage: <b>{{ maturity.label }}</b> — {{ maturity.blurb }} (from work, not a test.)</div>
+      {% endif %}
       {% if progress %}
       <div style="margin-top:8px;max-width:420px">
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)">
@@ -399,7 +407,25 @@
 
   {% elif tab == 'skills' %}
   <div style="margin-top:12px">
-    <h2 style="font-size:14px;font-weight:800">Builder Skills published</h2>
+    <h2 style="font-size:14px;font-weight:800">Demonstrated from published Builds</h2>
+    <p style="font-size:12px;color:var(--muted);margin:6px 0 10px">Tags with no project behind them are claims. These are not.</p>
+    {% for skill in demonstrated %}
+    <div class="card" style="padding:12px;margin-top:8px;display:flex;justify-content:space-between;gap:12px;align-items:center">
+      <div>
+        <div style="font-weight:700;font-size:14px">{{ skill.name }}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">{% for slug in skill.slugs %}<a href="/app/{{ slug }}/" style="color:var(--link)">{{ slug }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}</div>
+      </div>
+      <div style="font-size:18px;font-weight:800">{{ skill.count }}</div>
+    </div>
+    {% empty %}
+    <div style="color:var(--muted);padding:14px 0;font-size:13px">No demonstrated stack yet — publish a Build with a tech stack or languages.</div>
+    {% endfor %}
+    <div class="card" style="padding:12px;margin-top:12px">
+      <div style="font-size:11px;color:var(--muted)">AI maturity (work only)</div>
+      <div style="font-size:18px;font-weight:800">{{ maturity.stage }} · {{ maturity.label }}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px">{{ maturity.blurb }} No single “Builder Score.”</div>
+    </div>
+    <h2 style="font-size:14px;font-weight:800;margin-top:16px">Builder Skills published</h2>
     {% for skill in skills_published %}
     <div class="card" style="padding:12px;margin-top:8px">
       <a href="{{ skill.get_absolute_url }}" style="color:var(--link);font-weight:700">{{ skill.title }}</a>

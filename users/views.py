@@ -103,7 +103,17 @@ def profile_view(request, username):
         forked_from__owner=user, status='published'
     ).exclude(owner=user).count()
     from gallery.skill_models import Skill as _Skill
+    from gallery.ability import ai_maturity, demonstrated_skills
     skills_count = _Skill.objects.filter(creator=user, is_published=True).count()
+    published_for_ability = list(
+        AppProject.objects.filter(owner=user, status='published').only(
+            'slug', 'status', 'tech_stack', 'language_stats', 'forked_from_id',
+            'ai_tool', 'ai_generated', 'ai_prompt', 'ai_got_wrong',
+            'human_did', 'problem_statement', 'remix_changed', 'trust',
+        )
+    )
+    demonstrated = demonstrated_skills(published_for_ability)
+    maturity = ai_maturity(published_for_ability)
 
     remixes = []
     skills_published = []
@@ -218,6 +228,8 @@ def profile_view(request, username):
         'skills_published': skills_published, 'skills_used': skills_used,
         'activity': activity,
         'skills_count': skills_count,
+        'demonstrated': demonstrated,
+        'maturity': maturity,
         'rank': rank, 'next_rank': next_rank, 'stars_received': stars_received,
         'followers_count': user.followers.count(),
         'following_count': user.following.count(),

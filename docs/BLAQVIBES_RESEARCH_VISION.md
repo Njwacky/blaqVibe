@@ -115,7 +115,7 @@ WhatsApp share of the public Build URL.
 
 Reviews as “can I run it / is the README honest.” Remix “what I changed / why” **required** on a remix edit. Today as next action (build / problem / remix / review).
 
-### Phase 3 — Skill
+### Phase 3 — Skill (IN CODE)
 
 Skills counted from published evidence only. No giant Builder Score. AI maturity only from work.
 
