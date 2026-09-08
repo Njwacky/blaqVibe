@@ -1,0 +1,193 @@
+/* Audit Log (templates/users/audit_log.html) — admin actions + trading history.
+
+   5 Whys: why was the Trading History column cut off on phones?
+   1. The two columns were an inline `grid-template-columns:1.2fr .8fr`. The
+      global [style*="grid-template-columns:1fr 1fr"] catch-all in
+      blaqvibes.css does not match "1.2fr .8fr", so the page never stacked.
+   2. `1fr` means minmax(auto, 1fr): a track's floor is its longest unbreakable
+      word (a 60-char username, a CamelCase project title, an email), so the
+      grid grew to ~1200px. html/body use overflow-x:clip, so nothing scrolled
+      — the right column was simply clipped out of reach.
+   3. Every track here is minmax(0, …), every grid/flex child is min-width:0,
+      and card text may break anywhere, so the widest thing on the page is
+      the viewport. `overflow-wrap:anywhere` only breaks words that cannot
+      fit a line, so ordinary text still reads normally.
+   4. Below 760px the columns stack (Admin Actions, then Trading History) and a
+      trade becomes labelled Buyer / Seller / Date rows instead of one rigid
+      "@buyer → @seller • date" line — the whole log is read by scrolling DOWN.
+   5. Nothing is truncated, hidden or wrapped in a page-level scroller, and
+      every colour is a theme variable, so light and dark both hold. */
+
+.audit-page {
+  width: 100%;
+  max-width: min(1100px, 100%);
+  min-width: 0;
+  margin: 0 auto;
+  padding: 20px;
+  box-sizing: border-box;
+}
+.audit-page h1 {
+  font-family: Space Grotesk, sans-serif;
+  font-size: 22px;
+  overflow-wrap: anywhere;
+}
+.audit-intro { color: var(--muted); font-size: 13px; }
+
+/* Two columns on desktop, one below 760px (see the media query). */
+.audit-layout {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr);
+  gap: 16px;
+  align-items: start;
+}
+/* Grid children otherwise keep a content-derived minimum width and push the
+   track — and the page — wider than the viewport. */
+.audit-layout > * { min-width: 0; }
+.audit-section {
+  min-width: 0;
+  max-width: 100%;
+}
+.audit-section h2 { font-size: 14px; font-weight: 700; overflow-wrap: anywhere; }
+
+/* Cards --------------------------------------------------------------- */
+.audit-entry,
+.trade-entry,
+.audit-empty {
+  box-sizing: border-box;
+  min-width: 0;
+  max-width: 100%;
+  margin-top: 8px;
+  padding: 10px;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.audit-empty {
+  padding: 12px;
+  background: transparent;
+  border-style: dashed;
+  color: var(--muted);
+  font-size: 13px;
+}
+.audit-entry-content,
+.trade-entry-content { min-width: 0; max-width: 100%; }
+
+/* Long usernames, targets, project and action names wrap INSIDE the card
+   instead of widening it. `anywhere` also counts toward min-content sizing,
+   which is what keeps the grid tracks honest. */
+.audit-entry, .audit-entry *,
+.trade-entry, .trade-entry * { overflow-wrap: anywhere; }
+.username,
+.audit-target,
+.audit-action,
+.project-name { overflow-wrap: anywhere; }
+.audit-muted { color: var(--muted); }
+
+/* Admin action: avatar | text | action tag. */
+.audit-entry {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+}
+.audit-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: var(--violet);
+  color: var(--on-accent);
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 12px;
+}
+.audit-entry-line { font-size: 13px; line-height: 1.45; }
+.audit-action { color: var(--muted); }
+.audit-entry-meta { margin-top: 2px; font-size: 11px; color: var(--muted); }
+.audit-action-tag {
+  /* A very long action name wraps inside the tag, not over the text column. */
+  max-width: 160px;
+  padding: 4px 8px;
+  font-size: 10px;
+  background: var(--input);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+/* Trade: project + cost, then labelled Buyer / Seller / Date rows. */
+.trade-entry-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 8px;
+}
+.project-name {
+  flex: 1 1 12ch;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 700;
+}
+.trade-cost {
+  flex: 0 0 auto;
+  padding: 3px 7px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  background: var(--warning-bg);
+  color: var(--warning-text);
+}
+.trade-entry-content {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 10px;
+  margin: 6px 0 0;
+  font-size: 12px;
+}
+.trade-entry-content dt { color: var(--muted); }
+.trade-entry-content dd { min-width: 0; }
+.trade-entry a { color: var(--link); }
+
+/* "View My Trades →" — full width of its column, never wider. */
+.audit-section .audit-cta {
+  display: flex;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin-top: 8px;
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+/* Keyboard focus stays visible in both themes. */
+.audit-page a:focus-visible {
+  outline: 2px solid var(--violet);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Phones and small tablets: stack the columns; trade fields go
+   label-over-value; the action tag drops under the text it describes. */
+@media (max-width: 760px) {
+  .audit-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+  .audit-entry { grid-template-columns: 32px minmax(0, 1fr); }
+  .audit-action-tag {
+    grid-column: 2;
+    justify-self: start;
+    max-width: 100%;
+  }
+  .trade-entry-content {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 2px;
+  }
+  .trade-entry-content dt { margin-top: 6px; }
+  .trade-entry-content dt:first-of-type { margin-top: 0; }
+  /* Thumb-sized target. */
+  .audit-section .audit-cta { min-height: 44px; }
+}
+@media (max-width: 600px) {
+  .audit-page { padding: 12px 14px; }
+}
