@@ -139,9 +139,15 @@ def starter_gallery(request):
     """The on-ramp: pick a starter template (or a blank page) to open in Studio.
     """
     from .starters import STARTERS, STARTERS_VERSION
+    from .repo_import import DEMO_LABEL, DEMO_REPO_URL
     return render(request, 'gallery/starter_gallery.html', {
         'starters': STARTERS,
         'starters_version': STARTERS_VERSION,
+        # The GitHub import is the fourth on-ramp: starters and the blank
+        # canvas are for writing something, this one is for arriving with
+        # nothing and still leaving with a published vibe.
+        'demo_repo_url': DEMO_REPO_URL,
+        'demo_label': DEMO_LABEL,
     })
 
 def studio(request, slug=''):

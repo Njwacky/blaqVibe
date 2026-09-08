@@ -56,6 +56,10 @@ from .views_community import (
     challenge_detail,
     pick_challenge_winner,
 )
+# Re-exported like the views_community names above so urls.py keeps resolving
+# everything through gallery.views. The import itself lives in repo_import.py
+# to avoid a cycle: that module calls back into register_zip_project.
+from .repo_import import import_from_github
 logger = logging.getLogger(__name__)
 
 def safe_internal_next(request, default=''):
@@ -656,6 +660,48 @@ def run_static(request, slug):
     resp['Cross-Origin-Resource-Policy'] = 'same-origin'
     return resp
 
+def register_zip_project(project, logger_name='publish'):
+    """Everything that must happen to a saved project that carries a ZIP.
+
+    Extracted from publish() so the GitHub demo import
+    (gallery.repo_import) runs the SAME tree build, the SAME scan queue and
+    the SAME moderator fan-out — one pipeline, no second copy that drifts.
+    Returns the queue position so the caller can word its own message.
+    """
+    try:
+        from .ziputil import build_tree
+        tree, file_list = build_tree(project.zip_file)
+        project.file_tree = tree
+        project.file_count = len(file_list)
+        project.save(update_fields=['file_tree', 'file_count'])
+        for f in file_list[:2000]:
+            AppFile.objects.create(project=project, path=f['path'], size=f['size'])
+    except Exception as e:
+        logger.warning("Tree build error for %s: %s", project.slug, e)
+    # Queue EVERY app — concurrent uploads serialize in 'scan' queue (FIFO, acks_late, prefetch 1)
+    try:
+        from .tasks import process_upload_pipeline
+        job, _ = ScanJob.objects.get_or_create(project=project, defaults={'status': 'queued'})
+        task = process_upload_pipeline.delay(project.id)
+        job.task_id = task.id if hasattr(task, 'id') else ''
+        job.status = 'scanning'
+        job.save(update_fields=['task_id', 'status'])
+    except Exception as e:
+        logger.warning("Queue error, fallback eager for %s: %s", project.slug, e)
+    try:
+        from .reports import moderators_to_notify
+        for staff in moderators_to_notify(project.owner):
+            notify(
+                staff,
+                'upload',
+                f'New ZIP upload: {project.title}',
+                f'@{project.owner.username} uploaded a project and it is waiting in the scan queue.',
+                project.get_absolute_url(),
+            )
+    except Exception:
+        logger.exception('upload moderator fan-out failed slug=%s', project.slug)
+    return ScanJob.objects.filter(status__in=['queued', 'scanning']).count()
+
 @login_required
 @ratelimit(key='user', rate='5/h', method='POST')
 def publish(request):
@@ -691,39 +737,8 @@ def publish(request):
                 tag, _ = Tag.objects.get_or_create(slug=challenge.tag, defaults={'name': challenge.tag})
                 project.tags.add(tag)
             if project.zip_file:
-                try:
-                    from .ziputil import build_tree
-                    tree, file_list = build_tree(project.zip_file)
-                    project.file_tree = tree
-                    project.file_count = len(file_list)
-                    project.save(update_fields=['file_tree','file_count'])
-                    for f in file_list[:2000]:
-                        AppFile.objects.create(project=project, path=f['path'], size=f['size'])
-                except Exception as e:
-                    logger.warning("Tree build error for %s: %s", project.slug, e)
-                # Queue EVERY app — concurrent uploads serialize in 'scan' queue (FIFO, acks_late, prefetch 1)
-                try:
-                    from .tasks import process_upload_pipeline
-                    job, _ = ScanJob.objects.get_or_create(project=project, defaults={'status': 'queued'})
-                    task = process_upload_pipeline.delay(project.id)
-                    job.task_id = task.id if hasattr(task,'id') else ''
-                    job.status = 'scanning'
-                    job.save(update_fields=['task_id','status'])
-                except Exception as e:
-                    logger.warning("Queue error, fallback eager for %s: %s", project.slug, e)
-                try:
-                    from .reports import moderators_to_notify
-                    for staff in moderators_to_notify(project.owner):
-                        notify(
-                            staff,
-                            'upload',
-                            f'New ZIP upload: {project.title}',
-                            f'@{project.owner.username} uploaded a project and it is waiting in the scan queue.',
-                            project.get_absolute_url(),
-                        )
-                except Exception:
-                    logger.exception('upload moderator fan-out failed slug=%s', project.slug)
-                messages.info(request, f"⏳ Your vibe “{project.title}” is in the queue — we’re checking for vulnerabilities. We’ll tell you when it’s uploaded! You’re #{ScanJob.objects.filter(status__in=['queued','scanning']).count()} in line, even with concurrent uploads every app is checked.")
+                position = register_zip_project(project)
+                messages.info(request, f"⏳ Your vibe “{project.title}” is in the queue — we’re checking for vulnerabilities. We’ll tell you when it’s uploaded! You’re #{position} in line, even with concurrent uploads every app is checked.")
                 try:
                     if SiteSettings.get().auto_run_enabled:
                         messages.info(request, "File preview is on the vibe page after the scan. This is not a live server.")

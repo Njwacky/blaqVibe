@@ -24,6 +24,54 @@ The primary navigation is **Projects · Discover · Skills · Challenges · Buil
 - **Challenges** (`/challenges/`) — a concrete reason to build today.
 - **Build** (`/build/`) — start from scratch, remix a project, or use a Builder Skill; then CREATE → UPLOAD → SHOW → FEEDBACK → IMPROVE → PUBLISH.
 
+## Arriving with nothing: import a GitHub repo
+
+`/import/github/` (also on `/start/`) exists for the person who has no ZIP, no
+editor open and no idea what to publish first. GitHub already publishes a ZIP of
+every public repository at
+`https://codeload.github.com/<owner>/<repo>/zip/refs/heads/<ref>`, so the
+platform fetches that instead of asking anyone to build one.
+
+One request does the whole thing: fetch → normalize → form-validate → save →
+scan queue. It is deliberately **not** a second upload path — it hands the
+project to the same `register_zip_project()` pipeline a hand upload uses, so
+tree, scan, classification and trust all apply identically.
+
+Two things make GitHub's raw archive unuploadable as-is, and both are handled:
+
+1. **The wrapper folder.** GitHub nests everything under `blaqVibe-master/`.
+   That one level is stripped, and only when *every* entry sits under it — a
+   repository whose real content is `src/…` plus a root `README.md` keeps its
+   tree intact.
+2. **Paths the validator refuses.** This repository's own archive fails
+   `validate_zip` on `scripts/ci.sh`, because `.sh` is a blocked extension.
+   Refused paths are dropped and **reported to the user** — never removed
+   quietly. `.env.example` with empty values comes through; `.env` does not.
+
+The normalizer asks `validators.blocked_reason()` what to drop, so the importer
+and the upload form can never disagree about what is allowed.
+
+Hard limits, all enforced:
+
+- **Host is pinned to `codeload.github.com`.** The URL is rebuilt from parsed
+  `owner`/`repo`/`ref` rather than derived from the pasted string, so SSRF is
+  structurally impossible — `http://169.254.169.254/…` never produces a request.
+- 60 MB of archive on the wire (checked against `Content-Length` *and* while
+  streaming, so a lying header does not make the cap optional), then the usual
+  1000 files / 200 MB uncompressed / 50 MB per file.
+- Connect + read timeouts, no redirects, `stream=True`.
+- Login required, 5 imports/hour/user, same ceiling as publishing.
+- Imported vibes are free (`0 ★`, `R0`): the same bytes are one click away on
+  GitHub, so charging for them would be a paywall on nothing.
+
+The import lands as **Pending Scan** like every upload. Importing is not a
+shortcut past the checks.
+
+The form is pre-filled with this repository, so the demo works on a fresh
+database with no seeded content. `gallery/fixtures/github_blaqvibe_master.zip`
+is a committed slice of the real archive — wrapper folder plus the offending
+`ci.sh` — so the tests reproduce the exact failure with no network.
+
 ## AI is a tool, not a disguise
 
 BlaqVibes does not try to make AI-built projects look human-built. If AI materially helped create a project, the publisher can mark it as AI-assisted and provide the tool and a short creation note. That provenance is part of the project's story.

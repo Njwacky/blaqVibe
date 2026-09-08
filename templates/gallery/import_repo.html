@@ -1,0 +1,90 @@
+{% extends 'gallery/base.html' %}
+{% load static %}
+{% block title %}Import a GitHub repo — BlaqVibes{% endblock %}
+{% block meta_desc %}Import any public GitHub repository as your first vibe. BlaqVibes fetches the ZIP GitHub already serves, strips what it refuses, and runs the normal scan before it reaches the feed.{% endblock %}
+{% block content %}
+<div style="max-width:760px;margin:0 auto;padding:24px 20px">
+
+  <div style="text-align:center;max-width:620px;margin:0 auto 22px">
+    <span style="display:inline-block;font-size:12px;letter-spacing:.06em;padding:6px 12px;border-radius:999px;background:var(--accent-soft-bg);border:1px solid var(--accent-border);color:var(--accent-text)">✦ NO ZIP NEEDED</span>
+    <h1 style="font-family:Space Grotesk,sans-serif;font-size:32px;line-height:1.1;margin:14px 0 10px">Import a repo from GitHub</h1>
+    <p style="color:var(--muted);font-size:15px;line-height:1.6">
+      GitHub already publishes a ZIP of every public repository. Give us the link
+      and we fetch it, unwrap the folder GitHub adds, drop the paths this
+      platform refuses, and put the rest through the same scan every upload goes
+      through. No git, no build step, no editor.
+    </p>
+  </div>
+
+  <form method="post" action="{% url 'import_from_github' %}" style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:20px">
+    {% csrf_token %}
+
+    <label for="repo_url" style="display:block;font-weight:700;font-size:14px;margin-bottom:6px">GitHub repository</label>
+    <input type="url" id="repo_url" name="repo_url" required
+           value="{{ repo_url|default:demo_repo_url }}"
+           placeholder="https://github.com/username/repo"
+           style="width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--input);color:var(--text);font-size:15px">
+    <div style="color:var(--muted);font-size:12px;margin-top:6px;line-height:1.6">
+      Paste a <b style="color:var(--text)">public</b> github.com link. Branch links work too
+      (<code>…/tree/main</code>) — leave it plain to take the default branch.
+      Private repos are not reachable and never will be: we ask GitHub for nothing
+      but the public archive.
+    </div>
+
+    <div style="margin-top:16px">
+      <label for="title" style="display:block;font-weight:700;font-size:14px;margin-bottom:6px">
+        Title <span style="color:var(--muted);font-weight:400">(optional — defaults to the repo name)</span>
+      </label>
+      <input type="text" id="title" name="title" maxlength="200"
+             placeholder="My first vibe"
+             style="width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--input);color:var(--text);font-size:15px">
+    </div>
+
+    {% if form %}
+    <div style="margin-top:16px;padding:12px 14px;border-radius:12px;border:1px solid var(--accent-border);background:var(--accent-soft-bg);font-size:13px;color:var(--text)">
+      <b>Something in the details needs a change:</b>
+      <ul style="margin:8px 0 0 18px;padding:0;line-height:1.7">
+        {% for field in form %}{% for error in field.errors %}<li>{{ field.label }}: {{ error }}</li>{% endfor %}{% endfor %}
+        {% for error in form.non_field_errors %}<li>{{ error }}</li>{% endfor %}
+      </ul>
+    </div>
+    {% endif %}
+
+    <div style="margin-top:18px;display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+      <button type="submit" class="btnV">Import it →</button>
+      <a href="{% url 'starter_gallery' %}" class="btnG" style="text-decoration:none">← Back to Start</a>
+    </div>
+  </form>
+
+  <div style="margin-top:20px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;font-size:13px;color:var(--muted);line-height:1.7">
+    <b style="color:var(--text)">Try the platform itself.</b>
+    The link above is pre-filled with <b style="color:var(--text)">{{ demo_label }}</b>
+    (<a href="{{ demo_repo_url }}" rel="noopener" style="color:var(--accent-text)">{{ demo_repo_url }}</a>) —
+    this site's own source. Importing it gives you a real 400-file project to
+    read, remix and compare against, without writing a line first.
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
+      <b style="color:var(--text)">What gets left out, and why.</b>
+      Executables (<code>.sh</code>, <code>.exe</code>, <code>.dll</code>, …),
+      <code>node_modules/</code>, <code>.venv/</code>, <code>__pycache__/</code>,
+      <code>.git/</code>, symlinks, and anything shaped like a credential
+      (<code>.env</code>, <code>.npmrc</code>, <code>id_rsa</code>, …) never enter
+      a vibe. You are told exactly which paths were dropped — nothing is removed
+      quietly. <code>.env.example</code> with empty values is fine and comes through.
+    </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
+      <b style="color:var(--text)">Limits.</b> 60 MB of archive, 1000 files,
+      200 MB uncompressed, 50 MB per file — the same ceilings the
+      <a href="{% url 'publish' %}" style="color:var(--accent-text)">Publish</a> page enforces.
+      Over any of them, trim the repo or upload a ZIP by hand.
+      Imported vibes are free (0 ★): the same bytes are one click away on GitHub.
+    </div>
+    <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
+      <b style="color:var(--text)">Then what.</b> The import lands as
+      <b style="color:var(--text)">Pending Scan</b>, exactly like every upload. It
+      reaches the feed when the virus and vulnerability scans clear it, and it
+      gets the same auto label and trust badge as anything else. Importing is not
+      a shortcut past the checks.
+    </div>
+  </div>
+</div>
+{% endblock %}

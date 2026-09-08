@@ -30,6 +30,21 @@
     </a>
     {% endfor %}
 
+    <a href="{% url 'import_from_github' %}" class="starter-card" style="display:flex;flex-direction:column;text-decoration:none;color:inherit;background:var(--card);border:1px solid var(--accent-border);border-radius:16px;padding:18px;transition:border-color .15s,transform .15s">
+      <div style="font-size:30px;line-height:1">📦</div>
+      <div style="font-weight:800;margin-top:10px;font-size:16px">Import a GitHub repo</div>
+      <div style="color:var(--muted);font-size:13px;line-height:1.5;margin-top:6px;flex:1">
+        New here and nothing to show yet? Paste any public repo — or import
+        <b style="color:var(--text)">{{ demo_label }}</b>, this platform's own source —
+        and publish it as your first vibe. GitHub already has the ZIP; we fetch it.
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">
+        <span style="font-size:11px;color:var(--muted);background:var(--input);border:1px solid var(--line);border-radius:999px;padding:3px 9px">no zip needed</span>
+        <span style="font-size:11px;color:var(--muted);background:var(--input);border:1px solid var(--line);border-radius:999px;padding:3px 9px">still scanned</span>
+      </div>
+      <div style="margin-top:14px;font-weight:700;font-size:13px;color:var(--accent-text)">Import a repo →</div>
+    </a>
+
     <a href="{% url 'studio_blank' %}" class="starter-card" style="display:flex;flex-direction:column;justify-content:center;text-align:center;text-decoration:none;color:inherit;background:var(--bg);border:1px dashed var(--accent-border);border-radius:16px;padding:18px;min-height:180px;transition:border-color .15s,transform .15s">
       <div style="font-size:30px;line-height:1">✏️</div>
       <div style="font-weight:800;margin-top:10px;font-size:16px">Blank canvas</div>
@@ -39,12 +54,15 @@
   </div>
 
   <div style="margin-top:26px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;font-size:13px;color:var(--muted);line-height:1.6">
-    <b style="color:var(--text)">Bringing your own code.</b> Three ways in, all ending in the same Studio:
+    <b style="color:var(--text)">Bringing your own code.</b> Four ways in:
     <b>1)</b> Open the <b>Blank canvas</b> and paste your HTML, CSS and JS into the three tabs — you can
     write without an account.
     <b>2)</b> Open any starter and replace its code with yours.
     <b>3)</b> Have a whole project (many files, images, a Python or Node app)? Use the
     <a href="{% url 'publish' %}" style="color:var(--accent-text)">Publish</a> page instead — that one takes a ZIP.
+    <b>4)</b> Have it on GitHub already?
+    <a href="{% url 'import_from_github' %}" style="color:var(--accent-text)">Import the repo</a> —
+    we fetch the ZIP GitHub publishes, so you never have to make one.
     <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
       <b style="color:var(--text)">How it works.</b> You can write immediately. The live sandboxed preview
       and Publish both need an account — so a shared Start link cannot run anonymous JavaScript.
