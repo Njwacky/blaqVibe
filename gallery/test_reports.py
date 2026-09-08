@@ -61,6 +61,12 @@ class ZipUploadNotificationTests(TestCase):
                 'category': self.cat.id,
                 'short_description': 'A queued ZIP upload for notification testing.',
                 'readme': '# Queued ZIP\n\n' + ('Enough documentation for this upload. ' * 4),
+                # Both price fields are required on the form even though the
+                # model defaults them to 0 — without them the form is invalid,
+                # publish() re-renders with 200, and this test never reaches
+                # the notification fan-out it exists to check.
+                'star_cost': 0,
+                'price_zar': 0,
                 'zip_file': SimpleUploadedFile(
                     'queued.zip', make_zip_bytes({'app.py': 'print(1)\n'}), content_type='application/zip',
                 ),

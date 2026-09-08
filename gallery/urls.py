@@ -44,6 +44,10 @@ urlpatterns = [
     path('saved/', views.saved_vibes, name='saved_vibes'),
     path('oops/', views.oops_demo, name='oops_demo'),
     path('publish/', views.publish, name='publish'),
+    # New-user demo: import a public GitHub repo as your first vibe. GitHub
+    # already serves the ZIP; this fetches it, normalizes it and runs the
+    # normal publish pipeline — see gallery/repo_import.py.
+    path('import/github/', views.import_from_github, name='import_from_github'),
     path('start/', views.starter_gallery, name='starter_gallery'),
     path('studio/', views.studio, name='studio_blank'),
     path('studio/<slug:slug>/', views.studio, name='studio'),

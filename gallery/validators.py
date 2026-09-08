@@ -43,6 +43,29 @@ SECRET_PATTERNS = [
 # compressed -> 10GB) and a file COUNT alone misses big sparse sets
 # (1999 * 300KB = 600MB), so entry count, total size and names are all checked.
 
+def blocked_reason(path):
+    """Why `validate_zip` would refuse this path, or None when it is fine.
+
+    The GitHub import (gallery.repo_import) calls this while rebuilding an
+    archive so it drops exactly the paths the validator would reject — and
+    nothing else. One rule list, two callers: the importer can never silently
+    disagree with the upload form about what is allowed.
+    """
+    parts = path.replace('\\', '/').split('/')
+    for part in parts:
+        if part in BULK_NAMES:
+            return f"“{part}/” is build output, not your app"
+        if part.startswith('.env') and part != '.env.example':
+            return f"“{part}” is an environment file — keep real keys out"
+        if part in BLOCKED_NAMES:
+            return f"“{part}” looks like credentials or tool config"
+        if part in ('.ssh', '.aws'):
+            return f"“{part}” is a blocked hidden folder"
+    ext = os.path.splitext(path)[1].lower()
+    if ext in BLOCKED_EXT:
+        return f"{ext} files are not allowed in a vibe"
+    return None
+
 def _is_symlink(zip_info):
     # External attr high 16 bits is file mode; symlink is 0o120000
     try:
