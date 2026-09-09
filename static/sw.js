@@ -2,18 +2,18 @@
 // receive layout fixes immediately while retaining an offline fallback.
 // No secrets in JS — no S3 keys, no scan_report.
 // Bump this whenever the app shell changes; activation removes older caches.
-const CACHE = 'blaqvibes-v6-sales';
+const CACHE = 'blaqvibes-v7-navfix';
 // Account-specific pages — never cache (they contain per-user data).
 const PRIVATE_PREFIXES = [
   '/my-vibes/', '/inbox/', '/saved/', '/settings/', '/sales/',
   '/trades/', '/moderation/', '/blaq-admin', '/admin/',
 ];
 const STATIC_ASSETS = [
-  '/static/gallery/css/blaqvibes.css?v=filter-tidy-20260828',
+  '/static/gallery/css/blaqvibes.css?v=navfix-20260909',
   '/static/gallery/css/footer.css?v=footer-contact-20260828',
   '/static/gallery/css/error.css?v=theme-20260815',
   '/static/gallery/css/forms.css?v=theme-colors-20260815',
-  '/static/gallery/js/blaqvibes.js?v=theme-colors-20260815',
+  '/static/gallery/js/blaqvibes.js?v=navfix-20260909',
   '/static/gallery/js/detail.js?v=theme-colors-20260815',
   '/static/gallery/js/profile.js?v=theme-colors-20260815',
   '/static/branding/icon-192.png',

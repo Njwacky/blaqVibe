@@ -8,7 +8,10 @@
 .vibe-card{display:block;color:inherit;overflow:visible;min-width:0}
 .vibe-card .card-thumb,.vibe-card .card-thumb-fallback{border-radius:15px 15px 0 0}
 .pager{margin-top:16px;display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap}
-.filter-bar{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px;position:sticky;top:64px;z-index:30}
+.filter-bar{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px}
+/* Stickiness (position/top/z-index/scroll-margin) comes from blaqvibes.css alone:
+   this file used to repeat top:64px, which — loading later — also clobbered the
+   desktop stick point. Single source of truth now. */
 .filter-bar input[type=text],.filter-bar select{background:var(--input);border:1px solid var(--line);border-radius:10px;padding:8px 12px;color:var(--text);font-size:13px}
 .filter-bar .filter-search{flex:1 1 200px;min-width:150px}
 .filter-actions{display:inline-flex;gap:8px;margin-left:auto}

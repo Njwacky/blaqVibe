@@ -34,7 +34,8 @@ input[type="checkbox"] {
 }
 
 /* Desktop has the left sidebar (no top bar), so the workspace fills the full
-   viewport height; on mobile the sticky top nav (~64px) sits above it. */
+   viewport height; on mobile the sticky top bar sits above it in-flow, so
+   subtract its measured height. */
 .publish-shell {
   display: grid;
   grid-template-columns: 240px 1fr 320px;
@@ -44,8 +45,8 @@ input[type="checkbox"] {
 @media (max-width: 900px) {
   .publish-shell {
     grid-template-columns: 1fr;
-    min-height: calc(100vh - 64px);
-    min-height: calc(100dvh - 64px);
+    min-height: calc(100vh - var(--bv-nav-h, 112px));
+    min-height: calc(100dvh - var(--bv-nav-h, 112px));
   }
   /* Side inspector panels are desktop-only — the wizard already carries
      the same progress + scan copy in the main column. */
