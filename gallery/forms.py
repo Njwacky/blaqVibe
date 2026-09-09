@@ -5,8 +5,24 @@ from .prompt_sanitize import sanitize_prompt
 from .profanity import validate_public_text
 from .taxonomy import UPLOAD_KIND_CHOICES, coerce_kind
 
+# Phones (especially the installed PWA) open the photo gallery for a bare
+# <input type="file">. A non-image accept list forces Files / Documents
+# instead of Pictures. Do not add image/* here.
+ZIP_FILE_ACCEPT = (
+    '.zip,application/zip,application/x-zip-compressed,application/x-zip'
+)
+
+
 class AppUploadForm(forms.ModelForm):
-    zip_file = forms.FileField(required=False, validators=[validate_zip])
+    zip_file = forms.FileField(
+        required=False,
+        validators=[validate_zip],
+        widget=forms.FileInput(attrs={
+            'accept': ZIP_FILE_ACCEPT,
+            'class': 'zip-picker__input',
+            'aria-describedby': 'zip-picker-hint',
+        }),
+    )
     creator_kind = forms.ChoiceField(
         choices=UPLOAD_KIND_CHOICES,
         required=False,

@@ -1,0 +1,20 @@
+{# ZIP picker that opens Files/Documents on phones, not the photo gallery.
+   Requires `form` in context. Optional `drop_id` (default zip-drop). #}
+<div class="zip-picker" id="{{ drop_id|default:'zip-drop' }}">
+  <div class="zip-picker__hit">
+    <div class="zip-picker__cta">
+      <span class="zip-picker__icon" aria-hidden="true">📁</span>
+      <span class="zip-picker__title">Choose ZIP from Files</span>
+      <span class="zip-picker__sub">Opens folders / Downloads — not Photos</span>
+    </div>
+    {{ form.zip_file }}
+  </div>
+  <button type="button" class="btnG zip-picker__all" data-zip-browse-all>
+    Can’t see your ZIP? Browse all files
+  </button>
+  <p class="zip-picker__hint" id="zip-picker-hint">
+    On a phone, pick from <b>Files</b> / <b>Browse</b> / <b>Downloads</b>.
+    The picture gallery has no folders and will not show a .zip.
+  </p>
+  <div id="zip-hint" class="zip-picker__status" aria-live="polite"></div>
+</div>

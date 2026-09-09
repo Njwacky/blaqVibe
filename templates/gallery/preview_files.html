@@ -82,7 +82,7 @@
   <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap">
     <a href="{{ project.get_absolute_url }}" class="btnG">← Back to vibe</a>
     {% if project.zip_file and can_download %}
-    <a href="{% url 'download_zip' project.slug %}" class="btnV"
+    <a href="{% url 'download_zip' project.slug %}" class="btnV" download="{{ project.slug }}.zip"
       >⬇ Download ZIP</a
     >
     {% elif project.zip_file %}
