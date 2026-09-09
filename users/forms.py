@@ -13,6 +13,7 @@ from .models import (
     NAME_SIZE_LABELS,
     NAME_COLOR_LABELS,
     Profile,
+    SiteSettings,
 )
 from .rename import RESERVED_USERNAMES
 from gallery.profanity import validate_public_text
@@ -70,6 +71,64 @@ class ProfileForm(forms.ModelForm):
             if content_type and not content_type.startswith('image/'):
                 raise forms.ValidationError("Only images")
         return f
+
+class FooterContactForm(forms.ModelForm):
+    """Public footer contacts, edited only from the operator control page.
+
+    URLField validates the shape, while the scheme check below prevents an
+    operator typo from becoming a non-web link in every page footer.
+    """
+    class Meta:
+        model = SiteSettings
+        fields = ['footer_contact_email', 'footer_github_url', 'footer_github_label']
+        labels = {
+            'footer_contact_email': 'Support email address',
+            'footer_github_url': 'GitHub profile URL',
+            'footer_github_label': 'GitHub link label',
+        }
+        help_texts = {
+            'footer_contact_email': 'Leave blank to hide the email link from the footer.',
+            'footer_github_url': 'Use a full http:// or https:// URL. Leave blank to hide the link.',
+            'footer_github_label': 'The text visitors see for the GitHub link.',
+        }
+        widgets = {
+            'footer_contact_email': forms.EmailInput(attrs={
+                'class': 'field-input', 'autocomplete': 'email',
+                'placeholder': 'support@example.com',
+            }),
+            'footer_github_url': forms.URLInput(attrs={
+                'class': 'field-input', 'autocomplete': 'url',
+                'placeholder': 'https://github.com/your-org',
+            }),
+            'footer_github_label': forms.TextInput(attrs={
+                'class': 'field-input', 'maxlength': 80,
+                'placeholder': 'GitHub @your-org',
+            }),
+        }
+
+    def clean_footer_contact_email(self):
+        return (self.cleaned_data.get('footer_contact_email') or '').strip().lower()
+
+    def clean_footer_github_url(self):
+        from urllib.parse import urlparse
+
+        url = (self.cleaned_data.get('footer_github_url') or '').strip()
+        if not url:
+            return ''
+        parsed = urlparse(url)
+        if parsed.scheme not in ('http', 'https') or not parsed.netloc:
+            raise forms.ValidationError('Use a complete http:// or https:// URL.')
+        return url
+
+    def clean_footer_github_label(self):
+        # The value is public text. Strip markup even though template escaping
+        # is also on, so a pasted tag can never become the stored display name.
+        return bleach.clean(
+            (self.cleaned_data.get('footer_github_label') or '').strip(),
+            tags=[],
+            strip=True,
+        )[:80]
+
 
 class TipForm(forms.Form):
     """Gratitude stars — amount + optional note. A form (rather than parsing

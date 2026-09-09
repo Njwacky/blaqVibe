@@ -1,0 +1,46 @@
+{% extends 'gallery/base.html' %}
+{% load static %}
+{% block title %}Footer Contacts — BlaqVibes{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'gallery/css/footer-contacts.css' %}?v=20260909">
+{% endblock %}
+{% block content %}
+<div class="footer-contacts-page">
+  <div class="footer-contacts-heading">
+    <div>
+      <p class="footer-contacts-eyebrow">Admin controls</p>
+      <h1>Footer contacts</h1>
+      <p>Change the public ways people can reach BlaqVibes. Your saved details appear in the footer across the site immediately.</p>
+    </div>
+    <a href="{% url 'admin_dashboard' %}" class="btnG footer-contacts-back">← Admin dashboard</a>
+  </div>
+
+  <form method="post" class="footer-contacts-form" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="footer-contacts-errors" role="alert">{{ form.non_field_errors }}</div>
+    {% endif %}
+
+    <fieldset>
+      <legend>Public contact methods</legend>
+      <p class="footer-contacts-note">Only administrators and super admins can edit these details. Empty fields are hidden from the public footer.</p>
+
+      <div class="footer-contacts-fields">
+        {% for field in form %}
+          <div class="footer-contacts-field{% if field.errors %} footer-contacts-field--error{% endif %}">
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<p>{{ field.help_text }}</p>{% endif %}
+            {% for error in field.errors %}<span role="alert">{{ error }}</span>{% endfor %}
+          </div>
+        {% endfor %}
+      </div>
+    </fieldset>
+
+    <div class="footer-contacts-actions">
+      <button type="submit" class="btnV">Save footer contacts</button>
+      <a href="{% url 'feed' %}">View public footer</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

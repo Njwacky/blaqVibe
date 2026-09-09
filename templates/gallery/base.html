@@ -164,11 +164,13 @@ literal text — the regression guard in gallery/test_engagement.py pins that.
           <span class="site-footer__role">Super Admin</span>
           <a href="{% url 'publish' %}">Publish content</a>
           <a href="{% url 'admin_dashboard' %}">Admin dashboard</a>
+          <a href="{% url 'footer_contacts' %}">Footer contacts</a>
           <a href="{% url 'manage_roles' %}">Manage roles</a>
         {% elif user.profile.is_admin %}
           <span class="site-footer__role">Admin</span>
           <a href="{% url 'publish' %}">Publish content</a>
           <a href="{% url 'admin_dashboard' %}">Admin dashboard</a>
+          <a href="{% url 'footer_contacts' %}">Footer contacts</a>
           <a href="{% url 'moderation_queue' %}">Moderation queue</a>
           <a href="{% url 'reports_queue' %}">Reports{% if open_reports %} ({{ open_reports }}){% endif %}</a>
         {% elif user.profile.is_moderator %}
@@ -192,15 +194,15 @@ literal text — the regression guard in gallery/test_engagement.py pins that.
       </div>
       <div>
         <h2>Contact</h2>
-        <a href="mailto:admin@blaqvibes.co.za">✉️ admin@blaqvibes.co.za</a>
-        <a href="https://github.com/Njwacky" rel="noopener">🐙 GitHub @Njwacky</a>
+        {% if footer_contact.email %}<a href="mailto:{{ footer_contact.email }}">✉️ {{ footer_contact.email }}</a>{% endif %}
+        {% if footer_contact.github_url %}<a href="{{ footer_contact.github_url }}" rel="noopener noreferrer" target="_blank">🐙 {{ footer_contact.github_label|default:"GitHub" }}</a>{% endif %}
         <a href="{% url 'nolo_help' %}">🤖 Ask Nolo (AI help)</a>
       </div>
     </nav>
   </div>
   <div class="site-footer__bottom">
     <span>© {% now "Y" %} BlaqVibes</span>
-    <span>Previews are not production hosting.</span>
+    {% if show_preview_hosting_notice %}<span>Previews are not production hosting.</span>{% endif %}
   </div>
 </footer>
 <div id="toast" class="toast">✓ Copied!</div>

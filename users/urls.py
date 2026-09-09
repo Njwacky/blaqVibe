@@ -19,6 +19,7 @@ urlpatterns = [
     path('u/<str:username>/follow/', views.toggle_follow, name='toggle_follow'),
     path('u/<str:username>/tip/', views.tip_user, name='tip_user'),
     path('admin/dashboard/', admin_views.admin_dashboard, name='admin_dashboard'),
+    path('admin/footer-contacts/', admin_views.footer_contacts, name='footer_contacts'),
     path('admin/roles/', admin_views.manage_roles, name='manage_roles'),
     path('admin/roles/<str:username>/', admin_views.set_role, name='set_role'),
     path('admin/audit/', admin_views.audit_log, name='audit_log'),
