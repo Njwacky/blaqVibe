@@ -66,6 +66,15 @@ class NavbarOffsetTests(TestCase):
         # height differs from the hard-coded value (the original bug).
         self.assertNotRegex(css('blaqvibes.css'), r'body\s*\{\s*padding-top')
 
+    def test_mobile_account_menu_is_an_overlay(self):
+        # The account menu sits inside the horizontally scrolling pill row.
+        # It must not become a new flex item/row when @name is opened.
+        block = mobile_block(css('blaqvibes.css'))
+        menu_rule = re.search(r'\.nav-menu\s*\{([^}]*)\}', block).group(1)
+        self.assertIn('position: fixed', menu_rule)
+        self.assertNotIn('position: static', menu_rule)
+        self.assertIn('top: calc(var(--bv-nav-h', menu_rule)
+
     def test_nav_height_token_exists_with_mobile_fallback(self):
         base = css('blaqvibes.css')
         self.assertIn('--bv-nav-h: 0px', base)  # desktop: left rail, no top bar
