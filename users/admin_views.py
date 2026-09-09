@@ -4,12 +4,14 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.utils import timezone
-from django.views.decorators.http import require_POST
+from django.views.decorators.http import require_POST, require_http_methods
 from django.db.models import Count, Sum
+from django_ratelimit.decorators import ratelimit
 from django.db.models.functions import TruncDate
 
 from .decorators import admin_required, superadmin_required
-from .models import Profile, AdminLog
+from .models import Profile, AdminLog, SiteSettings
+from .forms import FooterContactForm
 from .charts import daily_bars_chart, h_bars_chart
 from gallery.models import AppProject, AppReport, CloneEvent, ScanJob, Trade
 
@@ -185,6 +187,42 @@ def set_role(request, username):
     except Exception as e:
         messages.error(request, f"Failed: {e}")
     return redirect('manage_roles')
+
+@admin_required
+@ratelimit(key='user', rate='10/h', method='POST')
+@require_http_methods(['GET', 'POST'])
+def footer_contacts(request):
+    """Let admins maintain the public footer contact methods without a deploy."""
+    site = SiteSettings.get()
+    if request.method == 'POST':
+        if getattr(request, 'limited', False):
+            messages.error(request, 'Rate limit: try changing footer contacts again in an hour.')
+            return redirect('footer_contacts')
+
+        form = FooterContactForm(request.POST, instance=site)
+        if form.is_valid():
+            fields = ('footer_contact_email', 'footer_github_url', 'footer_github_label')
+            # ModelForm validation copies cleaned values onto its instance, so
+            # compare its initial data rather than reading `site` here.
+            changed = [field for field in fields if field in form.changed_data]
+            if changed:
+                form.save()
+                # Keep the audit record useful without copying public contact
+                # values into another table unnecessarily.
+                AdminLog.objects.create(
+                    actor=request.user,
+                    action='update_footer_contacts',
+                    target=', '.join(field.removeprefix('footer_') for field in changed),
+                )
+                messages.success(request, 'Footer contact details updated.')
+            else:
+                messages.info(request, 'No footer contact changes to save.')
+            return redirect('footer_contacts')
+    else:
+        form = FooterContactForm(instance=site)
+
+    return render(request, 'users/footer_contacts.html', {'form': form})
+
 
 @admin_required
 def audit_log(request):

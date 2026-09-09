@@ -33,20 +33,32 @@ def extras(request):
         nolo_backend = configured_ai_backend()
     except Exception:
         nolo_backend = 'heuristic'
-    # Site-level toggles that every template needs (pwa_enabled for the
-    # SW registration, etc.). Read once, available everywhere.
+    # Site-level values that every template needs. The public footer contacts
+    # are stored with singleton SiteSettings so operators can update them
+    # without changing templates or deploying. Keep the original public values
+    # as a safe fallback while a new deployment is waiting for its migration.
     pwa_enabled = True
-    try:
-        from users.models import SiteSettings
-        pwa_enabled = SiteSettings.get().pwa_enabled
-    except Exception:
-        pass
+    footer_contact = {
+        'email': 'admin@blaqvibes.co.za',
+        'github_url': 'https://github.com/Njwacky',
+        'github_label': 'GitHub @Njwacky',
+    }
     local_dev = False
+    preview = False
     try:
         from django.conf import settings
         local_dev = bool(getattr(settings, 'LOCAL_DEV', False) or getattr(settings, 'DEBUG', False))
+        preview = bool(getattr(settings, 'PREVIEW', False))
+        from users.models import SiteSettings
+        site = SiteSettings.get()
+        pwa_enabled = site.pwa_enabled
+        footer_contact = {
+            'email': site.footer_contact_email,
+            'github_url': site.footer_github_url,
+            'github_label': site.footer_github_label,
+        }
     except Exception:
-        local_dev = False
+        pass
     return {
         'unread_notifications': unread,
         'open_reports': open_reports,
@@ -54,5 +66,9 @@ def extras(request):
         'paystack_enabled': paystack_enabled,
         'nolo_backend': nolo_backend,
         'pwa_enabled': pwa_enabled,
+        'footer_contact': footer_contact,
         'local_dev': local_dev,
+        # The hosting disclaimer is useful on local/Arena previews, but it is
+        # intentionally never rendered by a production configuration.
+        'show_preview_hosting_notice': local_dev or preview,
     }

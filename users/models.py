@@ -460,13 +460,21 @@ class Profile(models.Model):
         return self._composed_name_style()['classes']
 
 class SiteSettings(models.Model):
-    """Global toggles — superadmin only, backend only"""
+    """Singleton global settings managed through authenticated operator pages."""
     maintenance = models.BooleanField(default=False)
     clamav_enabled = models.BooleanField(default=True)
     r2_enabled = models.BooleanField(default=True)
     search_enabled = models.BooleanField(default=True)
     pwa_enabled = models.BooleanField(default=True)
     auto_run_enabled = models.BooleanField(default=False, help_text="If On, open the file preview after publish. This is not a Docker host.")
+
+    # Public footer contact details. These live with the other singleton site
+    # settings so an operator can change them without a deployment. Blank is
+    # intentional: it lets an operator hide a contact method that is no longer
+    # monitored, rather than leave a dead link in the public footer.
+    footer_contact_email = models.EmailField(blank=True, default='admin@blaqvibes.co.za')
+    footer_github_url = models.URLField(blank=True, default='https://github.com/Njwacky')
+    footer_github_label = models.CharField(max_length=80, blank=True, default='GitHub @Njwacky')
     def save(self, *args, **kwargs):
         self.pk = 1
         super().save(*args, **kwargs)
