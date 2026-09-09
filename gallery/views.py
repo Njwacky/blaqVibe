@@ -1115,17 +1115,32 @@ def toggle_star(request, slug):
 
 @login_required
 def my_vibes(request):
-    vibes = (
-        AppProject.objects.filter(owner=request.user)
-        .order_by('-created_at')
-        .select_related('category', 'scan_job')
-    )
-    # Attach the same rich waiting info the detail page shows, so the owner
-    # can see file size, stage and queue position for every unpublished vibe
-    # at a glance — not just a "Queued" tag. Published vibes need none of it.
+    """The owner's workshop: honest status, useful next actions, no vanity feed."""
+    from django.db.models import Q
+    all_projects = AppProject.objects.filter(owner=request.user)
+    q = request.GET.get('q', '').strip()[:100]
+    status_filter = request.GET.get('status', '').strip()
+    project_counts = {
+        'all': all_projects.count(),
+        'building': all_projects.filter(status='pending').count(),
+        'published': all_projects.filter(status='published').count(),
+        'attention': all_projects.filter(status='quarantined').count(),
+    }
+    vibes = all_projects.select_related('category', 'scan_job').prefetch_related('tags').order_by('-updated_at')
+    if q:
+        vibes = vibes.filter(Q(title__icontains=q) | Q(short_description__icontains=q) | Q(tech_stack__icontains=q) | Q(tags__name__icontains=q)).distinct()
+    if status_filter == 'building':
+        vibes = vibes.filter(status='pending')
+    elif status_filter == 'published':
+        vibes = vibes.filter(status='published')
+    elif status_filter == 'attention':
+        vibes = vibes.filter(status='quarantined')
     for p in vibes:
         p.progress = scan_progress(p) if p.status != 'published' else None
-    return render(request, 'gallery/my_vibes.html', {'vibes': vibes})
+    return render(request, 'gallery/my_vibes.html', {
+        'vibes': vibes, 'q': q, 'status_filter': status_filter,
+        'project_counts': project_counts,
+    })
 
 def _content_fields_changed(project, cleaned):
     """True only when the *executable* bytes changed.

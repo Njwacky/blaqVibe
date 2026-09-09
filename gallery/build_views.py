@@ -41,7 +41,9 @@ BUILD_STEPS = [
 
 def discover(request):
     """The community page: projects, people, and how ideas travel."""
+    q = request.GET.get('q', '').strip()[:100]
     ctx = {
+        'q': q,
         'totals': {'projects': 0, 'originals': 0, 'remixes': 0, 'deepest_generation': 0, 'remix_share': 0},
         'trending': [],
         'trending_is_hot': False,
@@ -62,6 +64,16 @@ def discover(request):
             limit=6, exclude_owner=exclude_owner)
         ctx['fresh_remixes'] = remix_stats.fresh_remixes(limit=6)
         ctx['most_remixed'] = remix_stats.most_remixed(limit=6)
+        # Search narrows real discovery rails; it never manufactures matches.
+        if q:
+            def matches(items):
+                return [p for p in items if q.lower() in ' '.join([
+                    getattr(p, 'title', ''), getattr(p, 'short_description', ''),
+                    getattr(p, 'tech_stack', ''), getattr(getattr(p, 'owner', None), 'username', '')
+                ]).lower()]
+            ctx['trending'] = matches(ctx['trending'])
+            ctx['fresh_remixes'] = matches(ctx['fresh_remixes'])
+            ctx['most_remixed'] = matches(ctx['most_remixed'])
         ctx['growing_families'] = remix_stats.fastest_growing_families(limit=4)
         ctx['top_remixers'] = remix_stats.top_remixers(limit=6)
         ctx['rising_creators'] = trending.rising_creators(
