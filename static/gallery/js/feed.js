@@ -5,8 +5,9 @@ const terminalBody = document.getElementById('terminalBody');
    scrolls far enough it pins and cards slide underneath it. The glass state
    (.is-stuck, styled in blaqvibes.css) turns it translucent + backdrop-blurred so the content
    passing under reads as frosted glass instead of a flat opaque slab. The
-   sticky offset differs per breakpoint (64px mobile / 12px desktop rail), so
-   read it from the computed style instead of hard-coding. */
+   sticky offset is the measured mobile nav height (--bv-nav-h + 12px, or 12px
+   on the desktop rail), so read it from the computed style instead of
+   hard-coding. */
 const filterBar = document.querySelector('.filter-bar');
 if (filterBar) {
   let ticking = false;

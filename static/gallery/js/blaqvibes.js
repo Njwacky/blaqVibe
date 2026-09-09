@@ -164,3 +164,28 @@ document.addEventListener('submit', function(e){
     if(!confirm('Delete forever?')) e.preventDefault();
   }
 });
+
+/* Mobile top-bar height → --bv-nav-h. The bar is sticky (in-flow), so page
+   content never needs an offset — but sticky descendants (filter bar) and
+   full-height shells (battle, publish) still need to know how tall it is.
+   Measured live so logged in/out, font swap, zoom and the open account menu
+   are always exact; CSS carries a static fallback for no-JS. */
+(function(){
+  const root = document.documentElement;
+  const nav = document.querySelector('.nav');
+  if(!nav || !window.matchMedia) return;
+  const mq = window.matchMedia('(max-width: 900px)');
+  function sync(){
+    if(!mq.matches){ root.style.removeProperty('--bv-nav-h'); return; }
+    root.style.setProperty('--bv-nav-h', Math.ceil(nav.offsetHeight) + 'px');
+  }
+  // ResizeObserver catches menu open/close, font swap and zoom without polling.
+  if('ResizeObserver' in window){
+    try { new ResizeObserver(sync).observe(nav); } catch(e){}
+  }
+  if(mq.addEventListener){ mq.addEventListener('change', sync); }
+  else if(mq.addListener){ mq.addListener(sync); }
+  window.addEventListener('load', sync);
+  document.addEventListener('DOMContentLoaded', sync);
+  sync();
+})();

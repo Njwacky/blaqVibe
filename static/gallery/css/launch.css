@@ -258,7 +258,7 @@
 
 /* ── Shared cards ── */
 .launch-card {
-  scroll-margin-top: 84px;
+  scroll-margin-top: calc(var(--bv-nav-h, 0px) + 12px);
   margin-top: 18px;
   padding: clamp(22px, 3vw, 32px);
   border: 1px solid var(--line);
@@ -903,7 +903,7 @@
 .launch-check-list li { display: flex; gap: 10px; color: var(--muted); font-size: 13px; line-height: 1.6; }
 .launch-check-list li span { color: var(--launch-hot); font-weight: 900; }
 
-.launch-steps { scroll-margin-top: 80px; margin-top: 70px; }
+.launch-steps { scroll-margin-top: calc(var(--bv-nav-h, 0px) + 12px); margin-top: 70px; }
 .launch-steps > ol { margin-top: 27px; list-style: none; }
 .launch-step { display: grid; grid-template-columns: 60px minmax(0, 1fr); gap: 21px; }
 .launch-step__rail { position: relative; display: flex; justify-content: center; }
@@ -1005,7 +1005,7 @@
 .launch-step__checks li { color: var(--muted); font-size: 12px; line-height: 1.6; }
 
 .launch-final-check {
-  scroll-margin-top: 80px;
+  scroll-margin-top: calc(var(--bv-nav-h, 0px) + 12px);
   margin-top: 29px;
   background: linear-gradient(145deg, color-mix(in srgb, var(--card) 88%, #26350b), var(--card));
 }
@@ -1053,7 +1053,7 @@
 .launch-final-check__items b { font-size: 12px; line-height: 1.45; }
 .launch-local-note { margin-top: 14px; color: var(--muted); font-size: 11px; line-height: 1.55; }
 
-.launch-safety { scroll-margin-top: 80px; margin-top: 74px; }
+.launch-safety { scroll-margin-top: calc(var(--bv-nav-h, 0px) + 12px); margin-top: 74px; }
 .launch-safety__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin-top: 21px; }
 .launch-safety__grid div {
   display: flex;
@@ -1077,7 +1077,7 @@
 }
 .launch-safety__grid p { color: var(--muted); font-size: 12px; line-height: 1.6; }
 
-.launch-sources { scroll-margin-top: 80px; margin-top: 74px; }
+.launch-sources { scroll-margin-top: calc(var(--bv-nav-h, 0px) + 12px); margin-top: 74px; }
 .launch-sources > p { margin-top: 18px; color: var(--muted); font-size: 13px; line-height: 1.65; }
 .launch-sources ul { display: grid; gap: 8px; margin-top: 16px; list-style: none; }
 .launch-sources li a {
@@ -1097,7 +1097,7 @@
 }
 .launch-sources li b { color: var(--launch-accent); }
 
-.launch-guide-aside { position: sticky; top: 86px; display: grid; gap: 13px; }
+.launch-guide-aside { position: sticky; top: calc(var(--bv-nav-h, 0px) + 12px); display: grid; gap: 13px; }
 .launch-toc { padding: 16px; border-radius: 16px; }
 .launch-toc > p {
   padding: 2px 4px 10px;

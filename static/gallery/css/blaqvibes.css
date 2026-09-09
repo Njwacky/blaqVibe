@@ -3,7 +3,17 @@
      zero while collapsed, without forgetting the user's chosen width. */
   --nav-w: 230px;
   --nav-offset: var(--nav-w);
+  /* --bv-nav-h is the mobile TOP bar's rendered height (0 on desktop, where
+     the nav is a left rail). JS measures .nav and writes the exact px value;
+     the ≤900px media query below carries a static fallback for no-JS.
+     Every sticky/anchored/full-height element derives its offset from it so
+     there is exactly ONE source of truth for "how tall is the nav". */
+  --bv-nav-h: 0px;
 }
+/* Stacking scale (lowest → highest). Add new layers here, not as 9999s:
+   page content < sticky bars (30) < nav rail/bar (50) < nav menu + modal
+   drawers (60) < sidebar resizer (70) < mobile sticky actions (90) <
+   skip link (100, focus only) < toast + PWA banners (999, transient). */
 :root[data-nav-collapsed="true"] { --nav-offset: 0px; }
 :root, [data-theme="dark"] {
   color-scheme: dark;
@@ -314,7 +324,13 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   border-radius: 12px;
   padding: 10px;
   position: sticky;
-  top: 64px;
+  /* Pins just under the mobile top bar; on desktop --bv-nav-h is 0 so this
+     is a plain 12px stick point. scroll-margin keeps #grid anchor jumps from
+     landing underneath the bar. This is the ONLY top: the filter bar gets —
+     feed.css must not set its own (it used to, and load order silently broke
+     the desktop stick point too). */
+  top: calc(var(--bv-nav-h, 0px) + 12px);
+  scroll-margin-top: calc(var(--bv-nav-h, 0px) + 12px);
   z-index: 30;
   /* Frosted state (feed.js adds .is-stuck once the bar is pinned and cards
      start sliding underneath): translucent glass + backdrop blur instead of
@@ -382,8 +398,12 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   /* Full-width actions row: thumb-sized targets splitting the row. */
   .filter-actions .btnW, .filter-actions .btnG { flex: 1; }
 }
+/* In-page anchors (#building, #comments, #proof-card, …) must land BELOW the
+   sticky mobile bar instead of underneath it. One global rule covers every
+   page; launch.css keeps its own equal-specificity values for its cards. */
+:target { scroll-margin-top: calc(var(--bv-nav-h, 0px) + 12px); }
 /* Vertical navbar — on desktop the nav is a fixed full-height sidebar on
-   the left; below 900px it falls back to the burger/stacked mobile layout. */
+   the left; below 900px it is a sticky in-flow top bar (see below). */
 @media (min-width: 901px) {
   .nav {
     position: fixed;
@@ -499,26 +519,32 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   .nav-user-name { max-width: none; flex: 1; text-align: left; }
   /* The avatar dropdown opens inline inside the sidebar instead of floating. */
   .nav-menu { position: static; min-width: 0; box-shadow: none; margin-top: 4px; }
-  /* Sticky elements no longer sit below a 64px top bar. */
-  .filter-bar { top: 12px; }
+  /* Desktop has a left rail, so --bv-nav-h is 0 and every sticky/anchor
+     offset derived from it (filter bar, :target) resolves to a plain 12px —
+     no per-element desktop overrides needed. */
   /* Center viewport-fixed elements on the content area, not the viewport. */
   .toast, #pwa-install-banner, #pwa-ios-hint { left: calc(50% + var(--nav-offset) / 2); }
 }
 @media (max-width: 900px) {
   .vibe-grid { grid-template-columns: 1fr 1fr; }
   .detail-layout { grid-template-columns: minmax(0, 1fr); }
-  /* Keep the mobile header attached to the viewport. Sticky can inherit an
-     intermediate containing block from page-specific layouts and appear
-     stranded halfway down the page. */
+  /* The mobile header is STICKY, not fixed: it stays in normal flow, so it
+     always reserves exactly its own height and page content can never start
+     underneath it — no body padding compensation to keep in sync.
+     (The old fixed bar + `body{padding-top:64px}` broke the moment the bar
+     grew a second pill row: the real height is ~111px, so ~47px of every
+     page's first heading/hero sat hidden behind the nav. Sticky makes that
+     class of bug impossible: logged in/out, wrapped, zoomed, menu open —
+     the offset is always exactly right, with zero extra gap.)
+     Sticky is safe here: .nav is a direct child of <body> (base.html) with
+     no transformed/filtered ancestor, and html/body use overflow-x:clip,
+     which — unlike overflow:hidden — does not break sticky positioning. */
+  :root { --bv-nav-h: 112px; }
   .nav {
-    position: fixed;
+    position: sticky;
     top: 0;
-    right: 0;
-    left: 0;
-    width: 100%;
     z-index: 50;
   }
-  body { padding-top: 64px; }
   .nav-burger { display: inline-flex; }
   .nav-links {
     display: none;
@@ -538,6 +564,16 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   .nav-user { width: 100%; }
   .nav-user-btn { width: 100%; justify-content: flex-start; border-radius: 10px; }
   .nav-menu { position: static; min-width: 0; box-shadow: none; margin-top: 4px; }
+  /* The open account menu grows the sticky bar in-flow (pushing content down,
+     never covering it). On short viewports cap it with its own scroll region
+     so the last items (Logout) stay reachable — a sticky bar taller than the
+     viewport would otherwise pin its own tail out of reach. */
+  .nav-menu.open {
+    max-height: calc(100vh - var(--bv-nav-h) - 24px);
+    max-height: max(120px, calc(100dvh - var(--bv-nav-h) - 24px));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
   .hero-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 600px) {
