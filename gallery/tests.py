@@ -231,6 +231,35 @@ class FormAndValidatorTests(TestCase):
         upload = make_zip_file({'app.py': 'print(1)\n', 'README.md': '# Hi\n'})
         self.assertIsNone(validate_zip(upload))
 
+    def test_zip_field_asks_os_for_zip_files_not_photos(self):
+        """A bare file input opens the photo gallery on phones/PWAs.
+
+        The ZIP widget must advertise .zip / application/zip so iOS and
+        Android open Files/Documents (folders) instead of Pictures.
+        """
+        from gallery.forms import ZIP_FILE_ACCEPT
+        form = AppUploadForm()
+        html = str(form['zip_file'])
+        self.assertIn('accept=', html)
+        self.assertIn('.zip', html)
+        self.assertIn('application/zip', html)
+        self.assertEqual(form.fields['zip_file'].widget.attrs['accept'], ZIP_FILE_ACCEPT)
+        self.assertNotIn('image/*', html)
+        self.assertNotIn('capture', html)
+
+    def test_publish_page_opens_files_not_photos(self):
+        user = make_user('zippicker')
+        self.client.login(username='zippicker', password='pass12345')
+        response = self.client.get('/publish/')
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Choose ZIP from Files')
+        self.assertContains(response, 'not Photos')
+        self.assertContains(response, 'application/zip')
+        self.assertContains(response, 'data-zip-browse-all')
+        body = response.content.decode()
+        zip_block = body[body.index('zip-picker'):body.index('zip-picker__hint')]
+        self.assertNotIn('image/*', zip_block)
+
 @override_settings(RATELIMIT_ENABLE=False)
 class StarFloorTests(TestCase):
     def setUp(self):

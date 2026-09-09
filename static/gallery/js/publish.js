@@ -19,6 +19,7 @@ function goStep(n) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 const MAX_ZIP = 100 * 1024 * 1024;
+const ZIP_ACCEPT = '.zip,application/zip,application/x-zip-compressed,application/x-zip';
 const zipInput = document.querySelector('#id_zip_file');
 const drop = document.getElementById('zip-drop');
 const hint = document.getElementById('zip-hint');
@@ -29,14 +30,37 @@ function setHint(msg, bad) {
 }
 function checkZip(file) {
   if (!file) return true;
-  if (!file.name.toLowerCase().endsWith('.zip')) { setHint('Only .zip files.', true); return false; }
+  if (!file.name.toLowerCase().endsWith('.zip')) { setHint('Only .zip files. Photos and folders are not a ZIP — zip the project first, then pick it from Files.', true); return false; }
   if (file.size > MAX_ZIP) { setHint('ZIP is over 100MB.', true); return false; }
   setHint(file.name + ' — ' + Math.round(file.size / 1024) + ' KB', false);
   return true;
 }
-if (zipInput) {
-  zipInput.addEventListener('change', () => checkZip(zipInput.files[0]));
+function tuneZipAccept(allFiles) {
+  if (!zipInput) return;
+  // image/* (or no accept) is what sends phones to Pictures. A zip accept
+  // list asks the OS for Documents/Files. Android sometimes hides .zip
+  // behind application/octet-stream, so "browse all" widens the filter
+  // without going back to the gallery.
+  zipInput.setAttribute('accept', allFiles
+    ? '.zip,application/zip,application/x-zip-compressed,application/octet-stream'
+    : ZIP_ACCEPT);
 }
+if (zipInput) {
+  tuneZipAccept(false);
+  zipInput.addEventListener('change', () => {
+    const file = zipInput.files[0];
+    checkZip(file);
+    const title = document.querySelector('.zip-picker__title');
+    if (title && file) title.textContent = file.name;
+  });
+}
+document.querySelectorAll('[data-zip-browse-all]').forEach((btn) => {
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    tuneZipAccept(true);
+    if (zipInput) zipInput.click();
+  });
+});
 if (drop && zipInput) {
   ['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.style.borderColor = '#7C3AED'; }));
   ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.style.borderColor = 'var(--line)'; }));
