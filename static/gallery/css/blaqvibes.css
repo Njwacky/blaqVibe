@@ -560,14 +560,22 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   }
   .nav-links.open { display: flex; }
   .nav-links a, .nav-links .btn-violet, .nav-links .btn-ghost, .nav-links .btn-white { justify-content: flex-start; }
-  /* On mobile the burger already stacks everything; render the menu inline. */
+  /* The account menu is an overlay, not another row in the horizontal pill
+     scroller. Keeping it fixed means opening @name never changes the nav's
+     height, moves the pills, or pushes the page content down. */
   .nav-user { width: 100%; }
   .nav-user-btn { width: 100%; justify-content: flex-start; border-radius: 10px; }
-  .nav-menu { position: static; min-width: 0; box-shadow: none; margin-top: 4px; }
-  /* The open account menu grows the sticky bar in-flow (pushing content down,
-     never covering it). On short viewports cap it with its own scroll region
-     so the last items (Logout) stay reachable — a sticky bar taller than the
-     viewport would otherwise pin its own tail out of reach. */
+  .nav-menu {
+    position: fixed;
+    top: calc(var(--bv-nav-h, 112px) + 8px);
+    right: 12px;
+    width: min(260px, calc(100vw - 24px));
+    min-width: 0;
+    margin-top: 0;
+    box-shadow: var(--shadow);
+  }
+  /* Cap the overlay on short viewports so every account action, including
+     Logout, remains reachable without making the sticky navbar taller. */
   .nav-menu.open {
     max-height: calc(100vh - var(--bv-nav-h) - 24px);
     max-height: max(120px, calc(100dvh - var(--bv-nav-h) - 24px));
