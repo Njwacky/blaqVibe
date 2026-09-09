@@ -1,165 +1,26 @@
 {% extends 'gallery/base.html' %}
 {% load static %}
-
-{% block title %}Discover — what builders are making on BlaqVibes{% endblock %}
-{% block meta_desc %}Discover what builders are making on BlaqVibes: new projects, the ideas being remixed most, the fastest-growing remix families and the builders behind them.{% endblock %}
-{% block og_title %}Discover — BlaqVibes{% endblock %}
-{% block og_desc %}New projects, most remixed ideas, growing remix families and the builders behind them.{% endblock %}
-{% block head %}
-<link rel="stylesheet" href="{% static 'gallery/css/discover.css' %}?v=discover-20260907">
-{% endblock %}
-
+{% block title %}Discover — the world of building{% endblock %}
+{% block meta_desc %}Explore real projects, remix families and builder skills on BlaqVibes.{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'gallery/css/discover.css' %}?v=city-of-builders-20260909">{% endblock %}
 {% block content %}
-<div class="dsc-shell">
-  <header class="dsc-hero">
-    <p class="dsc-eyebrow">DISCOVER · PROJECTS → PEOPLE → BUILD → REMIX → COMPETE</p>
-    <h1>What are people building right now?</h1>
-    <p class="dsc-lead">
-      Everything below comes from real activity: projects that were published, remixes that were
-      actually made, and the builders who made them. Find something interesting, remix it, and your
-      version shows up here too.
-    </p>
-    <div class="dsc-stats">
-      <div class="dsc-stat"><b>{{ totals.projects }}</b><span>Published projects</span></div>
-      <div class="dsc-stat"><b>{{ totals.originals }}</b><span>Original projects</span></div>
-      <div class="dsc-stat"><b>{{ totals.remixes }}</b><span>Remixes ({{ totals.remix_share }}% of projects)</span></div>
-      <div class="dsc-stat"><b>{{ totals.deepest_generation }}</b><span>Deepest remix generation</span></div>
-    </div>
-    {% if activity %}
-    <p class="dsc-lead" style="margin-top:12px;font-size:12px">
-      Last {{ activity.days }} days: {{ activity.published }} published · {{ activity.remixes }} remixes ·
-      {{ activity.stars }} stars · {{ activity.downloads }} downloads.
-    </p>
-    {% endif %}
+<div class="discover-shell">
+  <header class="discover-hero">
+    <div class="discover-hero-copy"><p class="discover-kicker">THE CITY OF BUILDERS</p><h1>What the hell are people building here?</h1><p>Find work worth opening, learning from and building on. Every project is a trailhead — not just a post.</p></div>
+    <form class="discover-search" method="get"><label for="discover-q">Search the world of building</label><div><span aria-hidden="true">⌕</span><input id="discover-q" name="q" value="{{ q }}" placeholder="Try Django, education, automation…"><button class="btn-violet" type="submit">Explore</button></div></form>
   </header>
+  <nav class="discover-tabs" aria-label="Discovery views"><a class="is-active" href="{% url 'discover' %}">All</a><a href="#building">Projects</a><a href="#remixed">Remixes</a><a href="#builders">Builders</a><a href="{% url 'challenge_list' %}">Challenges</a><a href="{% url 'skills' %}">Skills</a></nav>
 
-  <section class="dsc-section">
-    <header>
-      <h2>{% if trending_is_hot %}Moving this week{% else %}Newest projects{% endif %}</h2>
-      <p>{% if trending_is_hot %}Ranked by real activity — stars, downloads, unlocks and comments.{% else %}Nothing moved this week yet, so this is the freshest work.{% endif %}</p>
-    </header>
-    <div class="dsc-grid">
-      {% for p in trending %}{% include 'gallery/_project_card.html' with p=p %}{% empty %}
-      <div class="dsc-empty">No published projects yet. <a href="{% url 'build_hub' %}">Be the first to build one →</a></div>
-      {% endfor %}
-    </div>
-  </section>
+  <div class="discover-signal"><span class="signal-dot"></span><span>{% if activity %}{{ activity.published }} published and {{ activity.remixes }} remixed in the last {{ activity.days }} days{% else %}Real projects. Real builders. No manufactured momentum.{% endif %}</span></div>
 
-  <section class="dsc-section">
-    <header>
-      <h2>⑂ Most remixed ideas</h2>
-      <p>Projects other builders chose to build on. The strongest signal on BlaqVibes.</p>
-    </header>
-    <div class="dsc-grid">
-      {% for p in most_remixed %}{% include 'gallery/_project_card.html' with p=p cta="See the remix family →" %}{% empty %}
-      <div class="dsc-empty">Nothing has been remixed yet. Open any project and hit <b>⑂ Remix</b> to start the first family.</div>
-      {% endfor %}
-    </div>
-  </section>
+  <section class="discover-section" id="building"><div class="section-heading"><div><p class="section-index">01 / NOW</p><h2>Building now</h2><p>Fresh work from people putting ideas into the world.</p></div><a href="{% url 'feed' %}" class="section-link">See all projects →</a></div><div class="discover-grid discover-grid--feature">{% for p in trending %}{% include 'gallery/_project_card.html' with p=p cta="Open build →" %}{% empty %}<div class="discover-empty">No published builds yet. <a href="{% url 'build_hub' %}">Be the first to ship one →</a></div>{% endfor %}</div></section>
 
-  <section class="dsc-section">
-    <header>
-      <h2>Fastest-growing remix families</h2>
-      <p>Ideas that gained the most new remixes recently — counted against the original project.</p>
-    </header>
-    {% for family in growing_families %}
-    <div class="dsc-row">
-      <span>⑂</span>
-      <span>
-        <a href="{{ family.project.get_absolute_url }}">{{ family.project.title }}</a>
-        by @{{ family.project.owner.username }}
-        <span style="color:var(--muted)">— {{ family.builders }} builder{{ family.builders|pluralize }} joined in</span>
-      </span>
-      <span class="dsc-row__count">+{{ family.new_remixes }} in {{ family.days }} days ·
-        <a href="{% url 'fork_network' family.project.slug %}">family tree →</a></span>
-    </div>
-    {% empty %}
-    <div class="dsc-empty">No family has grown in the last two weeks. A remix you publish today would start the next one.</div>
-    {% endfor %}
-  </section>
+  <section class="discover-section" id="remixed"><div class="section-heading"><div><p class="section-index">02 / IN MOTION</p><h2>Recently remixed</h2><p>Ideas that crossed the gap between inspiration and action.</p></div></div><div class="discover-grid">{% for p in most_remixed %}{% include 'gallery/_project_card.html' with p=p cta="Explore the family →" %}{% empty %}<div class="discover-empty">No remix families yet. Find a build you like and make the next version.</div>{% endfor %}</div></section>
 
-  <section class="dsc-section">
-    <header>
-      <h2>Fresh remixes</h2>
-      <p>The loop in motion: discover → remix → change → publish → the original creator sees it.</p>
-    </header>
-    {% for p in fresh_remixes %}
-    <div class="dsc-row">
-      <span>⑂</span>
-      <span>
-        <a href="{% url 'profile_view' p.owner.username %}">@{{ p.owner.username }}</a> remixed
-        <a href="{{ p.forked_from.get_absolute_url }}">{{ p.forked_from.title }}</a>
-        by @{{ p.forked_from.owner.username }} →
-        <a href="{{ p.get_absolute_url }}">{{ p.title }}</a>
-      </span>
-      <span class="dsc-row__count">{{ p.created_at|timesince }} ago</span>
-    </div>
-    {% empty %}
-    <div class="dsc-empty">No remixes published yet.</div>
-    {% endfor %}
-  </section>
+  <section class="discover-section family-section"><div class="section-heading"><div><p class="section-index">03 / LINEAGE</p><h2>Remix families</h2><p>Follow an idea as different builders give it a new direction.</p></div></div>{% for family in growing_families %}<div class="family-row"><span class="family-glyph">⑂</span><div><a href="{{ family.project.get_absolute_url }}" class="family-title">{{ family.project.title }}</a><p>Started by @{{ family.project.owner.username }} · {{ family.builders }} builder{{ family.builders|pluralize }} joined</p></div><strong>+{{ family.new_remixes }}<small> in {{ family.days }} days</small></strong><a href="{% url 'fork_network' family.project.slug %}" class="family-link">View family →</a></div>{% empty %}<div class="discover-empty">A remix you publish today can start the next family.</div>{% endfor %}</section>
 
-  <div class="dsc-section dsc-grid dsc-grid--wide">
-    <div>
-      <header style="margin-bottom:10px"><h2>Top remixers</h2></header>
-      <p style="font-size:12px;color:var(--muted);margin:0 0 8px">Builders who build on other people's work — remixing your own projects does not count here.</p>
-      {% for u in top_remixers %}
-      <div class="dsc-row">
-        <a href="{% url 'profile_view' u.username %}">@{{ u.username }}</a>
-        <span class="dsc-row__count">{{ u.remix_count }} remix{{ u.remix_count|pluralize:"es" }} published</span>
-      </div>
-      {% empty %}
-      <div class="dsc-empty">No one has remixed another builder's project yet.</div>
-      {% endfor %}
-    </div>
-    <div>
-      <header style="margin-bottom:10px"><h2>Builders gaining momentum</h2></header>
-      <p style="font-size:12px;color:var(--muted);margin:0 0 8px">Creators whose projects were starred and unlocked most this week.</p>
-      {% for u in rising_creators %}
-      <div class="dsc-row">
-        <a href="{% url 'profile_view' u.username %}">@{{ u.username }}</a>
-        <span class="dsc-row__count">{{ u.recent_heat }} signal{{ u.recent_heat|pluralize }} this week</span>
-      </div>
-      {% empty %}
-      <div class="dsc-empty">Quiet week. Publish something and this rail is yours.</div>
-      {% endfor %}
-    </div>
-  </div>
+  <div class="discover-split" id="builders"><section class="discover-section compact-section"><div class="section-heading"><div><p class="section-index">04 / PEOPLE</p><h2>Builders to watch</h2><p>People showing their thinking through work.</p></div></div>{% for u in rising_creators %}<a class="builder-row" href="{% url 'profile_view' u.username %}"><span class="builder-avatar">{{ u.username|slice:":1"|upper }}</span><span><b>@{{ u.username }}</b><small>{{ u.recent_heat }} meaningful signal{{ u.recent_heat|pluralize }} this week</small></span><span class="arrow">→</span></a>{% empty %}<div class="discover-empty">The next builder to watch could be you.</div>{% endfor %}</section><section class="discover-section compact-section"><div class="section-heading"><div><p class="section-index">05 / LEARN</p><h2>Builder skills</h2><p>Workflows with projects to prove them.</p></div></div>{% for skill in top_skills %}<a class="skill-row" href="{{ skill.get_absolute_url }}"><span><b>{{ skill.title }}</b><small>by @{{ skill.creator.username }} · {{ skill.projects_created }} project{{ skill.projects_created|pluralize }}</small></span><span class="arrow">→</span></a>{% empty %}<div class="discover-empty">No Builder Skills published yet.</div>{% endfor %}</section></div>
 
-  <section class="dsc-section">
-    <header>
-      <h2>Learn how other builders solve problems</h2>
-      <p>Builder Skills with the most proof — published projects built from them.</p>
-    </header>
-    <div class="dsc-grid">
-      {% for skill in top_skills %}
-      <a class="pcard" href="{{ skill.get_absolute_url }}">
-        <div class="pcard__top"><strong class="pcard__title">{{ skill.title }}</strong><span class="pcard__method">{{ skill.get_difficulty_display }}</span></div>
-        <p class="pcard__desc">{{ skill.summary }}</p>
-        <div class="pcard__meta">by @{{ skill.creator.username }} · {{ skill.uses }} use{{ skill.uses|pluralize }} · {{ skill.projects_created }} project{{ skill.projects_created|pluralize }} built</div>
-        <span class="pcard__cta">See the workflow →</span>
-      </a>
-      {% empty %}
-      <div class="dsc-empty">No Builder Skills published yet. <a href="{% url 'skills' %}">Share how you build →</a></div>
-      {% endfor %}
-    </div>
-  </section>
-
-  {% if daily %}
-  <section class="dsc-section">
-    <div class="dsc-row">
-      <span>🏆</span>
-      <span>Today's challenge: <a href="{% url 'challenge_detail' daily.tag %}">{{ daily.title }}</a></span>
-      <span class="dsc-row__count"><a href="{% url 'challenge_list' %}">All challenges →</a></span>
-    </div>
-  </section>
-  {% endif %}
-
-  <section class="dsc-section">
-    <div class="dsc-row" style="justify-content:center;gap:14px;flex-wrap:wrap">
-      <span>Found something worth building on?</span>
-      <a href="{% url 'build_hub' %}" class="btn-violet" style="padding:8px 14px">Build something →</a>
-    </div>
-  </section>
+  <section class="discover-loop"><span class="loop-kicker">THE LOOP</span><strong>Discover <i>→</i> Remix <i>→</i> Improve <i>→</i> Show your work</strong><a href="{% url 'build_hub' %}" class="btn-violet">Start building</a></section>
 </div>
 {% endblock %}
