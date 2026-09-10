@@ -1688,6 +1688,30 @@ def generate_ai_readme(request, slug):
         messages.error(request, "AI README failed silently")
         return redirect('app_detail', slug=slug)
 
+@require_POST
+@login_required
+@ratelimit(key='user', rate='10/h', method='POST')
+def share_to_anypost(request, slug):
+    project = get_object_or_404(
+        AppProject.objects.select_related('owner'),
+        slug=slug,
+        owner=request.user,
+        status='published',
+    )
+    try:
+        from .anypost import share_project
+        share_project(
+            title=project.title,
+            text=project.short_description,
+            url=request.build_absolute_uri(project.get_absolute_url()),
+        )
+    except Exception:
+        logger.exception('AnyPost share failed for project=%s', project.slug)
+        messages.error(request, 'The project could not be shared right now.')
+    else:
+        messages.success(request, 'Project shared through AnyPost.')
+    return redirect(project.get_absolute_url())
+
 @login_required
 @require_POST
 def apply_ai_readme(request, slug):
@@ -1805,6 +1829,7 @@ def fork_network(request, slug):
             'remix_total': remix_total,
             'tree_depth': tree_depth,
             'builder_count': len(builder_names),
+            'anypost_enabled': bool(getattr(settings, 'ANYPOST_ENABLED', False)),
         })
     except Exception as e:
         import logging

@@ -171,7 +171,11 @@ def fix_code(html='', css='', js='', error='', allow_llm=True):
     blind guess. source is claude|gemini|groq|heuristic.
     """
     from .prompt_sanitize import sanitize_prompt
-    html, css, js, error = (_clip(sanitize_prompt(x)) for x in (html, css, js, error))
+    from .ai_safety import redact_for_ai
+    html, css, js, error = (
+        _clip(redact_for_ai(sanitize_prompt(x), MAX_CODE_LEN))
+        for x in (html, css, js, error)
+    )
     findings = analyze_code(html, css, js, error)
 
     if allow_llm:
@@ -243,10 +247,14 @@ def write_readme(title='', description='', html='', css='', js='', tech='', allo
     set. Always meets the publish form's own gate (a '# ' heading + length).
     """
     from .prompt_sanitize import sanitize_prompt
+    from .ai_safety import redact_for_ai
     title = sanitize_prompt(title)[:120] or 'My Vibe'
     description = sanitize_prompt(description)[:300]
     tech = sanitize_prompt(tech)[:120]
-    html, css, js = (_clip(sanitize_prompt(x)) for x in (html, css, js))
+    html, css, js = (
+        _clip(redact_for_ai(sanitize_prompt(x), MAX_CODE_LEN))
+        for x in (html, css, js)
+    )
 
     if allow_llm:
         try:
