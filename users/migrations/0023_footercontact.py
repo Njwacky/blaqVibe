@@ -33,7 +33,12 @@ def seed_footer_contacts(apps, schema_editor):
             rows.append(('email', site.footer_contact_email.lower(), ''))
         url = (getattr(site, 'footer_github_url', '') or '').strip()
         if url:
-            handle = urlparse(url).path.strip('/').split('/')[0]
+            # Keep the path an operator already published — a user profile
+            # (`/Njwacky`) or a repository (`/Njwacky/blaqVibe`) — instead of
+            # silently shortening it to the first segment. Handles allow two
+            # segments; anything deeper falls back to a plain link.
+            segments = [part for part in urlparse(url).path.strip('/').split('/') if part]
+            handle = '/'.join(segments[:2]) if len(segments) <= 2 else ''
             if handle:
                 rows.append(('github', handle, getattr(site, 'footer_github_label', '') or ''))
             else:
