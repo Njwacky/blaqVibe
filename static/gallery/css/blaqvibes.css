@@ -387,16 +387,52 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   cursor: pointer;
 }
 .filter-check:hover { color: var(--text); }
+/* .filter-controls groups category | sort | toggle. On desktop it is
+   display:contents so the three stay direct flex children of the bar and the
+   layout is byte-for-byte what it was; on mobile it becomes the ONE
+   horizontal strip (see ≤640px below). */
+.filter-controls { display: contents; }
 /* Actions pin right (Why #4); btnW/btnG already carry the 8px/14px padding. */
 .filter-actions { display: inline-flex; gap: 8px; margin-left: auto; }
 .filter-actions .btnW, .filter-actions .btnG { white-space: nowrap; }
+/* Mobile (≤640px): content gets the screen, filters become compact controls.
+   Row 1  [ search ................ ] [Search] [Reset]   ← never scrolls
+   Row 2  [ category ▾ ][ sort ▾ ][ ☑ Checked only ] →   ← ONLY this row swipes
+   The old 2-column grid stacked search / category|kind / sort / toggle /
+   actions into ~213px of sticky bar — a quarter of a 800px phone — and,
+   because the bar is position:sticky, it stayed there while cards slid
+   underneath. Two compact rows (~96px) fix that without touching stickiness. */
 @media (max-width: 640px) {
-  .filter-bar { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-  .filter-bar .filter-search,
-  .filter-bar select[name="sort"],
-  .filter-bar .filter-actions { grid-column: 1 / -1; }
-  /* Full-width actions row: thumb-sized targets splitting the row. */
-  .filter-actions .btnW, .filter-actions .btnG { flex: 1; }
+  .filter-bar { padding: 8px; gap: 8px; }
+  /* Extra specificity: feed.css repeats the desktop `flex:1 1 200px;
+     min-width:150px` and loads later; a 200px basis + 150px floor can't
+     share a 286px row with two buttons, which is what forced the wrap. */
+  form.filter-bar .filter-search { flex: 1 1 0; min-width: 0; }
+  /* Actions sit beside the search on row 1 (DOM order keeps them last for
+     the desktop right-pin and a natural tab sequence: field → filters → go). */
+  .filter-actions { flex: 0 0 auto; margin-left: 0; gap: 6px; order: 1; }
+  .filter-actions .btnW, .filter-actions .btnG { padding: 8px 11px; }
+  .filter-controls {
+    order: 2;
+    display: flex;
+    flex: 1 1 100%;
+    gap: 6px;
+    align-items: center;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    /* Bleed to the bar's inner edge so the last control fades at the frame,
+       hinting there's more without a gradient overlay. */
+    margin: 0 -8px -8px;
+    padding: 0 8px 8px;
+    scroll-padding-inline: 8px;
+  }
+  .filter-controls::-webkit-scrollbar { display: none; }
+  .filter-controls > * { flex: 0 0 auto; }
+  .filter-controls select { max-width: 60vw; }
+  .filter-check { padding: 6px 4px; min-height: 36px; }
 }
 /* In-page anchors (#building, #comments, #proof-card, …) must land BELOW the
    sticky mobile bar instead of underneath it. One global rule covers every

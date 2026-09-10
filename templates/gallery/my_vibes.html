@@ -1,7 +1,7 @@
 {% extends 'gallery/base.html' %}
 {% load static %}
 {% block title %}My Projects — BlaqVibes{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'gallery/css/my-vibes.css' %}?v=projects-workshop-20260909">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'gallery/css/my-vibes.css' %}?v=projects-filters-20260910">{% endblock %}
 {% block content %}
 <div class="projects-shell">
   <header class="projects-hero">
@@ -16,7 +16,8 @@
   <section class="projects-toolbar" aria-label="Project filters">
     <form method="get" class="projects-search">
       <label for="project-search">Search your work</label>
-      <div class="projects-search-row"><span aria-hidden="true">⌕</span><input id="project-search" name="q" value="{{ q }}" placeholder="Name, description or stack"/><button class="btn-ghost" type="submit">Search</button></div>
+      <div class="projects-search-row"><span aria-hidden="true">⌕</span><input id="project-search" name="q" value="{{ q }}" placeholder="Name, description or stack"/>{% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}<button class="btn-ghost" type="submit">Search</button></div>
+      {% if q or status_filter %}<a href="{% url 'my_vibes' %}" class="projects-reset">Reset</a>{% endif %}
     </form>
     <nav class="project-tabs" aria-label="Filter projects">
       <a href="?{% if q %}q={{ q }}{% endif %}" class="{% if not status_filter %}is-active{% endif %}">All <span>{{ project_counts.all }}</span></a>
