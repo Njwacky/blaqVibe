@@ -1,8 +1,18 @@
 from django.db import models
 from django.contrib.auth.models import User
+from django.core.exceptions import ValidationError
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
+
+from .footer_contacts import (
+    build_href,
+    contact_kind_choices,
+    display_label,
+    icon_for,
+    kind_label,
+    normalize_value,
+)
 
 # Name style whitelists (rendered by Profile.name_style_css)
 NAME_FONTS = {
@@ -468,13 +478,6 @@ class SiteSettings(models.Model):
     pwa_enabled = models.BooleanField(default=True)
     auto_run_enabled = models.BooleanField(default=False, help_text="If On, open the file preview after publish. This is not a Docker host.")
 
-    # Public footer contact details. These live with the other singleton site
-    # settings so an operator can change them without a deployment. Blank is
-    # intentional: it lets an operator hide a contact method that is no longer
-    # monitored, rather than leave a dead link in the public footer.
-    footer_contact_email = models.EmailField(blank=True, default='admin@blaqvibes.co.za')
-    footer_github_url = models.URLField(blank=True, default='https://github.com/Njwacky')
-    footer_github_label = models.CharField(max_length=80, blank=True, default='GitHub @Njwacky')
     def save(self, *args, **kwargs):
         self.pk = 1
         super().save(*args, **kwargs)
@@ -482,6 +485,94 @@ class SiteSettings(models.Model):
     def get(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
         return obj
+
+class FooterContact(models.Model):
+    """One public way to reach BlaqVibes — a row, not a field.
+
+    5 Whys: why rows instead of three fields on SiteSettings?
+    1. Why change it? The three fields could only ever hold one email, one
+       GitHub URL and its label. Two support mailboxes, a WhatsApp number and
+       an X account needed a model change, a migration, a form change and a
+       deploy each time the company added a way to be reached.
+    2. Why a row per method? "Add another" is then a save in the admin page —
+       no code path changes shape when the count goes from 1 to 5.
+    3. Why a kind + value instead of storing the href? The link scheme is a
+       security boundary. A stored href could be javascript:; a built one can
+       only be mailto:, tel:, wa.me, a host we chose, or a validated http(s)
+       URL (see users/footer_contacts.py).
+    4. Why a position and an is_active flag? Operators pause a channel they no
+       longer monitor before they delete it, and the order of the footer is a
+       judgement call, not alphabetical luck.
+    5. Why keep the admin page as the only editor? Because the values are
+       public on every page: one gate, one audit row (AdminLog), one rate
+       limit — the same posture the old SiteSettings form had.
+    """
+    kind = models.CharField(max_length=24, choices=contact_kind_choices, default='email')
+    value = models.CharField(
+        max_length=200,
+        help_text='The address, number, handle or URL — never a full link you type by hand.',
+    )
+    label = models.CharField(
+        max_length=80,
+        blank=True,
+        help_text='Optional. What visitors read instead of the raw address, number or handle.',
+    )
+    position = models.PositiveSmallIntegerField(default=0, help_text='Lower numbers appear first.')
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ('position', 'id')
+        verbose_name = 'footer contact'
+        verbose_name_plural = 'footer contacts'
+
+    def __str__(self):
+        return f'{self.kind_label}: {self.display_label}'
+
+    @property
+    def href(self) -> str:
+        return build_href(self.kind, self.value)
+
+    @property
+    def icon(self) -> str:
+        return icon_for(self.kind)
+
+    @property
+    def kind_label(self) -> str:
+        return kind_label(self.kind)
+
+    @property
+    def display_label(self) -> str:
+        return display_label(self.kind, self.value, self.label)
+
+    @property
+    def external(self) -> bool:
+        """http(s) links open in a new tab; mailto:/tel: stay in the page."""
+        return self.href.startswith('http')
+
+    def clean(self):
+        # Runs for the operator page AND the Django admin, because ModelForm
+        # validation calls instance.full_clean(). Errors raised with a field
+        # key land on that field, not in non-field errors.
+        super().clean()
+        try:
+            self.value = normalize_value(self.kind, self.value)
+        except ValidationError as exc:
+            raise ValidationError({'value': exc.messages}) from exc
+
+    def save(self, *args, **kwargs):
+        # Canonical storage: 'Support@Example.com ' → 'support@example.com',
+        # '082 555 0100' → '+27825550100'. The form already reported any error,
+        # so a row created outside a form keeps its value rather than raising.
+        try:
+            self.value = normalize_value(self.kind, self.value)
+        except ValidationError:
+            pass
+        if self.position is None:
+            self.position = 0
+        return super().save(*args, **kwargs)
+
 
 class Follow(models.Model):
     follower = models.ForeignKey(User, on_delete=models.CASCADE, related_name='following')

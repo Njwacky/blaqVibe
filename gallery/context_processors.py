@@ -34,31 +34,33 @@ def extras(request):
     except Exception:
         nolo_backend = 'heuristic'
     # Site-level values that every template needs. The public footer contacts
-    # are stored with singleton SiteSettings so operators can update them
-    # without changing templates or deploying. Keep the original public values
-    # as a safe fallback while a new deployment is waiting for its migration.
+    # are rows an operator maintains (add, reorder, hide) without changing
+    # templates or deploying. The fallback list covers a deployment that has
+    # not run its migration yet, so the footer is never empty by accident.
     pwa_enabled = True
-    footer_contact = {
-        'email': 'admin@blaqvibes.co.za',
-        'github_url': 'https://github.com/Njwacky',
-        'github_label': 'GitHub @Njwacky',
-    }
     local_dev = False
     preview = False
+    footer_contacts = None
     try:
         from django.conf import settings
         local_dev = bool(getattr(settings, 'LOCAL_DEV', False) or getattr(settings, 'DEBUG', False))
         preview = bool(getattr(settings, 'PREVIEW', False))
         from users.models import SiteSettings
-        site = SiteSettings.get()
-        pwa_enabled = site.pwa_enabled
-        footer_contact = {
-            'email': site.footer_contact_email,
-            'github_url': site.footer_github_url,
-            'github_label': site.footer_github_label,
-        }
+        pwa_enabled = SiteSettings.get().pwa_enabled
     except Exception:
         pass
+    try:
+        from users.footer_contacts import public_footer_contacts
+        footer_contacts = public_footer_contacts()
+    except Exception:
+        footer_contacts = None
+    if footer_contacts is None:
+        footer_contacts = [
+            {'kind': 'email', 'icon': '✉️', 'label': 'admin@blaqvibes.co.za',
+             'href': 'mailto:admin@blaqvibes.co.za', 'external': False},
+            {'kind': 'github', 'icon': '🐙', 'label': 'GitHub @Njwacky',
+             'href': 'https://github.com/Njwacky', 'external': True},
+        ]
     return {
         'unread_notifications': unread,
         'open_reports': open_reports,
@@ -66,7 +68,7 @@ def extras(request):
         'paystack_enabled': paystack_enabled,
         'nolo_backend': nolo_backend,
         'pwa_enabled': pwa_enabled,
-        'footer_contact': footer_contact,
+        'footer_contacts': footer_contacts,
         'local_dev': local_dev,
         # The hosting disclaimer is useful on local/Arena previews, but it is
         # intentionally never rendered by a production configuration.

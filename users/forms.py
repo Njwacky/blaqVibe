@@ -2,6 +2,8 @@ from django import forms
 from django.contrib.auth.forms import UserCreationForm, AuthenticationForm, PasswordResetForm, SetPasswordForm, PasswordChangeForm
 from django.contrib.auth.models import User
 from django.contrib.auth.validators import UnicodeUsernameValidator
+from django.core.exceptions import ValidationError
+from django.forms import modelformset_factory
 from .models import (
     NAME_COLORS,
     NAME_FONTS,
@@ -12,9 +14,11 @@ from .models import (
     NAME_SIZES,
     NAME_SIZE_LABELS,
     NAME_COLOR_LABELS,
+    FooterContact,
     Profile,
     SiteSettings,
 )
+from .footer_contacts import normalize_value
 from .rename import RESERVED_USERNAMES
 from gallery.profanity import validate_public_text
 import bleach
@@ -73,61 +77,121 @@ class ProfileForm(forms.ModelForm):
         return f
 
 class FooterContactForm(forms.ModelForm):
-    """Public footer contacts, edited only from the operator control page.
+    """One row of the footer contact editor: a kind, and the value for it.
 
-    URLField validates the shape, while the scheme check below prevents an
-    operator typo from becoming a non-web link in every page footer.
+    The value box is deliberately one field for every kind — email, phone
+    number, handle or URL — because an operator adding a WhatsApp number does
+    not want to decide which of five boxes it belongs in. The kind dropdown
+    says how to read it, and users/footer_contacts.py validates and turns it
+    into a link.
     """
     class Meta:
-        model = SiteSettings
-        fields = ['footer_contact_email', 'footer_github_url', 'footer_github_label']
+        model = FooterContact
+        fields = ['kind', 'value', 'label', 'position', 'is_active']
         labels = {
-            'footer_contact_email': 'Support email address',
-            'footer_github_url': 'GitHub profile URL',
-            'footer_github_label': 'GitHub link label',
+            'kind': 'Type',
+            'value': 'Address / number / handle',
+            'label': 'Display text',
+            'position': 'Order',
+            'is_active': 'Show',
         }
         help_texts = {
-            'footer_contact_email': 'Leave blank to hide the email link from the footer.',
-            'footer_github_url': 'Use a full http:// or https:// URL. Leave blank to hide the link.',
-            'footer_github_label': 'The text visitors see for the GitHub link.',
+            'value': 'Email, phone number, handle or URL, depending on the type.',
+            'label': 'Optional — what visitors read instead of the raw value.',
+            'position': 'Lower numbers appear first.',
+            'is_active': 'Untick to hide a method without deleting it.',
         }
         widgets = {
-            'footer_contact_email': forms.EmailInput(attrs={
-                'class': 'field-input', 'autocomplete': 'email',
-                'placeholder': 'support@example.com',
+            'kind': forms.Select(attrs={
+                'class': 'field-input footer-contact-kind',
+                'aria-label': 'Contact type',
             }),
-            'footer_github_url': forms.URLInput(attrs={
-                'class': 'field-input', 'autocomplete': 'url',
-                'placeholder': 'https://github.com/your-org',
+            'value': forms.TextInput(attrs={
+                'class': 'field-input', 'maxlength': 200, 'autocomplete': 'off',
+                'placeholder': 'support@blaqvibes.co.za',
+                'aria-label': 'Contact address, number, handle or URL',
             }),
-            'footer_github_label': forms.TextInput(attrs={
-                'class': 'field-input', 'maxlength': 80,
-                'placeholder': 'GitHub @your-org',
+            'label': forms.TextInput(attrs={
+                'class': 'field-input', 'maxlength': 80, 'autocomplete': 'off',
+                'placeholder': 'Optional',
+                'aria-label': 'Display text',
+            }),
+            'position': forms.NumberInput(attrs={
+                'class': 'field-input footer-contact-position', 'min': 0, 'step': 1,
+                'aria-label': 'Order in the footer',
+            }),
+            'is_active': forms.CheckboxInput(attrs={
+                'class': 'footer-contact-check', 'aria-label': 'Show in the footer',
             }),
         }
 
-    def clean_footer_contact_email(self):
-        return (self.cleaned_data.get('footer_contact_email') or '').strip().lower()
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # value is required for a row the operator is keeping, but checks it
+        # in clean() rather than with `required=True`, so the blank spare rows
+        # at the bottom of the editor can be submitted untouched (has_changed).
+        self.fields['value'].required = False
+        self.fields['position'].required = False
 
-    def clean_footer_github_url(self):
-        from urllib.parse import urlparse
+    def clean_value(self):
+        raw = (self.cleaned_data.get('value') or '').strip()
+        # Control characters (a pasted newline, a zero-width joiner) would
+        # survive into the footer and break its layout. Everything else is
+        # handled by the per-kind validator and by template escaping — the
+        # value is NOT bleached here, because escaping '&' would corrupt a URL
+        # that carries a query string.
+        return ''.join(char for char in raw if char.isprintable())[:200]
 
-        url = (self.cleaned_data.get('footer_github_url') or '').strip()
-        if not url:
-            return ''
-        parsed = urlparse(url)
-        if parsed.scheme not in ('http', 'https') or not parsed.netloc:
-            raise forms.ValidationError('Use a complete http:// or https:// URL.')
-        return url
+    def clean_label(self):
+        # Public text. Strip markup even though template escaping is also on,
+        # so a pasted tag can never become the stored display name.
+        label = bleach.clean((self.cleaned_data.get('label') or '').strip(), tags=[], strip=True)[:80]
+        return validate_public_text(label)
 
-    def clean_footer_github_label(self):
-        # The value is public text. Strip markup even though template escaping
-        # is also on, so a pasted tag can never become the stored display name.
-        return bleach.clean(
-            (self.cleaned_data.get('footer_github_label') or '').strip(),
-            tags=[],
-            strip=True,
-        )[:80]
+    def clean_position(self):
+        position = self.cleaned_data.get('position')
+        return 0 if position in (None, '') else position
+
+    def has_changed(self):
+        """A spare row with no value was never used — do not count it.
+
+        Django ignores a formset's extra rows with `empty_permitted and not
+        has_changed()`, which is almost right: a spare row renders a suggested
+        Order number, so it comes back looking changed even when the operator
+        never touched it, and would then fail validation for having no value.
+        Blank means blank, so say it here instead — this is what lets the page
+        offer two spare rows without forcing anyone to fill them in.
+        """
+        if self.instance.pk is None and not (self['value'].value() or '').strip():
+            return False
+        return super().has_changed()
+
+    def clean(self):
+        cleaned = super().clean()
+        # A row being deleted needs nothing else from the operator.
+        if cleaned.get('DELETE'):
+            return cleaned
+        kind = cleaned.get('kind')
+        value = (cleaned.get('value') or '').strip()
+        if not value:
+            self.add_error('value', 'Add the address, number, handle or URL people should use.')
+            return cleaned
+        try:
+            cleaned['value'] = normalize_value(kind, value)
+        except ValidationError as exc:
+            self.add_error('value', exc.messages)
+        return cleaned
+
+
+# Two blank rows: "add another method" is one click, and an operator adding a
+# third does not have to save twice. Rows are ordered by `position`, and new
+# rows start below everything that exists (see next_positions()).
+FooterContactFormSet = modelformset_factory(
+    FooterContact,
+    form=FooterContactForm,
+    extra=2,
+    can_delete=True,
+)
 
 
 class TipForm(forms.Form):
