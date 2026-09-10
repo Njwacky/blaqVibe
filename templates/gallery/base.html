@@ -44,6 +44,8 @@
   <symbol id="bv-ico-report" viewBox="0 0 24 24"><path d="M4 4h16v12H9l-5 4V4Z"/><path d="M8 9h8M8 12h5"/></symbol>
   <symbol id="bv-ico-admin" viewBox="0 0 24 24"><path d="M8 11a4 4 0 1 1 3.5 3.97"/><path d="M11.5 15H21v3h-3v3h-3v-3h-3.5"/><path d="M8 11h.01"/></symbol>
   <symbol id="bv-ico-logout" viewBox="0 0 24 24"><path d="M10 5H5v14h5"/><path d="M13 17l5-5-5-5"/><path d="M18 12H9"/></symbol>
+  <symbol id="bv-ico-start" viewBox="0 0 24 24"><path d="M12 3l1.9 5.4L19.5 10l-5.6 1.9L12 17.5l-1.9-5.6L4.5 10l5.6-1.6L12 3Z"/><path d="M18.5 15.5l.8 2.2 2.2.8-2.2.8-.8 2.2-.8-2.2-2.2-.8 2.2-.8.8-2.2Z"/></symbol>
+  <symbol id="bv-ico-upload" viewBox="0 0 24 24"><path d="M12 16V5m0 0L7 10m5-5 5 5"/><path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></symbol>
 </svg>
 <a href="#main" class="skip-link">Skip to content</a>
 <nav class="nav" aria-label="Primary">
@@ -81,6 +83,7 @@ literal text — the regression guard in gallery/test_engagement.py pins that.
           <a role="menuitem" href="{% url 'my_vibes' %}"><svg class="bv-icon"><use href="#bv-ico-vibes"></use></svg> My projects</a>
           <a role="menuitem" href="{% url 'saved_vibes' %}"><svg class="bv-icon"><use href="#bv-ico-saved"></use></svg> Saved</a>
           <a role="menuitem" href="{% url 'publish' %}"><svg class="bv-icon"><use href="#bv-ico-vibes"></use></svg> Publish a project</a>
+          <a role="menuitem" href="{% url 'starter_gallery' %}"><svg class="bv-icon"><use href="#bv-ico-start"></use></svg> Start a vibe</a>
           <div class="nav-menu-sep"></div>
           <a role="menuitem" href="{% url 'battle' %}"><svg class="bv-icon"><use href="#bv-ico-battle"></use></svg> Battle</a>
           <a role="menuitem" href="{% url 'launch_hub' %}"><svg class="bv-icon"><use href="#bv-ico-launch"></use></svg> Launch guides</a>
@@ -147,11 +150,13 @@ literal text — the regression guard in gallery/test_engagement.py pins that.
         {% if user.is_authenticated %}
           <a href="{% url 'build_hub' %}">Build something</a>
           <a href="{% url 'publish' %}">Publish a project</a>
+          <a href="{% url 'starter_gallery' %}">Start a vibe</a>
           <a href="{% url 'my_vibes' %}">My projects</a>
           <a href="{% url 'saved_vibes' %}">Saved projects</a>
         {% else %}
           <a href="{% url 'signup' %}">Create an account</a>
           <a href="{% url 'login' %}">Sign in to publish</a>
+          <a href="{% url 'starter_gallery' %}">Start in browser — no account needed</a>
           <a href="{% url 'build_hub' %}">See how building works</a>
         {% endif %}
       </div>
@@ -223,6 +228,93 @@ literal text — the regression guard in gallery/test_engagement.py pins that.
 </div>
 <script src="{% static 'gallery/js/pwa.js' %}?v=ext-20260827"></script>
 {% endif %}
+{% comment %}Publish chooser: every link to /publish/ opens this instead of
+navigating straight there, so the builder picks UPLOAD (already have files)
+or START (write in the browser from a starter or blank canvas). The Upload
+button keeps the original href, so ?challenge= and similar params survive.
+Layer 95: above the nav menu (60) and mobile sticky actions (90), below the
+skip link (100) and transient toast/PWA banners (999).{% endcomment %}
+<style>
+.pub-choose-backdrop{position:fixed;inset:0;z-index:95;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.62);backdrop-filter:blur(4px)}
+.pub-choose-backdrop.open{display:flex}
+.pub-choose-card{background:var(--card);border:1px solid var(--line);border-radius:18px;max-width:520px;width:100%;padding:22px;box-shadow:var(--shadow)}
+.pub-choose-opt{display:flex;gap:14px;align-items:flex-start;text-decoration:none;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:16px;transition:border-color .15s,transform .15s}
+.pub-choose-opt:hover{border-color:var(--violet);transform:translateY(-1px)}
+.pub-choose-opt:focus-visible{outline:2px solid var(--violet);outline-offset:2px}
+.pub-choose-ico{flex:0 0 44px;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--accent-soft-bg);border:1px solid var(--accent-border);color:var(--accent-text)}
+.pub-choose-ico .bv-icon{width:22px;height:22px;flex-basis:22px}
+</style>
+<div class="pub-choose-backdrop" id="pub-choose" role="dialog" aria-modal="true" aria-labelledby="pub-choose-title" hidden>
+  <div class="pub-choose-card">
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <div style="flex:1">
+        <h2 id="pub-choose-title" style="font-family:Space Grotesk,sans-serif;font-size:19px;font-weight:800;margin:0">Publish — upload or start?</h2>
+        <p style="font-size:13px;color:var(--muted);line-height:1.55;margin:6px 0 0">Two ways onto the feed. Both go through the same honest checks before they go live.</p>
+      </div>
+      <button type="button" id="pub-choose-close" class="icon-btn" aria-label="Close">✕</button>
+    </div>
+    <div style="display:grid;gap:10px;margin-top:16px">
+      <a id="pub-choose-upload" href="{% url 'publish' %}" data-no-chooser class="pub-choose-opt">
+        <span class="pub-choose-ico"><svg class="bv-icon" aria-hidden="true"><use href="#bv-ico-upload"></use></svg></span>
+        <span><strong style="display:block;font-size:14px">Upload</strong><span style="display:block;font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:3px">You already have files — drop a ZIP or paste a snippet. Scanned, then shown as what you built.</span></span>
+      </a>
+      <a href="{% url 'starter_gallery' %}" data-no-chooser class="pub-choose-opt">
+        <span class="pub-choose-ico"><svg class="bv-icon" aria-hidden="true"><use href="#bv-ico-start"></use></svg></span>
+        <span><strong style="display:block;font-size:14px">Start</strong><span style="display:block;font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:3px">Nothing yet — pick a starter or a blank canvas and write HTML, CSS and JS in your browser.</span></span>
+      </a>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+  var backdrop = document.getElementById('pub-choose');
+  if(!backdrop) return;
+  var uploadBtn = document.getElementById('pub-choose-upload');
+  var closeBtn = document.getElementById('pub-choose-close');
+  var lastFocus = null;
+  function openChooser(uploadHref){
+    lastFocus = document.activeElement;
+    if(uploadHref) uploadBtn.setAttribute('href', uploadHref);
+    backdrop.hidden = false;
+    backdrop.classList.add('open');
+    var menu = document.getElementById('nav-menu');
+    if(menu) menu.classList.remove('open');
+    var links = document.getElementById('nav-links');
+    if(links) links.classList.remove('open');
+    if(closeBtn) closeBtn.focus();
+    document.body.style.overflow = 'hidden';
+  }
+  function closeChooser(){
+    backdrop.classList.remove('open');
+    backdrop.hidden = true;
+    document.body.style.overflow = '';
+    if(lastFocus && lastFocus.focus) lastFocus.focus();
+  }
+  document.addEventListener('click', function(e){
+    if(e.defaultPrevented) return;
+    if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    var t = e.target;
+    if(t && t.closest){
+      if(t.closest('#pub-choose-close')){ e.preventDefault(); closeChooser(); return; }
+      if(t === backdrop){ closeChooser(); return; }
+      var link = t.closest('a[href]');
+      if(link && !link.hasAttribute('data-no-chooser')){
+        var raw = link.getAttribute('href') || '';
+        var path = raw.split('?')[0].split('#')[0];
+        if(path === '/publish' || path === '/publish/'){
+          e.preventDefault();
+          e.stopPropagation();
+          openChooser(link.href);
+          return;
+        }
+      }
+    }
+  }, true);
+  document.addEventListener('keydown', function(e){
+    if(e.key === 'Escape' && backdrop.classList.contains('open')) closeChooser();
+  });
+})();
+</script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

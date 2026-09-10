@@ -12,6 +12,7 @@
     <div style="flex:1;font-size:13px"><b>Challenge Mode:</b> Publishing for <b>#{{ challenge_tag }}</b>. Your project will be tagged automatically.</div>
   </div>
   {% endif %}
+  <div style="display:flex;gap:10px;align-items:center;justify-content:center;background:var(--card);border:1px dashed var(--accent-border);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;color:var(--muted)">Nothing to upload yet? <a href="{% url 'starter_gallery' %}" style="color:var(--accent-text);font-weight:700">✦ Start in your browser instead →</a></div>
   <div style="display:flex;gap:10px;align-items:flex-start;background:color-mix(in srgb,#7C3AED 9%,var(--card));border:1px solid color-mix(in srgb,#7C3AED 45%,var(--line));border-radius:12px;padding:12px 14px;margin-bottom:16px">
     <span style="color:var(--launch-text);font-weight:900">↗</span>
     <div style="font-size:12px;line-height:1.55"><b>This publishes a BlaqVibes listing and safe preview—not a production host or app-store release.</b><div style="color:var(--muted);margin-top:3px">Need a real public URL or store listing? <a href="{% url 'launch_hub' %}" style="color:var(--accent-text);font-weight:700">Find the correct launch path →</a></div></div>
