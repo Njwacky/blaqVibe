@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}Footer Contacts — BlaqVibes{% endblock %}
 {% block head %}
-<link rel="stylesheet" href="{% static 'gallery/css/footer-contacts.css' %}?v=20260909">
+<link rel="stylesheet" href="{% static 'gallery/css/footer-contacts.css' %}?v=footer-contacts-20260910">
 {% endblock %}
 {% block content %}
 <div class="footer-contacts-page">
@@ -10,30 +10,31 @@
     <div>
       <p class="footer-contacts-eyebrow">Admin controls</p>
       <h1>Footer contacts</h1>
-      <p>Change the public ways people can reach BlaqVibes. Your saved details appear in the footer across the site immediately.</p>
+      <p>Every way people can reach BlaqVibes, as rows. Add as many as you need — two support mailboxes, a WhatsApp number, X, GitHub — reorder them, or untick <em>Show</em> to hide one without losing it. Saved details appear in the footer across the site immediately.</p>
     </div>
     <a href="{% url 'admin_dashboard' %}" class="btnG footer-contacts-back">← Admin dashboard</a>
   </div>
 
-  <form method="post" class="footer-contacts-form" novalidate>
+  <form method="post" class="footer-contacts-form" id="footer-contacts-form" novalidate>
     {% csrf_token %}
-    {% if form.non_field_errors %}
-      <div class="footer-contacts-errors" role="alert">{{ form.non_field_errors }}</div>
+    {{ formset.management_form }}
+    {% if formset.non_form_errors %}
+      <div class="footer-contacts-errors" role="alert">{{ formset.non_form_errors }}</div>
     {% endif %}
 
     <fieldset>
       <legend>Public contact methods</legend>
-      <p class="footer-contacts-note">Only administrators and super admins can edit these details. Empty fields are hidden from the public footer.</p>
+      <p class="footer-contacts-note">Only administrators and super admins can edit these details. Empty rows are ignored, and the public footer only ever links with <code>mailto:</code>, <code>tel:</code>, <code>wa.me</code>, the network we name, or an <code>http(s)</code> URL.</p>
 
-      <div class="footer-contacts-fields">
-        {% for field in form %}
-          <div class="footer-contacts-field{% if field.errors %} footer-contacts-field--error{% endif %}">
-            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-            {{ field }}
-            {% if field.help_text %}<p>{{ field.help_text }}</p>{% endif %}
-            {% for error in field.errors %}<span role="alert">{{ error }}</span>{% endfor %}
-          </div>
+      <div class="footer-contact-rows" id="footer-contact-rows">
+        {% for form in formset %}
+          {% include 'users/includes/footer_contact_row.html' with form=form %}
         {% endfor %}
+      </div>
+
+      <div class="footer-contact-actions">
+        <button type="button" class="btnG" id="footer-contact-add">+ Add another method</button>
+        <span class="footer-contact-count" id="footer-contact-count"></span>
       </div>
     </fieldset>
 
@@ -42,5 +43,112 @@
       <a href="{% url 'feed' %}">View public footer</a>
     </div>
   </form>
+
+  <section class="footer-contact-preview" aria-labelledby="footer-contact-preview-title">
+    <h2 id="footer-contact-preview-title">What visitors see</h2>
+    {% if footer_preview %}
+      <ul>
+        {% for contact in footer_preview %}
+          <li><span aria-hidden="true">{{ contact.icon }}</span> <a href="{{ contact.href }}"{% if contact.external %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ contact.label }}</a> <span class="footer-contact-preview__href">{{ contact.href }}</span></li>
+        {% endfor %}
+        <li><span aria-hidden="true">🤖</span> Ask Nolo (AI help)</li>
+      </ul>
+    {% else %}
+      <p class="footer-contact-preview__empty">Nothing yet — the Contact column shows “Ask Nolo (AI help)” only. Add a method above.</p>
+    {% endif %}
+  </section>
 </div>
+
+<template id="footer-contact-empty-row">
+  {% include 'users/includes/footer_contact_row.html' with form=formset.empty_form %}
+</template>
+
+{{ kind_guide|json_script:"footer-kind-guide" }}
+<script>
+(function () {
+  // The value box means something different per type ("082 555 0100" for a
+  // WhatsApp number, "support@…" for email), so the placeholder and hint
+  // follow the dropdown instead of guessing.
+  var guide = {};
+  try {
+    guide = JSON.parse(document.getElementById('footer-kind-guide').textContent || '{}');
+  } catch (err) {
+    guide = {};
+  }
+
+  var rows = document.getElementById('footer-contact-rows');
+  var addBtn = document.getElementById('footer-contact-add');
+  var emptyRow = document.getElementById('footer-contact-empty-row');
+  var totalInput = document.getElementById('id_form-TOTAL_FORMS');
+  var counter = document.getElementById('footer-contact-count');
+  var maxContacts = {{ max_contacts }};
+
+  function rowCount() {
+    return rows ? rows.querySelectorAll('[data-contact-row]').length : 0;
+  }
+
+  function refreshCounter() {
+    if (!counter) return;
+    var kept = rows.querySelectorAll('[data-contact-row]').length;
+    counter.textContent = kept + ' row' + (kept === 1 ? '' : 's') + ' · ' + maxContacts + ' methods max';
+    if (addBtn) addBtn.disabled = kept >= maxContacts;
+  }
+
+  function applyKind(row) {
+    var select = row.querySelector('select[name$="-kind"]');
+    var value = row.querySelector('input[name$="-value"]');
+    var hint = row.querySelector('[data-contact-hint]');
+    if (!select || !value) return;
+    var meta = guide[select.value];
+    if (meta && meta.placeholder) value.placeholder = meta.placeholder;
+    if (hint) hint.textContent = meta && meta.hint ? meta.hint : '';
+  }
+
+  function nextOrder() {
+    var max = 0;
+    rows.querySelectorAll('input[name$="-position"]').forEach(function (input) {
+      var parsed = parseInt(input.value, 10);
+      if (!isNaN(parsed) && parsed > max) max = parsed;
+    });
+    return max + 10;
+  }
+
+  function watch(row) {
+    var select = row.querySelector('select[name$="-kind"]');
+    if (select) select.addEventListener('change', function () { applyKind(row); });
+    var remove = row.querySelector('input[name$="-DELETE"]');
+    if (remove) {
+      remove.addEventListener('change', function () {
+        row.classList.toggle('footer-contact-row--removed', remove.checked);
+      });
+    }
+    applyKind(row);
+  }
+
+  if (rows) {
+    rows.querySelectorAll('[data-contact-row]').forEach(watch);
+    refreshCounter();
+  }
+
+  if (addBtn && emptyRow && totalInput) {
+    addBtn.addEventListener('click', function () {
+      var index = parseInt(totalInput.value, 10) || 0;
+      var wrapper = document.createElement('div');
+      // Django's empty_form renders every name with __prefix__; swapping it
+      // for the next index is all that is needed for the row to be saved.
+      wrapper.innerHTML = emptyRow.innerHTML.replace(/__prefix__/g, String(index));
+      var row = wrapper.firstElementChild;
+      if (!row) return;
+      var position = row.querySelector('input[name$="-position"]');
+      if (position) position.value = String(nextOrder());
+      rows.appendChild(row);
+      totalInput.value = String(index + 1);
+      watch(row);
+      refreshCounter();
+      var firstField = row.querySelector('select[name$="-kind"]');
+      if (firstField) firstField.focus();
+    });
+  }
+})();
+</script>
 {% endblock %}

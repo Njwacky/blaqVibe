@@ -18,7 +18,7 @@
 <link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=filters-20260910">
 <link rel="stylesheet" href="{% static 'gallery/css/cards.css' %}?v=mobile-20260906b">
 <link rel="stylesheet" href="{% static 'gallery/css/premium.css' %}?v=product-system-20260909">
-<link rel="stylesheet" href="{% static 'gallery/css/footer.css' %}?v=footer-contact-20260828">
+<link rel="stylesheet" href="{% static 'gallery/css/footer.css' %}?v=footer-contacts-20260910">
 <script src="{% static 'gallery/js/head-theme.js' %}?v=ext-20260827"></script>
 <script src="{% static 'gallery/js/alpine.min.js' %}?v=alpine-3.16.3" defer></script>
 <script src="{% static 'gallery/js/blaqvibes.js' %}?v=navfix-20260909" defer></script>
@@ -199,8 +199,15 @@ literal text — the regression guard in gallery/test_engagement.py pins that.
       </div>
       <div>
         <h2>Contact</h2>
-        {% if footer_contact.email %}<a href="mailto:{{ footer_contact.email }}">✉️ {{ footer_contact.email }}</a>{% endif %}
-        {% if footer_contact.github_url %}<a href="{{ footer_contact.github_url }}" rel="noopener noreferrer" target="_blank">🐙 {{ footer_contact.github_label|default:"GitHub" }}</a>{% endif %}
+        {% comment %}The contact list is data, not template code: two support
+        mailboxes, a WhatsApp number and an X account are rows an operator adds
+        at /admin/footer-contacts/ — the href is built server-side per kind, so
+        this column can never render a scheme we did not choose.{% endcomment %}
+        {% for contact in footer_contacts %}
+          {% if contact.href %}
+            <a href="{{ contact.href }}"{% if contact.external %} target="_blank" rel="noopener noreferrer"{% endif %}><span aria-hidden="true">{{ contact.icon }}</span> {{ contact.label }}</a>
+          {% endif %}
+        {% endfor %}
         <a href="{% url 'nolo_help' %}">🤖 Ask Nolo (AI help)</a>
       </div>
     </nav>

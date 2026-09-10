@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import AdminLog, Profile, StarEvent
+from .models import AdminLog, FooterContact, Profile, StarEvent
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
@@ -39,3 +39,17 @@ class AdminLogAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return False
+
+@admin.register(FooterContact)
+class FooterContactAdmin(admin.ModelAdmin):
+    """The public footer contact list, for operators who prefer /django-admin/.
+
+    The same validation as the operator page runs here: FooterContact.clean()
+    rejects a value that does not match its kind, so a pasted javascript: URL
+    cannot reach the public footer from either editor.
+    """
+    list_display = ('kind', 'value', 'label', 'position', 'is_active', 'updated_at')
+    list_filter = ('kind', 'is_active')
+    list_editable = ('position', 'is_active')
+    search_fields = ('value', 'label')
+    ordering = ('position', 'id')

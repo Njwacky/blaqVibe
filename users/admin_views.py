@@ -10,8 +10,14 @@ from django_ratelimit.decorators import ratelimit
 from django.db.models.functions import TruncDate
 
 from .decorators import admin_required, superadmin_required
-from .models import Profile, AdminLog, SiteSettings
-from .forms import FooterContactForm
+from .models import AdminLog, FooterContact, Profile
+from .forms import FooterContactFormSet
+from .footer_contacts import (
+    MAX_FOOTER_CONTACTS,
+    kind_guide,
+    next_positions,
+    public_footer_contacts,
+)
 from .charts import daily_bars_chart, h_bars_chart
 from gallery.models import AppProject, AppReport, CloneEvent, ScanJob, Trade
 
@@ -192,36 +198,91 @@ def set_role(request, username):
 @ratelimit(key='user', rate='10/h', method='POST')
 @require_http_methods(['GET', 'POST'])
 def footer_contacts(request):
-    """Let admins maintain the public footer contact methods without a deploy."""
-    site = SiteSettings.get()
+    """Maintain the public footer contact list without a deploy.
+
+    The footer is a LIST of methods, not three fixed fields: a company with two
+    support mailboxes, a WhatsApp number and an X account adds a row for each
+    and saves. Rows are ordered by `position`, can be hidden without being
+    deleted, and the public footer renders whatever is active.
+    """
+    queryset = FooterContact.objects.all()
+
     if request.method == 'POST':
         if getattr(request, 'limited', False):
             messages.error(request, 'Rate limit: try changing footer contacts again in an hour.')
             return redirect('footer_contacts')
 
-        form = FooterContactForm(request.POST, instance=site)
-        if form.is_valid():
-            fields = ('footer_contact_email', 'footer_github_url', 'footer_github_label')
-            # ModelForm validation copies cleaned values onto its instance, so
-            # compare its initial data rather than reading `site` here.
-            changed = [field for field in fields if field in form.changed_data]
-            if changed:
-                form.save()
-                # Keep the audit record useful without copying public contact
-                # values into another table unnecessarily.
+        formset = FooterContactFormSet(request.POST, queryset=queryset)
+        if formset.is_valid():
+            kept = [
+                form for form in formset.forms
+                if form.cleaned_data.get('value') and not form.cleaned_data.get('DELETE')
+            ]
+            if len(kept) > MAX_FOOTER_CONTACTS:
+                messages.error(
+                    request,
+                    f'Keep the footer to {MAX_FOOTER_CONTACTS} contact methods so it stays '
+                    f'readable — remove one to add another.',
+                )
+                return _render_footer_contacts(request, formset)
+
+            added, updated, removed = _save_footer_contacts(formset)
+            if added or updated or removed:
+                # Audit the kinds, not the values: the log must stay useful
+                # without copying public contact details into another table.
                 AdminLog.objects.create(
                     actor=request.user,
                     action='update_footer_contacts',
-                    target=', '.join(field.removeprefix('footer_') for field in changed),
+                    target=_footer_audit_target(added, updated, removed),
                 )
-                messages.success(request, 'Footer contact details updated.')
+                messages.success(request, 'Footer contacts updated.')
             else:
                 messages.info(request, 'No footer contact changes to save.')
             return redirect('footer_contacts')
     else:
-        form = FooterContactForm(instance=site)
+        formset = FooterContactFormSet(
+            queryset=queryset,
+            initial=[{'position': position} for position in next_positions(2)],
+        )
 
-    return render(request, 'users/footer_contacts.html', {'form': form})
+    return _render_footer_contacts(request, formset)
+
+
+def _save_footer_contacts(formset):
+    """Apply the formset. Returns (added, updated, removed) for the audit log.
+
+    commit=False is used so deletions are handled here, in one place, instead
+    of being a side effect of save() that the audit summary cannot see.
+    """
+    # save() is what populates deleted_objects (and it deletes nothing while
+    # commit is False), so it has to run before the removals are counted.
+    instances = formset.save(commit=False)
+    removed = list(formset.deleted_objects)
+    added = [instance for instance in instances if instance.pk is None]
+    updated = [instance for instance in instances if instance.pk is not None]
+    for instance in instances:
+        instance.save()
+    for instance in removed:
+        instance.delete()
+    return added, updated, removed
+
+
+def _footer_audit_target(added, updated, removed):
+    parts = []
+    for verb, rows in (('added', added), ('updated', updated), ('removed', removed)):
+        if rows:
+            kinds = ', '.join(sorted({row.kind for row in rows}))
+            parts.append(f'{verb}: {kinds}')
+    return '; '.join(parts) or 'no change'
+
+
+def _render_footer_contacts(request, formset):
+    return render(request, 'users/footer_contacts.html', {
+        'formset': formset,
+        'footer_preview': public_footer_contacts(),
+        'kind_guide': kind_guide(),
+        'max_contacts': MAX_FOOTER_CONTACTS,
+    })
 
 
 @admin_required

@@ -170,6 +170,29 @@ python manage.py security_check
 python manage.py security_check --as-production
 ```
 
+## Footer contacts are data, not a template
+
+The public footer's **Contact** column is maintained at `/admin/footer-contacts/`
+(admins and super admins only). It is a list of rows, not three fixed fields:
+
+| Column | What it is |
+| --- | --- |
+| **Type** | Email, Phone, WhatsApp, X (Twitter), GitHub, Instagram, LinkedIn, Telegram, Discord, YouTube, TikTok, Website or Other link |
+| **Address / number / handle** | The value for that type, normalised on save — `082 555 0100` → `+27825550100`, `https://twitter.com/blaqvibes` → the handle `blaqvibes` |
+| **Display text** | Optional. What visitors read instead of the raw address, number or handle |
+| **Order** | Lower numbers show first |
+| **Show** | Untick to hide a method without deleting it |
+| **Remove** | Delete a method that is gone for good |
+
+Two support mailboxes, a WhatsApp line and an X account are four rows — no
+migration, no deploy, no template edit. Blank rows are ignored, and the list is
+cached for five minutes (dropped the moment a row changes).
+
+The link is **built** from the value, never stored, so the footer can only ever
+render `mailto:`, `tel:`, `wa.me`, the network named by the type, or a validated
+`http(s)` URL: a pasted `javascript:` URL is rejected on save, and is ignored
+even if a row bypasses the form.
+
 ## Tests and CI
 
 Run the Django suite locally with:

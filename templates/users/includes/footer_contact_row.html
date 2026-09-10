@@ -1,0 +1,35 @@
+{% comment %}One footer contact method. Used for saved rows AND for the
+formset's empty_form (the "Add another method" button clones that one), which
+is why every field is addressed by its own id rather than by index.{% endcomment %}
+<div class="footer-contact-row{% if form.errors %} footer-contact-row--error{% endif %}" data-contact-row>
+  {{ form.id }}
+  <div class="footer-contact-cell footer-contact-cell--kind">
+    <label for="{{ form.kind.id_for_label }}">Type</label>
+    {{ form.kind }}
+    {% for error in form.kind.errors %}<span role="alert">{{ error }}</span>{% endfor %}
+  </div>
+  <div class="footer-contact-cell footer-contact-cell--value">
+    <label for="{{ form.value.id_for_label }}">Address / number / handle</label>
+    {{ form.value }}
+    {% if not form.value.errors %}<span class="footer-contact-hint" data-contact-hint></span>{% endif %}
+    {% for error in form.value.errors %}<span role="alert">{{ error }}</span>{% endfor %}
+  </div>
+  <div class="footer-contact-cell footer-contact-cell--label">
+    <label for="{{ form.label.id_for_label }}">Display text</label>
+    {{ form.label }}
+    {% for error in form.label.errors %}<span role="alert">{{ error }}</span>{% endfor %}
+  </div>
+  <div class="footer-contact-cell footer-contact-cell--position">
+    <label for="{{ form.position.id_for_label }}">Order</label>
+    {{ form.position }}
+    {% for error in form.position.errors %}<span role="alert">{{ error }}</span>{% endfor %}
+  </div>
+  <div class="footer-contact-cell footer-contact-cell--flag">
+    <label for="{{ form.is_active.id_for_label }}">Show</label>
+    {{ form.is_active }}
+  </div>
+  <div class="footer-contact-cell footer-contact-cell--delete">
+    <label for="{{ form.DELETE.id_for_label }}">Remove</label>
+    {{ form.DELETE }}
+  </div>
+</div>

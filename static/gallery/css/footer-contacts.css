@@ -104,9 +104,85 @@
   font-size: 12px;
   font-weight: 700;
 }
+/* --- Contact method rows --------------------------------------------------
+   5 Whys: why a grid of rows instead of one field per contact method?
+   1. Why rows? The list is data now — a company with two support mailboxes
+      and a WhatsApp number adds rows, it does not wait for a migration.
+   2. Why a fixed track per column? Type/value/label/order/show/remove is a
+      known set, so every row lines up under the one above it; auto-fit would
+      reflow each row differently as kinds change.
+   3. Why a visible label per cell and no header row? The grid collapses to
+      two columns on a phone and the cells re-pair — a header row could not
+      follow them, per-cell labels can.
+   4. Why is Order a number box? Drag-and-drop needs a fallback for keyboard
+      and screen readers; a number is exact, and rows are appended at
+      max+10 by JS so adding one never disturbs the existing order.
+   5. Why the 6th column (Remove)? Hiding a method (Show) and deleting it are
+      different intentions — untick for a channel you will monitor again,
+      remove for one that is gone. */
+.footer-contact-rows { display: flex; flex-direction: column; gap: 12px; }
+.footer-contact-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1.5fr) minmax(0, 1.2fr) 76px 60px 68px;
+  align-items: end;
+  gap: 10px 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+}
+.footer-contact-row--error { border-color: var(--danger-border); }
+.footer-contact-row--removed { opacity: .5; }
+.footer-contact-cell { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.footer-contact-cell label {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.footer-contact-cell .field-input { width: 100%; box-sizing: border-box; padding: 8px 10px; font-size: 13px; }
+.footer-contact-cell .footer-contact-check { width: 16px; height: 16px; margin: 4px 0 8px; }
+.footer-contact-cell span,
+.footer-contact-hint {
+  margin: 0;
+  color: var(--muted);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+.footer-contact-cell span[role="alert"] { color: var(--danger-text); }
+.footer-contact-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 16px;
+}
+.footer-contact-count { color: var(--muted); font-size: 11px; }
+.footer-contact-preview {
+  margin-top: 26px;
+  border-top: 1px solid var(--line);
+  padding-top: 18px;
+}
+.footer-contact-preview h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+}
+.footer-contact-preview ul { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.footer-contact-preview li { display: flex; align-items: baseline; gap: 7px; font-size: 12.5px; }
+.footer-contact-preview a { color: var(--text); font-weight: 700; }
+.footer-contact-preview__href { color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10.5px; overflow-wrap: anywhere; }
+.footer-contact-preview__empty { margin: 10px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+@media (max-width: 860px) {
+  .footer-contact-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .footer-contact-cell--value { grid-column: 1 / -1; }
+}
 @media (max-width: 600px) {
   .footer-contacts-page { width: calc(100% - 28px); padding-top: 24px; }
   .footer-contacts-heading { flex-direction: column; gap: 14px; }
   .footer-contacts-fields { grid-template-columns: minmax(0, 1fr); }
   .footer-contacts-field:first-child { grid-column: auto; }
+  .footer-contact-row { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 10px; }
+  .footer-contact-cell--value { grid-column: auto; }
 }
