@@ -2,7 +2,7 @@
 {% load static %}
 {% load today_tags %}
 {% block head %}
-<link rel="stylesheet" href="{% static 'gallery/css/feed.css' %}?v=builder-loop-20260909">
+<link rel="stylesheet" href="{% static 'gallery/css/feed.css' %}?v=builder-loop-20260910">
 {% endblock %}
 {% block content %}
 <div class="page">
@@ -25,9 +25,11 @@
   <form id="grid" method="get" class="filter-bar" style="margin-top:10px">
     <input class="filter-search" type="text" name="q" value="{{ q }}" placeholder="Search projects, builders, stacks..." aria-label="Search projects" />
     {% if program_kind %}<input type="hidden" name="program" value="{{ program_kind }}" />{% endif %}{% if runnable == '1' %}<input type="hidden" name="runnable" value="1" />{% endif %}
-    <select name="category" aria-label="Category"><option value="">All Categories</option>{% for c in categories %}<option value="{{ c.slug }}" {% if cat == c.slug %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select>
-    <select name="sort" aria-label="Sort"><option value="newest" {% if sort == "newest" %}selected{% endif %}>Newest</option><option value="trending" {% if sort == "trending" %}selected{% endif %}>Trending</option><option value="stars" {% if sort == "stars" %}selected{% endif %}>Most stars</option></select>
-    <label class="filter-check" title="Only verified — virus clean, no secrets"><input type="checkbox" name="trust" value="verified" {% if trust == 'verified' %}checked{% endif %} /> 🛡️ Checked only</label>
+    <div class="filter-controls">
+      <select name="category" aria-label="Category"><option value="">All Categories</option>{% for c in categories %}<option value="{{ c.slug }}" {% if cat == c.slug %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select>
+      <select name="sort" aria-label="Sort"><option value="newest" {% if sort == "newest" %}selected{% endif %}>Newest</option><option value="trending" {% if sort == "trending" %}selected{% endif %}>Trending</option><option value="stars" {% if sort == "stars" %}selected{% endif %}>Most stars</option></select>
+      <label class="filter-check" title="Only verified — virus clean, no secrets"><input type="checkbox" name="trust" value="verified" {% if trust == 'verified' %}checked{% endif %} /> 🛡️ Checked only</label>
+    </div>
     <span class="filter-actions"><button class="btnW" type="submit">Search</button><a href="{% url 'feed' %}" class="btnG">Reset</a></span>
   </form>
 
