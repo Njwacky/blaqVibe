@@ -16,8 +16,20 @@ python manage.py test gallery users
 # public host (DEBUG off, no dev posture). This is what catches a future edit
 # that quietly leaves SECURE_SSL_REDIRECT / HSTS / the dev SECRET_KEY reachable.
 # A throwaway key only — security_check never uses it for anything.
-DEBUG=0 DJANGO_LOCAL_DEV=0 SEED_DEMO=0 RATELIMIT_ENABLE=1 \
+#
+# The other three env vars describe a real public host, because without them
+# the gate fails on its own fixtures rather than on the edit under test:
+#   DATABASE_URL  — no URL means SQLite, which is now a data-loss ERROR;
+#   EMAIL_BACKEND — the default is the console backend, which the gate is
+#                   supposed to flag on a public host, not on the runner;
+#   E2B_SANDBOX   — the Arena preview posture injects plaintext localhost
+#                   origins and a console mailer; a public host has neither.
+# Nothing connects to any of it — security_check reads configuration only.
+env -u E2B_SANDBOX -u DJANGO_PREVIEW \
+  DEBUG=0 DJANGO_LOCAL_DEV=0 SEED_DEMO=0 RATELIMIT_ENABLE=1 \
   SECRET_KEY='ci-only-production-posture-placeholder-please-never-reuse-07070A' \
+  DATABASE_URL='postgresql://ci:ci@localhost:5432/blaqvibes?sslmode=require' \
+  EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend' \
   python manage.py security_check
 
 # The seeder must stay refused in production posture. If this ever prints

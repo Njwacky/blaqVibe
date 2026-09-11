@@ -142,6 +142,27 @@ class Command(BaseCommand):
         if getattr(settings, 'AWS_DEFAULT_ACL', None):
             add(f"AWS_DEFAULT_ACL={settings.AWS_DEFAULT_ACL!r} — canned ACLs are how the media bucket goes public.")
 
+        # Where does the data actually live? On a PaaS the container
+        # filesystem is replaced on every deploy and the image runs `migrate`
+        # on boot, so "no DATABASE_URL" produces a site that looks healthy
+        # and starts EMPTY every time. That is data loss, not a style nit —
+        # which is why it is an ERROR in a production posture and not a
+        # warning. An operator who really does run SQLite on a persistent
+        # volume acknowledges it once with DB_SQLITE_ACK=1.
+        engine = ((getattr(settings, 'DATABASES', {}) or {}).get('default', {}) or {}).get('ENGINE', '')
+        if production and engine.endswith('sqlite3'):
+            message = (
+                'the database is SQLite, not managed Postgres — DATABASE_URL is unset. '
+                'On Render/Fly/Heroku/Cloud Run the filesystem is replaced on every '
+                'deploy, so the database starts EMPTY each time. Set DATABASE_URL to a '
+                'Postgres URL (Supabase, Neon, RDS) before taking real uploads.'
+            )
+            if os.getenv('DB_SQLITE_ACK', '').strip() == '1':
+                warnings.append(f'{message} (acknowledged with DB_SQLITE_ACK=1 — only correct '
+                                f'on a persistent volume)')
+            else:
+                add(message)
+
         if production and dev:
             warnings.append('audited as production, but this process is a dev posture '
                             '(DEBUG=1 or DJANGO_LOCAL_DEV=1).')

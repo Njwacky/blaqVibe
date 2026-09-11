@@ -1,4 +1,5 @@
 from pathlib import Path
+import logging
 import os
 import sys
 from dotenv import load_dotenv
@@ -402,17 +403,129 @@ TEMPLATES = [{
 }]
 WSGI_APPLICATION = 'blaqvibes.wsgi.application'
 
+# ---------------------------------------------------------------------------
+# Database — and the one failure mode that silently loses everything.
+#
+# DATABASE_URL is the single switch that decides whether this app's data
+# survives a deploy. With a managed Postgres URL it does. Without one the app
+# falls back to SQLite in the CONTAINER'S OWN FILESYSTEM, and on a PaaS
+# (Render, Fly, Heroku, Cloud Run) that filesystem is replaced on every
+# deploy, restart and scale event — while the image's `migrate` cheerfully
+# re-creates an empty schema. The site comes up healthy and empty, which is
+# why this never looks like an error until the data is already gone.
+#
+# Three things hold the line: this comment, the boot warning below, and
+# `manage.py security_check` (an ERROR in a production posture). `manage.py
+# dbcheck` answers "where does my data actually live?" in one command.
+# ---------------------------------------------------------------------------
+_PG_ENGINE = 'django.db.backends.postgresql'
+_MYSQL_ENGINE = 'django.db.backends.mysql'
+
+# Hosts where a loopback/private connection is expected (local dev and the
+# compose service name `db`). Used to decide whether to apply DB_SSLMODE.
+_LOCAL_DB_HOSTS = frozenset({
+    '', 'localhost', '127.0.0.1', '::1', '0.0.0.0',
+    'db', 'postgres', 'database', 'host.docker.internal',
+})
+
+# libpq connection parameters we hand straight to psycopg. Deliberately
+# EXCLUDES dbname/user/password/host/port: those come from the URL's
+# authority, so a stray parameter can never silently point the app at a
+# different server or role than the URL names.
+_PG_URL_PARAMS = frozenset({
+    'sslmode', 'sslrootcert', 'sslcert', 'sslkey', 'sslcrl', 'sslcrldir', 'sslsni',
+    'connect_timeout', 'application_name', 'options', 'channel_binding',
+    'target_session_attrs', 'gssencmode', 'tcp_user_timeout',
+    'keepalives', 'keepalives_idle', 'keepalives_interval', 'keepalives_count',
+    'client_encoding', 'replication', 'gsslib', 'krbsrvname',
+})
+
+# Parameters a hosting dashboard puts in the URL for OTHER clients. They are
+# hints, not libpq options, and psycopg aborts the whole connection with
+# "invalid connection option" if one is passed through — so a URL copied out
+# of the Supabase/Neon/Prisma dashboard has to have them dropped to work.
+_PG_URL_HINTS = frozenset({
+    'supa',            # Supavisor routing hint (Supabase adds it for IPv4)
+    'pgbouncer',       # Prisma's pooler flag
+    'prepare_threshold',  # psycopg-level; Django decides this one itself (see below)
+    'connection_limit', 'pool_timeout', 'pgbouncer_timeout',
+    'search_path', 'schema', 'ssl_verify_cert', 'sslaccept', 'connect_retries',
+})
+
+# sslmode values libpq accepts.
+_SSLMODES = frozenset({'disable', 'allow', 'prefer', 'require', 'verify-ca', 'verify-full'})
+# Values other clients accept and libpq does not. Mapped instead of crashing:
+# a boot failure over a two-word spelling difference is not a security win.
+_SSLMODE_ALIASES = {
+    'no-verify': 'require', 'noverify': 'require', 'required': 'require',
+    'true': 'require', '1': 'require', 'yes': 'require', 'on': 'require',
+    'false': 'disable', '0': 'disable', 'no': 'disable', 'off': 'disable',
+}
+
+
+def _pg_options_from_query(query: str) -> dict:
+    """DATABASE_URL query string → psycopg OPTIONS. Never raises, never guesses.
+
+    Unknown keys are DROPPED with a log line rather than passed through:
+    psycopg validates connection options strictly, so one unrecognised
+    parameter would otherwise take the process down at boot.
+    """
+    from urllib.parse import parse_qsl
+    log = logging.getLogger(__name__)
+    options = {}
+    try:
+        pairs = parse_qsl(query or '', keep_blank_values=True)
+    except Exception:
+        log.warning('DATABASE_URL query string could not be parsed — ignoring it')
+        return options
+    for raw_key, raw_value in pairs:
+        key = (raw_key or '').strip().lower()
+        value = (raw_value or '').strip()
+        if not key:
+            continue
+        if key == 'ssl':
+            # Rails/Heroku spelling. Only a default: an explicit sslmode wins.
+            if value.lower() in ('true', '1', 'yes', 'on'):
+                options.setdefault('sslmode', 'require')
+            elif value.lower() in ('false', '0', 'no', 'off'):
+                options.setdefault('sslmode', 'disable')
+            else:
+                log.warning('DATABASE_URL ssl=%r is not a yes/no value — ignored', value)
+            continue
+        if key in _PG_URL_HINTS:
+            log.info('DATABASE_URL parameter %r is a client hint, not a libpq option — ignored', key)
+            continue
+        if key not in _PG_URL_PARAMS:
+            log.warning('DATABASE_URL parameter %r is not a libpq connection option — ignored', key)
+            continue
+        if key == 'sslmode':
+            lowered = value.lower()
+            if lowered not in _SSLMODES:
+                mapped = _SSLMODE_ALIASES.get(lowered)
+                if mapped is None:
+                    log.warning('DATABASE_URL sslmode=%r is not a libpq mode — left at libpq default', value)
+                    continue
+                log.info('DATABASE_URL sslmode=%r mapped to %r for libpq', value, mapped)
+                lowered = mapped
+            value = lowered
+        options[key] = value
+    return options
+
+
+DB_SSLMODE = os.getenv('DB_SSLMODE', '').strip().lower()
+
+
 def _db_from_url(url: str):
     from urllib.parse import urlparse, unquote
     parsed = urlparse(url)
     scheme = (parsed.scheme or '').split('+')[0]
     if scheme.startswith('postgres'):
-        engine = 'django.db.backends.postgresql'
+        engine = _PG_ENGINE
     elif scheme.startswith('mysql'):
-        engine = 'django.db.backends.mysql'
+        engine = _MYSQL_ENGINE
     else:
         engine = 'django.db.backends.sqlite3'
-    return {
+    config = {
         'ENGINE': engine,
         'NAME': unquote(parsed.path.lstrip('/')),
         'USER': unquote(parsed.username or ''),
@@ -420,12 +533,62 @@ def _db_from_url(url: str):
         'HOST': parsed.hostname or '',
         'PORT': str(parsed.port or ''),
     }
+    if engine == 'django.db.backends.sqlite3':
+        # SQLAlchemy-style paths, which is how people write these:
+        #   sqlite:///db.sqlite3        → relative to the working directory
+        #   sqlite:////srv/data/db.sqlite3 → absolute (`//` = authority slash)
+        # The generic lstrip above eats the leading slash of the absolute
+        # form, which would silently point Django at a different file.
+        name = unquote(parsed.path or '')
+        config['NAME'] = name[1:] if name.startswith('//') else name.lstrip('/')
+    if engine == _PG_ENGINE:
+        options = _pg_options_from_query(parsed.query)
+        # DB_SSLMODE is the explicit lever for "this database must be
+        # encrypted". It never fires for a local/compose host, so pointing
+        # the app at a local Postgres does not suddenly demand TLS.
+        if DB_SSLMODE and 'sslmode' not in options and parsed.hostname not in _LOCAL_DB_HOSTS:
+            options['sslmode'] = DB_SSLMODE
+        if options:
+            config['OPTIONS'] = options
+    return config
 
 DATABASE_URL = os.getenv('DATABASE_URL', '')
 if DATABASE_URL:
     DATABASES = {'default': _db_from_url(DATABASE_URL)}
 else:
     DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'db.sqlite3'}}
+
+# Persistent connections + liveness checks.
+#
+# Django's default (0) opens a fresh TCP + TLS connection for every request.
+# Against a database that is a network hop away that is the handshake twice
+# per page (session, then query). A managed Postgres also closes idle
+# connections on its own schedule, so a cached connection can be dead on
+# arrival — CONN_HEALTH_CHECKS makes Django test and replace it instead of
+# raising a 500 the user sees. 60s stays under every pooler's idle timeout
+# and still removes the handshake from the interaction path. DB_CONN_MAX_AGE=0
+# restores Django's default. SQLite stays 0: there is no network to amortise.
+try:
+    DB_CONN_MAX_AGE = int(
+        os.getenv('DB_CONN_MAX_AGE', '') or (60 if DATABASES['default']['ENGINE'] == _PG_ENGINE else 0)
+    )
+except ValueError:
+    DB_CONN_MAX_AGE = 0
+DATABASES['default']['CONN_MAX_AGE'] = DB_CONN_MAX_AGE
+if DATABASES['default']['ENGINE'] == _PG_ENGINE:
+    DATABASES['default']['CONN_HEALTH_CHECKS'] = True
+
+if not LOCAL_DEV and DATABASES['default']['ENGINE'].endswith('sqlite3'):
+    # One loud line at boot. This is the difference between "the site is up"
+    # and "the site is up with everybody's data thrown away", and the log is
+    # the only place it can be said before an operator sets DATABASE_URL.
+    logging.getLogger(__name__).warning(
+        'DATABASE_URL is unset — running on SQLite (%s). On any host that '
+        'replaces the container filesystem (Render, Fly, Heroku, Cloud Run) '
+        'the database starts EMPTY after every deploy. Point DATABASE_URL at '
+        'a managed Postgres; see .env.example.',
+        DATABASES['default']['NAME'],
+    )
 
 REDIS_URL = os.getenv('REDIS_URL', '')
 if REDIS_URL and (not LOCAL_DEV or os.getenv('USE_REDIS', '0') == '1'):

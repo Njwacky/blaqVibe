@@ -103,6 +103,13 @@ class Command(BaseCommand):
         env = os.environ.copy()
         if self.db.get('PASSWORD'):
             env['PGPASSWORD'] = self.db['PASSWORD']
+        # pg_dump talks to the same server Django does, so it must inherit the
+        # same TLS requirement: with sslmode=require the dump is encrypted or
+        # it fails, instead of quietly falling back to plaintext the way
+        # libpq's own default (prefer) would.
+        sslmode = (self.db.get('OPTIONS') or {}).get('sslmode')
+        if sslmode:
+            env['PGSSLMODE'] = str(sslmode)
         cmd = ['pg_dump', '--format=custom', '--no-owner', '--no-privileges']
         if self.db.get('HOST'):
             cmd += ['--host', self.db['HOST']]

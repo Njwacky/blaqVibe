@@ -3909,6 +3909,15 @@ class SecurityCheckCommandTests(SimpleTestCase):
         'SECRET_KEY': 'p' * 60,
         'ALLOWED_HOSTS': ['blaqvibes.co.za'],
         'CSRF_TRUSTED_ORIGINS': ['https://blaqvibes.co.za'],
+        # A hardened public host is on managed Postgres: without it the
+        # container filesystem (and the whole database) is replaced on every
+        # deploy. `security_check` treats SQLite-in-production as an ERROR,
+        # so "hardened" cannot be expressed without naming a real database.
+        'DATABASES': {'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': 'postgres', 'USER': 'postgres', 'PASSWORD': 'p',
+            'HOST': 'db.example.com', 'PORT': '5432',
+        }},
         'SECURE_SSL_REDIRECT': True, 'SECURE_HSTS_SECONDS': 31_536_000,
         'SECURE_HSTS_INCLUDE_SUBDOMAINS': True, 'SECURE_CONTENT_TYPE_NOSNIFF': True,
         'SECURE_REFERRER_POLICY': 'same-origin', 'SECURE_CROSS_ORIGIN_OPENER_POLICY': 'same-origin',
