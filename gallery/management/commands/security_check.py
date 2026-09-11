@@ -1,6 +1,7 @@
 """`python manage.py security_check` — is this process fit to face the public internet?
 """
 import os
+import re
 
 from django.conf import settings
 from django.core.management.base import BaseCommand
@@ -8,6 +9,13 @@ from django.core.management.base import BaseCommand
 DEV_SECRET_KEY = 'django-insecure-blaqvibes-dev-key-change-in-prod-07070A'
 DEV_HOST_SUFFIXES = ('.e2b.app', '.e2b.dev', 'localhost', '127.0.0.1', '0.0.0.0', 'testserver')
 MIN_HSTS_SECONDS = 1_555_200  # 180 days
+# A broker URL that can only reach the machine itself: right on one box that
+# genuinely runs Redis there, unreachable from a container or PaaS web process.
+# Anchored so a hostname merely *containing* "localhost" is not a finding.
+LOCAL_BROKER_RE = re.compile(
+    r'^rediss?://(?:[^@/]*@)?(?:localhost|127\.0\.0\.1|0\.0\.0\.0|\[?::1\]?)(?::\d+)?(?:/|$)',
+    re.IGNORECASE,
+)
 
 class Command(BaseCommand):
     help = (
@@ -131,6 +139,42 @@ class Command(BaseCommand):
         if production and email_backend == 'django.core.mail.backends.console.EmailBackend':
             add('EMAIL_BACKEND is the console backend — verification, password-reset, and account mail '
                 'will be written to application logs instead of delivered. Configure a real SMTP/API backend.')
+
+        # Background work. The scan pipeline is the only path to `published`,
+        # and finalize_publish deliberately holds a vibe in `pending` forever
+        # when nothing drains its queue — so a public host with no reachable
+        # broker does not fail loudly, it just stops shipping. settings derives
+        # the broker from REDIS_URL and *guesses* localhost when it is unset,
+        # which is the same inference-by-default that used to decide LOCAL_DEV.
+        if production:
+            if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
+                add('CELERY_TASK_ALWAYS_EAGER is on — every upload scan (90s soft / 120s hard limit, '
+                    'hostile ZIPs included) runs inside the web request that queued it. Clear '
+                    'CELERY_EAGER and run `celery -A blaqvibes worker -Q scan`.')
+            elif not getattr(settings, 'REDIS_URL', ''):
+                inferred = getattr(settings, 'CELERY_BROKER_URL', '') or 'redis://localhost:6379/0'
+                add(f'REDIS_URL is unset, so the Celery broker is inferred as {inferred} — on a public '
+                    'host nothing consumes that queue and every upload sits in "pending". Set REDIS_URL '
+                    '(docker-compose ships redis://redis:6379/0, a managed deploy the provider URL).')
+            elif LOCAL_BROKER_RE.match(getattr(settings, 'CELERY_BROKER_URL', '') or ''):
+                warnings.append(
+                    'REDIS_URL points at localhost — fine on a single box that really runs Redis there, '
+                    'wrong in a container or PaaS web process, where the scan queue is unreachable and '
+                    'uploads never publish.')
+
+        # Database engine. settings fall back to a file-backed SQLite whenever
+        # DATABASE_URL is unset, which is exactly what a "just deploy it" host
+        # ends up running. compose ships Postgres for web/worker/beat, so this
+        # is a misconfiguration, not a supported topology: one writer per
+        # database means every publish/scan transaction queues behind the
+        # others, `backup_db` degrades to copying a live file, and the search
+        # path loses the Postgres-side indexes it was written for.
+        if production:
+            engine = (settings.DATABASES.get('default', {}) or {}).get('ENGINE', '') or ''
+            if engine.endswith('sqlite3'):
+                add('DATABASES["default"] is SQLite on a public host — set DATABASE_URL to the '
+                    'Postgres docker-compose ships (single writer: publishes and scans queue, '
+                    'and the backup job can only copy a file it is still writing to).')
 
         # Object storage: privacy is a private bucket + signed URLs. A custom
         # domain turns every FileField.url into a public object.

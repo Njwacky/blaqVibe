@@ -108,10 +108,12 @@ workflow — that is what makes it evidence rather than a label.
 
 - Landing rails (unfiltered feed only): trending/new, fresh remixes, rising
   creators, suggested creators, weekly activity line.
-- Authenticated builders additionally get **BUILDER PULSE** (“What are people
-  building?”): recently built across the network, worth-remixing from
+- Authenticated builders additionally get **TODAY ON BLAQVIBES** (“What are
+  people building?”): recently built across the network, worth-remixing from
   followed creators, your latest project, unread signal — cached *per user*,
-  never leaking across users.
+  never leaking across users. It renders only on the unfiltered feed, like the
+  rails above it; the phrase “Builder pulse” now labels the weekly activity
+  line under the pager, so tests key on the rail's markup, not on either label.
 - Daily challenges give a concrete reason to return; the loop footer reads
   *Build → Show → Remix → Compete*.
 

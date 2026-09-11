@@ -140,12 +140,20 @@ class FollowAndFollowingTabTests(TestCase):
         """The Today loop links the creator's own vibes and followed creators'
         work. On a search or the Following tab that would put cards on the
         page the active filter excluded, so it is a landing-page-only rail
-        (same rule as trending / rising creators)."""
+        (same rule as trending / rising creators).
+
+        The rail is keyed on its own markup (`{% if unfiltered %}{% today_loop %}`),
+        not on copy: the eyebrow it renders now says "TODAY ON BLAQVIBES", while
+        the string 'BUILDER PULSE' the test used to assert on has moved to the
+        always-visible weekly activity line below it — asserting on either label
+        would let a rail leak onto a filtered page unnoticed.
+        """
         self.client.force_login(self.alice)
         self.client.post('/u/bob/follow/')
-        self.assertIn('BUILDER PULSE', self.client.get('/').content.decode())
+        marker = 'class="today-loop"'
+        self.assertIn(marker, self.client.get('/').content.decode())
         for url in ('/?q=Zebra', '/?following=1', '/?kind=snippet', '/?sort=stars&q=x'):
-            self.assertNotIn('BUILDER PULSE', self.client.get(url).content.decode(), url)
+            self.assertNotIn(marker, self.client.get(url).content.decode(), url)
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-engagement-tests')
 class DailyChallengeTests(TestCase):
@@ -439,12 +447,35 @@ class RemixHistoryTests(TestCase):
         response = self.client.post(f'/app/{self.root.slug}/fork/')
         return response
 
-    def test_fork_creates_a_published_child(self):
+    def test_fork_never_reaches_the_feed_unscanned_and_publishes_after_review(self):
+        """A fork is a *pending child*, not an instant publication.
+
+        `fork_vibe` hands the copy to the same pipeline an upload goes through,
+        and `finalize_publish` refuses to auto-publish a clean scan for an
+        account without three published projects ("never auto-publish those").
+        The contract this test used to assert — fork, then read it on the feed
+        — would be asserting a scan bypass, so it now asserts both halves.
+        """
         response = self._fork()
         self.assertIn(response.status_code, (200, 302))
         fork = AppProject.objects.filter(forked_from=self.root).first()
         self.assertIsNotNone(fork)
         self.assertEqual(fork.owner, self.forker)
+        self.assertEqual(fork.status, 'pending')
+        # Not published, so not on the landing feed either — pending work only
+        # ever shows to its owner, on /my-vibes/.
+        self.assertNotIn(fork.title, self.client.get('/').content.decode())
+
+        # The honest path onto the feed: three published projects make the
+        # account auto-approvable, and a clean ClamAV report is what publishes.
+        for i in range(3):
+            published_zip(make_project(self.forker, self.cat, title=f'Warm-up {i}'))
+        fork.scan_report = {'clamav': 'clean'}
+        fork.save(update_fields=['scan_report'])
+        from gallery.tasks import finalize_publish
+        finalize_publish.run(fork.pk)
+        fork.refresh_from_db()
+        self.assertEqual(fork.status, 'published')
         self.assertIn(fork.title, self.client.get('/').content.decode())
 
     def test_fork_network_is_public_for_a_published_root(self):

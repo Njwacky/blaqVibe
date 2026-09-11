@@ -60,7 +60,9 @@ Every item below closes one side of that loop.
 ### 3.4 CI that actually runs
 *(new: `.github/workflows/ci.yml`)*
 
-Runs on every push/PR: migrate → seed → **all gallery+users tests** → `security_check` in production posture → asserts `seed_demo` refuses to run on a public posture → verifies `/healthz` and `/readyz` respond. 5-minute feedback instead of "it worked on my machine".
+Runs on every push/PR: `security_check` in production posture (`--strict`, zero findings) → `security_check` **refusing** the shipped defaults a deploy inherits (console mailer, SQLite, inferred localhost broker) → asserts `seed_demo` refuses to run on a public posture → migrate → seed → **all gallery+users tests** → verifies `/healthz` and `/readyz` respond. 5-minute feedback instead of "it worked on my machine".
+
+The three gates deliberately run *before* the suite. `scripts/ci.sh` is `set -e`, so while any test was red the hardening gates below it never executed at all — a suite that fails for unrelated reasons silently turns "CI is green-ish, the audit step probably ran" into "the audit step was skipped". Gates first means a hardening regression is always the first thing a red run says.
 
 ### 3.5 Docker Compose hardening
 *(new: `docker-compose.yml`)*
@@ -102,7 +104,7 @@ Fail-closed design: it **refuses** in-memory databases (a backup that hangs/corr
 | "Site is slow / alerts on readyz" | `curl -s localhost:8000/readyz` → DB or queue detail. Check DB connections, Redis memory. |
 | Load balancer restarts web | `curl -s localhost:8000/healthz`; if it fails the process is dead — read `docker compose logs web`. |
 | Uploads never finish scanning | `docker compose logs celery` — the scan queue job exists? Redis reachable? ClamAV installed? |
-| Bad deploy | `bash scripts/ci.sh` locally first. CI already gates migrate/seed/tests/hardening on PR. |
+| Bad deploy | `bash scripts/ci.sh` locally first. CI gates hardening first, then migrate/seed/tests, on every PR. |
 | I changed a model | New migration + run the full suite; CI does not merge red. |
 | Accidentally broke data | `python manage.py backup_db` nightly; restore from `backups/`. Then find why (append-only logs, admin dashboard). |
 | Need to take the site down | Superadmin → `/admin/dashboard/` → maintenance ON. /healthz and /readyz stay alive for monitoring. |
@@ -112,7 +114,7 @@ Fail-closed design: it **refuses** in-memory databases (a backup that hangs/corr
 ## 5. Recommended next steps (priority order)
 
 1. **Real monitoring for the probes** — Uptime Kuma / Grafana / Pingdom: 5 min check on `/readyz`, alert on 503. This is the cheapest instability insurance.
-2. **Object storage + Postgres in prod** — `DATABASE_URL` to managed Postgres, R2/S3 keys set, so `backup_db` (or the provider's snapshot) covers real data. Currently backups of SQLite are the default.
+2. **Object storage + Postgres in prod** — `DATABASE_URL` to managed Postgres, R2/S3 keys set, so `backup_db` (or the provider's snapshot) covers real data. Currently backups of SQLite are the default. `manage.py security_check` now ERRORs on a SQLite `DATABASES["default"]` in production posture, so skipping this stops being quiet: the gate fails on the host that ships it.
 3. **Scheduled backups off-box** — cron inside the container is fine; an off-box copy (R2 versioning, restic, S3 lifecycle) survives a lost server.
 4. **Celery worker monitoring** — count `ScanJob` rows by status per hour; alert when `pending` age > threshold (abandoned jobs are the top silent failure in queue-based apps).
 5. **Rate limiting + abuse defences on money paths** — `/publish`, trades and purchases already carry limits; add alerting when they trip (that is how farming attempts look).

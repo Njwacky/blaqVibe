@@ -31,10 +31,15 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # Migrate, seed, run the gallery+users suites, then audit the settings
-      # module in production posture (DEBUG off, no dev posture, real header
-      # expectations). scripts/ci.sh exits 1 on any regression.
-      - name: CI checks (migrate, seed, tests, hardened-pose audit)
+      # Audits the settings module in production posture (DEBUG off, no dev or
+      # preview posture, mail + Postgres supplied the way .env.example says a
+      # deploy supplies them), then refuses the shipped dev defaults on a
+      # public host, then asserts seed_demo stays refused. Those three gates
+      # lead the script because it is `set -e`: while a test was red, the suite
+      # line below them aborted the run and the audit never executed.
+      # Then: migrate, seed, the gallery+users suites. scripts/ci.sh exits 1 on
+      # any regression.
+      - name: CI checks (hardening gates, migrate, seed, tests)
         run: bash scripts/ci.sh
 
       - name: Verify ops probes respond

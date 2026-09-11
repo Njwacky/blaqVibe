@@ -625,8 +625,24 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@blaqvibes.co.za')
+# `or` rather than a default argument, because .env.example ships these keys
+# blank: an empty EMAIL_BACKEND would otherwise be handed to import_module('')
+# and take the whole process down at boot, and an empty host/port is a
+# mis-typed deploy, not a decision to talk to `:0`.
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND') or 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL') or 'noreply@blaqvibes.co.za'
+# The console backend is a dev posture: verification, password-reset and
+# receipt mail land in the application log instead of an inbox, which
+# `manage.py security_check` ERRORs on for a public host. The SMTP keys are only
+# read when a real backend is named above — settings.py is the one place the
+# environment becomes Django settings, so they have to be listed here.
+EMAIL_HOST = os.getenv('EMAIL_HOST') or 'localhost'
+EMAIL_PORT = int(os.getenv('EMAIL_PORT') or 587)
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = _env_flag('EMAIL_USE_TLS', default=True)
+# A dead SMTP host must not park a request thread for the OS default (~2 min).
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT') or 10)
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/'
