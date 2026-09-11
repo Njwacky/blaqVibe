@@ -60,7 +60,7 @@ Every item below closes one side of that loop.
 ### 3.4 CI that actually runs
 *(new: `.github/workflows/ci.yml`)*
 
-Runs on every push/PR: `security_check` in production posture → `security_check` **refusing** the shipped defaults (console mailer, SQLite) → asserts `seed_demo` refuses to run on a public posture → migrate → seed → **all gallery+users tests** → verifies `/healthz` and `/readyz` respond. 5-minute feedback instead of "it worked on my machine".
+Runs on every push/PR: `security_check` in production posture (`--strict`, zero findings) → `security_check` **refusing** the shipped defaults a deploy inherits (console mailer, SQLite, inferred localhost broker) → asserts `seed_demo` refuses to run on a public posture → migrate → seed → **all gallery+users tests** → verifies `/healthz` and `/readyz` respond. 5-minute feedback instead of "it worked on my machine".
 
 The three gates deliberately run *before* the suite. `scripts/ci.sh` is `set -e`, so while any test was red the hardening gates below it never executed at all — a suite that fails for unrelated reasons silently turns "CI is green-ish, the audit step probably ran" into "the audit step was skipped". Gates first means a hardening regression is always the first thing a red run says.
 
