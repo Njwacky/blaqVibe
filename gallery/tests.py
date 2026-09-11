@@ -3920,6 +3920,12 @@ class SecurityCheckCommandTests(SimpleTestCase):
         # A public host also supplies its mail transport; the shipped fallback
         # (console mailer) is a finding, so the "clean" fixture names a real one.
         'EMAIL_BACKEND': 'django.core.mail.backends.smtp.EmailBackend',
+        # Same for the scan queue: production runs a worker against a broker
+        # that is reachable from the web process, never eager and never the
+        # inferred localhost.
+        'CELERY_TASK_ALWAYS_EAGER': False,
+        'REDIS_URL': 'redis://redis:6379/0',
+        'CELERY_BROKER_URL': 'redis://redis:6379/0',
     }
 
     # The database is not in HARDENED: `override_settings(DATABASES=...)` makes
@@ -3970,6 +3976,42 @@ class SecurityCheckCommandTests(SimpleTestCase):
         failed, output = self._run('--as-production', SEED_DEMO=True)
         self.assertIsNotNone(failed, output)
         self.assertIn('SEED_DEMO', output)
+
+    def test_production_posture_refuses_an_unreachable_broker(self):
+        # A host that never sets REDIS_URL inherits settings' localhost guess and
+        # then queues every scan into a broker nothing consumes. The app fails
+        # quietly (finalize_publish just holds the vibe pending), which is
+        # exactly why the auditor has to be the loud one.
+        failed, output = self._run('--as-production', REDIS_URL='',
+                                   CELERY_BROKER_URL='redis://localhost:6379/0')
+        self.assertIsNotNone(failed, output)
+        self.assertIn('REDIS_URL is unset', output)
+
+    def test_production_posture_refuses_celery_eager(self):
+        # Eager mode is how a dev box avoids running Redis. On a public host it
+        # runs a hostile 100 MB ZIP scan, up to its 120s hard limit, inside the
+        # gunicorn worker that accepted the upload.
+        failed, output = self._run('--as-production', CELERY_TASK_ALWAYS_EAGER=True)
+        self.assertIsNotNone(failed, output)
+        self.assertIn('CELERY_TASK_ALWAYS_EAGER', output)
+
+    def test_a_localhost_broker_warns_until_strict(self):
+        # One box running Redis on 127.0.0.1 is a real topology, so the finding
+        # is a WARN: printed, not fatal — until --strict, which is how CI runs
+        # it. A hostname that merely contains "localhost" is not a finding.
+        failed, output = self._run('--as-production', REDIS_URL='redis://localhost:6379/0',
+                                   CELERY_BROKER_URL='redis://localhost:6379/0')
+        self.assertIsNone(failed, output)
+        self.assertIn('REDIS_URL points at localhost', output)
+        failed, output = self._run('--as-production', '--strict',
+                                   REDIS_URL='redis://localhost:6379/0',
+                                   CELERY_BROKER_URL='redis://localhost:6379/0')
+        self.assertIsNotNone(failed, output)
+        failed, output = self._run('--as-production',
+                                   REDIS_URL='redis://not-localhost.internal:6379/0',
+                                   CELERY_BROKER_URL='redis://not-localhost.internal:6379/0')
+        self.assertIsNone(failed, output)
+        self.assertNotIn('points at localhost', output)
 
     def test_production_posture_refuses_the_console_mailer(self):
         # settings.py defaults EMAIL_BACKEND to the console backend, so a host
