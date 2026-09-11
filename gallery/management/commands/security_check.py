@@ -132,6 +132,20 @@ class Command(BaseCommand):
             add('EMAIL_BACKEND is the console backend — verification, password-reset, and account mail '
                 'will be written to application logs instead of delivered. Configure a real SMTP/API backend.')
 
+        # Database engine. settings fall back to a file-backed SQLite whenever
+        # DATABASE_URL is unset, which is exactly what a "just deploy it" host
+        # ends up running. compose ships Postgres for web/worker/beat, so this
+        # is a misconfiguration, not a supported topology: one writer per
+        # database means every publish/scan transaction queues behind the
+        # others, `backup_db` degrades to copying a live file, and the search
+        # path loses the Postgres-side indexes it was written for.
+        if production:
+            engine = (settings.DATABASES.get('default', {}) or {}).get('ENGINE', '') or ''
+            if engine.endswith('sqlite3'):
+                add('DATABASES["default"] is SQLite on a public host — set DATABASE_URL to the '
+                    'Postgres docker-compose ships (single writer: publishes and scans queue, '
+                    'and the backup job can only copy a file it is still writing to).')
+
         # Object storage: privacy is a private bucket + signed URLs. A custom
         # domain turns every FileField.url into a public object.
         if getattr(settings, 'AWS_S3_CUSTOM_DOMAIN', ''):

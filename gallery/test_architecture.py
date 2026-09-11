@@ -133,10 +133,16 @@ class DiscoverAndRemixStatsTests(TestCase):
                                    forked_from=self.root, status='pending')
 
     def test_discover_renders_for_a_stranger(self):
+        # The contract is "no login wall between a stranger and the remix
+        # families" — not the label of the rail. Section 02 renders as
+        # "Recently remixed" in discover.html; "Most remixed" survives only in
+        # remix_stats.py's docstring, so pinning that phrase tested nothing
+        # about discoverability. The CTA below is the family entry point.
         response = self.client.get('/discover/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Origin Idea')
-        self.assertContains(response, 'Most remixed')
+        self.assertContains(response, 'Recently remixed')
+        self.assertContains(response, 'Explore the family')
 
     def test_totals_count_originals_remixes_and_depth(self):
         totals = self.client.get('/discover/').context['totals']

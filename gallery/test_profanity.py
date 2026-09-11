@@ -116,7 +116,13 @@ class CommentAndReviewGateTests(TestCase):
             project=self.project, user=self.fan, body='this is fucking broken now',
         )
         page = self.client.get(f'/app/{self.project.slug}/')
-        self.assertContains(page, 'Comments • 1')
+        # views.py annotates comment_count with Count(filter=Q(comments__
+        # is_hidden=False)), so the shipped header reads "COMMENTS · 1" here and
+        # "COMMENTS · 2" the moment the filter is dropped. Both halves of that
+        # are the assertion; the phrase "Comments •" (the spec's draft markup)
+        # was only ever a string the template never had.
+        self.assertContains(page, 'COMMENTS · 1')
+        self.assertNotContains(page, 'COMMENTS · 2')
 
     def test_vulgar_review_is_rejected(self):
         self.client.login(username='fan', password='pass12345')
