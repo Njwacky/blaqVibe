@@ -2,123 +2,93 @@
 {% load static %}
 {% block title %}Publish — BlaqVibes{% endblock %}
 {% block head %}
-<link rel="stylesheet" href="{% static 'gallery/css/publish.css' %}?v=zip-files-20260909">
+<link rel="stylesheet" href="{% static 'gallery/css/publish.css' %}?v=publish-first-20260911">
 {% endblock %}
 {% block content %}
-<div class="publish-page" style="max-width:640px;margin:0 auto;padding:28px 20px 60px">
+<div class="pub-page">
+
+  <header class="pub-head">
+    <h1>Publish your project</h1>
+    <p class="pub-sub">You built something — show it. A quick safety scan runs right after you publish, then it's on the feed.</p>
+  </header>
+
   {% if challenge_tag %}
-  <div style="background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:12px;padding:12px;margin-bottom:16px;display:flex;gap:8px;align-items:center">
-    <span style="font-size:18px">🏆</span>
-    <div style="flex:1;font-size:13px"><b>Challenge Mode:</b> Publishing for <b>#{{ challenge_tag }}</b>. Your project will be tagged automatically.</div>
+  <div class="pub-challenge">
+    <span>🏆</span>
+    <div><b>Challenge Mode:</b> publishing for <b>#{{ challenge_tag }}</b> — the tag is added automatically.</div>
   </div>
   {% endif %}
-  <div style="display:flex;gap:10px;align-items:center;justify-content:center;background:var(--card);border:1px dashed var(--accent-border);border-radius:12px;padding:10px 14px;margin-bottom:12px;font-size:12.5px;color:var(--muted)">Nothing to upload yet? <a href="{% url 'starter_gallery' %}" style="color:var(--accent-text);font-weight:700">✦ Start in your browser instead →</a></div>
-  <div style="display:flex;gap:10px;align-items:flex-start;background:color-mix(in srgb,#7C3AED 9%,var(--card));border:1px solid color-mix(in srgb,#7C3AED 45%,var(--line));border-radius:12px;padding:12px 14px;margin-bottom:16px">
-    <span style="color:var(--launch-text);font-weight:900">↗</span>
-    <div style="font-size:12px;line-height:1.55"><b>This publishes a BlaqVibes listing and safe preview—not a production host or app-store release.</b><div style="color:var(--muted);margin-top:3px">Need a real public URL or store listing? <a href="{% url 'launch_hub' %}" style="color:var(--accent-text);font-weight:700">Find the correct launch path →</a></div></div>
-  </div>
-  <div class="wizard-progress" style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:16px">
-    <div style="display:flex;align-items:center;gap:8px" id="step-ind-1"><div class="step on" data-step="1">1</div><span style="font-size:12px;font-weight:700">Details</span></div>
-    <div style="flex:1;height:2px;background:var(--line)" id="bar-1"></div>
-    <div style="display:flex;align-items:center;gap:8px;opacity:.5" id="step-ind-2"><div class="step" data-step="2">2</div><span style="font-size:12px">Upload</span></div>
-    <div style="flex:1;height:2px;background:var(--line)" id="bar-2"></div>
-    <div style="display:flex;align-items:center;gap:8px;opacity:.5" id="step-ind-3"><div class="step" data-step="3">3</div><span style="font-size:12px">Review</span></div>
-  </div>
 
-  <form method="post" enctype="multipart/form-data" id="wizard-form">
+  <form method="post" enctype="multipart/form-data" id="publish-form" class="pub-card">
     {% csrf_token %}
-    {% if form.errors %}<div style="background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger-text);padding:10px;border-radius:10px;font-size:13px;margin-bottom:12px">{{ form.errors }}</div>{% endif %}
+    {% if form.non_field_errors %}
+    <div class="pub-error" role="alert">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>
+    {% endif %}
 
-    <div class="wizard-step" data-step="1">
-      <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px">
-        <h2 style="font-family:Space Grotesk,sans-serif;font-size:18px">Step 1 — Details</h2>
-        <p style="font-size:12px;color:var(--muted);margin-top:4px">One column, truthful — just tell us what it is.</p>
-        <div style="margin-top:12px;display:grid;gap:12px">
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div><label class="field-label">Title*</label>{{ form.title }}</div>
-            <div><label class="field-label">Category*</label>{{ form.category }}</div>
-          </div>
-          <div>
-            <label class="field-label">What kind of program is this?</label>{{ form.creator_kind }}
-            <div style="font-size:11px;color:var(--muted);margin-top:4px">Everything is welcome here — games, APIs, mobile apps, scripts. Leave it on auto-detect and we work it out from your files. Anything we can’t run in the browser is published with an honest “files only” label.</div>
-          </div>
-          <div><label class="field-label">Short description*</label>{{ form.short_description }}</div>
-          <div><label class="field-label">Problem this Build solves</label>{{ form.problem_statement }}</div>
-          <div><label class="field-label">What you (the human) actually did</label>{{ form.human_did }}</div>
-          <div><label class="field-label">README.md* — min 100 chars, must include heading</label>{{ form.readme }}</div>
-          <div id="readme-preview" class="help" style="display:none;white-space:pre-wrap;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;max-height:160px;overflow:auto"></div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div><label class="field-label">Tech stack</label>{{ form.tech_stack }}</div>
-            <div><label class="field-label">Thumbnail</label>{{ form.thumbnail }}</div>
-          </div>
-          <label style="display:flex;gap:8px;align-items:center;font-size:13px">{{ form.ai_generated }} 🤖 AI-generated</label>
-          {% if challenge %}
-          <div style="background:var(--warning-bg);border:1px solid var(--warning-border);border-radius:10px;padding:10px;display:flex;gap:8px;align-items:center">
-            <input type="checkbox" name="challenge_join" id="challenge_join" style="width:auto" {% if challenge_tag %}checked{% endif %}>
-            <label for="challenge_join" style="flex:1;font-size:12px">Join Challenge — <b style="color:var(--warning-text)">{{ challenge.title }}</b> ({{ challenge.bounty_stars }} ★ bounty, tag #{{ challenge.tag }})<br><span style="color:var(--muted)">{{ challenge.description|truncatechars:80 }}</span></label>
-          </div>
-          {% endif %}
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div><label class="field-label">AI tool</label>{{ form.ai_tool }}</div>
-            <div><label class="field-label">AI prompt</label>{{ form.ai_prompt }}</div>
-          </div>
-          <div><label class="field-label">What AI got wrong (optional)</label>{{ form.ai_got_wrong }}</div>
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-            <div><label class="field-label">If remixed — what changed</label>{{ form.remix_changed }}</div>
-            <div><label class="field-label">If remixed — why</label>{{ form.remix_why }}</div>
-          </div>
-        </div>
-        <div style="margin-top:14px;display:flex;justify-content:flex-end"><button type="button" class="btnV" data-wizard-step="2">Next → Upload</button></div>
-      </div>
+    {# ── 1. Project name ── #}
+    <div class="pub-field">
+      <label class="pub-label" for="id_title">Project name</label>
+      {{ form.title }}
+      {% if form.title.errors %}<div class="pub-error">{{ form.title.errors.0 }}</div>{% endif %}
     </div>
 
-    <div class="wizard-step" data-step="2" style="display:none">
-      <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px">
-        <h2 style="font-family:Space Grotesk,sans-serif;font-size:18px">Step 2 — Upload</h2>
-        <p style="font-size:12px;color:var(--muted);margin-top:4px">Drop ZIP or paste snippet — we auto-block bad files, count files, detect languages.</p>
-        {% if upload_zip %}
-        <div style="background:var(--accent-bg);border:1px solid var(--accent-border);border-radius:10px;padding:10px;margin-bottom:12px;font-size:12px">
-          <b>💡 Challenge Mode:</b> Upload your ZIP file to participate in the challenge.
-        </div>
-        {% endif %}
-        <div style="margin-top:12px;border:1px dashed var(--line);border-radius:12px;padding:14px;background:var(--card);text-align:center">
-          <div style="font-weight:700;font-size:13px">ZIP file (for Full App) — Max 100MB</div>
-          <div style="font-size:11px;color:var(--muted);margin-bottom:10px">Drop a ZIP here or choose from Files. We block .env, .exe, path traversal, and zip bombs.</div>
-          {% include 'gallery/_zip_picker.html' %}
-          <div id="zip-progress" style="display:none;margin-top:10px;height:8px;background:var(--line);border-radius:99px;overflow:hidden"><div id="zip-bar" style="height:100%;width:0;background:#7C3AED"></div></div>
-          <div style="margin-top:10px;display:grid;grid-template-columns:1fr 1fr;gap:12px;text-align:left">
-            <div><label class="field-label">Trade Cost — Stars</label>{{ form.star_cost }}<div style="font-size:11px;color:var(--muted)">0=free, 1=Bronze, 3=Silver</div></div>
-            <div><label class="field-label">Money Price — ZAR</label>{{ form.price_zar }}<div style="font-size:11px;color:var(--muted)">0=free, 50=R50 — you get 85%</div></div>
-          </div>
-        </div>
-        <div style="margin-top:12px;border:1px solid var(--line);border-radius:12px;padding:12px;background:var(--bg)">
-          <div style="font-weight:700;font-size:13px">Or snippet code (for HTML/CSS)</div>
-          <div style="display:grid;gap:8px;margin-top:8px"><label class="field-label">HTML</label>{{ form.html_code }}<label class="field-label">CSS</label>{{ form.css_code }}<label class="field-label">JS (optional)</label>{{ form.js_code }}</div>
-        </div>
-        <div style="margin-top:12px;display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap">
-          <button type="button" class="btnG" data-wizard-step="1">← Back</button>
-          <button type="button" class="btnV" data-wizard-step="3">Next → Review</button>
-        </div>
-      </div>
+    {# ── 2. What did you build? ── #}
+    <div class="pub-field">
+      <label class="pub-label" for="id_short_description">What did you build?</label>
+      {{ form.short_description }}
+      {% if form.short_description.errors %}<div class="pub-error">{{ form.short_description.errors.0 }}</div>{% endif %}
     </div>
 
-    <div class="wizard-step" data-step="3" style="display:none">
-      <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:16px">
-        <h2 style="font-family:Space Grotesk,sans-serif;font-size:18px">Step 3 — Confirm</h2>
-        <p style="font-size:12px;color:var(--muted);margin-top:4px">Check the listing. After publish we scan the ZIP; it goes live only if the scan is clean.</p>
-        <div id="confirm-card" style="margin-top:12px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;font-size:13px;line-height:1.7">
-          <div><b id="c-title">—</b></div>
-          <div class="help" id="c-desc"></div>
-          <div class="help" id="c-meta" style="margin-top:8px"></div>
+    {# ── 3. The project itself — existing upload mechanism ── #}
+    <div class="pub-field">
+      <span class="pub-label" id="zip-picker-label">Your project</span>
+      {% include 'gallery/_zip_picker.html' %}
+      <div id="zip-progress" style="display:none;margin-top:10px;height:8px;background:var(--line);border-radius:99px;overflow:hidden"><div id="zip-bar" style="height:100%;width:0;background:#7C3AED"></div></div>
+      {% if form.zip_file.errors %}<div class="pub-error">{{ form.zip_file.errors.0 }}</div>{% endif %}
+      <details class="pub-snippet" {% if form.html_code.value %}open{% endif %}>
+        <summary type="button">No ZIP? Paste a code snippet instead</summary>
+        <div class="pub-snippet-fields">
+          <label class="pub-mini" for="id_html_code">HTML</label>
+          {{ form.html_code }}
+          <label class="pub-mini" for="id_css_code">CSS <span>(optional)</span></label>
+          {{ form.css_code }}
+          <label class="pub-mini" for="id_js_code">JS <span>(optional)</span></label>
+          {{ form.js_code }}
+          {% if form.html_code.errors %}<div class="pub-error">{{ form.html_code.errors.0 }}</div>{% endif %}
         </div>
-        <div style="margin-top:12px;display:flex;gap:8px;justify-content:space-between">
-          <button type="button" class="btnG" data-wizard-action="start-again">↺ Start Again — Clear Form</button>
-          <button type="button" class="btnG" data-wizard-step="2">← Back</button>
-          <button type="submit" class="btnV">Publish Vibe →</button>
-        </div>
-      </div>
+      </details>
     </div>
+
+    {# ── 4. Build method — one tap, details optional ── #}
+    <fieldset class="pub-field pub-method">
+      <legend class="pub-label">How did you build it?</legend>
+      <div class="method-grid">
+        {% for opt in method_options %}
+        <label class="method-card">
+          <input type="radio" name="build_method" value="{{ opt.value }}" required
+                 {% if form.build_method.value == opt.value %}checked{% endif %}>
+          <span class="method-name">{{ opt.label }}</span>
+          <span class="method-hint">{{ opt.hint }}</span>
+        </label>
+        {% endfor %}
+      </div>
+      {% if form.build_method.errors %}<div class="pub-error">{{ form.build_method.errors.0 }}</div>{% endif %}
+      <p class="pub-hint">One tap is all transparency needs. You can add tool names and details later, any time.</p>
+    </fieldset>
+
+    {% if challenge %}
+    <label class="pub-challenge-join">
+      <input type="checkbox" name="challenge_join" id="challenge_join" {% if challenge_tag %}checked{% endif %}>
+      <span>Join <b>{{ challenge.title }}</b> — {{ challenge.bounty_stars }} ★ bounty, tag #{{ challenge.tag }}</span>
+    </label>
+    {% endif %}
+
+    <button type="submit" class="btn-violet pub-submit">Publish project</button>
+    <p class="pub-fineprint">Publishing adds your project to the public feed after a safety scan. README, details and proof can be added any time — nothing else is required now.</p>
   </form>
+
+  <p class="pub-alt">Nothing to upload yet? <a href="{% url 'starter_gallery' %}">✦ Start in your browser instead</a></p>
+  <p class="pub-alt pub-alt--quiet">This publishes a BlaqVibes listing with a safe preview — not a production host. <a href="{% url 'launch_hub' %}">Find the right launch path →</a></p>
 </div>
-<script src="{% static 'gallery/js/publish.js' %}?v=ext-20260827" defer></script>
+<script src="{% static 'gallery/js/publish.js' %}?v=publish-first-20260911" defer></script>
 {% endblock %}

@@ -1,9 +1,10 @@
 from django import forms
-from .models import AppProject
+from .models import AppProject, Category
 from .validators import validate_zip
 from .prompt_sanitize import sanitize_prompt
 from .profanity import validate_public_text
 from .taxonomy import UPLOAD_KIND_CHOICES, coerce_kind
+from .proof import scaffold_readme
 
 # Phones (especially the installed PWA) open the photo gallery for a bare
 # <input type="file">. A non-image accept list forces Files / Documents
@@ -11,6 +12,25 @@ from .taxonomy import UPLOAD_KIND_CHOICES, coerce_kind
 ZIP_FILE_ACCEPT = (
     '.zip,application/zip,application/x-zip-compressed,application/x-zip'
 )
+
+# The ONE publish-time build-method question. Four taps maximum, no
+# questionnaire: the pick is recorded and the details are invited later.
+# 'remixed' is offered because it is one of BlaqVibes' four canonical build
+# methods, but it can only be *honoured* for a project with a remix parent —
+# lineage is a platform fact, not a self-declared label (see clean()).
+BUILD_METHOD_PUBLISH_CHOICES = [
+    ('human', 'Human-built'),
+    ('ai_assisted', 'AI-assisted'),
+    ('ai_generated', 'AI-generated'),
+    ('remixed', 'Remixed'),
+]
+
+BUILD_METHOD_HINTS = {
+    'human': 'I wrote it myself.',
+    'ai_assisted': 'I built it — AI helped write parts.',
+    'ai_generated': 'AI produced most of it; I directed and checked.',
+    'remixed': 'My version of another builder’s project.',
+}
 
 
 class AppUploadForm(forms.ModelForm):
@@ -29,10 +49,19 @@ class AppUploadForm(forms.ModelForm):
         label='What kind of program is this?',
         help_text='Leave on auto-detect and we will work it out from your files.',
     )
+    # The same one-tap build-method control as the publish form. Optional:
+    # blank keeps the legacy behaviour (derive the label from ai_generated /
+    # ai_tool) so every old flow and old row keeps meaning what it meant.
+    build_choice = forms.ChoiceField(
+        choices=[('', 'Let BlaqVibes detect it')] + BUILD_METHOD_PUBLISH_CHOICES,
+        required=False,
+        label='Build method',
+        help_text='One tap now; details are optional and can be added any time.',
+    )
 
     class Meta:
         model = AppProject
-        fields = ['title','category','creator_kind','short_description','readme','tech_stack','ai_generated','ai_tool','ai_prompt','problem_statement','human_did','ai_got_wrong','remix_changed','remix_why','html_code','css_code','js_code','zip_file','thumbnail','star_cost','price_zar']
+        fields = ['title','category','creator_kind','build_choice','short_description','readme','tech_stack','ai_generated','ai_tool','ai_prompt','problem_statement','human_did','ai_got_wrong','remix_changed','remix_why','html_code','css_code','js_code','zip_file','thumbnail','star_cost','price_zar']
         widgets = {
             'readme': forms.Textarea(attrs={'rows':10, 'placeholder':'# My App\n## What is this?\n## How to Run\n```bash\npip install -r requirements.txt\n```'}),
             'short_description': forms.TextInput(attrs={'placeholder':'One-line what it does'}),
@@ -49,11 +78,11 @@ class AppUploadForm(forms.ModelForm):
             'ai_prompt': 'AI creation notes',
         }
         help_texts = {
-            'ai_generated': 'Be transparent if AI materially helped create this project. This is shown as provenance, not a quality score.',
-            'ai_tool': 'Optional unless you mark the project as AI-assisted. You can name more than one tool.',
-            'ai_prompt': 'Share the useful prompt or workflow when you can. Do not include secrets, API keys, or private data.',
-            'problem_statement': 'Makes the Build evidence, not a dump.',
-            'human_did': 'In an AI world the scarce proof is your judgment.',
+            'ai_generated': 'Shown as provenance, not a quality score. Details below are optional — add them any time.',
+            'ai_tool': 'Optional — naming it strengthens your proof. You can name more than one tool.',
+            'ai_prompt': 'Optional. Share the prompt or workflow when you can. No secrets, API keys, or private data.',
+            'problem_statement': 'Optional — makes the Build evidence, not a dump.',
+            'human_did': 'Optional — in an AI world the scarce proof is your judgment.',
             'ai_got_wrong': 'Turns AI failure into a lesson. Optional.',
             'remix_changed': 'Required in spirit when this is a remix — credit plus delta.',
             'remix_why': 'Learning through continuation.',
@@ -122,14 +151,11 @@ class AppUploadForm(forms.ModelForm):
 
     def clean(self):
         cleaned = super().clean()
-        # AI provenance must be internally consistent. We never ask creators
-        # to hide AI use: marking it requires enough evidence to explain the
-        # origin, while keeping the notes optional for human-built projects.
-        if cleaned.get('ai_generated'):
-            if not (cleaned.get('ai_tool') or '').strip():
-                self.add_error('ai_tool', 'Name the AI tool used so visitors can understand the project provenance.')
-            if not (cleaned.get('ai_prompt') or '').strip():
-                self.add_error('ai_prompt', 'Add a short prompt/workflow note so the AI-assisted origin is verifiable.')
+        # Build method: one tap, mapped onto the recorded facts. Detailed AI
+        # provenance is INVITED (help texts, proof checklist, strengthen
+        # nudges) but never demanded — transparency is the label, not a
+        # questionnaire (see the publish-first principle).
+        apply_build_method(cleaned, self, bool(getattr(self.instance, 'forked_from_id', None)))
         if self.errors.get('zip_file'):
             return cleaned
         zipf = cleaned.get('zip_file')
@@ -143,6 +169,191 @@ class AppUploadForm(forms.ModelForm):
                     'remix_changed',
                     'Say what you changed. Remix without a delta is just a copy.',
                 )
+        return cleaned
+
+
+def apply_build_method(cleaned, form, has_fork_parent):
+    """Map the ONE build-method pick onto the model's recorded facts.
+
+    Shared by QuickPublishForm (field `build_method`) and AppUploadForm
+    (field `build_choice`) so both surfaces mean exactly the same thing.
+
+    - human        → clears AI records (a later-named ai_tool still upgrades
+                     the label — evidence beats claim, never the reverse)
+    - ai_assisted  → stored as the creator's explicit claim
+    - ai_generated → also sets the legacy ai_generated flag
+    - remixed      → honoured only with a real fork parent; otherwise a
+                     gentle, actionable error (lineage is platform-written)
+    - blank        → legacy: derive from the plain ai_generated checkbox
+    """
+    field_name = 'build_method' if 'build_method' in form.fields else 'build_choice'
+    choice = (cleaned.get(field_name) or '').strip()
+    if choice == 'remixed':
+        if not has_fork_parent:
+            form.add_error(
+                field_name,
+                'This project has no remix parent on BlaqVibes yet. Open the '
+                'original project and tap “Remix” — your version then keeps '
+                'the lineage and credit automatically.',
+            )
+            return
+        cleaned['build_choice'] = ''
+        cleaned['ai_generated'] = False
+    elif choice == 'ai_assisted':
+        cleaned['build_choice'] = 'ai_assisted'
+        cleaned['ai_generated'] = False
+    elif choice == 'ai_generated':
+        cleaned['build_choice'] = 'ai_generated'
+        cleaned['ai_generated'] = True
+    elif choice == 'human':
+        cleaned['build_choice'] = ''
+        cleaned['ai_generated'] = False
+    else:
+        # No explicit pick (older clients): keep deriving from the facts.
+        # The legacy checkbox wins when it is actually posted (old studio
+        # payloads); on the edit page it is no longer rendered, so an
+        # absent value must PRESERVE the stored flag instead of silently
+        # un-marking an AI project.
+        if 'ai_generated' in form.data:
+            legacy_ai = form.data.get('ai_generated') in ('on', 'true', 'True', '1')
+        else:
+            legacy_ai = bool(getattr(form.instance, 'ai_generated', False))
+        if legacy_ai:
+            cleaned['ai_generated'] = True
+            cleaned['build_choice'] = 'ai_generated'
+    # Write onto the instance as well: QuickPublishForm does not carry
+    # ai_generated/build_choice as model-form fields, so save() alone
+    # would drop the mapping.
+    form.instance.build_choice = cleaned.get('build_choice', '') or ''
+    form.instance.ai_generated = bool(cleaned.get('ai_generated'))
+
+
+class QuickPublishForm(forms.ModelForm):
+    """PUBLISH FIRST. BUILD THE PROOF LATER.
+
+    The whole form is four primary inputs — name, what-you-built, the
+    project itself (ZIP or snippet), and one build-method tap. A README is
+    scaffolded on the creator's behalf, category is picked automatically,
+    and pricing stays free until the creator chooses otherwise on the edit
+    page.
+
+    Fields that sibling surfaces post (studio's README/tech stack, the
+    legacy ai_generated checkbox, star/price) are tolerated as OPTIONAL so
+    every existing poster keeps working through the same one publish path.
+    What is deliberately ABSENT: problem_statement, human_did,
+    ai_got_wrong, remix fields, ai_tool/ai_prompt requirements, thumbnail.
+    They live on the edit page and the proof checklist — never as a
+    publishing gate.
+    """
+
+    zip_file = forms.FileField(
+        required=False,
+        validators=[validate_zip],
+        widget=forms.FileInput(attrs={
+            'accept': ZIP_FILE_ACCEPT,
+            'class': 'zip-picker__input',
+            'aria-describedby': 'zip-picker-hint',
+        }),
+    )
+    build_method = forms.ChoiceField(
+        choices=BUILD_METHOD_PUBLISH_CHOICES,
+        required=False,  # required in the UI (native `required` radio); blank falls back to facts
+        widget=forms.RadioSelect,
+        label='How did you build it?',
+    )
+    # ---- tolerated extras (optional; posted by studio / legacy clients) ----
+    readme = forms.CharField(required=False, widget=forms.Textarea)
+    tech_stack = forms.CharField(required=False, max_length=200)
+    creator_kind = forms.ChoiceField(choices=UPLOAD_KIND_CHOICES, required=False)
+    category = forms.ModelChoiceField(
+        queryset=Category.objects.all(), required=False,
+    )
+    star_cost = forms.IntegerField(required=False, min_value=0, max_value=5)
+    price_zar = forms.IntegerField(required=False, min_value=0, max_value=9999)
+    ai_generated = forms.BooleanField(required=False)
+
+    class Meta:
+        model = AppProject
+        # Every field here is overridden as OPTIONAL on the form class
+        # above — Meta.fields is what ModelForm.save() writes back, so the
+        # tolerated extras (readme/tech_stack/category/pricing/kind) must be
+        # listed for the scaffold and auto-defaults to land.
+        fields = ['title', 'short_description', 'html_code', 'css_code', 'js_code',
+                  'zip_file', 'readme', 'tech_stack', 'category', 'creator_kind',
+                  'star_cost', 'price_zar']
+        widgets = {
+            'title': forms.TextInput(attrs={
+                'placeholder': 'Inventory Tracker',
+                'autocomplete': 'off',
+                'autocapitalize': 'sentences',
+            }),
+            'short_description': forms.TextInput(attrs={
+                'placeholder': 'A simple inventory system for small businesses.',
+                'autocomplete': 'off',
+            }),
+            'html_code': forms.Textarea(attrs={'rows': 5, 'placeholder': '<main><h1>It runs!</h1></main>'}),
+            'css_code': forms.Textarea(attrs={'rows': 3, 'placeholder': 'main { color: rebeccapurple }'}),
+            'js_code': forms.Textarea(attrs={'rows': 3, 'placeholder': '// optional'}),
+        }
+
+    def clean_title(self):
+        title = (self.cleaned_data.get('title') or '').strip()
+        return validate_public_text(title, allow_blank=False)
+
+    def clean_short_description(self):
+        txt = self.cleaned_data.get('short_description', '') or ''
+        import bleach
+        txt = bleach.clean(txt, tags=[], strip=True)[:260].strip()
+        if not txt:
+            raise forms.ValidationError('Tell people what you built — one line is enough.')
+        return validate_public_text(txt)
+
+    def clean_readme(self):
+        """No length rule, no heading rule at publish — a scaffold is added
+        in clean() when this is blank. Sanitised exactly like a real one."""
+        md = self.cleaned_data.get('readme', '') or ''
+        return validate_public_text(md)
+
+    def clean_tech_stack(self):
+        txt = self.cleaned_data.get('tech_stack', '') or ''
+        import bleach
+        return validate_public_text(bleach.clean(txt, tags=[], strip=True)[:200])
+
+    def clean_creator_kind(self):
+        """Blank stays blank (auto-detect); anything else must be in the taxonomy."""
+        value = (self.cleaned_data.get('creator_kind') or '').strip()
+        if not value:
+            return ''
+        return coerce_kind(value)
+
+    def clean(self):
+        cleaned = super().clean()
+        if self.errors.get('zip_file'):
+            return cleaned
+        zipf = cleaned.get('zip_file')
+        html = (cleaned.get('html_code') or '').strip()
+        if not zipf and not html:
+            raise forms.ValidationError(
+                'Add your project — a ZIP file or a pasted snippet.'
+            )
+        apply_build_method(cleaned, self, bool(getattr(self.instance, 'forked_from_id', None)))
+        # README: scaffolded on the creator's behalf, honestly labelled as
+        # such. The strengthen step replaces it; publishing never waits.
+        if not (cleaned.get('readme') or '').strip():
+            cleaned['readme'] = scaffold_readme(
+                cleaned.get('title') or '',
+                cleaned.get('short_description') or '',
+            )
+        # Category: chosen automatically. It is internal shelf-space, not
+        # information a creator should have to supply in order to publish.
+        if not cleaned.get('category'):
+            from .repo_import import suggest_category
+            cleaned['category'] = suggest_category(None)
+        # Pricing: free until the creator decides otherwise (edit page).
+        if cleaned.get('star_cost') is None:
+            cleaned['star_cost'] = 0
+        if cleaned.get('price_zar') is None:
+            cleaned['price_zar'] = 0
         return cleaned
 
 class CommentForm(forms.Form):
