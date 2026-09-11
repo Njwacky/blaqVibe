@@ -10,8 +10,6 @@ django-storages==1.14.4
 celery==5.4.0
 redis==5.0.4
 python-dotenv==1.2.2
-google-generativeai==0.8.6
-protobuf==5.29.6  # 4.x is EOL and has a fixed-in-5.29.6 advisory; google-generativeai 0.8.6 supports it
 groq==0.9.0
 gunicorn==22.0.0
 sentry-sdk==2.8.0

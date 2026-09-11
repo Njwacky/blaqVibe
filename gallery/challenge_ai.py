@@ -64,11 +64,8 @@ Make them different from past and from each other.
     gemini_key = _env("GEMINI_API_KEY")
     if gemini_key:
         try:
-            import google.generativeai as genai
-            genai.configure(api_key=gemini_key)
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            resp = model.generate_content(prompt_base, generation_config={"temperature":0.7, "max_output_tokens":600})
-            txt = getattr(resp, 'text', '') or ""
+            from .ai_providers import gemini_text
+            txt = gemini_text(prompt_base, temperature=0.7, max_output_tokens=600)
             m = re.search(r'\[.*\]', txt, re.DOTALL)
             if m:
                 data = json.loads(m.group(0))
@@ -85,10 +82,8 @@ Make them different from past and from each other.
     groq_key = _env("GROQ_API_KEY")
     if groq_key:
         try:
-            from groq import Groq
-            client = Groq(api_key=groq_key)
-            resp = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt_base}], max_tokens=600, temperature=0.7)
-            txt = resp.choices[0].message.content or ""
+            from .ai_providers import groq_text
+            txt = groq_text(prompt_base, max_output_tokens=600, temperature=0.7)
             m = re.search(r'\[.*\]', txt, re.DOTALL)
             if m:
                 data = json.loads(m.group(0))

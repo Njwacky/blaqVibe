@@ -69,6 +69,7 @@
       <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
         <a class="btn-violet" style="flex:1;text-align:center" href="https://wa.me/?text={{ request.scheme }}%3A%2F%2F{{ request.get_host }}{{ project.get_absolute_url|urlencode }}%20{{ project.title|urlencode }}%20by%20%40{{ project.owner.username }}">Share to WhatsApp</a>
         <button type="button" class="btn-ghost js-copy" data-copy="{{ request.scheme }}://{{ request.get_host }}{{ project.get_absolute_url }}#proof-card" style="flex:1">Copy proof link</button>
+        {% if user == project.owner and anypost_enabled %}<form method="post" action="{% url 'share_to_anypost' project.slug %}" style="flex:1">{% csrf_token %}<button class="btn-ghost" style="width:100%">Share via AnyPost</button></form>{% endif %}
       </div>
     </div>
 

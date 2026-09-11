@@ -126,9 +126,13 @@ PAYSTACK_ENABLED = bool(PAYSTACK_SECRET_KEY)
 # Optional Nolo backends. Claude is used only when this key is set — never faked.
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '').strip()
 ANTHROPIC_MODEL = os.getenv('ANTHROPIC_MODEL', 'claude-3-5-haiku-latest')
-# AnyPost API key for social media posting
+# AnyPost manual sharing is disabled until a deployment supplies its endpoint
+# and credential. Provider URLs and routes are never hardcoded in application code.
+ANYPOST_BASE_URL = os.getenv('ANYPOST_BASE_URL', '').strip().rstrip('/')
+ANYPOST_ENDPOINT = os.getenv('ANYPOST_ENDPOINT', '').strip()
 ANYPOST_API_KEY = os.getenv('ANYPOST_API_KEY', '').strip()
-ANYPOST_ENABLED = bool(ANYPOST_API_KEY)
+ANYPOST_TIMEOUT_SECONDS = os.getenv('ANYPOST_TIMEOUT_SECONDS', '15').strip()
+ANYPOST_ENABLED = bool(ANYPOST_BASE_URL and ANYPOST_ENDPOINT and ANYPOST_API_KEY)
 
 # Seed the demo catalog when the published grid is empty (local / CI).
 # Production stays empty until an operator runs `python manage.py seed_demo`
@@ -318,7 +322,7 @@ KIND_LLM_CONFIDENCE_FLOOR = float(os.getenv('KIND_LLM_CONFIDENCE_FLOOR', '0.55')
 # Nolo providers are read once at startup so web and Celery processes use the
 # same deployment configuration. Keys never appear in templates or responses.
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '').strip()
-GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-1.5-flash').strip()
+GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash').strip()
 GROQ_API_KEY = os.getenv('GROQ_API_KEY', '').strip()
 GROQ_MODEL = os.getenv('GROQ_MODEL', 'llama-3.1-8b-instant').strip()
 
@@ -625,4 +629,3 @@ LOGGING = {
         },
     },
 }
-

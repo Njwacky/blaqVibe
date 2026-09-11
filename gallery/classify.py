@@ -168,30 +168,12 @@ def _call_claude(prompt):
     return _parse_llm_json(''.join(parts))
 
 def _call_gemini(prompt):
-    key = _env('GEMINI_API_KEY')
-    if not key:
-        return None
-    import google.generativeai as genai
-    genai.configure(api_key=key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    resp = model.generate_content(
-        prompt, generation_config={'temperature': 0.1, 'max_output_tokens': 200}
-    )
-    return _parse_llm_json(getattr(resp, 'text', '') or '')
+    from .ai_providers import gemini_text
+    return _parse_llm_json(gemini_text(prompt, temperature=0.1, max_output_tokens=200))
 
 def _call_groq(prompt):
-    key = _env('GROQ_API_KEY')
-    if not key:
-        return None
-    from groq import Groq
-    client = Groq(api_key=key)
-    resp = client.chat.completions.create(
-        model='llama-3.1-8b-instant',
-        messages=[{'role': 'user', 'content': prompt}],
-        max_tokens=200,
-        temperature=0.1,
-    )
-    return _parse_llm_json(resp.choices[0].message.content or '')
+    from .ai_providers import groq_text
+    return _parse_llm_json(groq_text(prompt, temperature=0.1, max_output_tokens=200))
 
 _PROVIDERS = (('claude', _call_claude), ('gemini', _call_gemini), ('groq', _call_groq))
 
