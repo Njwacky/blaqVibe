@@ -14,7 +14,7 @@ from django_ratelimit.decorators import ratelimit
 import zipfile, os, json, logging
 
 from .models import AppProject, Category, Comment, Star, AppFile, ScanJob, AppReport, AppVersion, Review, Trade, PullRequest, ProjectCoOwner
-from .forms import AppUploadForm, CoOwnerForm, CommentForm, ReviewForm
+from .forms import AppUploadForm, QuickPublishForm, CoOwnerForm, CommentForm, ReviewForm
 from .search import search_projects
 from .access import (
     access_denied_message,
@@ -743,7 +743,7 @@ def publish(request):
     if getattr(request, 'limited', False):
         return HttpResponse("Rate limit: 5 uploads/hour", status=429)
     if request.method == 'POST':
-        form = AppUploadForm(request.POST, request.FILES)
+        form = QuickPublishForm(request.POST, request.FILES)
         if form.is_valid():
             project = form.save(commit=False)
             project.owner = request.user
@@ -849,14 +849,57 @@ def publish(request):
             except Exception:
                 pass
             taste.record(request.user, project, 'publish', project=project)
-            return redirect(project.get_absolute_url())
+            # Straight to the lightweight success state: the project is OUT,
+            # and the strengthen-your-proof steps are invited from there —
+            # never forced here.
+            return redirect('publish_success', slug=project.slug)
     else:
-        form = AppUploadForm()
+        form = QuickPublishForm()
+    from .forms import BUILD_METHOD_HINTS, BUILD_METHOD_PUBLISH_CHOICES
     return render(request, 'gallery/publish.html', {
-        'form': form, 
+        'form': form,
         'challenge': challenge,
         'challenge_tag': challenge_tag,
-        'upload_zip': upload_zip
+        'upload_zip': upload_zip,
+        # The ONE build-method question, rendered as four radio cards.
+        'method_options': [
+            {'value': value, 'label': label, 'hint': BUILD_METHOD_HINTS.get(value, '')}
+            for value, label in BUILD_METHOD_PUBLISH_CHOICES
+        ],
+    })
+
+
+@login_required
+def publish_success(request, slug):
+    """PUBLISH FIRST → BUILD THE PROOF LATER.
+
+    The moment after publishing: the win ("PROJECT PUBLISHED ✓"), the honest
+    state of the project (published / still being scanned / held), and the
+    OPTIONAL strengthen-your-proof steps. Every action deep-links into a page
+    that already exists; "Maybe later" is one tap to the live project. The
+    project is never made to feel invalid for having gaps.
+    """
+    project = get_object_or_404(AppProject, slug=slug)
+    # Owner-only by construction; anybody else (or a stranger guessing the
+    # URL) just lands on the project page — a 403 would confirm existence
+    # and a 404 would feel like the publish failed.
+    if project.owner_id != request.user.id and not request.user.is_staff:
+        return redirect(project.get_absolute_url())
+
+    from .proof import strengthen_actions, proof_level
+    checks = project.proof_checks()
+    ok_count = sum(1 for row in checks if row['ok'])
+    level_key, level_title = proof_level(ok_count, len(checks))
+    return render(request, 'gallery/publish_success.html', {
+        'project': project,
+        'checks': checks,
+        'ok_count': ok_count,
+        'pct': round(100 * ok_count / len(checks)) if checks else 0,
+        'level_key': level_key,
+        'level_title': level_title,
+        'actions': strengthen_actions(project),
+        'scan_pending': project.status == 'pending',
+        'quarantined': project.status == 'quarantined',
     })
 
 def download_zip(request, slug):
