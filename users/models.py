@@ -422,6 +422,16 @@ class Profile(models.Model):
     def following_count(self): return self.user.following.count()
     def vibes_count(self): return self.user.projects.filter(status='published').count()
 
+    @property
+    def initial(self) -> str:
+        """First letter of the username — the no-photo avatar tile.
+
+        Shown anywhere the profile has no uploaded picture (profile
+        header, nav, leaderboard, comments…). '?' when the name is blank.
+        """
+        name = (self.user.username or '').strip()
+        return name[0].upper() if name else '?'
+
     def rotate_git_token(self) -> str:
         """Issue a fresh git credential; returns the plaintext ONCE.
 

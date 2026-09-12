@@ -457,7 +457,7 @@ def battle_leaderboard(request):
         from django.db.models import Sum
         from .ranks import contributor_bonus
         users = list(
-            User.objects.annotate(
+            User.objects.select_related('profile').annotate(
                 rank_stars=Sum('projects__stars', filter=Q(projects__status='published')),
                 vibes_count=Count('projects', filter=Q(projects__status='published')),
             ).order_by(F('rank_stars').desc(nulls_last=True))[:10]

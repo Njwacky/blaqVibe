@@ -1,0 +1,6 @@
+{# Profile-picture tile — the ONE place user avatars are rendered. #}
+{# No uploaded picture → FIRST LETTER of the username (uppercase). #}
+{# Params: u (User, may be None) · size (px, default 32) · radius (default 50%) #}
+{#         font_size (px, default 13) · bg / fg (default violet tile) #}
+{#         extra_class (extra CSS hook, e.g. nav-avatar) · alt (img alt, default "") #}
+{% with avatarsize=size|default:32 %}{% if u.profile.avatar %}<img src="{{ u.profile.avatar.url }}" alt="{{ alt|default:'' }}" loading="lazy" class="bv-avatar-img {{ extra_class|default:'' }}" style="width:{{ avatarsize }}px;height:{{ avatarsize }}px;border-radius:{{ radius|default:'50%' }}">{% else %}<span class="bv-avatar {{ extra_class|default:'' }}" aria-hidden="true" style="width:{{ avatarsize }}px;height:{{ avatarsize }}px;border-radius:{{ radius|default:'50%' }};font-size:{{ font_size|default:13 }}px;background:{{ bg|default:'var(--violet)' }};color:{{ fg|default:'var(--on-accent)' }}">{{ u.username|default:"?"|first|upper }}</span>{% endif %}{% endwith %}

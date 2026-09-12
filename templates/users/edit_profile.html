@@ -20,7 +20,10 @@
     <div><label class="field-label">Canvas / portfolio board</label>{{ form.canvas_url }}<div style="font-size:11px;color:var(--muted);margin-top:4px">Add your Koboyo, Figma, Miro, or other public canvas link so visitors can see more of your work.</div></div>
     <div>
       <label class="field-label">Avatar (2MB max)</label>
-      {% if profile.avatar %}<img src="{{ profile.avatar.url }}" style="width:64px;height:64px;border-radius:12px;object-fit:cover;margin-bottom:8px">{% endif %}
+      <div style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
+        {% include 'users/_avatar.html' with u=user size=64 radius='12px' font_size=24 %}
+        <span style="font-size:11px;color:var(--muted)">{% if profile.avatar %}What everyone sees next to your name.{% else %}No photo yet — everyone sees the first letter of your name until you upload one.{% endif %}</span>
+      </div>
       {{ form.avatar }}
     </div>
     <div style="display:flex;gap:8px;justify-content:flex-end"><a href="{% url 'profile_view' user.username %}" class="btn-ghost">Cancel</a><button class="btn-violet">Save Profile</button></div>

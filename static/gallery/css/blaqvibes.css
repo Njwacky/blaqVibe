@@ -218,6 +218,19 @@ input, select, textarea { accent-color: var(--violet); }
   font-weight: 800;
   font-size: 13px;
 }
+/* Shared profile-picture tile (templates/users/_avatar.html).
+   No photo → first letter of the username, one look everywhere:
+   profile header, followers, nav, leaderboard, comments, discover. */
+.bv-avatar {
+  display: inline-grid;
+  place-items: center;
+  font-weight: 800;
+  line-height: 1;
+  flex-shrink: 0;
+  overflow: hidden;
+  user-select: none;
+}
+.bv-avatar-img { object-fit: cover; flex-shrink: 0; display: inline-block; }
 .nav-user-name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-badge {
   background: var(--violet);
