@@ -17,7 +17,7 @@
     if(!sidebar || document.getElementById('build-evidence')) return;
 
     const text = document.body.innerText || '';
-    const hasAi = /🤖/.test(text) || /AI PROMPT/i.test(text) || /AI README/i.test(text);
+    const hasAi = /AI PROMPT/i.test(text) || /AI README/i.test(text) || /AI-assisted/i.test(text);
     const forked = /Forked from/i.test(sidebar.innerText || '');
     const checked = /✓ Checked/i.test(sidebar.innerText || '');
     const scanned = /Scanned/i.test(sidebar.innerText || '');
@@ -67,7 +67,7 @@
 
     // AI remains visible and honest, but it is provenance—not the hero.
     document.querySelectorAll('.badge').forEach(function(b){
-      if(/🤖/.test(b.textContent)){
+      if(/AI-assisted/i.test(b.textContent)){
         b.textContent = 'Build method: AI-assisted';
         b.style.background = 'var(--input)';
         b.style.border = '1px solid var(--line)';
@@ -76,8 +76,8 @@
     });
     document.querySelectorAll('div').forEach(function(el){
       const label = (el.textContent || '').trim();
-      if(label === '🤖 AI PROMPT') el.textContent = 'BUILD NOTES';
-      if(label === '🤖 AI README — Gemini/Groq') el.textContent = 'README HELPER — OPTIONAL';
+      if(label === 'AI PROMPT' || label === 'AI PROMPT — secondary detail') el.textContent = 'BUILD NOTES';
+      if(label === 'AI README — Gemini/Groq' || label === 'AI README — optional helper') el.textContent = 'README HELPER — OPTIONAL';
     });
   }
 
@@ -155,14 +155,17 @@
       try { tree = JSON.parse(treeRoot.dataset.tree); } catch(e){}
     }
     if(tree){
+      // Folder/file marks come from the page sprite; the emoji these replaced
+      // drew in colour no matter what the surrounding row was styled to do.
+      const treeGlyph = (name) => '<svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-' + name + '"></use></svg>';
       function renderTree(node, prefix){
         let html="<ul style='list-style:none;margin-left:12px;border-left:1px solid var(--line);padding-left:10px'>";
         for(const [k,v] of Object.entries(node)){
           const path = prefix + k;
           if(v===null){
-            html+=`<li style="color:var(--text);cursor:pointer" data-path="${encodeURIComponent(path)}">\u00A0📄 ${esc(k)}</li>`;
+            html+=`<li style="color:var(--text);cursor:pointer" data-path="${encodeURIComponent(path)}">\u00A0${treeGlyph('file')} ${esc(k)}</li>`;
           } else {
-            html+=`<li><span style="color:var(--warning-text);cursor:pointer">📁 ${esc(k)}/</span>${renderTree(v, prefix+k+'/')}</li>`;
+            html+=`<li><span style="color:var(--warning-text);cursor:pointer">${treeGlyph('folder')} ${esc(k)}/</span>${renderTree(v, prefix+k+'/')}</li>`;
           }
         }
         html+="</ul>"; return html;

@@ -126,7 +126,17 @@
       if (hint) {
         const icon = document.createElement("span");
         icon.setAttribute("aria-hidden", "true");
-        icon.textContent = active ? (matchCount ? "✓" : "⚠") : "👆";
+        // A match keeps the plain checkmark the rest of the board uses. The
+        // other two states used to borrow a warning sign and a pointing hand
+        // from the emoji font, which drew them in the platform's colours —
+        // now they take the sprite's glyphs, so they sit in the row like text.
+        if (!active) {
+          icon.appendChild(glyph("pointer"));
+        } else if (!matchCount) {
+          icon.appendChild(glyph("alert"));
+        } else {
+          icon.textContent = "✓";
+        }
         const copy = active ? (matchCount ? matchHint : zeroHint) : emptyHint;
         hint.replaceChildren(icon, document.createTextNode(` ${copy}`));
       }
@@ -136,6 +146,16 @@
         routeHint.hidden = !nextHint;
         if (nextHint) routeHint.textContent = nextHint;
       }
+    }
+
+    function glyph(name) {
+      const NS = "http://www.w3.org/2000/svg";
+      const svg = document.createElementNS(NS, "svg");
+      svg.setAttribute("class", "bv-glyph");
+      const use = document.createElementNS(NS, "use");
+      use.setAttribute("href", `#bv-ico-${name}`);
+      svg.appendChild(use);
+      return svg;
     }
 
     function updateUrl(artifactValue) {

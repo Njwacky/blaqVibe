@@ -12,9 +12,12 @@ Grouped by the section of the plan each one pins:
 Every test asserts *behaviour a visitor can see* or *data another feature
 can rely on* — never an implementation detail.
 """
+import re
 from datetime import timedelta
+from pathlib import Path
 
-from django.test import TestCase, override_settings
+from django.conf import settings
+from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 
 from .models import AppProject, ProjectEvent
@@ -343,3 +346,115 @@ class RemixStatsWindowTests(TestCase):
         # …but it still counts as a remix and as "most remixed".
         self.assertEqual(remix_stats.remix_totals()['remixes'], 1)
         self.assertEqual(remix_stats.most_remixed()[0].pk, root.pk)
+
+
+class UiGlyphTests(SimpleTestCase):
+    """The UI draws its own icons — it does not borrow the platform's emoji.
+
+    Every page here used to lead headings, badges and buttons with emoji: 🛡️ on
+    the trust badge, 📁 on file rows, 🏆 on the leaderboard. They cost more than
+    they looked like — each browser drew its own artwork at its own weight and
+    colour, so the one mark on the page that could not be themed, could not be
+    sized with the type around it, and could not be reviewed by a designer.
+    They are the sprite glyphs in base.html now.
+
+    Text-presentation symbols stay: ★ is the ledger unit, ✓ and ✕ are the
+    yes/no pair, → and ▾ are typographic, and ─ ▁▂▃ are the ASCII rails and
+    sparklines the stylesheet comments draw. Only emoji presentation is a
+    problem, so only emoji presentation is pinned.
+    """
+
+    # Ranges where a codepoint means "picture", not "letterform".
+    EMOJI_RANGES = (
+        (0x1F000, 0x1FAFF),   # pictographs: 🛡 📁 🏆 🤖, and the 🇿🇦 flags
+        (0x2600, 0x26FF),     # misc symbols: ⚠ ☑ ⚙ ♥
+        (0x2700, 0x27BF),     # dingbats: ✓ ✎ ✦ ✅ ❌
+        (0x2B00, 0x2BFF),     # arrows and stars: ⬇ ⬆ ⭐ ⛅
+    )
+    # Deliberately kept. All default to text presentation, so they render in
+    # the current colour at the current font size, like the letters beside them.
+    TEXT_GLYPHS = frozenset(
+        '★☆✓✕✗✘✎✏✐✑✒✦✧✩✪♥♡♦♣♠'      # marks, stars, suits
+        '▶►◀◀▲▼▸▹▾▴◆◇○●◉◈◫◷◧◨◩◪'       # media + geometric (sparklines, tabs)
+        '▁▂▃▄▅▆▇█'                      # sparkline blocks
+        '─━│┃┌┐└┘├┤┬┴┼'                 # box drawing (ASCII rails in comments)
+        '→←↑↓↔↕↖↗↘↙⇄⇅⇒⇐↻↺'             # arrows
+        '⑀⑁⑂⑃⑄⑅'                        # OCR marks — ⑂ is the remix/fork glyph
+        '⌂⌕⌘⏏⏎⏐⏤⏥⏦'                     # technical symbols
+        '⏰⏳⌛'                           # kept only where they are text-form: none today
+    ) - frozenset('⏰⏳⌛')
+    # A variation selector is what forces emoji presentation. Bare VS16 in a
+    # template means someone re-emoji-fied a glyph that had been neutralised.
+    FORBIDDEN_SINGLY = frozenset({'\ufe0f'})
+
+    def _ui_files(self):
+        root = Path(settings.BASE_DIR)
+        for folder in ('templates', 'static/gallery/css', 'static/gallery/js'):
+            for path in (root / folder).rglob('*'):
+                # Vendored Alpine is third-party and ships its own unicode.
+                if path.suffix not in ('.html', '.css', '.js'): continue
+                if 'alpine.min' in path.name: continue
+                if not path.is_file(): continue
+                yield path.relative_to(root)
+
+    def _offenders(self):
+        bad = []
+        for rel in self._ui_files():
+            text = (Path(settings.BASE_DIR) / rel).read_text(encoding='utf-8')
+            for line_no, line in enumerate(text.splitlines(), 1):
+                for ch in line:
+                    o = ord(ch)
+                    if ch in self.FORBIDDEN_SINGLY:
+                        bad.append(f'{rel}:{line_no} U+{o:04X} variation selector')
+                    elif ch not in self.TEXT_GLYPHS and any(
+                            a <= o <= b for a, b in self.EMOJI_RANGES):
+                        bad.append(f'{rel}:{line_no} U+{o:04X} {ch}')
+        return bad
+
+    def test_no_ui_file_renders_an_emoji(self):
+        offenders = self._offenders()
+        self.assertEqual(
+            offenders[:20], [],
+            f'{len(offenders)} emoji-presentation glyph(s) in the UI. Icons come '
+            f'from the sprite in base.html (see gallery/static/gallery/icons and '
+            f'the .bv-glyph rule in blaqvibes.css), not from the platform font.',
+        )
+
+    def _references(self, text):
+        """Every glyph name a file reaches for, however it is spelled.
+
+        A template conditional picks between names (``#bv-ico-{% if … %}rocket
+        {% elif … %}bolt{% endif %}``), and JS builds the same reference out of
+        a prefix and a name. Both are read as the names themselves, so a glyph
+        that only exists on one branch is still checked.
+        """
+        text = re.sub(r'{%\s*comment\b.*?endcomment\s*%}', ' ', text, flags=re.S)
+        text = re.sub(r'{%\s*(?:if|elif|else|endif)[^%]*%}', ' ', text)
+        names = set()
+        for run in re.findall(r'#bv-ico-([a-z0-9 -]+)', text):
+            names |= {n for n in run.split() if n}
+        for call in re.findall(r"(?:treeGlyph|glyph)\(\s*['\"]([a-z0-9-]+)['\"]", text):
+            names.add(call)
+        return names
+
+    def test_the_sprite_defines_every_glyph_the_ui_reaches_for(self):
+        """A ``<use href="#bv-ico-x">`` with no matching symbol renders nothing.
+
+        Emoji left a hole behind when they were removed, so this pins the other
+        direction too: every glyph the UI asks for has to exist in the sprite.
+        """
+        root = Path(settings.BASE_DIR)
+        base = (root / 'templates/gallery/base.html').read_text(encoding='utf-8')
+        defined = set(re.findall(r'symbol id="bv-ico-([a-z0-9-]+)"', base))
+        self.assertTrue(defined, 'the sprite in base.html was not found at all')
+        missing = {}
+        for rel in self._ui_files():
+            wanted = self._references((root / rel).read_text(encoding='utf-8'))
+            for name in wanted - defined:
+                missing.setdefault(name, []).append(str(rel))
+        self.assertEqual(
+            missing, {},
+            'glyphs referenced but not defined in the base.html sprite: '
+            + '; '.join(f'{n} ({", ".join(sorted(set(f)))[:120]})'
+                        for n, f in sorted(missing.items())),
+        )

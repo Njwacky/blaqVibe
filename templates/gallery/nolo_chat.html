@@ -9,7 +9,7 @@
   <div class="nolo-split" style="display:grid;grid-template-columns:1.5fr 1fr;gap:18px">
     <main style="background:var(--bg);border:1px solid var(--line);border-radius:24px;padding:24px">
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
-        <span style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:16px;background:var(--violet);color:var(--on-accent);font-size:18px">💬</span>
+        <span style="display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:16px;background:var(--violet);color:var(--on-accent);font-size:18px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-chat"></use></svg></span>
         <div>
           <div style="font-size:20px;font-weight:800">Nolo Chat</div>
           <div style="font-size:13px;color:var(--muted);margin-top:4px">Ask questions about apps, templates, new releases, or compare vibes in one place.
@@ -52,7 +52,7 @@
             </div>
           </div>
           <div id="nolo-chat-input-row" class="nolo-chat-input-row" data-api-url="{% url 'nolo_chat_api' %}" data-csrf="{{ csrf_token }}" style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:var(--card);border:1px solid var(--line);border-radius:18px;position:relative">
-            <span style="width:28px;height:28px;border-radius:8px;background:var(--violet);display:grid;place-items:center;font-size:14px;color:var(--on-accent);flex-shrink:0">💬</span>
+            <span style="width:28px;height:28px;border-radius:8px;background:var(--violet);display:grid;place-items:center;font-size:14px;color:var(--on-accent);flex-shrink:0"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-chat"></use></svg></span>
             <input id="nolo-chat-input" type="text" placeholder="Ask Nolo..." style="flex:1;min-width:0;background:transparent;border:none;outline:none;padding:8px 40px 8px 4px;color:var(--text);font-size:14px">
             <button id="nolo-chat-send" aria-label="Send" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);background:var(--violet);border:none;width:30px;height:30px;border-radius:50%;display:grid;place-items:center;cursor:pointer;color:var(--on-accent)">
               <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2 6L10 6M7 3L10 6L7 9" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>

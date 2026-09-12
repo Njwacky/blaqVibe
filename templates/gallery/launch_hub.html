@@ -53,7 +53,7 @@
 
     {% if invalid_artifact %}
     <div class="launch-warning" role="status">
-      <span aria-hidden="true">⚠</span>
+      <span aria-hidden="true"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-alert"></use></svg></span>
       <p><b>“{{ invalid_artifact }}”</b> isn’t a known build type. Pick a card below or <a href="{% url 'launch_hub' %}#destinations">browse all destinations</a>.</p>
     </div>
     {% endif %}
@@ -128,11 +128,11 @@
           <span class="launch-route__badge" aria-hidden="true">✓</span>
           <span class="launch-route__copy">
             <em>{{ item.eyebrow }}</em>
-            <b>{{ item.name }}{% if item.review.is_outdated %} <span class="launch-route__stale" title="Needs review — verify against live sources">⚠</span>{% endif %}</b>
+            <b>{{ item.name }}{% if item.review.is_outdated %} <span class="launch-route__stale" title="Needs review — verify against live sources"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-alert"></use></svg></span>{% endif %}</b>
             <small>{{ item.summary }}</small>
           </span>
           <span class="launch-route__meta">
-            <em>⚡ {{ item.pace }}</em>
+            <em><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-bolt"></use></svg> {{ item.pace }}</em>
             <em>{{ item.steps|length }} steps</em>
             <span class="launch-route__arrow" aria-hidden="true">↗</span>
           </span>
@@ -151,8 +151,8 @@
        data-match-hint="Lit-up cards match what you are holding. Open one for the source-backed steps."
        data-zero-hint="No matching route in this filter — tap “All destinations” above to see them.">
       {% if active_artifact %}
-        {% if match_count %}<span aria-hidden="true">✓</span> Lit-up cards match what you're holding. Open one for the source-backed steps.{% else %}<span aria-hidden="true">⚠</span> No matching route in this filter — tap “All destinations” above to see them.{% endif %}
-      {% else %}<span aria-hidden="true">👆</span> Tap a card above — the matching destinations light up instantly.{% endif %}
+        {% if match_count %}<span aria-hidden="true">✓</span> Lit-up cards match what you're holding. Open one for the source-backed steps.{% else %}<span aria-hidden="true"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-alert"></use></svg></span> No matching route in this filter — tap “All destinations” above to see them.{% endif %}
+      {% else %}<span aria-hidden="true"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-pointer"></use></svg></span> Tap a card above — the matching destinations light up instantly.{% endif %}
     </p>
   </section>
 
@@ -200,7 +200,7 @@
   </section>
 
   <section class="launch-boundary-strip" aria-label="Important boundary">
-    <span class="launch-boundary-strip__icon" aria-hidden="true">⚡</span>
+    <span class="launch-boundary-strip__icon" aria-hidden="true"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-bolt"></use></svg></span>
     <p><b>Preview is not hosting.</b> BlaqVibes shows a sandboxed preview — it does not keep your backend running, publish to a store, or become your production URL.</p>
     <ul>
       <li>✓ No store credentials collected</li>
@@ -211,15 +211,15 @@
 
   <section class="launch-rules" aria-label="Three rules that prevent expensive mistakes">
     <div class="launch-rules__card">
-      <span aria-hidden="true">🤫</span>
+      <span aria-hidden="true"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-lock"></use></svg></span>
       <div><b>Never upload secrets</b><p>Keys and credentials live in the destination's secret settings — never in ZIPs, images, or browser code.</p></div>
     </div>
     <div class="launch-rules__card">
-      <span aria-hidden="true">🧪</span>
+      <span aria-hidden="true"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-flask"></use></svg></span>
       <div><b>Test the shipped artifact</b><p>Install or open the exact build users receive, not just the editor preview.</p></div>
     </div>
     <div class="launch-rules__card">
-      <span aria-hidden="true">📜</span>
+      <span aria-hidden="true"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-doc"></use></svg></span>
       <div><b>Read the live policy</b><p>Fees, testing gates, and review rules change — every guide ends with primary sources. Last reviewed {{ last_reviewed }}.</p></div>
     </div>
   </section>

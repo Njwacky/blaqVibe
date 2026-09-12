@@ -1,7 +1,7 @@
 {% if user.is_authenticated %}
   {% if tip_recipient_username != user.username %}
-  <button id="tip-btn" class="btn-ghost" data-username="{{ tip_recipient_username }}" data-csrf="{{ csrf_token }}" style="text-align:center">⭐ Tip</button>
+  <button id="tip-btn" class="btn-ghost" data-username="{{ tip_recipient_username }}" data-csrf="{{ csrf_token }}" style="text-align:center"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-star"></use></svg> Tip</button>
   {% endif %}
 {% else %}
-  <a href="{% url 'login' %}?next={{ request.get_full_path }}" class="btn-ghost">⭐ Tip</a>
+  <a href="{% url 'login' %}?next={{ request.get_full_path }}" class="btn-ghost"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-star"></use></svg> Tip</a>
 {% endif %}

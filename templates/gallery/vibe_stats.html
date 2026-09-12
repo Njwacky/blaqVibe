@@ -4,7 +4,7 @@
 <div style="max-width:1000px;margin:0 auto;padding:20px">
   <a href="{% url 'my_vibes' %}" style="font-size:12px;color:var(--muted)">← My Vibes</a>
   <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px;margin-top:6px">
-    📊 {{ project.title }}
+    <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-bars"></use></svg> {{ project.title }}
   </h1>
   <p style="color:var(--muted);font-size:13px;margin-top:4px">{{ headline }}</p>
 
@@ -43,7 +43,7 @@
 
   {% if stats.rank_in_kind %}
   <div class="card" style="margin-top:12px;padding:12px;display:flex;gap:10px;align-items:center">
-    <div style="font-size:22px" aria-hidden="true">🏅</div>
+    <div style="font-size:22px" aria-hidden="true"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-medal"></use></svg></div>
     <div>
       <div style="font-size:13px;font-weight:700">
         #{{ stats.rank_in_kind.position }} of {{ stats.rank_in_kind.of }} in {{ stats.rank_in_kind.kind }}

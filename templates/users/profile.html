@@ -56,7 +56,7 @@
           title="{{ rank.name }} creator — {{ rank.threshold }}+ stars"
           style="font-size:11px;padding:4px 8px;border-radius:8px;font-weight:700;{% if rank.name == 'Platinum' %}background:#e5e4e2;color:#222{% elif rank.name == 'Gold' %}background:#f5c518;color:#3a2e00{% elif rank.name == 'Silver' %}background:#c0c0c0;color:#1a1a1a{% else %}background:var(--warning-bg);color:var(--warning-text){% endif %}"
         >
-          {% if rank.name == 'Platinum' %}💎{% elif rank.name == 'Gold' %}🥇{% elif rank.name == 'Silver' %}🥈{% else %}🥉{% endif %} {{ rank.name }}
+          <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-medal"></use></svg> {{ rank.name }}
         </span>
         {% if progress %}<span
           title="Level {{ progress.index }} — {{ progress.xp }} XP"
@@ -233,7 +233,7 @@
       <a href="{% url 'proof_cv' profile_user.username %}" class="btn-ghost">Proof of work</a>
       {% if is_own %}
       <a href="{% url 'edit_profile' %}" class="btn-ghost">Edit Profile</a>
-      <a href="{% url 'sales_dashboard' %}" class="btn-ghost">📈 Sales</a>
+      <a href="{% url 'sales_dashboard' %}" class="btn-ghost"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-sales"></use></svg> Sales</a>
       {% elif user.is_authenticated %}
       <button
         id="follow-btn"
@@ -275,7 +275,7 @@
     <div
       style="display: flex; justify-content: space-between; align-items: center"
     >
-      <span style="font-weight: 700; font-size: 13px">⭐ Recent tips</span>
+      <span style="font-weight: 700; font-size: 13px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-star"></use></svg> Recent tips</span>
       <span id="tips-total" style="font-size: 11px; color: var(--muted)"
         >{{ tips_total }}★ total</span
       >
@@ -458,7 +458,7 @@
   <div style="margin-top:12px">
     {% for event in activity %}
     <div class="card" style="padding:10px 12px;margin-top:8px;display:flex;gap:10px;font-size:13px;align-items:center">
-      <span>{% if event.kind == 'remixed' %}⑂{% elif event.kind == 'published' %}🚀{% else %}✦{% endif %}</span>
+      <span>{% if event.kind == 'remixed' %}⑂{% elif event.kind == 'published' %}<svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-rocket"></use></svg>{% else %}✦{% endif %}</span>
       <span style="flex:1">
         <a href="{{ event.project.get_absolute_url }}" style="color:var(--link);font-weight:700">{{ event.project.title }}</a>
         <span style="color:var(--muted)"> — {{ event.label }}</span>
@@ -722,7 +722,7 @@
             font-size: 11px;
             font-weight: 700;
           "
-          >⏳ Queued</span
+          ><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-clock"></use></svg> Queued</span
         >
         {% else %}<span
           style="
@@ -733,7 +733,7 @@
             font-size: 11px;
             font-weight: 700;
           "
-          >🚨 Quarantined</span
+          ><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-alert"></use></svg> Quarantined</span
         >{% endif %} {% if p.ai_generated %}<span
           style="
             border: 1px solid var(--warning-border);
@@ -751,7 +751,7 @@
         {{ p.short_description|truncatechars:70 }}
       </div>
       <div style="font-size: 11px; color: var(--muted); margin-top: 6px">
-        {{ p.tech_stack|default:"—" }} • ★ {{ p.stars }} • ⬇ {{ p.clones }}
+        {{ p.tech_stack|default:"—" }} • ★ {{ p.stars }} • <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-download"></use></svg> {{ p.clones }}
       </div>
     </a>
     {% empty %}

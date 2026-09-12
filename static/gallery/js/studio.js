@@ -191,6 +191,25 @@
   var noloClose = document.getElementById('studio-nolo-close');
   var fixBtn = document.getElementById('studio-fix');
 
+  // Icons come from the sprite base.html ships, drawn in the DOM rather than
+  // through innerHTML: the emoji these replaced arrived as markup text and the
+  // button labels were rewritten by hand every time their wording changed.
+  function glyph(name) {
+    var NS = 'http://www.w3.org/2000/svg';
+    var svg = document.createElementNS(NS, 'svg');
+    svg.setAttribute('class', 'bv-glyph');
+    svg.setAttribute('aria-hidden', 'true');
+    var use = document.createElementNS(NS, 'use');
+    use.setAttribute('href', '#bv-ico-' + name);
+    svg.appendChild(use);
+    return svg;
+  }
+
+  function setButtonLabel(btn, text) {
+    var label = btn.querySelector('.studio-btn-label');
+    (label || btn).textContent = text;
+  }
+
   function esc(s) {
     return String(s == null ? '' : s)
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -207,10 +226,16 @@
       return;
     }
     findings.forEach(function (f) {
+      var level = f.level || 'info';
       var div = document.createElement('div');
-      div.className = 'studio-finding ' + (f.level || 'info');
-      var icon = f.level === 'error' ? '⛔' : (f.level === 'warning' ? '⚠️' : 'ℹ️');
-      div.innerHTML = '<b>' + icon + ' ' + esc(f.title) + '</b><div>' + esc(f.detail) + '</div>';
+      div.className = 'studio-finding ' + level;
+      var head = document.createElement('b');
+      head.appendChild(glyph(level === 'error' || level === 'warning' ? 'alert' : 'info'));
+      head.appendChild(document.createTextNode(' ' + f.title));
+      var detail = document.createElement('div');
+      detail.textContent = f.detail;
+      div.appendChild(head);
+      div.appendChild(detail);
       noloFindings.appendChild(div);
     });
   }
@@ -218,7 +243,7 @@
   if (fixBtn) {
     fixBtn.addEventListener('click', function () {
       fixBtn.disabled = true;
-      fixBtn.textContent = '🔧 Nolo is looking…';
+      setButtonLabel(fixBtn, 'Nolo is looking…');
       fetch(cfg.fixUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': cfg.csrf },
@@ -240,7 +265,7 @@
         if (noloBox) noloBox.hidden = false;
       }).finally(function () {
         fixBtn.disabled = false;
-        fixBtn.textContent = '🔧 Nolo: fix my code';
+        setButtonLabel(fixBtn, 'Nolo: fix my code');
       });
     });
   }
@@ -255,7 +280,7 @@
       var techEl = document.getElementById('id_tech_stack');
       var readmeEl = document.getElementById('id_readme');
       readmeBtn.disabled = true;
-      readmeBtn.textContent = '✍️ Writing…';
+      setButtonLabel(readmeBtn, 'Writing…');
       fetch(cfg.readmeUrl, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': cfg.csrf },
@@ -271,7 +296,7 @@
         if (data.readme && readmeEl) readmeEl.value = data.readme;
       }).catch(function () {}).finally(function () {
         readmeBtn.disabled = false;
-        readmeBtn.textContent = '✍️ Nolo: write it for me';
+        setButtonLabel(readmeBtn, 'Nolo: write it for me');
       });
     });
   }

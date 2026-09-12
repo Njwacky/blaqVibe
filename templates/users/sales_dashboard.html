@@ -2,7 +2,7 @@
 {% block title %}Sales — BlaqVibes{% endblock %}
 {% block content %}
 <div style="max-width:1100px;margin:0 auto;padding:20px">
-  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">📈 Sales — @{{ user.username }}</h1>
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-sales"></use></svg> Sales — @{{ user.username }}</h1>
   <p style="color:var(--muted);font-size:13px;max-width:720px">
     Buyer activity on your projects: card sales, star trades, purchases and the star ledger.
     Stars are the BlaqVibes platform economy — they unlock downloads and build reputation.
@@ -61,7 +61,7 @@
     {% for p in popular_projects %}
     <div style="display:flex;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px">
       <a href="{{ p.get_absolute_url }}" style="color:var(--link);font-weight:700;flex:1">{{ p.title }}</a>
-      <span style="color:var(--muted);font-size:12px;white-space:nowrap">👁 {{ p.views }} · 🔓 {{ p.unlock_count }} · ⑂ {{ p.remix_count }}</span>
+      <span style="color:var(--muted);font-size:12px;white-space:nowrap"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-eye"></use></svg> {{ p.views }} · <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-unlock"></use></svg> {{ p.unlock_count }} · ⑂ {{ p.remix_count }}</span>
     </div>
     {% endfor %}
   </div>

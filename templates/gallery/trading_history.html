@@ -2,7 +2,7 @@
 {% block title %}Trading History — BlaqVibes{% endblock %}
 {% block content %}
 <div style="max-width:1100px;margin:0 auto;padding:20px">
-  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">💱 Trading History — @{{ user.username }}</h1>
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-trades"></use></svg> Trading History — @{{ user.username }}</h1>
   <p style="color:var(--muted);font-size:13px">Every trade costs stars — backend only, no JS secrets. You traded with these people. <span style="color:var(--warning-text)">Balance: {{ user.profile.stars_balance }} ★ ({{ user.profile.rank.name }} • {{ user.profile.rank.discount }}% Pro discount)</span></p>
 
   <div style="margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:16px">

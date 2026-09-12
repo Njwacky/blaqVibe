@@ -130,6 +130,23 @@ input, select, textarea { accent-color: var(--violet); }
 }
 .nav-links a .bv-icon,
 .nav-menu a .bv-icon { margin-right: 2px; }
+/* Inline glyphs. Same drawing language as .bv-icon, but sized from the text
+   around them (1em) rather than a fixed 17px, so a glyph in a 10px badge and a
+   glyph in a 30px empty-state both read at the weight of their own row. This
+   is what replaced the emoji: it sits on the baseline, takes currentColor, and
+   never gets re-drawn by the operating system's emoji font. */
+.bv-glyph {
+  width: 1em;
+  height: 1em;
+  flex: 0 0 auto;
+  display: inline-block;
+  vertical-align: -0.16em;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
 .nav-menu a .nav-badge { margin-left: auto; }
 /* Current page — the rail is persistent, so it has to say where you are. */
 .nav-links > a[aria-current="page"] { color: var(--text); font-weight: 700; }
@@ -397,7 +414,7 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
 .filter-actions .btnW, .filter-actions .btnG { white-space: nowrap; }
 /* Mobile (≤640px): content gets the screen, filters become compact controls.
    Row 1  [ search ................ ] [Search] [Reset]   ← never scrolls
-   Row 2  [ category ▾ ][ sort ▾ ][ ☑ Checked only ] →   ← ONLY this row swipes
+   Row 2  [ category ▾ ][ sort ▾ ][ [x] Checked only ] →   ← ONLY this row swipes
    The old 2-column grid stacked search / category|kind / sort / toggle /
    actions into ~213px of sticky bar — a quarter of a 800px phone — and,
    because the bar is position:sticky, it stayed there while cards slid

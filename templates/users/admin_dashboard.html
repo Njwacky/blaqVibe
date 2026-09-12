@@ -2,7 +2,7 @@
 {% block title %}Admin Dashboard — BlaqVibes{% endblock %}
 {% block content %}
 <div style="max-width:1100px;margin:0 auto;padding:20px">
-  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">🛡️ Admin Dashboard — {{ user.profile.role }}</h1>
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> Admin Dashboard — {{ user.profile.role }}</h1>
   <p style="color:var(--muted);font-size:13px">Backend only, no JS secrets. Role: {{ user.profile.role }} — {{ stats.published }} published, {{ stats.pending }} pending, {{ stats.quarantined }} quarantined.</p>
 
   <div style="margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
@@ -19,14 +19,14 @@
   </div>
 
   <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
-    <a href="{% url 'moderation_queue' %}" class="btnV">🛡️ Moderation Queue</a>
-    <a href="{% url 'footer_contacts' %}" class="btnG">✉️ Footer Contacts</a>
+    <a href="{% url 'moderation_queue' %}" class="btnV"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> Moderation Queue</a>
+    <a href="{% url 'footer_contacts' %}" class="btnG"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-mail"></use></svg> Footer Contacts</a>
     {% if user.profile.is_superadmin %}<a href="{% url 'manage_roles' %}" class="btnG">Manage Roles</a>{% endif %}
-    <a href="{% url 'audit_log' %}" class="btnG">📜 Audit Log</a>
+    <a href="{% url 'audit_log' %}" class="btnG"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-doc"></use></svg> Audit Log</a>
     <a href="/blaq-admin-secure/" class="btnG">Django Admin</a>
   </div>
 
-  <h2 style="margin-top:20px;font-size:14px">📈 Momentum — last 14 days</h2>
+  <h2 style="margin-top:20px;font-size:14px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-sales"></use></svg> Momentum — last 14 days</h2>
   <div style="margin-top:10px;display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
     <div class="card" style="padding:12px">
       <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">CLONES / DAY</div>
@@ -54,7 +54,7 @@
     </div>
   </div>
 
-  <h2 style="margin-top:20px;font-size:14px">🏆 Top vibes</h2>
+  <h2 style="margin-top:20px;font-size:14px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-challenges"></use></svg> Top vibes</h2>
   <div style="margin-top:10px;display:grid;grid-template-columns:repeat(2,1fr);gap:12px">
     <div class="card" style="padding:12px">
       <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">BY STARS</div>

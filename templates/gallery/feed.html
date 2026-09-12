@@ -28,12 +28,12 @@
     <div class="filter-controls">
       <select name="category" aria-label="Category"><option value="">All Categories</option>{% for c in categories %}<option value="{{ c.slug }}" {% if cat == c.slug %}selected{% endif %}>{{ c.name }}</option>{% endfor %}</select>
       <select name="sort" aria-label="Sort"><option value="newest" {% if sort == "newest" %}selected{% endif %}>Newest</option><option value="trending" {% if sort == "trending" %}selected{% endif %}>Trending</option><option value="stars" {% if sort == "stars" %}selected{% endif %}>Most stars</option></select>
-      <label class="filter-check" title="Only verified — virus clean, no secrets"><input type="checkbox" name="trust" value="verified" {% if trust == 'verified' %}checked{% endif %} /> 🛡️ Checked only</label>
+      <label class="filter-check" title="Only verified — virus clean, no secrets"><input type="checkbox" name="trust" value="verified" {% if trust == 'verified' %}checked{% endif %} /> <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> Checked only</label>
     </div>
     <span class="filter-actions"><button class="btnW" type="submit">Search</button><a href="{% url 'feed' %}" class="btnG">Reset</a></span>
   </form>
 
-  <div style="margin-top:8px;font-size:11px;color:var(--muted)">🛡️ Every vibe scanned before the feed. <a href="{% url 'trust_legend' %}" style="color:var(--link)">Read the standard →</a> · ★ Stars never expire · 🇿🇦 Projects priced in Rands</div>
+  <div style="margin-top:8px;font-size:11px;color:var(--muted)"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> Every vibe scanned before the feed. <a href="{% url 'trust_legend' %}" style="color:var(--link)">Read the standard →</a> · ★ Stars never expire · Prices in Rands (ZAR)</div>
 
   <div class="vibe-grid" style="margin-top:14px">
     {% for p in page %}
@@ -47,8 +47,8 @@
         <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
           <span class="badge badge--accent" style="font-size:10px">{{ p.kind_label }}</span>
           <span class="badge badge--muted" style="font-size:10px">{{ p.build_method_label }}</span>
-          {% if p.trust == 'verified' %}<span class="badge badge--success" style="font-size:10px">🛡️ Checked</span>{% elif p.trust == 'scanned' %}<span class="badge badge--muted" style="font-size:10px">🛡️ Scanned</span>{% endif %}
-          {% if p.can_run_preview %}<span class="badge badge--success" style="font-size:10px">▶ Playable</span>{% else %}<span class="badge badge--muted" style="font-size:10px">📁 Files only</span>{% endif %}
+          {% if p.trust == 'verified' %}<span class="badge badge--success" style="font-size:10px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> Checked</span>{% elif p.trust == 'scanned' %}<span class="badge badge--muted" style="font-size:10px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> Scanned</span>{% endif %}
+          {% if p.can_run_preview %}<span class="badge badge--success" style="font-size:10px">▶ Playable</span>{% else %}<span class="badge badge--muted" style="font-size:10px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-folder"></use></svg> Files only</span>{% endif %}
           {% if p.remix_count %}<span class="badge badge--muted" style="font-size:10px">⑂ {{ p.remix_count }}</span>{% endif %}
         </div>
         <div style="margin-top:8px;font-size:12px;color:var(--link);font-weight:700">View project →</div>
@@ -73,7 +73,7 @@
 
   {% if trending %}
   <div class="rail" style="margin-top:18px">
-    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px"><h2 style="font-size:13px;font-weight:800;margin:0">{% if trending_is_hot %}🔥 Trending this week{% else %}✨ New on BlaqVibes{% endif %}</h2></div>
+    <div style="display:flex;align-items:baseline;gap:8px;margin-bottom:8px"><h2 style="font-size:13px;font-weight:800;margin:0">{% if trending_is_hot %}<svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-flame"></use></svg> Trending this week{% else %}<svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-start"></use></svg> New on BlaqVibes{% endif %}</h2></div>
     <div style="display:flex;gap:10px;overflow-x:auto;padding-bottom:4px">{% for p in trending %}<a href="{{ p.get_absolute_url }}" class="card" style="min-width:190px;max-width:190px;padding:10px;text-decoration:none;color:inherit"><div style="font-size:12px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.title }}</div><div style="font-size:11px;color:var(--muted);margin-top:2px">@{{ p.owner.username }} · ★ {{ p.stars }}</div></a>{% endfor %}</div>
   </div>
   {% endif %}
@@ -81,14 +81,14 @@
   {% if recent_remixes or rising_creators or suggested_creators %}
   <div style="margin-top:14px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px">
     {% if recent_remixes %}<div class="card" style="padding:12px"><h3 style="font-size:12px;font-weight:800;margin:0 0 8px">⑂ Fresh remixes</h3>{% for p in recent_remixes %}<div style="margin-bottom:6px;font-size:12px"><a href="{{ p.get_absolute_url }}" style="color:var(--link)">{{ p.title|truncatechars:26 }}</a><div style="font-size:11px;color:var(--muted)">@{{ p.owner.username }} remixed {% if p.forked_from %}{{ p.forked_from.title|truncatechars:18 }}{% else %}another project{% endif %}</div></div>{% endfor %}</div>{% endif %}
-    {% if rising_creators %}<div class="card" style="padding:12px"><h3 style="font-size:12px;font-weight:800;margin:0 0 8px">📈 Rising creators</h3>{% for u in rising_creators %}<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><a href="/u/{{ u.username }}/" style="font-size:12px;color:var(--link);flex:1">@{{ u.username }}</a><span style="font-size:11px;color:var(--muted)">{{ u.recent_heat }} this week</span></div>{% endfor %}</div>{% endif %}
-    {% if suggested_creators %}<div class="card" style="padding:12px"><h3 style="font-size:12px;font-weight:800;margin:0 0 8px">👋 Suggested builders</h3>{% for u in suggested_creators %}<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><a href="/u/{{ u.username }}/" style="font-size:12px;color:var(--link);flex:1">@{{ u.username }}</a><span style="font-size:11px;color:var(--muted)">{{ u.projects.count }} projects</span></div>{% endfor %}</div>{% endif %}
+    {% if rising_creators %}<div class="card" style="padding:12px"><h3 style="font-size:12px;font-weight:800;margin:0 0 8px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-sales"></use></svg> Rising creators</h3>{% for u in rising_creators %}<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><a href="/u/{{ u.username }}/" style="font-size:12px;color:var(--link);flex:1">@{{ u.username }}</a><span style="font-size:11px;color:var(--muted)">{{ u.recent_heat }} this week</span></div>{% endfor %}</div>{% endif %}
+    {% if suggested_creators %}<div class="card" style="padding:12px"><h3 style="font-size:12px;font-weight:800;margin:0 0 8px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-users"></use></svg> Suggested builders</h3>{% for u in suggested_creators %}<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px"><a href="/u/{{ u.username }}/" style="font-size:12px;color:var(--link);flex:1">@{{ u.username }}</a><span style="font-size:11px;color:var(--muted)">{{ u.projects.count }} projects</span></div>{% endfor %}</div>{% endif %}
   </div>
   {% endif %}
 
   {% if show_onboarding %}
   <div style="margin-top:14px;background:var(--card);border:1px solid var(--accent-border);border-radius:16px;padding:14px 16px;display:flex;gap:16px;flex-wrap:wrap;align-items:center">
-    <div style="font-weight:800;font-size:13px">👋 Start here</div>
+    <div style="font-weight:800;font-size:13px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-users"></use></svg> Start here</div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;font-size:12px"><span style="background:var(--input);border:1px solid var(--line);border-radius:100px;padding:6px 10px">1 · Pick what you're into → {% for k in program_kinds|slice:":5" %}<a href="?program={{ k.value }}" style="color:var(--link)">{{ k.label }}</a>{% endfor %}</span><a href="{% url 'starter_gallery' %}" class="btn-violet" style="padding:6px 12px;text-decoration:none;font-size:12px">2 · Build something →</a></div>
   </div>
   {% endif %}

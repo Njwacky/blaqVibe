@@ -1,0 +1,10 @@
+{% comment %}One line-glyph per public contact kind.
+
+The kind list lives in users/footer_contacts.py and each kind used to carry its
+own emoji in that table. That meant the platform decided how a contact rendered:
+one browser a paper plane, another a bird, none of them the site's own stroke
+weight — and the operator editor could not restyle it. Rendering the glyph from
+the kind here keeps the icon set ours and keeps the model layer free of
+presentation. Kinds are matched exhaustively; an unknown or future kind falls
+back to the link glyph rather than rendering nothing.{% endcomment %}
+{% if kind == 'email' %}<svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-mail"></use></svg>{% elif kind == 'phone' %}<svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-phone"></use></svg>{% elif kind == 'whatsapp' %}<svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-chat"></use></svg>{% elif kind == 'website' %}<svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-globe"></use></svg>{% else %}<svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-link"></use></svg>{% endif %}
