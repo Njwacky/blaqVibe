@@ -76,25 +76,25 @@ def get_nolo_ai_answer(prompt, *, system_text=None, budget_chars=None, preserve_
     gemini_key = _env('GEMINI_API_KEY')
     if gemini_key:
         try:
-            import google.generativeai as genai
-            genai.configure(api_key=gemini_key)
-            model_kwargs = {'model': _env('GEMINI_MODEL') or 'gemini-1.5-flash'}
-            # system_instruction is supported on the versions pinned in
-            # requirements.txt; if a deployment pins an older one it simply
-            # falls through to the other backends rather than pretending.
-            try:
-                model_kwargs['system_instruction'] = plan['system']
-            except Exception:
-                pass
-            model = genai.GenerativeModel(**model_kwargs)
-            resp = model.generate_content(
-                prompt_text,
-                generation_config={
+            import google.genai as genai
+            client = genai.Client(api_key=gemini_key)
+            model_name = _env('GEMINI_MODEL') or 'gemini-2.5-flash'
+            
+            # Build contents with system instruction if available
+            contents = []
+            if plan['system']:
+                contents.append({'role': 'system', 'parts': [{'text': plan['system']}]})
+            contents.append({'role': 'user', 'parts': [{'text': prompt_text}]})
+            
+            resp = client.models.generate_content(
+                model=model_name,
+                contents=contents,
+                config={
                     'temperature': 0.4,
                     'max_output_tokens': _max_output_tokens(240),
                 },
             )
-            text = getattr(resp, 'text', '') or str(resp)
+            text = resp.text if hasattr(resp, 'text') else str(resp)
             if text:
                 return _maybe_meta(text, 'gemini', plan, return_meta)
         except Exception as e:

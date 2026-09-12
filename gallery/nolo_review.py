@@ -60,12 +60,15 @@ def nolo_review(project):
         gemini_key = _env("GEMINI_API_KEY")
         if gemini_key:
             try:
-                import google.generativeai as genai
-                genai.configure(api_key=gemini_key)
-                model = genai.GenerativeModel("gemini-1.5-flash")
+                import google.genai as genai
+                client = genai.Client(api_key=gemini_key)
                 prompt = f"Review this vibe for BlaqVibes. Title: {project.title}\nTech: {project.tech_stack}\nFiles: {project.file_count}\nLanguages: {project.language_stats}\nREADME:\n{project.readme[:2000]}\n\nReturn ONLY JSON: {{\"score\": 0-10, \"fixes\": [3 strings], \"pros\": [3 strings]}}"
-                resp = model.generate_content(prompt, generation_config={"temperature":0.2, "max_output_tokens":400})
-                txt = getattr(resp, 'text', '') or ""
+                resp = client.models.generate_content(
+                    model="gemini-1.5-flash",
+                    contents=[{"role": "user", "parts": [{"text": prompt}]}],
+                    config={"temperature":0.2, "max_output_tokens":400}
+                )
+                txt = resp.text if hasattr(resp, 'text') else str(resp)
                 m = re.search(r'\{.*\}', txt, re.DOTALL)
                 if m:
                     data = json.loads(m.group(0))

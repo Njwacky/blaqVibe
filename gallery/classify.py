@@ -171,13 +171,14 @@ def _call_gemini(prompt):
     key = _env('GEMINI_API_KEY')
     if not key:
         return None
-    import google.generativeai as genai
-    genai.configure(api_key=key)
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    resp = model.generate_content(
-        prompt, generation_config={'temperature': 0.1, 'max_output_tokens': 200}
+    import google.genai as genai
+    client = genai.Client(api_key=key)
+    resp = client.models.generate_content(
+        model='gemini-2.5-flash',
+        contents=[{"role": "user", "parts": [{"text": prompt}]}],
+        config={'temperature': 0.1, 'max_output_tokens': 200}
     )
-    return _parse_llm_json(getattr(resp, 'text', '') or '')
+    return _parse_llm_json(resp.text if hasattr(resp, 'text') else str(resp))
 
 def _call_groq(prompt):
     key = _env('GROQ_API_KEY')

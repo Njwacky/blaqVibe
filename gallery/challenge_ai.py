@@ -64,11 +64,14 @@ Make them different from past and from each other.
     gemini_key = _env("GEMINI_API_KEY")
     if gemini_key:
         try:
-            import google.generativeai as genai
-            genai.configure(api_key=gemini_key)
-            model = genai.GenerativeModel("gemini-1.5-flash")
-            resp = model.generate_content(prompt_base, generation_config={"temperature":0.7, "max_output_tokens":600})
-            txt = getattr(resp, 'text', '') or ""
+            import google.genai as genai
+            client = genai.Client(api_key=gemini_key)
+            resp = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=[{"role": "user", "parts": [{"text": prompt_base}]}],
+                config={"temperature":0.7, "max_output_tokens":600}
+            )
+            txt = resp.text if hasattr(resp, 'text') else str(resp)
             m = re.search(r'\[.*\]', txt, re.DOTALL)
             if m:
                 data = json.loads(m.group(0))
