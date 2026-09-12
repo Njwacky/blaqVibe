@@ -432,6 +432,18 @@ class Profile(models.Model):
         name = (self.user.username or '').strip()
         return name[0].upper() if name else '?'
 
+    @property
+    def frame_tier(self) -> str:
+        """Avatar-frame tier ('bronze' … 'platinum') from total stars.
+
+        Same thresholds as rank — the ring around the picture always
+        agrees with the rank badge. Blank when unknown (no frame).
+        """
+        if getattr(self, '_frame_tier_cache', None) is None:
+            from gallery.ranks import frame_for_user
+            self._frame_tier_cache = frame_for_user(self.user)
+        return self._frame_tier_cache
+
     def rotate_git_token(self) -> str:
         """Issue a fresh git credential; returns the plaintext ONCE.
 

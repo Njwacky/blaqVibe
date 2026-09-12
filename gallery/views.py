@@ -301,11 +301,11 @@ def app_detail(request, slug):
     comments_open = bool(getattr(project.owner.profile, 'allow_comments', True))
     visible_replies = Prefetch(
         'replies',
-        queryset=Comment.objects.filter(is_hidden=False).select_related('user__profile'),
+        queryset=Comment.objects.filter(is_hidden=False).select_related('user'),
     )
     top_comments = (
         project.comments.filter(is_hidden=False, parent__isnull=True)
-        .select_related('user__profile')
+        .select_related('user')
         .prefetch_related(visible_replies)
         if comments_open else project.comments.none()
     )
@@ -342,7 +342,7 @@ def app_detail(request, slug):
     except Exception:
         viewers = None
     # Nolo + AI README preview
-    reviews = project.reviews.select_related('user__profile').order_by('-created_at')
+    reviews = project.reviews.select_related('user').order_by('-created_at')
     nolo_review = None
     try:
         nolo_review = (project.scan_report or {}).get('nolo_review')

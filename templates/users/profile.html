@@ -15,7 +15,7 @@
       flex-wrap: wrap;
     "
   >
-    {% include 'users/_avatar.html' with u=profile_user size=72 radius='16px' font_size=22 %}
+    {% include 'users/_avatar.html' with u=profile_user size=72 radius='16px' font_size=22 frame=rank.name|lower %}
     <div style="flex: 1; min-width: 0">
       <div
         style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap"

@@ -14,6 +14,23 @@ def get_rank(total_stars):
             rank = (threshold, name, discount, bonus)
     return {'threshold': rank[0], 'name': rank[1], 'discount': rank[2], 'bonus': rank[3]}
 
+# Avatar frames follow the same thresholds: a creator's ring is their rank,
+# rendered by templates/users/_avatar.html. One mapping, two surfaces —
+# the rank badge and the frame can never disagree.
+FRAME_TIERS = ('bronze', 'silver', 'gold', 'platinum')
+
+def frame_for_user(user):
+    """Avatar-frame tier slug for a user ('bronze' … 'platinum').
+
+    Reuses contributor_bonus, so the rank cache already computed for
+    badges is shared — a page that shows the rank pays nothing extra
+    for the frame. Unknown users get '' (no frame).
+    """
+    if user is None or not getattr(user, 'pk', None):
+        return ''
+    name = (contributor_bonus(user).get('name') or '').lower()
+    return name if name in FRAME_TIERS else ''
+
 def contributor_bonus(user):
     # Memoised on the user instance for one request: `rank()` is rendered
     # beside every creator name on a page, and each call used to run two

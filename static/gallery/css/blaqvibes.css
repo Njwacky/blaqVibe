@@ -231,6 +231,14 @@ input, select, textarea { accent-color: var(--violet); }
   user-select: none;
 }
 .bv-avatar-img { object-fit: cover; flex-shrink: 0; display: inline-block; }
+/* Star-rank frames: the ring around a profile picture is the creator's
+   rank — bronze → silver → gold → platinum. Box-shadow (not border) so
+   the ring follows any tile radius without shifting layout. Platinum
+   glows violet, the same violet as its rank badge. */
+.bv-frame-bronze { box-shadow: 0 0 0 2px #a06a2c; }
+.bv-frame-silver { box-shadow: 0 0 0 2px #98a2b3; }
+.bv-frame-gold { box-shadow: 0 0 0 2px #d9a800, 0 0 10px rgba(217,168,0,.45); }
+.bv-frame-platinum { box-shadow: 0 0 0 2px var(--violet), 0 0 12px rgba(124,58,237,.55); }
 .nav-user-name { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .nav-badge {
   background: var(--violet);
