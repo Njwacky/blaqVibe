@@ -3917,16 +3917,37 @@ class SecurityCheckCommandTests(SimpleTestCase):
         'SESSION_COOKIE_HTTPONLY': True, 'SESSION_COOKIE_SAMESITE': 'Lax',
         'SEED_DEMO': False, 'SOCIALACCOUNT_STORE_TOKENS': False,
         'AWS_S3_CUSTOM_DOMAIN': '', 'AWS_DEFAULT_ACL': None, 'AWS_QUERYSTRING_AUTH': True,
+        # A public host also supplies its mail transport; the shipped fallback
+        # (console mailer) is a finding, so the "clean" fixture names a real one.
+        'EMAIL_BACKEND': 'django.core.mail.backends.smtp.EmailBackend',
+        # Same for the scan queue: production runs a worker against a broker
+        # that is reachable from the web process, never eager and never the
+        # inferred localhost.
+        'CELERY_TASK_ALWAYS_EAGER': False,
+        'REDIS_URL': 'redis://redis:6379/0',
+        'CELERY_BROKER_URL': 'redis://redis:6379/0',
     }
 
-    def _run(self, *args, **overrides):
+    # The database is not in HARDENED: `override_settings(DATABASES=...)` makes
+    # Django print "Overriding setting DATABASES can lead to unexpected
+    # behavior", which buries the command output these tests assert on. Same
+    # effect, patched on the settings object instead — these are SimpleTestCase,
+    # nothing here runs a query.
+    POSTGRES = {'default': {'ENGINE': 'django.db.backends.postgresql', 'NAME': 'blaq'}}
+    SQLITE = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': '/var/lib/blaq/db.sqlite3'}}
+
+    def _run(self, *args, databases=None, **overrides):
         import io
+        from unittest import mock
+        from django.conf import settings
         from django.core.management import call_command
         from django.test import override_settings as ov
         values = dict(self.HARDENED)
         values.update(overrides)
         out = io.StringIO()
-        with ov(**values):
+        with ov(**values), mock.patch.object(
+                settings, 'DATABASES',
+                self.POSTGRES if databases is None else databases):
             try:
                 call_command('security_check', *args, stdout=out)
                 failed = None
@@ -3955,6 +3976,70 @@ class SecurityCheckCommandTests(SimpleTestCase):
         failed, output = self._run('--as-production', SEED_DEMO=True)
         self.assertIsNotNone(failed, output)
         self.assertIn('SEED_DEMO', output)
+
+    def test_production_posture_refuses_an_unreachable_broker(self):
+        # A host that never sets REDIS_URL inherits settings' localhost guess and
+        # then queues every scan into a broker nothing consumes. The app fails
+        # quietly (finalize_publish just holds the vibe pending), which is
+        # exactly why the auditor has to be the loud one.
+        failed, output = self._run('--as-production', REDIS_URL='',
+                                   CELERY_BROKER_URL='redis://localhost:6379/0')
+        self.assertIsNotNone(failed, output)
+        self.assertIn('REDIS_URL is unset', output)
+
+    def test_production_posture_refuses_celery_eager(self):
+        # Eager mode is how a dev box avoids running Redis. On a public host it
+        # runs a hostile 100 MB ZIP scan, up to its 120s hard limit, inside the
+        # gunicorn worker that accepted the upload.
+        failed, output = self._run('--as-production', CELERY_TASK_ALWAYS_EAGER=True)
+        self.assertIsNotNone(failed, output)
+        self.assertIn('CELERY_TASK_ALWAYS_EAGER', output)
+
+    def test_a_localhost_broker_warns_until_strict(self):
+        # One box running Redis on 127.0.0.1 is a real topology, so the finding
+        # is a WARN: printed, not fatal — until --strict, which is how CI runs
+        # it. A hostname that merely contains "localhost" is not a finding.
+        failed, output = self._run('--as-production', REDIS_URL='redis://localhost:6379/0',
+                                   CELERY_BROKER_URL='redis://localhost:6379/0')
+        self.assertIsNone(failed, output)
+        self.assertIn('REDIS_URL points at localhost', output)
+        failed, output = self._run('--as-production', '--strict',
+                                   REDIS_URL='redis://localhost:6379/0',
+                                   CELERY_BROKER_URL='redis://localhost:6379/0')
+        self.assertIsNotNone(failed, output)
+        failed, output = self._run('--as-production',
+                                   REDIS_URL='redis://not-localhost.internal:6379/0',
+                                   CELERY_BROKER_URL='redis://not-localhost.internal:6379/0')
+        self.assertIsNone(failed, output)
+        self.assertNotIn('points at localhost', output)
+
+    def test_production_posture_refuses_the_console_mailer(self):
+        # settings.py defaults EMAIL_BACKEND to the console backend, so a host
+        # that never configured mail boots "successfully" and silently drops
+        # every password-reset link into its own log.
+        failed, output = self._run(
+            '--as-production',
+            EMAIL_BACKEND='django.core.mail.backends.console.EmailBackend')
+        self.assertIsNotNone(failed, output)
+        self.assertIn('EMAIL_BACKEND is the console backend', output)
+
+    def test_production_posture_refuses_sqlite(self):
+        # Same shape for the database: settings fall back to a file-backed
+        # SQLite whenever DATABASE_URL is unset, and docker-compose ships
+        # Postgres. One writer per database is not a public-host topology.
+        failed, output = self._run('--as-production', databases=self.SQLITE)
+        self.assertIsNotNone(failed, output)
+        self.assertIn('DATABASES["default"] is SQLite', output)
+
+    def test_sqlite_and_console_mail_are_not_findings_in_dev_posture(self):
+        # A laptop runs both on purpose. If these ever fire in dev, the gate
+        # stops being a signal operators can ignore and starts being noise.
+        failed, output = self._run(DEBUG=True, LOCAL_DEV=True,
+                                   EMAIL_BACKEND='django.core.mail.backends.console.EmailBackend',
+                                   databases=self.SQLITE)
+        self.assertIsNone(failed, output)
+        self.assertNotIn('is SQLite', output)
+        self.assertNotIn('EMAIL_BACKEND is the console backend', output)
 
     def test_dev_posture_warns_but_never_blocks(self):
         # A dev box carries the dev key and no HSTS by design; the command must
@@ -4315,9 +4400,20 @@ class ListCompletionTests(TestCase):
         self.owner = make_user('listowner')
 
     def test_challenges_page_does_not_lead_with_xp(self):
-        response = self.client.get('/challenges/')
-        self.assertNotContains(response, 'earns XP')
-        self.assertContains(response, 'builder record')
+        """§20 — gamification stays in the background on /challenges/.
+
+        Asserted on the shipped page instead of two stale strings: the earlier
+        version pinned 'builder record', which the template has never rendered,
+        and 'earns XP', which a reworded '+50 XP' chip would slip through. So:
+        no XP anywhere inside <main>, and the lead is the work itself.
+        """
+        body = self.client.get('/challenges/').content.decode()
+        _, _, after_open = body.partition('<main id="main">')
+        content, _, _ = after_open.partition('</main>')
+        self.assertTrue(content, 'no <main> region on the page — the assertions below would be vacuous')
+        self.assertNotIn('XP', content)
+        self.assertIn('Work-shaped quests', content)
+        self.assertLess(content.index('Work-shaped quests'), content.index('★ bounty'))
 
     def test_profile_page_carries_share_meta(self):
         response = self.client.get('/u/%s/' % self.owner.username)

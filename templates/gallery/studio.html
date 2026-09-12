@@ -100,30 +100,30 @@
         {% csrf_token %}
         {% if form.errors %}<div class="studio-errors">{{ form.errors }}</div>{% endif %}
 
-        <label class="studio-field-label">Title*</label>
+        <label class="studio-field-label" for="id_title">Title*</label>
         {{ form.title }}
 
-        <div class="studio-row">
+        <label class="studio-field-label" for="id_short_description" style="margin-top:10px">Short description*</label>
+        {{ form.short_description }}
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px">
           <div>
-            <label class="studio-field-label">Category*</label>
-            {{ form.category }}
+            <label class="studio-field-label" for="id_build_method">How did you build it?*</label>
+            <select name="build_method" id="id_build_method" required style="width:100%">
+              {% for opt in method_options %}<option value="{{ opt.value }}" {% if form.build_method.value == opt.value %}selected{% endif %}>{{ opt.label }}</option>{% endfor %}
+            </select>
           </div>
           <div>
-            <label class="studio-field-label">Tech stack</label>
+            <label class="studio-field-label" for="id_tech_stack">Tech stack</label>
             {{ form.tech_stack }}
           </div>
         </div>
 
-        <label class="studio-field-label">Short description*</label>
-        {{ form.short_description }}
-
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px">
-          <label class="studio-field-label" style="margin:0">README* — min 100 chars, must include a “# ” heading</label>
+          <label class="studio-field-label" style="margin:0" for="id_readme">README — optional (we scaffold one)</label>
           <button type="button" id="studio-readme" class="btn-ghost" style="padding:5px 10px;font-size:12px">✍️ Nolo: write it for me</button>
         </div>
         {{ form.readme }}
-
-        <label class="studio-check">{{ form.ai_generated }} 🤖 This was AI-generated</label>
 
         <input type="hidden" name="html_code" id="submit-html">
         <input type="hidden" name="css_code" id="submit-css">

@@ -126,9 +126,13 @@ PAYSTACK_ENABLED = bool(PAYSTACK_SECRET_KEY)
 # Optional Nolo backends. Claude is used only when this key is set — never faked.
 ANTHROPIC_API_KEY = os.getenv('ANTHROPIC_API_KEY', '').strip()
 ANTHROPIC_MODEL = os.getenv('ANTHROPIC_MODEL', 'claude-3-5-haiku-latest')
-# AnyPost API key for social media posting
+# AnyPost manual sharing is disabled until a deployment supplies its endpoint
+# and credential. Provider URLs and routes are never hardcoded in application code.
+ANYPOST_BASE_URL = os.getenv('ANYPOST_BASE_URL', '').strip().rstrip('/')
+ANYPOST_ENDPOINT = os.getenv('ANYPOST_ENDPOINT', '').strip()
 ANYPOST_API_KEY = os.getenv('ANYPOST_API_KEY', '').strip()
-ANYPOST_ENABLED = bool(ANYPOST_API_KEY)
+ANYPOST_TIMEOUT_SECONDS = os.getenv('ANYPOST_TIMEOUT_SECONDS', '15').strip()
+ANYPOST_ENABLED = bool(ANYPOST_BASE_URL and ANYPOST_ENDPOINT and ANYPOST_API_KEY)
 
 # Seed the demo catalog when the published grid is empty (local / CI).
 # Production stays empty until an operator runs `python manage.py seed_demo`
@@ -402,8 +406,30 @@ TEMPLATES = [{
 }]
 WSGI_APPLICATION = 'blaqvibes.wsgi.application'
 
+# URL query parameters that are forwarded verbatim into the backend's OPTIONS
+# dict (so `?sslmode=require` and friends work). Anything else in the query
+# string is ignored rather than leaked into the connection options.
+_DB_URL_OPTION_KEYS = frozenset({
+    'sslmode', 'sslrootcert', 'sslcert', 'sslkey', 'sslcrl', 'sslpassword',
+    'connect_timeout', 'application_name', 'options', 'service',
+    'target_session_attrs', 'keepalives', 'keepalives_idle',
+    'keepalives_interval', 'keepalives_count',
+})
+
+
 def _db_from_url(url: str):
-    from urllib.parse import urlparse, unquote
+    """Build a Django DATABASES entry from a URL (the ``DATABASE_URL`` env var).
+
+    Supabase is handled explicitly:
+      * Supabase only accepts TLS — ``sslmode`` defaults to ``require`` unless
+        the URL already states one.
+      * The transaction pooler (port 6543) keeps no session state between
+        transactions, so Django cannot hold a persistent connection to it.
+        Session mode (5432) or the direct connection is the right choice for a
+        persistent backend like Django; if 6543 is deliberately used we set
+        CONN_MAX_AGE=0 so each request opens a fresh connection.
+    """
+    from urllib.parse import urlparse, unquote, parse_qsl
     parsed = urlparse(url)
     scheme = (parsed.scheme or '').split('+')[0]
     if scheme.startswith('postgres'):
@@ -412,20 +438,71 @@ def _db_from_url(url: str):
         engine = 'django.db.backends.mysql'
     else:
         engine = 'django.db.backends.sqlite3'
-    return {
+
+    name = unquote(parsed.path.lstrip('/'))
+    if not name and scheme.startswith('postgres'):
+        # A bare Supabase/Postgres URL (no path) means the `postgres` database.
+        name = 'postgres'
+
+    config = {
         'ENGINE': engine,
-        'NAME': unquote(parsed.path.lstrip('/')),
+        'NAME': name,
         'USER': unquote(parsed.username or ''),
         'PASSWORD': unquote(parsed.password or ''),
         'HOST': parsed.hostname or '',
         'PORT': str(parsed.port or ''),
     }
 
-DATABASE_URL = os.getenv('DATABASE_URL', '')
+    options = {
+        key: value
+        for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+        if key.strip().lower() in _DB_URL_OPTION_KEYS
+    }
+
+    host = (parsed.hostname or '').lower()
+    is_supabase = 'supabase.co' in host or 'pooler.supabase.com' in host
+    if is_supabase and 'sslmode' not in options:
+        options['sslmode'] = 'require'
+
+    if options:
+        config['OPTIONS'] = options
+
+    if is_supabase and parsed.port == 6543:
+        config['CONN_MAX_AGE'] = 0
+
+    return config
+
+
+# The database connection URL. One variable name across every environment —
+# only the VALUE differs:
+#   * local dev / CI → unset (falls back to SQLite below)
+#   * local docker    → postgres://blaq:…@db:5432/blaqvibes (compose injects it)
+#   * Render / prod   → your Supabase Postgres connection string
+# SUPABASE_URL is accepted as an alias so the prod value can be named
+# explicitly if you prefer. Note it holds the Postgres *connection string*,
+# not the Supabase API/project URL (https://….supabase.co).
+DATABASE_URL = (
+    os.getenv('DATABASE_URL', '').strip()
+    or os.getenv('SUPABASE_URL', '').strip()
+)
 if DATABASE_URL:
     DATABASES = {'default': _db_from_url(DATABASE_URL)}
-else:
+elif LOCAL_DEV or TESTING:
+    # SQLite is for local dev / CI only. A public host with several gunicorn
+    # workers must not share one SQLite file, and Supabase/Postgres is the
+    # production database — so production fails closed below instead of
+    # silently booting on SQLite.
     DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'db.sqlite3'}}
+else:
+    # Supabase is the production database. Without DATABASE_URL (the connection
+    # string Supabase gives you, pasted into Render's env vars) there is
+    # nothing to run against. Refuse to boot rather than silently lose all
+    # writes to a SQLite file that restarts would wipe.
+    raise RuntimeError(
+        'DATABASE_URL must be set in production. Paste your Supabase Postgres '
+        'connection string (session mode / port 5432) into Render as '
+        'DATABASE_URL — see .env.example.'
+    )
 
 REDIS_URL = os.getenv('REDIS_URL', '')
 if REDIS_URL and (not LOCAL_DEV or os.getenv('USE_REDIS', '0') == '1'):
@@ -548,8 +625,24 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
-DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'noreply@blaqvibes.co.za')
+# `or` rather than a default argument, because .env.example ships these keys
+# blank: an empty EMAIL_BACKEND would otherwise be handed to import_module('')
+# and take the whole process down at boot, and an empty host/port is a
+# mis-typed deploy, not a decision to talk to `:0`.
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND') or 'django.core.mail.backends.console.EmailBackend'
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL') or 'noreply@blaqvibes.co.za'
+# The console backend is a dev posture: verification, password-reset and
+# receipt mail land in the application log instead of an inbox, which
+# `manage.py security_check` ERRORs on for a public host. The SMTP keys are only
+# read when a real backend is named above — settings.py is the one place the
+# environment becomes Django settings, so they have to be listed here.
+EMAIL_HOST = os.getenv('EMAIL_HOST') or 'localhost'
+EMAIL_PORT = int(os.getenv('EMAIL_PORT') or 587)
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = _env_flag('EMAIL_USE_TLS', default=True)
+# A dead SMTP host must not park a request thread for the OS default (~2 min).
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT') or 10)
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = '/'
@@ -625,4 +718,3 @@ LOGGING = {
         },
     },
 }
-

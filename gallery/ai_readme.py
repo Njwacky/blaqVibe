@@ -17,15 +17,12 @@ def generate_ai_readme(project):
         gemini_key = _env("GEMINI_API_KEY")
         if gemini_key:
             try:
-                import google.genai as genai
-                client = genai.Client(api_key=gemini_key)
+                import google.generativeai as genai
+                genai.configure(api_key=gemini_key)
+                model = genai.GenerativeModel("gemini-1.5-flash")
                 prompt = f"Write a markdown README for BlaqVibes vibe. Title: {project.title}\nTech: {project.tech_stack}\nFiles: {list(project.file_tree.keys())[:10] if project.file_tree else []}\nLanguages: {project.language_stats}\nShort: {project.short_description}\n\nReturn ONLY markdown README with # Title, ## What is this?, ## Tech Stack, ## How to Run (code block), ## Features."
-                resp = client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=[{"role": "user", "parts": [{"text": prompt}]}],
-                    config={"temperature":0.3, "max_output_tokens":600}
-                )
-                txt = resp.text if hasattr(resp, 'text') else str(resp)
+                resp = model.generate_content(prompt, generation_config={"temperature":0.3, "max_output_tokens":600})
+                txt = getattr(resp, 'text', '') or ""
                 if txt and "# " in txt:
                     return txt.strip()[:5000]
             except Exception as e:
@@ -34,11 +31,9 @@ def generate_ai_readme(project):
         groq_key = _env("GROQ_API_KEY")
         if groq_key:
             try:
-                from groq import Groq
-                client = Groq(api_key=groq_key)
+                from .ai_providers import groq_text
                 prompt = f"Write markdown README for {project.title} — tech {project.tech_stack}, files {project.file_count}, languages {project.language_stats}"
-                resp = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], max_tokens=600, temperature=0.3)
-                txt = resp.choices[0].message.content or ""
+                txt = groq_text(prompt, max_output_tokens=600, temperature=0.3)
                 if txt and "# " in txt:
                     return txt.strip()[:5000]
             except Exception as e:

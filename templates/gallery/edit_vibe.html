@@ -1,26 +1,128 @@
 {% extends 'gallery/base.html' %}
+{% load static %}
 {% block title %}Edit {{ project.title }} — BlaqVibes{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'gallery/css/forms.css' %}?v=theme-colors-20260815">
+<link rel="stylesheet" href="{% static 'gallery/css/publish.css' %}?v=publish-first-20260911">
+{% endblock %}
 {% block content %}
-<div style="max-width:760px;margin:0 auto;padding:20px">
-  <h1 style="font-family:Space Grotesk,sans-serif;font-size:20px">Edit Vibe — {{ project.title }}</h1>
-  <p style="color:var(--muted);font-size:13px">Re-upload creates version v1.{{ project.versions.count|add:1 }}.0 and re-queues for scan (every edit is checked).</p>
-  <form method="post" enctype="multipart/form-data" style="margin-top:12px;display:grid;gap:12px">
+<div style="max-width:760px;margin:0 auto;padding:20px 14px 60px">
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:20px">Edit — {{ project.title }}</h1>
+  <p style="color:var(--muted);font-size:13px">Basics save instantly. Re-uploading files creates version v1.{{ project.versions.count|add:1 }}.0 and re-queues the safety scan (every edit is checked).</p>
+
+  <form method="post" enctype="multipart/form-data" style="margin-top:12px;display:grid;gap:14px">
     {% csrf_token %}
-    {% if form.errors %}<div style="background:var(--danger-bg);color:var(--danger-text);padding:10px;border-radius:10px;font-size:13px">{{ form.errors }}</div>{% endif %}
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><label class="field-label">Title</label>{{ form.title }}</div><div><label class="field-label">Category</label>{{ form.category }}</div></div>
-    <div style="margin-top:12px"><label class="field-label">What kind of program is this?</label>{{ form.creator_kind }}
-      {% if project.kind_evidence %}<div style="font-size:11px;color:var(--muted);margin-top:4px">We labelled this a <b>{{ project.kind_label }}</b> because: {{ project.kind_evidence|join:", " }}. Pick a kind above to override us.</div>{% endif %}
+    {% if form.non_field_errors %}<div style="background:var(--danger-bg);color:var(--danger-text);padding:10px;border-radius:10px;font-size:13px">{{ form.non_field_errors }}</div>{% endif %}
+
+    {# ── BASICS ── #}
+    <section id="sec-basics" style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:12px">
+      <h2 style="font-size:13px;letter-spacing:.06em;color:var(--muted);margin:0">BASICS</h2>
+      {% if form.title.errors %}<div class="pub-error">{{ form.title.errors.0 }}</div>{% endif %}
+      <div style="display:grid;grid-template-columns:1fr;gap:12px">
+        <div><label class="field-label" for="id_title">Project name</label>{{ form.title }}</div>
+        <div><label class="field-label" for="id_short_description">Short description</label>{{ form.short_description }}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+        <div><label class="field-label" for="id_category">Category</label>{{ form.category }}</div>
+        <div><label class="field-label" for="id_tech_stack">Tech stack</label>{{ form.tech_stack }}</div>
+      </div>
+      <div>
+        <label class="field-label" for="id_creator_kind">What kind of program is this?</label>{{ form.creator_kind }}
+        {% if project.kind_evidence %}<div style="font-size:11px;color:var(--muted);margin-top:4px">We labelled this a <b>{{ project.kind_label }}</b> because: {{ project.kind_evidence|join:", " }}. Pick a kind above to override us.</div>{% endif %}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
+        <div><label class="field-label" for="id_star_cost">Trade cost — stars</label>{{ form.star_cost }}<div style="font-size:11px;color:var(--muted);margin-top:3px">0 = free, 1 = Bronze, 3 = Silver</div></div>
+        <div><label class="field-label" for="id_price_zar">Money price — ZAR</label>{{ form.price_zar }}<div style="font-size:11px;color:var(--muted);margin-top:3px">0 = free, 50 = R50 — you keep 85%</div></div>
+      </div>
+      <div><label class="field-label" for="id_thumbnail">Thumbnail image <span style="color:var(--muted);font-weight:400">(optional)</span></label>{{ form.thumbnail }}</div>
+    </section>
+
+    {# ── FILES / CODE ── #}
+    <section id="sec-files" style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:12px">
+      <h2 style="font-size:13px;letter-spacing:.06em;color:var(--muted);margin:0">FILES &amp; CODE</h2>
+      <div>
+        <label class="field-label">ZIP — re-upload to create a new version</label>
+        {% include 'gallery/_zip_picker.html' %}
+        {% if form.zip_file.errors %}<div class="pub-error">{{ form.zip_file.errors.0 }}</div>{% endif %}
+        <div style="margin-top:8px"><label class="field-label" for="changelog">Changelog (for the version)</label><input name="changelog" id="changelog" placeholder="Fixed chart bug, added TwelveData" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--text);font-size:13px"></div>
+      </div>
+      {% if project.html_code or form.html_code.value %}
+      <details open>
+        <summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--accent-text)">Snippet code — HTML / CSS / JS</summary>
+        <div style="display:grid;gap:8px;margin-top:8px">
+          <label class="field-label" for="id_html_code">HTML</label>{{ form.html_code }}
+          <label class="field-label" for="id_css_code">CSS</label>{{ form.css_code }}
+          <label class="field-label" for="id_js_code">JS</label>{{ form.js_code }}
+        </div>
+      </details>
+      {% else %}
+      <details>
+        <summary style="cursor:pointer;font-size:13px;font-weight:700;color:var(--accent-text)">Paste snippet code instead (HTML / CSS / JS)</summary>
+        <div style="display:grid;gap:8px;margin-top:8px">
+          <label class="field-label" for="id_html_code">HTML</label>{{ form.html_code }}
+          <label class="field-label" for="id_css_code">CSS</label>{{ form.css_code }}
+          <label class="field-label" for="id_js_code">JS</label>{{ form.js_code }}
+        </div>
+      </details>
+      {% endif %}
+    </section>
+
+    {# ── README ── #}
+    <section id="sec-readme" style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:8px">
+      <h2 style="font-size:13px;letter-spacing:.06em;color:var(--muted);margin:0">README</h2>
+      {% if project.has_scaffold_readme %}<div style="font-size:12px;color:var(--accent-text);background:var(--accent-soft-bg);border:1px solid var(--accent-border);border-radius:10px;padding:8px 10px">This is still the starter scaffold — replace it with the real story: what it does, how to run it, what you learned.</div>{% endif %}
+      <label class="field-label" for="id_readme">README — markdown, min 100 chars, needs one “# ” heading</label>
+      {{ form.readme }}
+      {% if form.readme.errors %}<div class="pub-error">{{ form.readme.errors.0 }}</div>{% endif %}
+    </section>
+
+    {# ── BUILD METHOD & PROOF ── #}
+    <section id="sec-build" style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:12px">
+      <h2 style="font-size:13px;letter-spacing:.06em;color:var(--muted);margin:0">BUILD METHOD &amp; PROOF</h2>
+      <div>
+        <label class="field-label">Build method</label>
+        <div class="method-grid">
+          {% for choice in form.fields.build_choice.choices %}
+          <label class="method-card">
+            <input type="radio" name="build_choice" value="{{ choice.0 }}" {% if form.build_choice.value == choice.0 %}checked{% endif %}>
+            <span class="method-name">{{ choice.1 }}</span>
+          </label>
+          {% endfor %}
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">One tap is all transparency needs — the details below are optional and strengthen your proof.</div>
+      </div>
+      <details {% if project.claims_ai or form.ai_tool.value or form.ai_prompt.value %}open{% endif %}>
+        <summary style="cursor:pointer;font-size:13px;font-weight:700">AI details <span style="color:var(--muted);font-weight:400">— optional</span></summary>
+        <div style="display:grid;gap:10px;margin-top:8px">
+          <div><label class="field-label" for="id_ai_tool">AI tool used</label>{{ form.ai_tool }}</div>
+          <div><label class="field-label" for="id_ai_prompt">AI workflow note</label>{{ form.ai_prompt }}</div>
+          <div><label class="field-label" for="id_ai_got_wrong">What AI got wrong</label>{{ form.ai_got_wrong }}</div>
+        </div>
+      </details>
+      <details {% if form.problem_statement.value or form.human_did.value %}open{% endif %}>
+        <summary style="cursor:pointer;font-size:13px;font-weight:700">Problem &amp; human contribution <span style="color:var(--muted);font-weight:400">— optional proof</span></summary>
+        <div style="display:grid;gap:10px;margin-top:8px">
+          <div><label class="field-label" for="id_problem_statement">Problem this build solves</label>{{ form.problem_statement }}</div>
+          <div><label class="field-label" for="id_human_did">What you (the human) actually did</label>{{ form.human_did }}</div>
+        </div>
+      </details>
+      {% if project.forked_from %}
+      <details open>
+        <summary style="cursor:pointer;font-size:13px;font-weight:700">Remix details</summary>
+        <div style="display:grid;gap:10px;margin-top:8px">
+          <div><label class="field-label" for="id_remix_changed">What changed from the original</label>{{ form.remix_changed }}</div>
+          <div><label class="field-label" for="id_remix_why">Why it changed</label>{{ form.remix_why }}</div>
+        </div>
+      </details>
+      {% endif %}
+    </section>
+
+    {% if form.errors %}{% for field, errors in form.errors.items %}{% if field != '__all__' %}{% for e in errors %}<div class="pub-error">{{ e }}</div>{% endfor %}{% endif %}{% endfor %}{% endif %}
+
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <a href="{{ project.get_absolute_url }}" class="btnG">Cancel</a>
+      <button class="btnV">Save changes</button>
     </div>
-    <div><label class="field-label">Short desc</label>{{ form.short_description }}</div>
-    <div><label class="field-label">Problem this Build solves</label>{{ form.problem_statement }}</div>
-    <div><label class="field-label">What you (the human) actually did</label>{{ form.human_did }}</div>
-    <div><label class="field-label">What AI got wrong</label>{{ form.ai_got_wrong }}</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><div><label class="field-label">Remix — what changed</label>{{ form.remix_changed }}</div><div><label class="field-label">Remix — why</label>{{ form.remix_why }}</div></div>
-    <div><label class="field-label">README</label>{{ form.readme }}</div>
-    <div><label class="field-label">Tech stack</label>{{ form.tech_stack }}</div>
-    <div><label class="field-label">ZIP (re-upload to version)</label>{% include 'gallery/_zip_picker.html' %}</div>
-    <div><label class="field-label">Changelog (for version)</label><input name="changelog" placeholder="Fixed chart bug, added TwelveData" style="width:100%;background:var(--input);border:1px solid var(--line);border-radius:10px;padding:10px;color:var(--text);font-size:13px"></div>
-    <div style="display:flex;gap:8px;justify-content:flex-end"><a href="{{ project.get_absolute_url }}" class="btnG">Cancel</a><button class="btnV">Save & Re-queue Scan</button></div>
   </form>
   {% if project.versions.all %}
   <div style="margin-top:16px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px">
@@ -48,7 +150,5 @@
     </form>
   </div>
 </div>
-<link rel="stylesheet" href="/static/gallery/css/forms.css?v=theme-colors-20260815">
-<link rel="stylesheet" href="/static/gallery/css/publish.css?v=zip-files-20260909">
-<script src="/static/gallery/js/publish.js?v=zip-files-20260909" defer></script>
+<script src="{% static 'gallery/js/publish.js' %}?v=publish-first-20260911" defer></script>
 {% endblock %}

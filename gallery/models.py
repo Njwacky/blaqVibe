@@ -63,6 +63,24 @@ class AppProject(models.Model):
     ai_generated = models.BooleanField(default=False)
     ai_tool = models.CharField(max_length=50, blank=True)
     ai_prompt = models.TextField(blank=True)
+    # Publish-time build-method claim (architecture §6). One lightweight pick
+    # from the creator — the simple classification collected at publish so
+    # transparency never becomes friction. Detailed provenance (ai_tool,
+    # ai_prompt, human_did…) remains optional and is added afterwards.
+    # '' = derive from the recorded facts (ai_generated / ai_tool), which is
+    # how every project published before this field existed keeps working.
+    # 'remixed' is deliberately NOT storable here: a remix is a fact of the
+    # forked_from lineage, never a self-declared label.
+    BUILD_CHOICE_CHOICES = [
+        ('', 'Derive from evidence'),
+        ('human', 'Human-built'),
+        ('ai_assisted', 'AI-assisted'),
+        ('ai_generated', 'AI-generated'),
+    ]
+    build_choice = models.CharField(
+        max_length=20, choices=BUILD_CHOICE_CHOICES, blank=True, default='',
+        help_text="Creator's publish-time pick. Blank = derive from evidence.",
+    )
     # Phase 1 Proof — publisher-written evidence, not a score.
     problem_statement = models.CharField(
         max_length=400, blank=True, default='',
@@ -361,8 +379,16 @@ class AppProject(models.Model):
 
     @property
     def build_method(self):
+        # Priority: lineage fact → creator's publish-time claim → recorded
+        # evidence → human. A creator can lift the label (ai_assisted /
+        # ai_generated) with one tap at publish, but can never fake a remix
+        # (forked_from is platform-written) and can never *lower* an AI
+        # record: naming an ai_tool on the edit page still surfaces as
+        # AI-assisted even if the pick was 'human'.
         if self.forked_from_id:
             return 'remixed'
+        if self.build_choice in ('ai_assisted', 'ai_generated'):
+            return self.build_choice
         if self.ai_generated:
             return 'ai_generated'
         if (self.ai_tool or '').strip():
@@ -399,19 +425,40 @@ class AppProject(models.Model):
             )
         return 'Created without material AI assistance.'
 
+    @property
+    def claims_ai(self):
+        """Does this project claim any AI involvement, by any of the three
+        records — the publish-time pick, the legacy flag, or a named tool?"""
+        return bool(
+            self.ai_generated
+            or self.build_choice in ('ai_assisted', 'ai_generated')
+            or (self.ai_tool or '').strip()
+        )
+
+    @property
+    def has_scaffold_readme(self):
+        """True while the README is still the starter scaffold written at
+        publish time. Used for the honest 'customize your README' nudge —
+        never shown to visitors as a flaw, only to the creator as a next step."""
+        from .proof import scaffold_readme
+        return (self.readme or '').strip() == scaffold_readme(
+            self.title, self.short_description,
+        ).strip()
+
     def proof_checks(self):
         """Precise evidence rows for the Proof Card. Never a fake universal badge."""
         scan = self.scan_report if isinstance(self.scan_report, dict) else {}
         vulns = scan.get('vulnerabilities') or scan.get('vuln_count')
+        claims_ai = self.claims_ai
         return [
             {'ok': bool((self.readme or '').strip()), 'label': 'README'},
             {'ok': bool(self.zip_file) or bool((self.html_code or '').strip()), 'label': 'Files or snippet'},
             {'ok': self.trust in ('verified', 'scanned'), 'label': 'Security scan ran'},
             {'ok': self.trust == 'verified', 'label': 'Checked — virus/secrets clean'},
-            {'ok': bool((self.ai_tool or '').strip()) if self.ai_generated or (self.ai_tool or '').strip() else True,
-             'label': 'AI tool named' if (self.ai_generated or (self.ai_tool or '').strip()) else 'AI not claimed'},
-            {'ok': bool((self.ai_prompt or '').strip()) if self.ai_generated else True,
-             'label': 'AI workflow note' if self.ai_generated else 'AI workflow optional'},
+            {'ok': bool((self.ai_tool or '').strip()) if claims_ai else True,
+             'label': 'AI tool named' if claims_ai else 'AI not claimed'},
+            {'ok': bool((self.ai_prompt or '').strip()) if claims_ai else True,
+             'label': 'AI workflow note' if claims_ai else 'AI workflow optional'},
             {'ok': bool((self.human_did or '').strip()) or self.build_method == 'human_built',
              'label': 'Human contribution stated'},
             {'ok': (not self.forked_from_id) or bool((self.remix_changed or '').strip()),

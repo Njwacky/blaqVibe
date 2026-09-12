@@ -60,15 +60,12 @@ def nolo_review(project):
         gemini_key = _env("GEMINI_API_KEY")
         if gemini_key:
             try:
-                import google.genai as genai
-                client = genai.Client(api_key=gemini_key)
+                import google.generativeai as genai
+                genai.configure(api_key=gemini_key)
+                model = genai.GenerativeModel("gemini-1.5-flash")
                 prompt = f"Review this vibe for BlaqVibes. Title: {project.title}\nTech: {project.tech_stack}\nFiles: {project.file_count}\nLanguages: {project.language_stats}\nREADME:\n{project.readme[:2000]}\n\nReturn ONLY JSON: {{\"score\": 0-10, \"fixes\": [3 strings], \"pros\": [3 strings]}}"
-                resp = client.models.generate_content(
-                    model="gemini-1.5-flash",
-                    contents=[{"role": "user", "parts": [{"text": prompt}]}],
-                    config={"temperature":0.2, "max_output_tokens":400}
-                )
-                txt = resp.text if hasattr(resp, 'text') else str(resp)
+                resp = model.generate_content(prompt, generation_config={"temperature":0.2, "max_output_tokens":400})
+                txt = getattr(resp, 'text', '') or ""
                 m = re.search(r'\{.*\}', txt, re.DOTALL)
                 if m:
                     data = json.loads(m.group(0))
@@ -79,11 +76,9 @@ def nolo_review(project):
         groq_key = _env("GROQ_API_KEY")
         if groq_key:
             try:
-                from groq import Groq
-                client = Groq(api_key=groq_key)
+                from .ai_providers import groq_text
                 prompt = f"Review this vibe for BlaqVibes. Title: {project.title}\nTech: {project.tech_stack}\nFiles: {project.file_count}\nLanguages: {project.language_stats}\nREADME:\n{project.readme[:2000]}\n\nReturn ONLY JSON: {{\"score\": 0-10, \"fixes\": [3 strings], \"pros\": [3 strings]}}"
-                resp = client.chat.completions.create(model="llama-3.1-8b-instant", messages=[{"role":"user","content":prompt}], max_tokens=400, temperature=0.2)
-                txt = resp.choices[0].message.content or ""
+                txt = groq_text(prompt, max_output_tokens=400, temperature=0.2)
                 m = re.search(r'\{.*\}', txt, re.DOTALL)
                 if m:
                     data = json.loads(m.group(0))

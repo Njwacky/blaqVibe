@@ -1,0 +1,97 @@
+{% extends 'gallery/base.html' %}
+{% load static %}
+{% block title %}{{ project.title }} — published — BlaqVibes{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'gallery/css/publish.css' %}?v=publish-first-20260911">
+{% endblock %}
+{% block content %}
+<div class="pub-page pub-success">
+
+  {% if quarantined %}
+  <div class="ps-hero ps-hero--held" role="status">
+    <span class="ps-hero-mark">⏸</span>
+    <div>
+      <b>Received — held for a quick look</b>
+      <p>Your upload matched a safety pattern, so a moderator checks it first. You'll get a notification the moment it's live. Everything below still helps.</p>
+    </div>
+  </div>
+  {% elif scan_pending %}
+  <div class="ps-hero ps-hero--scan" role="status">
+    <span class="ps-hero-mark">⏳</span>
+    <div>
+      <b>Project received — safety scan running</b>
+      <p>Your files are being checked for viruses and leaked secrets. You'll get a notification as soon as it's live on the feed. Nothing more to do now.</p>
+    </div>
+  </div>
+  {% else %}
+  <div class="ps-hero ps-hero--live" role="status">
+    <span class="ps-hero-mark">✓</span>
+    <div>
+      <b>PROJECT PUBLISHED</b>
+      <p>Your project is now visible on BlaqVibes.</p>
+    </div>
+  </div>
+  {% endif %}
+
+  <h1 class="ps-title">{{ project.title }}</h1>
+  <p class="ps-sub">{{ project.short_description }}</p>
+
+  <div class="ps-share">
+    <a class="btn-violet" href="https://wa.me/?text={{ request.scheme }}%3A%2F%2F{{ request.get_host }}{{ project.get_absolute_url|urlencode }}%20{{ project.title|urlencode }}%20by%20%40{{ project.owner.username }}">Share to WhatsApp</a>
+    <button type="button" class="btn-ghost js-copy" data-copy="{{ request.scheme }}://{{ request.get_host }}{{ project.get_absolute_url }}">Copy link</button>
+  </div>
+
+  <section class="ps-proof" aria-label="Project proof">
+    <header>
+      <span class="ps-proof-kicker">PROJECT PROOF</span>
+      <span class="ps-proof-level ps-proof-level--{{ level_key }}">{{ level_title }}</span>
+    </header>
+    <div class="proof-meter" role="img" aria-label="{{ ok_count }} of {{ checks|length }} proof checks complete"><span style="width:{{ pct }}%"></span></div>
+    <ul class="proof-list">
+      {% for row in checks %}
+      <li class="{% if row.ok %}is-done{% endif %}"><span class="proof-mark">{% if row.ok %}✓{% else %}○{% endif %}</span> {{ row.label }}</li>
+      {% endfor %}
+    </ul>
+    <p class="ps-proof-note">Proof is optional and never done in one sitting — every ✓ makes the project easier to trust, remix and hire.</p>
+  </section>
+
+  <section class="ps-strengthen" aria-label="Make your project stronger">
+    <h2>Make it stronger <span class="ps-optional">optional — any time</span></h2>
+    <div class="ps-actions">
+      {% for a in actions %}
+      <a class="ps-action" href="{{ a.url }}">
+        <b>{{ a.label }}</b>
+        <span>{{ a.note }}</span>
+      </a>
+      {% endfor %}
+    </div>
+    <a class="ps-maybe" href="{{ project.get_absolute_url }}">Maybe later — take me to my project →</a>
+  </section>
+
+</div>
+<script>
+// Copy-link buttons on the success page (detail.js is not loaded here).
+(function () {
+  var toastEl = document.getElementById('toast');
+  function toast() {
+    if (!toastEl) return;
+    toastEl.classList.add('show');
+    setTimeout(function () { toastEl.classList.remove('show'); }, 1600);
+  }
+  document.addEventListener('click', function (e) {
+    var btn = e.target.closest('.js-copy');
+    if (!btn) return;
+    var text = btn.getAttribute('data-copy') || '';
+    var done = function () { toast(); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done).catch(function () {});
+    } else {
+      var ta = document.createElement('textarea');
+      ta.value = text; document.body.appendChild(ta); ta.select();
+      try { document.execCommand('copy'); } catch (err) {}
+      document.body.removeChild(ta); done();
+    }
+  });
+})();
+</script>
+{% endblock %}

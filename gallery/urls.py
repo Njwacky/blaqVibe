@@ -44,6 +44,9 @@ urlpatterns = [
     path('saved/', views.saved_vibes, name='saved_vibes'),
     path('oops/', views.oops_demo, name='oops_demo'),
     path('publish/', views.publish, name='publish'),
+    # The moment after publishing: PROJECT PUBLISHED ✓ + optional
+    # strengthen-your-proof steps (publish-first, proof-later).
+    path('publish/done/<slug:slug>/', views.publish_success, name='publish_success'),
     # New-user demo: import a public GitHub repo as your first vibe. GitHub
     # already serves the ZIP; this fetches it, normalizes it and runs the
     # normal publish pipeline — see gallery/repo_import.py.
@@ -89,6 +92,7 @@ urlpatterns = [
     path('app/<slug:slug>/fork/', views.fork_vibe, name='fork_vibe'),
     path('app/<slug:slug>/forks/', views.fork_network, name='fork_network'),
     path('app/<slug:slug>/share-card.png', share_card, name='share_card'),
+    path('app/<slug:slug>/share/anypost/', views.share_to_anypost, name='share_to_anypost'),
     path('app/<slug:slug>/pr/create/', views.create_pr, name='create_pr'),
     path('app/<slug:slug>/prs/', views.pr_list, name='pr_list'),
     path('app/<slug:slug>/prs/<int:pr_id>/', views.pr_action, name='pr_action'),

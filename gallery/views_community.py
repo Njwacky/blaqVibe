@@ -161,7 +161,7 @@ def studio(request, slug=''):
                and trust all apply. Studio never writes an AppProject itself.
     """
     from .starters import get_starter, STARTERS_VERSION
-    from .forms import AppUploadForm
+    from .forms import QuickPublishForm
 
     starter = get_starter(slug) if slug else None
     if slug and not starter:
@@ -191,7 +191,8 @@ def studio(request, slug=''):
                          'color:#e5e7eb;display:grid;place-items:center;min-height:100vh}'),
             'js_code': '// JavaScript runs in the live preview after you sign in.\n',
         }
-    form = AppUploadForm(initial=initial)
+    form = QuickPublishForm(initial=initial)
+    from .forms import BUILD_METHOD_HINTS, BUILD_METHOD_PUBLISH_CHOICES
     return render(request, 'gallery/studio.html', {
         'form': form,
         'starter': starter,
@@ -199,6 +200,11 @@ def studio(request, slug=''):
         'starters_version': STARTERS_VERSION,
         'can_preview': request.user.is_authenticated,
         'studio_next': request.path,
+        # The same one-tap build-method question as the publish page.
+        'method_options': [
+            {'value': value, 'label': label, 'hint': BUILD_METHOD_HINTS.get(value, '')}
+            for value, label in BUILD_METHOD_PUBLISH_CHOICES
+        ],
     })
 
 @login_required
