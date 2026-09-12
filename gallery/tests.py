@@ -3392,7 +3392,10 @@ class TrustBadgeTests(TestCase):
                          scan_report=self._clean_zip_report())
         apply_trust_grade(p)
         feed = self.client.get('/')
-        self.assertContains(feed, '🛡️ Checked')
+        # The badge is the sprite's shield glyph plus the word; it used to lead
+        # with an emoji the browser drew in its own colours.
+        self.assertContains(feed, '#bv-ico-shield')
+        self.assertContains(feed, 'Checked')
         detail = self.client.get(p.get_absolute_url())
         self.assertContains(detail, '✓ Checked')
         self.assertContains(detail, 'What does this mean?')
@@ -3626,7 +3629,8 @@ class TrustFilterTests(TestCase):
     def test_feed_renders_the_checkbox(self):
         response = self.client.get('/')
         self.assertContains(response, 'name="trust"')
-        self.assertContains(response, '🛡️ Checked only')
+        self.assertContains(response, 'Checked only')
+        self.assertContains(response, '#bv-ico-shield')
 
     def test_api_supports_the_trust_filter(self):
         response = self.client.get('/api/v1/apps/', {'trust': 'verified'})
@@ -3665,10 +3669,11 @@ class MarketingCopyTests(TestCase):
         # "Scanned before the feed" is true: gallery.trust + the scan chain.
         response = self.client.get('/')
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, '🛡️ Every vibe scanned before the feed')
+        self.assertContains(response, '#bv-ico-shield')                     # trust scan, as a glyph
+        self.assertContains(response, 'Every vibe scanned before the feed')
         self.assertContains(response, 'Read the standard →')              # /trust/ link
         self.assertContains(response, '★ Stars never expire')             # ledger, no expiry
-        self.assertContains(response, '🇿🇦 Projects priced in Rands')     # price_zar, buyer pricing
+        self.assertContains(response, 'Prices in Rands (ZAR)')            # price_zar, buyer pricing
 
     def test_feed_makes_no_creator_money_promise(self):
         response = self.client.get('/')

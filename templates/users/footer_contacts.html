@@ -49,9 +49,9 @@
     {% if footer_preview %}
       <ul>
         {% for contact in footer_preview %}
-          <li><span aria-hidden="true">{{ contact.icon }}</span> <a href="{{ contact.href }}"{% if contact.external %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ contact.label }}</a> <span class="footer-contact-preview__href">{{ contact.href }}</span></li>
+          <li>{% include 'gallery/_contact_icon.html' with kind=contact.kind %} <a href="{{ contact.href }}"{% if contact.external %} target="_blank" rel="noopener noreferrer"{% endif %}>{{ contact.label }}</a> <span class="footer-contact-preview__href">{{ contact.href }}</span></li>
         {% endfor %}
-        <li><span aria-hidden="true">🤖</span> Ask Nolo (AI help)</li>
+        <li><span aria-hidden="true"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-robot"></use></svg></span> Ask Nolo (AI help)</li>
       </ul>
     {% else %}
       <p class="footer-contact-preview__empty">Nothing yet — the Contact column shows “Ask Nolo (AI help)” only. Add a method above.</p>

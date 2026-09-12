@@ -60,7 +60,7 @@ BlaqVibes{% endblock %} {% block content %}
       align-items: center;
     "
   >
-    <span style="font-size: 20px">🏆</span>
+    <span style="font-size: 20px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-challenges"></use></svg></span>
     <div style="flex: 1">
       <div style="font-weight: 800">
         Winner — {{ challenge.winner.title }} by @{{ challenge.winner.owner.username }}
@@ -146,10 +146,10 @@ BlaqVibes{% endblock %} {% block content %}
 
   <div style="margin-top: 12px; display: flex; gap: 8px; flex-wrap: wrap">
     <a href="{% url 'publish' %}?challenge={{ challenge.tag }}" class="btnV" style="text-decoration: none"
-      >📝 Start from Scratch →</a
+      ><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-pencil"></use></svg> Start from Scratch →</a
     >
     <a href="{% url 'publish' %}?challenge={{ challenge.tag }}&upload=zip" class="btnG" style="text-decoration: none"
-      >📦 Upload Your ZIP →</a
+      ><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-box"></use></svg> Upload Your ZIP →</a
     >
     <a
       href="{% url 'challenge_list' %}"

@@ -64,7 +64,7 @@
   </section>
 
   {% if daily %}
-  <section style="margin-top:22px"><div style="display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px"><span>🏆</span><span>Need a prompt? Today's challenge: <a href="{% url 'challenge_detail' daily.tag %}" style="color:var(--link);font-weight:700">{{ daily.title }}</a></span><span style="margin-left:auto;font-size:11px;color:var(--muted)">{{ daily.submission_count }} submission{{ daily.submission_count|pluralize }}</span></div></section>
+  <section style="margin-top:22px"><div style="display:flex;gap:10px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 12px;font-size:13px"><span><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-challenges"></use></svg></span><span>Need a prompt? Today's challenge: <a href="{% url 'challenge_detail' daily.tag %}" style="color:var(--link);font-weight:700">{{ daily.title }}</a></span><span style="margin-left:auto;font-size:11px;color:var(--muted)">{{ daily.submission_count }} submission{{ daily.submission_count|pluralize }}</span></div></section>
   {% endif %}
 
   {% if not user.is_authenticated %}

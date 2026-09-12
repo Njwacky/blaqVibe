@@ -20,7 +20,12 @@
   <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px">
     {% for s in starters %}
     <a href="{% url 'studio' s.slug %}" class="starter-card" style="display:flex;flex-direction:column;text-decoration:none;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;transition:border-color .15s,transform .15s">
-      <div style="font-size:30px;line-height:1">{{ s.emoji }}</div>
+      {% comment %}A starter card leads with what it teaches, not with the
+      emoji the catalogue happens to carry: the glyph is chosen from the slug
+      the studio routes on. A starter added later that is not listed here
+      falls back to the generic spark, so the card still renders — the one
+      thing it must never do is draw the platform's own artwork.{% endcomment %}
+      <div style="font-size:30px;line-height:1"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-{% if s.slug == 'hello-landing' %}rocket{% elif s.slug == 'counter-app' %}bolt{% elif s.slug == 'todo-list' %}check{% elif s.slug == 'quote-generator' %}chat{% else %}start{% endif %}"></use></svg></div>
       <div style="font-weight:800;margin-top:10px;font-size:16px">{{ s.name }}</div>
       <div style="color:var(--muted);font-size:13px;line-height:1.5;margin-top:6px;flex:1">{{ s.blurb }}</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">
@@ -31,7 +36,7 @@
     {% endfor %}
 
     <a href="{% url 'import_from_github' %}" class="starter-card" style="display:flex;flex-direction:column;text-decoration:none;color:inherit;background:var(--card);border:1px solid var(--accent-border);border-radius:16px;padding:18px;transition:border-color .15s,transform .15s">
-      <div style="font-size:30px;line-height:1">📦</div>
+      <div style="font-size:30px;line-height:1"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-upload"></use></svg></div>
       <div style="font-weight:800;margin-top:10px;font-size:16px">Import a GitHub repo</div>
       <div style="color:var(--muted);font-size:13px;line-height:1.5;margin-top:6px;flex:1">
         New here and nothing to show yet? Paste any public repo — or import
@@ -46,7 +51,7 @@
     </a>
 
     <a href="{% url 'studio_blank' %}" class="starter-card" style="display:flex;flex-direction:column;justify-content:center;text-align:center;text-decoration:none;color:inherit;background:var(--bg);border:1px dashed var(--accent-border);border-radius:16px;padding:18px;min-height:180px;transition:border-color .15s,transform .15s">
-      <div style="font-size:30px;line-height:1">✏️</div>
+      <div style="font-size:30px;line-height:1"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-pencil"></use></svg></div>
       <div style="font-weight:800;margin-top:10px;font-size:16px">Blank canvas</div>
       <div style="color:var(--muted);font-size:13px;line-height:1.5;margin-top:6px">Already have code? Paste it into the HTML, CSS and JS tabs. Sign in to watch it run.</div>
       <div style="margin-top:14px;font-weight:700;font-size:13px;color:var(--accent-text)">Open Studio →</div>

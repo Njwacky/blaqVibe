@@ -655,7 +655,9 @@ class AppDetailTipTests(TestCase):
     def test_visitor_sees_tip_button_and_panel(self):
         self.client.login(username='fanofapps', password='pass12345')
         response = self.client.get(self.project.get_absolute_url())
-        self.assertContains(response, '⭐ Tip')
+        # The button's mark is the site's own line star, not a system emoji.
+        self.assertContains(response, 'id="tip-btn"')
+        self.assertContains(response, '#bv-ico-star')
         self.assertContains(response, f'data-username="{self.owner.username}"')
         self.assertContains(response, 'id="tip-panel"')
         self.assertContains(response, 'Your balance: 5 ★')
@@ -663,12 +665,14 @@ class AppDetailTipTests(TestCase):
     def test_owner_never_sees_tip_button_on_own_vibe(self):
         self.client.login(username='creator', password='pass12345')
         response = self.client.get(self.project.get_absolute_url())
-        self.assertNotContains(response, '⭐ Tip')
+        self.assertNotContains(response, 'id="tip-btn"')
         self.assertNotContains(response, 'id="tip-panel"')
 
     def test_anonymous_gets_login_link(self):
         response = self.client.get(self.project.get_absolute_url())
-        self.assertContains(response, '⭐ Tip')
+        # Same label as the signed-in button — the emoji that used to sit in
+        # front of it is now a sprite glyph, so match the anchor's tail.
+        self.assertContains(response, ' Tip</a>')
         self.assertContains(response, '/accounts/login/')
         self.assertNotContains(response, 'id="tip-panel"')
 

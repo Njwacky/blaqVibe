@@ -52,7 +52,7 @@
     >
       {% for f in files %}
       <div>
-        📄 {{ f.path }}
+        <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-file"></use></svg> {{ f.path }}
         <span style="color: var(--muted)">— {{ f.size }} bytes</span>
       </div>
       {% empty %}
@@ -83,7 +83,7 @@
     <a href="{{ project.get_absolute_url }}" class="btnG">← Back to vibe</a>
     {% if project.zip_file and can_download %}
     <a href="{% url 'download_zip' project.slug %}" class="btnV" download="{{ project.slug }}.zip"
-      >⬇ Download ZIP</a
+      ><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-download"></use></svg> Download ZIP</a
     >
     {% elif project.zip_file %}
     <a href="{{ project.get_absolute_url }}#paywall" class="btnV"

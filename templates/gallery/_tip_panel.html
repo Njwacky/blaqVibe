@@ -1,6 +1,6 @@
 {% if user.is_authenticated and tip_recipient_username != user.username %}
 <div id="tip-panel" style="display:none;margin-top:12px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px" aria-label="Send a tip">
-  <div style="font-weight:700;font-size:13px">⭐ Send @{{ tip_recipient_username }} a tip</div>
+  <div style="font-weight:700;font-size:13px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-star"></use></svg> Send @{{ tip_recipient_username }} a tip</div>
   <div style="font-size:11px;color:var(--muted);margin-top:2px">Stars leave your wallet and land in theirs — no download, just gratitude. Every tip is ledgered; you can't tip yourself. Co-owner splits apply to trades; tips go straight to the creator.</div>
   <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;align-items:center">
     <button type="button" class="btn-ghost js-tip-preset" data-amount="1" style="font-size:13px;padding:6px 12px">1 ★</button>

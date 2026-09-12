@@ -10,10 +10,10 @@
   <div class="studio-topbar">
     <div>
       <a href="{% url 'starter_gallery' %}" class="studio-back">← Starters</a>
-      <span class="studio-title">{% if starter %}{{ starter.emoji }} {{ starter.name }}{% else %}✏️ Blank canvas{% endif %}</span>
+      <span class="studio-title">{% if starter %}{{ starter.name }}{% else %}<svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-pencil"></use></svg> Blank canvas{% endif %}</span>
     </div>
     <div class="studio-actions">
-      <button type="button" id="studio-fix" class="btn-ghost">🔧 Nolo: fix my code</button>
+      <button type="button" id="studio-fix" class="btn-ghost"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-fix"></use></svg> <span class="studio-btn-label">Nolo: fix my code</span></button>
       {% if can_preview %}
       <button type="button" id="studio-run" class="btn-ghost">▶ Refresh preview</button>
       {% else %}
@@ -60,7 +60,7 @@
       <iframe id="studio-frame" title="Live preview" sandbox="allow-scripts" referrerpolicy="no-referrer"></iframe>
       {% else %}
       <div class="studio-preview-lock" role="region" aria-labelledby="studio-preview-lock-title">
-        <div class="studio-preview-lock-icon" aria-hidden="true">🔒</div>
+        <div class="studio-preview-lock-icon" aria-hidden="true"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-lock"></use></svg></div>
         <h2 id="studio-preview-lock-title">Sign in to run a live preview</h2>
         <p>Keep writing. The editors stay open. Running HTML/JS is an account action — the same gate as publish — so this page cannot become an anonymous script runner.</p>
         <div class="studio-preview-lock-actions">
@@ -80,7 +80,7 @@
 
   <div id="studio-nolo" class="studio-nolo" hidden>
     <div class="studio-nolo-head">
-      <span>🔧 Nolo’s review</span>
+      <span><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-fix"></use></svg> Nolo’s review</span>
       <span id="studio-nolo-source" class="studio-nolo-source"></span>
       <button type="button" id="studio-nolo-close" class="studio-x" aria-label="Close">×</button>
     </div>
@@ -121,7 +121,7 @@
 
         <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:12px">
           <label class="studio-field-label" style="margin:0" for="id_readme">README — optional (we scaffold one)</label>
-          <button type="button" id="studio-readme" class="btn-ghost" style="padding:5px 10px;font-size:12px">✍️ Nolo: write it for me</button>
+          <button type="button" id="studio-readme" class="btn-ghost" style="padding:5px 10px;font-size:12px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-pencil"></use></svg> <span class="studio-btn-label">Nolo: write it for me</span></button>
         </div>
         {{ form.readme }}
 

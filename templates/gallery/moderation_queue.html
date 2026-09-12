@@ -4,13 +4,13 @@
 <div style="max-width:1100px;margin:0 auto;padding:20px">
   <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
     <div>
-      <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">🛡️ Moderation Queue</h1>
+      <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> Moderation Queue</h1>
       <p style="color:var(--muted);font-size:13px">Staff only — approve pending vibes or review quarantined (virus/secrets). All actions are backend, no JS secrets.</p>
     </div>
-    <a href="{% url 'reports_queue' %}" style="font-size:12px;font-weight:700;color:var(--danger-text);text-decoration:none">🚨 Report triage{% if open_reports %} ({{ open_reports }} open){% endif %} →</a>
+    <a href="{% url 'reports_queue' %}" style="font-size:12px;font-weight:700;color:var(--danger-text);text-decoration:none"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-alert"></use></svg> Report triage{% if open_reports %} ({{ open_reports }} open){% endif %} →</a>
   </div>
 
-  <h2 style="margin:16px 0 8px;font-size:14px">⏳ Pending Scan/Review ({{ pending.count }})</h2>
+  <h2 style="margin:16px 0 8px;font-size:14px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-clock"></use></svg> Pending Scan/Review ({{ pending.count }})</h2>
   {% for p in pending %}
   <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px;margin-bottom:8px">
     <div style="flex:1">
@@ -25,7 +25,7 @@
   </div>
   {% empty %}<div style="color:var(--muted);font-size:13px;padding:12px;background:var(--bg);border:1px dashed var(--line);border-radius:10px">No pending vibes — queue is clean.</div>{% endfor %}
 
-  <h2 style="margin:16px 0 8px;font-size:14px;color:var(--danger-text)">🚨 Quarantined — Virus/Secrets ({{ quarantined.count }})</h2>
+  <h2 style="margin:16px 0 8px;font-size:14px;color:var(--danger-text)"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-alert"></use></svg> Quarantined — Virus/Secrets ({{ quarantined.count }})</h2>
   {% for p in quarantined %}
   <div style="background:var(--danger-bg);border:1px solid var(--danger-border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px;margin-bottom:8px">
     <div style="flex:1">

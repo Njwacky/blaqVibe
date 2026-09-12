@@ -8,7 +8,7 @@
       <h2 id="today-loop-title" class="today-loop__title">What are people building?</h2>
       <div class="today-loop__sub">Projects first. Everything else supports that.</div>
     </div>
-    {% if unread_notifications %}<a href="{% url 'notifications' %}" class="today-loop__signal">🔔 {{ unread_notifications }} new</a>{% endif %}
+    {% if unread_notifications %}<a href="{% url 'notifications' %}" class="today-loop__signal"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-bell"></use></svg> {{ unread_notifications }} new</a>{% endif %}
   </div>
 
   <div class="today-loop__actions">
@@ -53,7 +53,7 @@
     <div class="today-loop__section-head"><span>WHAT CAN REMIX</span><span>Ideas ready to build on</span></div>
     <div class="today-loop__feeds">
       <div class="today-loop__feed">
-        <div class="today-loop__feed-title">♻️ WORTH REMIXING</div>
+        <div class="today-loop__feed-title"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-trades"></use></svg> WORTH REMIXING</div>
         {% for vibe in following_vibes|slice:":3" %}
           <a href="{{ vibe.get_absolute_url }}" class="today-loop__item">
             <div class="today-loop__item-title">{{ vibe.title }}</div>
