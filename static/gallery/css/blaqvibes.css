@@ -130,6 +130,10 @@ input, select, textarea { accent-color: var(--violet); }
 }
 .nav-links a .bv-icon,
 .nav-menu a .bv-icon { margin-right: 2px; }
+/* A menu row may drop its glyph (Trades does). Its label must still line up
+   with the rest, which sit one 17px icon plus 10px of gap and margin in.
+   Without :has() support the row just sits flush — cosmetic, never broken. */
+.nav-menu a:not(:has(.bv-icon)) { padding-left: 39px; }
 /* Inline glyphs. Same drawing language as .bv-icon, but sized from the text
    around them (1em) rather than a fixed 17px, so a glyph in a 10px badge and a
    glyph in a 30px empty-state both read at the weight of their own row. This

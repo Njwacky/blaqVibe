@@ -33,6 +33,10 @@
   <symbol id="bv-ico-profile" viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
   <symbol id="bv-ico-inbox" viewBox="0 0 24 24"><path d="M4 5h16l-1.5 14h-13L4 5Z"/><path d="M4.6 13h4.2l1.4 2h3.6l1.4-2h4.2"/><path d="M12 4v6m0 0-2-2m2 2 2-2"/></symbol>
   <symbol id="bv-ico-vibes" viewBox="0 0 24 24"><path d="M4 7.5 12 3l8 4.5-8 4.5L4 7.5Z"/><path d="m4 12 8 4.5L20 12"/><path d="m4 16.5 8 4.5 8-4.5"/></symbol>
+  {% comment %}"Publish a project" sits next to "My projects" in the account menu,
+     so it needs to read as that stack PLUS something — the same layers, nudged
+     up and left, with a plus in the corner they were never drawn into.{% endcomment %}
+  <symbol id="bv-ico-vibes-add" viewBox="0 0 24 24"><path d="M3.6 7.1 11 2.9l7.4 4.2L11 11.3 3.6 7.1Z"/><path d="m3.6 11.9 7.4 4.2 7.4-4.2"/><path d="M18.2 16.6v5.2M15.6 19.2h5.2"/></symbol>
   <symbol id="bv-ico-saved" viewBox="0 0 24 24"><path d="M6 4h12v17l-6-3.5L6 21V4Z"/><path d="M9 8h6"/></symbol>
   <symbol id="bv-ico-battle" viewBox="0 0 24 24"><path d="m5 19 14-14"/><path d="m14 5 5 5"/><path d="m10 19-5-5"/><path d="M4 20h6"/><path d="M14 4h6"/></symbol>
   <symbol id="bv-ico-challenges" viewBox="0 0 24 24"><path d="M8 4h8v3a4 4 0 0 1-8 0V4Z"/><path d="M8 6H5a2 2 0 0 0 2 4"/><path d="M16 6h3a2 2 0 0 1-2 4"/><path d="M12 11v5"/><path d="M8 20h8"/><path d="M10 16h4v4h-4z"/></symbol>
@@ -124,14 +128,14 @@ literal text — the regression guard in gallery/test_engagement.py pins that.
           <a role="menuitem" href="{% url 'notifications' %}"><svg class="bv-icon"><use href="#bv-ico-inbox"></use></svg> Inbox{% if unread_notifications %} <span class="nav-badge">{{ unread_notifications }}</span>{% endif %}</a>
           <a role="menuitem" href="{% url 'my_vibes' %}"><svg class="bv-icon"><use href="#bv-ico-vibes"></use></svg> My projects</a>
           <a role="menuitem" href="{% url 'saved_vibes' %}"><svg class="bv-icon"><use href="#bv-ico-saved"></use></svg> Saved</a>
-          <a role="menuitem" href="{% url 'publish' %}"><svg class="bv-icon"><use href="#bv-ico-vibes"></use></svg> Publish a project</a>
+          <a role="menuitem" href="{% url 'publish' %}"><svg class="bv-icon"><use href="#bv-ico-vibes-add"></use></svg> Publish a project</a>
           <a role="menuitem" href="{% url 'starter_gallery' %}"><svg class="bv-icon"><use href="#bv-ico-start"></use></svg> Start a vibe</a>
           <div class="nav-menu-sep"></div>
           <a role="menuitem" href="{% url 'battle' %}"><svg class="bv-icon"><use href="#bv-ico-battle"></use></svg> Battle</a>
           <a role="menuitem" href="{% url 'launch_hub' %}"><svg class="bv-icon"><use href="#bv-ico-launch"></use></svg> Launch guides</a>
           <a role="menuitem" href="{% url 'nolo_chat' %}"><svg class="bv-icon"><use href="#bv-ico-chat"></use></svg> Nolo chat</a>
           <div class="nav-menu-sep"></div>
-          <a role="menuitem" href="{% url 'trading_history' %}"><svg class="bv-icon"><use href="#bv-ico-trades"></use></svg> Trades</a>
+          <a role="menuitem" href="{% url 'trading_history' %}">Trades</a>
           <a role="menuitem" href="{% url 'sales_dashboard' %}"><svg class="bv-icon"><use href="#bv-ico-sales"></use></svg> Sales</a>
           <a role="menuitem" href="{% url 'settings' %}"><svg class="bv-icon"><use href="#bv-ico-settings"></use></svg> Settings</a>
           {% if user.profile.is_moderator %}<div class="nav-menu-sep"></div><a role="menuitem" href="{% url 'moderation_queue' %}"><svg class="bv-icon"><use href="#bv-ico-shield"></use></svg> Moderation queue</a><a role="menuitem" href="{% url 'reports_queue' %}"><svg class="bv-icon"><use href="#bv-ico-report"></use></svg> Reports{% if open_reports %} <span class="nav-badge">{{ open_reports }}</span>{% endif %}</a>{% endif %}
