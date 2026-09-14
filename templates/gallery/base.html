@@ -118,7 +118,7 @@ literal text — the regression guard in gallery/test_engagement.py pins that.
     {% if user.is_authenticated %}
       <div class="nav-user" id="nav-user">
         <button type="button" id="nav-user-btn" class="nav-user-btn" aria-haspopup="true" aria-expanded="false">
-          {% if user.profile.avatar %}<img src="{{ user.profile.avatar.url }}" alt="" class="nav-avatar">{% else %}<span class="nav-avatar nav-avatar-fallback">{{ user.username|first|upper }}</span>{% endif %}
+          {% include 'users/_avatar.html' with u=user size=28 font_size=13 extra_class='nav-avatar' %}
           <span class="nav-user-name">@{{ user.username }}</span>
           {% if unread_notifications %}<span class="nav-badge">{{ unread_notifications }}</span>{% endif %}
           <span aria-hidden="true" style="font-size:10px">▾</span>

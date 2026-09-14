@@ -158,8 +158,8 @@ def profile_view(request, username):
     following = []
     following_set = set()
     if tab in ('followers', 'following'):
-        followers = user.followers.select_related('follower')[:20]
-        following = user.following.select_related('following')[:20]
+        followers = user.followers.select_related('follower__profile')[:20]
+        following = user.following.select_related('following__profile')[:20]
         if request.user.is_authenticated:
             following_set = set(
                 Follow.objects.filter(follower=request.user)
