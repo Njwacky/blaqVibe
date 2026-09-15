@@ -112,6 +112,7 @@ literal text — the regression guard in gallery/test_engagement.py pins that.
   <div class="nav-links" id="nav-links">
     <a href="{% url 'feed' %}"{% if request.path == '/' %} aria-current="page"{% endif %}>Projects</a>
     <a href="{% url 'discover' %}"{% if '/discover/' in request.path %} aria-current="page"{% endif %}>Discover</a>
+    <a href="{% url 'capability_search' %}"{% if '/capability/' in request.path %} aria-current="page"{% endif %}>Capability</a>
     <a href="{% url 'skills' %}"{% if '/skills/' in request.path %} aria-current="page"{% endif %}>Skills</a>
     <a href="{% url 'challenge_list' %}"{% if '/challenges/' in request.path %} aria-current="page"{% endif %}>Challenges</a>
     <a href="{% url 'build_hub' %}" class="btn-violet"{% if '/build/' in request.path %} aria-current="page"{% endif %}>Build</a>
@@ -187,6 +188,7 @@ literal text — the regression guard in gallery/test_engagement.py pins that.
         <h2>Explore</h2>
         <a href="{% url 'feed' %}">Projects</a>
         <a href="{% url 'discover' %}">Discover</a>
+        <a href="{% url 'capability_search' %}">Find by capability</a>
         <a href="{% url 'skills' %}">Builder Skills</a>
         <a href="{% url 'challenge_list' %}">Challenges</a>
         <a href="{% url 'build_hub' %}">Build</a>

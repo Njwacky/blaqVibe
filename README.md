@@ -6,13 +6,23 @@ BlaqVibes is a creator network for builders and their projects: **BUILD → SHOW
 
 Publish what you made, get feedback, discover creators, remix ideas, take on challenges, and build a reputation around your work. You can build by hand, use AI as a tool, or remix another project — the platform does not treat any one creation method as the identity of the project.
 
+**Product standard (non-negotiable):** what you build becomes evidence of what you can do, and that evidence helps you get discovered for real opportunities.
+
+```text
+BUILD → PROVE → CAPABILITY → DISCOVER → OPPORTUNITY
+```
+
+That is stronger than “profiles + projects + a feed.” Every feature must make **capability more believable**. Full 5 Whys standard, feature filter, and codebase gap audit: [`docs/PRODUCT_STANDARD_5WHYS.md`](docs/PRODUCT_STANDARD_5WHYS.md).
+
 ## The core loop
 
 1. **Build** something.
-2. **Show** the working project, README, progress and trust status.
-3. **Remix** another creator's idea or let someone remix yours.
-4. **Compete** through challenges, battles, stars and reputation.
+2. **Show / Prove** the working project — README, files, trust, contribution, history.
+3. **Remix** another creator's idea or let someone remix yours (lineage is credit).
+4. **Compete** through challenges, battles, stars and reputation — never above proof.
 5. **Repeat** with BlaqVibes Today showing what happened and what to do next.
+
+Downstream of proof: **capabilities** derived from published work, **discovery** by who can do what (not who is popular), then **opportunity**.
 
 ## Five places, on purpose
 
@@ -67,10 +77,18 @@ Hard limits, all enforced:
 The import lands as **Pending Scan** like every upload. Importing is not a
 shortcut past the checks.
 
-The form is pre-filled with this repository, so the demo works on a fresh
-database with no seeded content. `gallery/fixtures/github_blaqvibe_master.zip`
-is a committed slice of the real archive — wrapper folder plus the offending
-`ci.sh` — so the tests reproduce the exact failure with no network.
+The import form stays **empty by default** so new users paste their own
+public repo. A small neutral sample
+(`https://github.com/mdn/beginner-html-site`) is offered as a one-click
+example — not this platform’s own source. The committed fixture
+`gallery/fixtures/github_blaqvibe_master.zip` still exercises the normalizer
+against a real GitHub-shaped archive (wrapper folder + blocked `.sh`) in CI
+with no network.
+
+**Capability discovery** lives at `/capability/`: search a skill (Django,
+React, API…) and get matching **projects** plus **people**, ranked by how many
+published Builds prove it, each with a “Matched because…” reason. Followers
+and stars do not decide that ranking.
 
 ## AI is a tool, not a disguise
 
@@ -244,4 +262,4 @@ CI covers migrations, demo seeding, tests, security posture and feed smoke check
 
 Never commit passwords, API keys, webhook secrets, OAuth secrets, database credentials or other credentials. If a credential has ever appeared in a public Git history, treat it as compromised and rotate it even after removing the text from the latest README.
 
-For the product architecture as shipped, read `docs/ARCHITECTURE.md` (source of truth). Older notes live in `docs/specs/`, `docs/demos/` and `docs/STABILITY.md`.
+For the **product standard** (Build → Prove → Capability → Opportunity), read `docs/PRODUCT_STANDARD_5WHYS.md`. For technical architecture as shipped, read `docs/ARCHITECTURE.md`. UX execution: `docs/BUILDER_LOOP_UX_ARCHITECTURE.md`. Older notes live in `docs/specs/`, `docs/demos/` and `docs/STABILITY.md`.

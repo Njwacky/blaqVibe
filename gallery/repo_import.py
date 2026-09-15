@@ -13,11 +13,11 @@ trust). It never invents a second upload path.
 Two things make the raw GitHub archive unusable as-is, and both are handled
 here rather than left as a confusing form error:
 
-  1. GitHub wraps everything in one folder (`blaqVibe-master/`), so the file
+  1. GitHub wraps everything in one folder (`repo-main/`), so the file
      tree shows a pointless extra level. The wrapper is stripped.
   2. `validate_zip` refuses executable extensions and credential paths —
-     `scripts/ci.sh` alone is enough to reject the whole BlaqVibe repo. The
-     rejected paths are dropped and REPORTED to the user, never hidden.
+     a real-world `.sh` script alone is enough to reject a raw GitHub ZIP.
+     The rejected paths are dropped and REPORTED to the user, never hidden.
 
 Security: the only host ever contacted is `codeload.github.com`, enforced by
 rebuilding the URL from parsed owner/repo/ref rather than by pattern-matching
@@ -51,10 +51,11 @@ MAX_DOWNLOAD_BYTES = 60 * 1024 * 1024
 CONNECT_TIMEOUT = 10
 READ_TIMEOUT = 25
 
-# Shown pre-filled on the import form. It is this repository, so the demo
-# always has something real to import even on a fresh database.
-DEMO_REPO_URL = 'https://github.com/Njwacky/blaqVibe'
-DEMO_LABEL = 'BlaqVibe — this platform, open source'
+# Shown as a one-click example on the import form — a small, well-known
+# public learning repo (NOT this platform). New users should practise on a
+# neutral sample project, not import BlaqVibes itself as their first vibe.
+DEMO_REPO_URL = 'https://github.com/mdn/beginner-html-site'
+DEMO_LABEL = 'MDN beginner HTML site — small public sample'
 
 # Slug/name pairs GitHub accepts. Checked before the fetch so a typo becomes a
 # form message instead of a wasted round trip.

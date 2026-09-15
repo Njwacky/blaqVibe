@@ -6,10 +6,10 @@
 {% block content %}
 <div class="discover-shell">
   <header class="discover-hero">
-    <div class="discover-hero-copy"><p class="discover-kicker">THE CITY OF BUILDERS</p><h1>What the hell are people building here?</h1><p>Find work worth opening, learning from and building on. Every project is a trailhead — not just a post.</p></div>
-    <form class="discover-search" method="get"><label for="discover-q">Search the world of building</label><div><span aria-hidden="true">⌕</span><input id="discover-q" name="q" value="{{ q }}" placeholder="Try Django, education, automation…"><button class="btn-violet" type="submit">Explore</button></div></form>
+    <div class="discover-hero-copy"><p class="discover-kicker">THE CITY OF BUILDERS</p><h1>What are people building here?</h1><p>Find work worth opening, learning from and building on. Every project is trailhead proof — not just a post. New? Open one card, then try finding builders by what they shipped.</p></div>
+    <form class="discover-search" method="get" action="{% url 'capability_search' %}"><label for="discover-q">Who can do what I need?</label><div><span aria-hidden="true">⌕</span><input id="discover-q" name="q" value="{{ q }}" placeholder="Try Django, React, API, authentication…"><button class="btn-violet" type="submit">Find by capability</button></div></form>
   </header>
-  <nav class="discover-tabs" aria-label="Discovery views"><a class="is-active" href="{% url 'discover' %}">All</a><a href="#building">Projects</a><a href="#remixed">Remixes</a><a href="#builders">Builders</a><a href="{% url 'challenge_list' %}">Challenges</a><a href="{% url 'skills' %}">Skills</a></nav>
+  <nav class="discover-tabs" aria-label="Discovery views"><a class="is-active" href="{% url 'discover' %}">All</a><a href="#building">Projects</a><a href="#remixed">Remixes</a><a href="#builders">Builders</a><a href="{% url 'capability_search' %}">By capability</a><a href="{% url 'challenge_list' %}">Challenges</a><a href="{% url 'skills' %}">Skills</a></nav>
 
   <div class="discover-signal"><span class="signal-dot"></span><span>{% if activity %}{{ activity.published }} published and {{ activity.remixes }} remixed in the last {{ activity.days }} days{% else %}Real projects. Real builders. No manufactured momentum.{% endif %}</span></div>
 

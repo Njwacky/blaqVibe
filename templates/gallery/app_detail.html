@@ -66,6 +66,20 @@
         <li>{% if row.ok %}✓{% else %}—{% endif %} {{ row.label }}</li>
         {% endfor %}
       </ul>
+      {% if capabilities %}
+      <div id="capabilities" style="margin-top:14px;padding-top:12px;border-top:1px solid var(--line)">
+        <div style="font-size:11px;font-weight:800;letter-spacing:.06em;color:var(--muted)">CAPABILITIES DEMONSTRATED</div>
+        <p style="font-size:12px;color:var(--muted);margin:6px 0 8px;line-height:1.5">Derived from this Build — not a self-typed skill list. Tap a chip to find other people who proved the same thing.</p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          {% for cap in capabilities %}
+          <a href="{% url 'capability_search' %}?q={{ cap.discover_q|urlencode }}" style="font-size:12px;padding:5px 12px;border-radius:999px;border:1px solid var(--accent-border);background:var(--accent-soft-bg);color:var(--accent-text);text-decoration:none;font-weight:600">{{ cap.name }}</a>
+          {% endfor %}
+        </div>
+        <div style="margin-top:10px;font-size:12px">
+          <a href="{% url 'profile_view' project.owner.username %}?tab=skills" style="color:var(--link);font-weight:700">View @{{ project.owner.username }}'s demonstrated skills →</a>
+        </div>
+      </div>
+      {% endif %}
       <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
         <a class="btn-violet" style="flex:1;text-align:center" href="https://wa.me/?text={{ request.scheme }}%3A%2F%2F{{ request.get_host }}{{ project.get_absolute_url|urlencode }}%20{{ project.title|urlencode }}%20by%20%40{{ project.owner.username }}">Share to WhatsApp</a>
         <button type="button" class="btn-ghost js-copy" data-copy="{{ request.scheme }}://{{ request.get_host }}{{ project.get_absolute_url }}#proof-card" style="flex:1">Copy proof link</button>

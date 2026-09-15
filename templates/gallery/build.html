@@ -20,11 +20,22 @@
   </div>
   {% endif %}
 
-  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;margin-top:8px">
+  <div style="background:var(--accent-soft-bg);border:1px solid var(--accent-border);border-radius:14px;padding:14px 16px;font-size:13px;line-height:1.6;margin-bottom:14px">
+    <b style="color:var(--text)">Talking you through it.</b>
+    Pick one door. When you publish, the project becomes public proof —
+    stack, files, scan, what you did. That proof is how other people find you later
+    via <a href="{% url 'capability_search' %}" style="color:var(--link);font-weight:700">capability search</a>.
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;margin-top:8px">
     <article style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:8px">
       <h2 style="font-family:Space Grotesk,sans-serif;font-size:15px;margin:0">Start from scratch</h2>
       <p style="margin:0;font-size:13px;line-height:1.6;color:var(--muted)">Your own idea, your own files. Zip an app or paste a snippet — scanned, then shown as what you built.</p>
       <a href="{% url 'publish' %}" class="btn-violet" style="margin-top:auto;align-self:flex-start;padding:10px 16px">START FROM SCRATCH →</a>
+    </article>
+    <article style="background:var(--card);border:1px solid var(--accent-border);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:8px">
+      <h2 style="font-family:Space Grotesk,sans-serif;font-size:15px;margin:0">Import from GitHub</h2>
+      <p style="margin:0;font-size:13px;line-height:1.6;color:var(--muted)">Already have a public repo? Paste the link. No ZIP fight. Lands in the same scan queue as every upload.</p>
+      <a href="{% url 'import_from_github' %}" class="btn-ghost" style="margin-top:auto;align-self:flex-start;padding:10px 16px">IMPORT A REPO →</a>
     </article>
     <article style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:8px">
       <h2 style="font-family:Space Grotesk,sans-serif;font-size:15px;margin:0">Remix a project</h2>

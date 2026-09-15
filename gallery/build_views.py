@@ -14,6 +14,10 @@ ORIGINAL CREATOR SEES IT → MORE DISCOVERY (§3).
       └── Use a Builder Skill
             ↓ CREATE → UPLOAD → SHOW → FEEDBACK → IMPROVE → PUBLISH
 
+**Capability** answers "who can do what I need?" — projects and people
+ranked by demonstrated published work, with an explicit match reason.
+Never by followers or stars (product standard hardest test).
+
 Both pages are read-only and crush-safe: a failing rail renders an honest
 empty state instead of a 500.
 """
@@ -94,6 +98,43 @@ def discover(request):
     except Exception:
         logger.exception('discover rails failed')
     return render(request, 'gallery/discover.html', ctx)
+
+
+def capability_search(request):
+    """Who can do what I need? — capability-driven discovery.
+
+    Query e.g. Django → matching projects + people, each with
+    "Matched because they built N projects using Django…".
+    """
+    from .capability import popular_capability_chips, search_capability
+
+    q = (request.GET.get('q') or '').strip()[:80]
+    ctx = {
+        'q': q,
+        'projects': [],
+        'people': [],
+        'suggestions': [],
+        'searched': bool(q),
+        'guide_steps': [
+            ('1', 'Type a skill or stack', 'Django, React, API, authentication…'),
+            ('2', 'See projects first', 'Real Builds that used that skill — not claims.'),
+            ('3', 'Then see people', 'Ranked by how many published Builds prove it.'),
+            ('4', 'Read why they matched', 'Every person gets an honest “Matched because…” line.'),
+        ],
+    }
+    try:
+        result = search_capability(q)
+        ctx['q'] = result['q']
+        ctx['projects'] = result['projects']
+        ctx['people'] = result['people']
+        ctx['suggestions'] = result['suggestions'] or popular_capability_chips()
+    except Exception:
+        logger.exception('capability search failed q=%r', q[:80])
+        try:
+            ctx['suggestions'] = popular_capability_chips()
+        except Exception:
+            ctx['suggestions'] = ['Django', 'React', 'Python', 'API Development']
+    return render(request, 'gallery/capability.html', ctx)
 
 
 def build_hub(request):

@@ -1,7 +1,7 @@
 from django.urls import path
 from django.views.generic import RedirectView
 from . import views, trading_views, api_views, launch_views, health
-from .build_views import build_hub, discover
+from .build_views import build_hub, capability_search, discover
 from .csp_views import csp_report
 from .moderation import moderation_queue, moderation_action, reports_queue, report_action
 from .skill_views import skill_list, skill_detail, use_skill, create_skill, update_skill
@@ -16,6 +16,8 @@ urlpatterns = [
     # Primary navigation (§4): PROJECTS | DISCOVER | SKILLS | CHALLENGES | BUILD.
     # '' is PROJECTS (the feed); the other four live here.
     path('discover/', discover, name='discover'),
+    # Capability discovery — "who can do what I need?" (not popularity).
+    path('capability/', capability_search, name='capability_search'),
     path('build/', build_hub, name='build_hub'),
     # Builder Skills. '/skills/' is canonical — the old '/prompt-skills/'
     # prefix belonged to the prompt-marketplace era (§5/§15) and now

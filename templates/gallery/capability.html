@@ -1,0 +1,131 @@
+{% extends 'gallery/base.html' %}
+{% load static %}
+{% block title %}{% if q %}{{ q }} — who can build this?{% else %}Find builders by what they built{% endif %} — BlaqVibes{% endblock %}
+{% block meta_desc %}Search by capability. See projects first, then people ranked by published proof — not followers.{% endblock %}
+{% block head %}
+<style>
+.cap-shell{max-width:1080px;margin:0 auto;padding:20px 16px 48px}
+.cap-hero{padding:8px 0 18px;border-bottom:1px solid var(--line);margin-bottom:18px}
+.cap-kicker{font-size:11px;letter-spacing:.08em;color:var(--muted);font-weight:800;margin:0}
+.cap-hero h1{font-family:Space Grotesk,sans-serif;font-size:26px;font-weight:800;line-height:1.15;margin:8px 0 8px}
+.cap-hero p{font-size:14px;color:var(--muted);line-height:1.6;max-width:640px;margin:0}
+.cap-search{margin-top:16px;display:flex;gap:8px;flex-wrap:wrap}
+.cap-search input{flex:1;min-width:200px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--input);color:var(--text);font-size:15px}
+.cap-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.cap-chip{font-size:12px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--input);color:var(--text);text-decoration:none}
+.cap-chip:hover,.cap-chip.is-active{border-color:var(--accent-border);background:var(--accent-soft-bg);color:var(--accent-text)}
+.cap-guide{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:18px 0}
+.cap-guide article{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
+.cap-guide b{display:block;font-size:11px;letter-spacing:.06em;color:var(--accent-text)}
+.cap-guide span{display:block;margin-top:4px;font-size:12px;line-height:1.5;color:var(--muted)}
+.cap-section{margin-top:22px}
+.cap-section h2{font-size:13px;font-weight:800;letter-spacing:.06em;color:var(--muted);margin:0 0 10px}
+.cap-person{display:block;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px;text-decoration:none;color:inherit}
+.cap-person:hover{border-color:var(--accent-border)}
+.cap-person-top{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
+.cap-person-top b{font-size:15px;color:var(--link)}
+.cap-count{font-size:12px;background:var(--accent-soft-bg);color:var(--accent-text);border:1px solid var(--accent-border);border-radius:999px;padding:2px 10px}
+.cap-reason{margin-top:8px;font-size:13px;line-height:1.55;color:var(--text)}
+.cap-reason em{font-style:normal;color:var(--muted)}
+.cap-empty{background:var(--input);border:1px dashed var(--line);border-radius:14px;padding:20px;text-align:center;font-size:14px;color:var(--muted);line-height:1.6}
+.cap-talk{background:var(--accent-soft-bg);border:1px solid var(--accent-border);border-radius:14px;padding:14px 16px;font-size:13px;line-height:1.6;margin-bottom:16px}
+</style>
+{% endblock %}
+{% block content %}
+<div class="cap-shell">
+  <header class="cap-hero">
+    <p class="cap-kicker">BUILD → PROVE → CAPABILITY → DISCOVER</p>
+    <h1>{% if q %}Who can build with “{{ q }}”?{% else %}Find builders by what they actually built{% endif %}</h1>
+    <p>
+      Skills are easy to claim. Here we only rank people by
+      <b style="color:var(--text)">published projects</b> that use the skill —
+      not followers, not likes. Every match tells you <em>why</em>.
+    </p>
+    <form class="cap-search" method="get" action="{% url 'capability_search' %}" role="search">
+      <label class="sr-only" for="cap-q" style="position:absolute;left:-9999px">Skill or technology</label>
+      <input id="cap-q" name="q" value="{{ q }}" placeholder="Try Django, React, API, authentication…" autocomplete="off" autofocus>
+      <button type="submit" class="btn-violet" style="padding:12px 18px">Find builders →</button>
+    </form>
+    {% if suggestions %}
+    <div class="cap-chips" aria-label="Popular capabilities">
+      {% for chip in suggestions %}
+      <a class="cap-chip{% if q|lower == chip|lower %} is-active{% endif %}" href="{% url 'capability_search' %}?q={{ chip|urlencode }}">{{ chip }}</a>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </header>
+
+  {% if not searched %}
+  <div class="cap-talk">
+    <b style="color:var(--text)">New here?</b>
+    Type a skill above — or tap a chip. You will see
+    <b style="color:var(--text)">projects first</b> (the evidence), then
+    <b style="color:var(--text)">people</b> ranked by how many Builds prove that skill.
+    Popularity does not win this page.
+  </div>
+  <div class="cap-guide">
+    {% for num, title, note in guide_steps %}
+    <article><b>{{ num }} · {{ title }}</b><span>{{ note }}</span></article>
+    {% endfor %}
+  </div>
+  <div style="margin-top:8px;font-size:13px;color:var(--muted)">
+    Or go explore the feed: <a href="{% url 'feed' %}" style="color:var(--link)">What are people building? →</a>
+    · <a href="{% url 'build_hub' %}" style="color:var(--link)">Start your own Build →</a>
+  </div>
+  {% else %}
+
+  <div class="cap-talk">
+    {% if people or projects %}
+    Found <b style="color:var(--text)">{{ projects|length }} project{{ projects|length|pluralize }}</b>
+    and <b style="color:var(--text)">{{ people|length }} builder{{ people|length|pluralize }}</b>
+    for <b style="color:var(--text)">“{{ q }}”</b>.
+    Ranked by published proof — stars and followers do not decide this list.
+    {% else %}
+    No published Builds match <b style="color:var(--text)">“{{ q }}”</b> yet.
+    That is honest: capability only appears when someone ships.
+    <a href="{% url 'build_hub' %}" style="color:var(--link);font-weight:700">Be the first to prove it →</a>
+    {% endif %}
+  </div>
+
+  <section class="cap-section" id="projects">
+    <h2>01 · PROJECTS THAT USE {{ q|upper }}</h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:12px">
+      {% for p in projects %}
+        {% include 'gallery/_project_card.html' with p=p cta="Open proof →" %}
+      {% empty %}
+      <div class="cap-empty" style="grid-column:1/-1">No matching projects yet. Publish one and this row fills in.</div>
+      {% endfor %}
+    </div>
+  </section>
+
+  <section class="cap-section" id="people">
+    <h2>02 · PEOPLE WHO DEMONSTRATED {{ q|upper }}</h2>
+    {% for row in people %}
+    <a class="cap-person" href="{% url 'profile_view' row.user.username %}?tab=skills">
+      <div class="cap-person-top">
+        <b>@{{ row.user.username }}</b>
+        <span class="cap-count">{{ row.count }} project{{ row.count|pluralize }}</span>
+        {% if row.proof_avg %}<span style="font-size:11px;color:var(--muted)">avg proof {{ row.proof_avg }}</span>{% endif %}
+      </div>
+      <div class="cap-reason"><em>Matched because</em> — {{ row.match_reason|cut:"Matched because " }}</div>
+      {% if row.capabilities %}
+      <div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px">
+        {% for c in row.capabilities %}
+        <span style="font-size:11px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);background:var(--input)">{{ c }}</span>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <div style="margin-top:8px;font-size:12px;color:var(--link);font-weight:700">View builder →</div>
+    </a>
+    {% empty %}
+    <div class="cap-empty">No builders matched yet. When someone publishes a Build with this stack, they appear here — with a reason.</div>
+    {% endfor %}
+  </section>
+
+  <div style="margin-top:20px;font-size:12px;color:var(--muted);text-align:center">
+    Hardest test: a builder with few followers and real projects beats a popular profile with claims.
+    <a href="{% url 'capability_search' %}" style="color:var(--link)">Clear search</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
