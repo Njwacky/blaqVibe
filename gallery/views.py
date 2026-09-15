@@ -415,6 +415,12 @@ def app_detail(request, slug):
         readiness = ship_readiness(project)
     except Exception:
         logger.exception('ship readiness failed %s', project.slug)
+    capabilities = []
+    try:
+        from .capability import project_capability_rows
+        capabilities = project_capability_rows(project)
+    except Exception:
+        logger.exception('capabilities failed %s', project.slug)
     return render(request, 'gallery/app_detail.html', {
         'project': project,
         'comments': top_comments,
@@ -454,6 +460,7 @@ def app_detail(request, slug):
         'built_from_skill': built_from_skill,
         'similar_builds': similar_pool,
         'readiness': readiness,
+        'capabilities': capabilities,
     })
 
 def scan_status(request, slug):

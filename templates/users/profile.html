@@ -68,10 +68,10 @@
       {% if demonstrated %}
       <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap" aria-label="Demonstrated from published Builds">
         {% for skill in demonstrated|slice:":8" %}
-        <span title="{{ skill.count }} published Build{{ skill.count|pluralize }}" style="font-size:11px;background:var(--input);border:1px solid var(--line);border-radius:999px;padding:3px 9px">{{ skill.name }} · {{ skill.count }}</span>
+        <a href="{% url 'capability_search' %}?q={{ skill.name|urlencode }}" title="{{ skill.count }} published Build{{ skill.count|pluralize }} — find others who proved this" style="font-size:11px;background:var(--input);border:1px solid var(--line);border-radius:999px;padding:3px 9px;text-decoration:none;color:inherit">{{ skill.name }} · {{ skill.count }}</a>
         {% endfor %}
       </div>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px">AI-era stage: <b>{{ maturity.label }}</b> — {{ maturity.blurb }} (from work, not a test.)</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:6px">AI-era stage: <b>{{ maturity.label }}</b> — {{ maturity.blurb }} (from work, not a test.) · <a href="{% url 'capability_search' %}" style="color:var(--link)">Search by capability →</a></div>
       {% endif %}
       {% if progress %}
       <div style="margin-top:8px;max-width:420px">
@@ -393,13 +393,13 @@
     {% for skill in demonstrated %}
     <div class="card" style="padding:12px;margin-top:8px;display:flex;justify-content:space-between;gap:12px;align-items:center">
       <div>
-        <div style="font-weight:700;font-size:14px">{{ skill.name }}</div>
+        <div style="font-weight:700;font-size:14px"><a href="{% url 'capability_search' %}?q={{ skill.name|urlencode }}" style="color:var(--link)">{{ skill.name }}</a></div>
         <div style="font-size:11px;color:var(--muted);margin-top:4px">{% for slug in skill.slugs %}<a href="/app/{{ slug }}/" style="color:var(--link)">{{ slug }}</a>{% if not forloop.last %} · {% endif %}{% endfor %}</div>
       </div>
       <div style="font-size:18px;font-weight:800">{{ skill.count }}</div>
     </div>
     {% empty %}
-    <div style="color:var(--muted);padding:14px 0;font-size:13px">No demonstrated stack yet — publish a Build with a tech stack or languages.</div>
+    <div style="color:var(--muted);padding:14px 0;font-size:13px">No demonstrated stack yet — <a href="{% url 'build_hub' %}" style="color:var(--link)">publish a Build</a> with a tech stack or languages. Claims without projects do not appear here.</div>
     {% endfor %}
     <div class="card" style="padding:12px;margin-top:12px">
       <div style="font-size:11px;color:var(--muted)">AI maturity (work only)</div>

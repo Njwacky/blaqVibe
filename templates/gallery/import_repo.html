@@ -9,10 +9,10 @@
     <span style="display:inline-block;font-size:12px;letter-spacing:.06em;padding:6px 12px;border-radius:999px;background:var(--accent-soft-bg);border:1px solid var(--accent-border);color:var(--accent-text)">✦ NO ZIP NEEDED</span>
     <h1 style="font-family:Space Grotesk,sans-serif;font-size:32px;line-height:1.1;margin:14px 0 10px">Import a repo from GitHub</h1>
     <p style="color:var(--muted);font-size:15px;line-height:1.6">
-      GitHub already publishes a ZIP of every public repository. Give us the link
-      and we fetch it, unwrap the folder GitHub adds, drop the paths this
-      platform refuses, and put the rest through the same scan every upload goes
-      through. No git, no build step, no editor.
+      <b style="color:var(--text)">Got code on GitHub already?</b> Paste the link.
+      We fetch the public ZIP GitHub already serves, unwrap the folder it adds,
+      drop paths this platform refuses, and run the same scan as every upload.
+      No git CLI, no build step, no editor — and you leave with a public Build.
     </p>
   </div>
 
@@ -21,14 +21,13 @@
 
     <label for="repo_url" style="display:block;font-weight:700;font-size:14px;margin-bottom:6px">GitHub repository</label>
     <input type="url" id="repo_url" name="repo_url" required
-           value="{{ repo_url|default:demo_repo_url }}"
-           placeholder="https://github.com/username/repo"
+           value="{{ repo_url|default:'' }}"
+           placeholder="https://github.com/username/your-project"
            style="width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--input);color:var(--text);font-size:15px">
     <div style="color:var(--muted);font-size:12px;margin-top:6px;line-height:1.6">
       Paste a <b style="color:var(--text)">public</b> github.com link. Branch links work too
       (<code>…/tree/main</code>) — leave it plain to take the default branch.
-      Private repos are not reachable and never will be: we ask GitHub for nothing
-      but the public archive.
+      Private repos are not reachable: we only ask GitHub for the public archive.
     </div>
 
     <div style="margin-top:16px">
@@ -57,11 +56,12 @@
   </form>
 
   <div style="margin-top:20px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;font-size:13px;color:var(--muted);line-height:1.7">
-    <b style="color:var(--text)">Try the platform itself.</b>
-    The link above is pre-filled with <b style="color:var(--text)">{{ demo_label }}</b>
-    (<a href="{{ demo_repo_url }}" rel="noopener" style="color:var(--accent-text)">{{ demo_repo_url }}</a>) —
-    this site's own source. Importing it gives you a real 400-file project to
-    read, remix and compare against, without writing a line first.
+    <b style="color:var(--text)">New here and nothing to paste yet?</b>
+    Try a small public sample — <b style="color:var(--text)">{{ demo_label }}</b>
+    (<a href="{{ demo_repo_url }}" rel="noopener" style="color:var(--accent-text)">{{ demo_repo_url }}</a>).
+    Copy that link into the box above (or
+    <button type="button" class="js-fill-demo" data-url="{{ demo_repo_url }}" style="all:unset;cursor:pointer;color:var(--accent-text);font-weight:700;text-decoration:underline">tap to fill it</button>).
+    It is a tiny HTML learning site — good practice, not this platform’s own source.
     <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
       <b style="color:var(--text)">What gets left out, and why.</b>
       Executables (<code>.sh</code>, <code>.exe</code>, <code>.dll</code>, …),
@@ -83,8 +83,20 @@
       <b style="color:var(--text)">Pending Scan</b>, exactly like every upload. It
       reaches the feed when the virus and vulnerability scans clear it, and it
       gets the same auto label and trust badge as anything else. Importing is not
-      a shortcut past the checks.
+      a shortcut past the checks. After it is live, your stack becomes
+      <a href="{% url 'capability_search' %}" style="color:var(--accent-text)">searchable capability</a>.
     </div>
   </div>
 </div>
+<script>
+(function(){
+  var btn = document.querySelector('.js-fill-demo');
+  var input = document.getElementById('repo_url');
+  if (!btn || !input) return;
+  btn.addEventListener('click', function(){
+    input.value = btn.getAttribute('data-url') || '';
+    input.focus();
+  });
+})();
+</script>
 {% endblock %}

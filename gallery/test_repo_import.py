@@ -18,6 +18,7 @@ from django.test import TestCase, override_settings
 
 from gallery import repo_import
 from gallery.repo_import import (
+    DEMO_LABEL,
     DEMO_REPO_URL,
     RepoImportError,
     build_import,
@@ -73,13 +74,13 @@ class ParseGithubUrlTests(TestCase):
 
     def test_accepts_the_shapes_people_actually_paste(self):
         cases = {
-            'https://github.com/Njwacky/blaqVibe': ('Njwacky', 'blaqVibe', 'HEAD'),
-            'https://github.com/Njwacky/blaqVibe/': ('Njwacky', 'blaqVibe', 'HEAD'),
-            'http://github.com/Njwacky/blaqVibe': ('Njwacky', 'blaqVibe', 'HEAD'),
-            'github.com/Njwacky/blaqVibe': ('Njwacky', 'blaqVibe', 'HEAD'),
-            'Njwacky/blaqVibe': ('Njwacky', 'blaqVibe', 'HEAD'),
-            'https://github.com/Njwacky/blaqVibe.git': ('Njwacky', 'blaqVibe', 'HEAD'),
-            'https://www.github.com/Njwacky/blaqVibe': ('Njwacky', 'blaqVibe', 'HEAD'),
+            'https://github.com/mdn/beginner-html-site': ('mdn', 'beginner-html-site', 'HEAD'),
+            'https://github.com/mdn/beginner-html-site/': ('mdn', 'beginner-html-site', 'HEAD'),
+            'http://github.com/mdn/beginner-html-site': ('mdn', 'beginner-html-site', 'HEAD'),
+            'github.com/mdn/beginner-html-site': ('mdn', 'beginner-html-site', 'HEAD'),
+            'mdn/beginner-html-site': ('mdn', 'beginner-html-site', 'HEAD'),
+            'https://github.com/mdn/beginner-html-site.git': ('mdn', 'beginner-html-site', 'HEAD'),
+            'https://www.github.com/mdn/beginner-html-site': ('mdn', 'beginner-html-site', 'HEAD'),
             'https://github.com/a/b/tree/main': ('a', 'b', 'main'),
             'https://github.com/a/b/tree/feature/x': ('a', 'b', 'feature/x'),
             'https://github.com/a/b/blob/main/src/app.py': ('a', 'b', 'main'),
@@ -132,8 +133,8 @@ class ParseGithubUrlTests(TestCase):
 
     def test_codeload_url_is_always_the_codeload_host(self):
         """Built from parts, never derived from the input string."""
-        url = codeload_url('Njwacky', 'blaqVibe', 'master')
-        self.assertEqual(url, 'https://codeload.github.com/Njwacky/blaqVibe/zip/master')
+        url = codeload_url('mdn', 'beginner-html-site', 'master')
+        self.assertEqual(url, 'https://codeload.github.com/mdn/beginner-html-site/zip/master')
         # Even a hostile repo name cannot move the host.
         owner, repo, ref = parse_github_url('https://github.com/a/b')
         self.assertTrue(codeload_url(owner, repo, ref).startswith('https://codeload.github.com/'))
@@ -310,11 +311,11 @@ class BuildImportTests(TestCase):
         payload = zip_bytes(GITHUB_SHAPED)
         with mock.patch('gallery.repo_import.requests.get',
                         return_value=fake_response(payload)):
-            result = build_import('https://github.com/Njwacky/blaqVibe')
-        self.assertEqual(result['repo_label'], 'Njwacky/blaqVibe')
-        self.assertEqual(result['repo_url'], 'https://github.com/Njwacky/blaqVibe')
-        self.assertEqual(result['source_url'], 'https://codeload.github.com/Njwacky/blaqVibe/zip/HEAD')
-        self.assertEqual(result['zip_file'].name, 'blaqVibe-from-github.zip')
+            result = build_import('https://github.com/mdn/beginner-html-site')
+        self.assertEqual(result['repo_label'], 'mdn/beginner-html-site')
+        self.assertEqual(result['repo_url'], 'https://github.com/mdn/beginner-html-site')
+        self.assertEqual(result['source_url'], 'https://codeload.github.com/mdn/beginner-html-site/zip/HEAD')
+        self.assertEqual(result['zip_file'].name, 'beginner-html-site-from-github.zip')
         validate_zip(result['zip_file'])  # must not raise
 
     def test_an_empty_repo_url_falls_back_to_the_demo_repo(self):
@@ -371,7 +372,7 @@ class ImportFromGithubViewTests(TestCase):
         self.addCleanup(self.patcher.stop)
 
     def post(self, **extra):
-        data = {'repo_url': 'https://github.com/Njwacky/blaqVibe'}
+        data = {'repo_url': 'https://github.com/mdn/beginner-html-site'}
         data.update(extra)
         return self.client.post('/import/github/', data, follow=True)
 
@@ -381,10 +382,16 @@ class ImportFromGithubViewTests(TestCase):
         self.assertEqual(response.status_code, 302)
         self.assertIn('/accounts/login/', response['Location'])
 
-    def test_get_renders_the_form_prefilled_with_the_demo_repo(self):
+    def test_get_renders_the_form_with_the_demo_repo_as_an_example(self):
+        """The sample is offered as a tip — the input stays empty so users
+        paste their own repo, not this platform's source."""
         response = self.client.get('/import/github/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, DEMO_REPO_URL)
+        self.assertContains(response, DEMO_LABEL)
+        # Input must NOT be pre-filled with BlaqVibes (or any forced default).
+        self.assertNotContains(response, 'value="https://github.com/Njwacky/blaqVibe"')
+        self.assertNotContains(response, 'Njwacky/blaqVibe')
 
     def test_import_creates_a_pending_vibe_with_the_files(self):
         from gallery.models import AppFile, AppProject, ScanJob
@@ -405,7 +412,7 @@ class ImportFromGithubViewTests(TestCase):
     def test_title_defaults_to_the_repo_name(self):
         from gallery.models import AppProject
         self.post()
-        self.assertEqual(AppProject.objects.get(owner=self.user).title, 'blaqVibe')
+        self.assertEqual(AppProject.objects.get(owner=self.user).title, 'beginner-html-site')
 
     def test_the_published_readme_satisfies_the_upload_form_rules(self):
         from gallery.models import AppProject
@@ -413,7 +420,7 @@ class ImportFromGithubViewTests(TestCase):
         readme = AppProject.objects.get(owner=self.user).readme
         self.assertGreaterEqual(len(readme.strip()), 100)
         self.assertIn('# ', readme)
-        self.assertIn('https://github.com/Njwacky/blaqVibe', readme)
+        self.assertIn('https://github.com/mdn/beginner-html-site', readme)
 
     def test_the_user_is_told_what_was_left_out(self):
         response = self.post()
@@ -473,7 +480,7 @@ class ImportRateLimitTests(TestCase):
                         return_value=fake_response(zip_bytes({'repo-main/index.html': '<h1>hi</h1>'}))):
             last = None
             for i in range(6):
-                last = self.client.post('/import/github/', {'repo_url': 'Njwacky/blaqVibe', 'title': f'v{i}'})
+                last = self.client.post('/import/github/', {'repo_url': 'mdn/beginner-html-site', 'title': f'v{i}'})
         # django-ratelimit with block=True raises PermissionDenied, which this
         # project routes to handler403/safe_403 — so the ceiling surfaces as
         # 403, not 429. The view's own `request.limited` branch (429) is only

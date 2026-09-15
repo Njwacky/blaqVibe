@@ -123,7 +123,7 @@ class NavbarOffsetTests(TestCase):
         return body
 
     def test_key_pages_render_with_nav_above_content_anonymous(self):
-        for url in ('/', '/discover/', '/build/', '/challenges/', '/skills/',
+        for url in ('/', '/discover/', '/capability/', '/build/', '/challenges/', '/skills/',
                     '/launch/', '/battle/', '/accounts/login/'):
             with self.subTest(url=url):
                 self.assertEqual(self.client.get(url).status_code, 200)
