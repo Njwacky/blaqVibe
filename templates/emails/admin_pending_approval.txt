@@ -1,0 +1,22 @@
+ADMIN ALERT — Approval Needed
+
+Project: {{ project.title }}
+Owner: @{{ owner.username }} ({{ owner.email }})
+Reason: {{ reason }}
+Status: {{ project.status }}
+Link: {{ site_url }}{{ project_url }}
+Moderation queue: {{ site_url }}{{ moderation_url }}
+
+Details:
+- Title: {{ project.title }}
+- Slug: {{ project.slug }}
+- Owner: @{{ owner.username }}
+- Created: {{ project.created_at }}
+- Files: {{ project.file_count }} files
+- Trust: {{ project.trust }}
+
+Action required:
+Visit {{ site_url }}{{ moderation_url }} to approve, reject, or quarantine.
+
+— BlaqVibes Admin Alerts
+This email was sent to all moderators/admins because an approval is needed.

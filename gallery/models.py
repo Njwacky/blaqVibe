@@ -854,6 +854,11 @@ class Notification(models.Model):
         ('milestone', 'Milestone'),
         ('achievement', 'Achievement'),
         ('git_push_rejected', 'Git push rejected'),
+        # Admin approval flow — when someone wants approval, admin must get notified
+        ('approval', 'Approval needed'),
+        ('pending', 'Pending approval'),
+        ('review_needed', 'Review needed'),
+        ('challenge_draft', 'Challenge draft'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
     kind = models.CharField(max_length=20, choices=KIND_CHOICES)

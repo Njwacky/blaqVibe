@@ -187,7 +187,7 @@ class BrevoEmailBackend(BaseEmailBackend):
                 payload["replyTo"] = {"email": rt_email, "name": rt_name} if rt_name else {"email": rt_email}
 
         # tags for Brevo dashboard filtering (optional but useful)
-        # We tag by purpose when subject hints at it
+        # We tag by purpose when subject hints at it — including admin approval flow
         subj_lower = (message.subject or "").lower()
         tags = []
         if "confirm" in subj_lower or "verify" in subj_lower or "activate" in subj_lower:
@@ -196,7 +196,23 @@ class BrevoEmailBackend(BaseEmailBackend):
             tags.append("password-reset")
         if "trade" in subj_lower or "tipped" in subj_lower or "review" in subj_lower:
             tags.append("notification")
+        # Admin approval notifications — must get MOST attention in Brevo dashboard
+        if "approval" in subj_lower or "pending" in subj_lower or "quarantin" in subj_lower:
+            tags.extend(["admin", "approval"])
+        if "report" in subj_lower:
+            tags.extend(["admin", "report"])
+        if "challenge" in subj_lower and "draft" in subj_lower:
+            tags.extend(["admin", "challenge_draft"])
+        if "new user" in subj_lower or "joined" in subj_lower:
+            tags.extend(["admin", "new_user"])
+        # Deduplicate while preserving order
         if tags:
-            payload["tags"] = tags
+            seen = set()
+            deduped = []
+            for t in tags:
+                if t not in seen:
+                    seen.add(t)
+                    deduped.append(t)
+            payload["tags"] = deduped
 
         return payload

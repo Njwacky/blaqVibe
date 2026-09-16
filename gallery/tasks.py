@@ -169,7 +169,13 @@ def scan_zip_with_clamav(self, project_id):
             _apply_trust(p)
             logger.warning(f"Virus quarantined {p.slug}")
             from .notify import notify
-            notify(p.owner, 'quarantined', f'“{p.title}” was quarantined', 'Virus or blocked secret found. Edit and re-upload a clean ZIP.', p.get_absolute_url())
+            notify(p.owner, 'quarantined', f'"{p.title}" was quarantined', 'Virus or blocked secret found. Edit and re-upload a clean ZIP.', p.get_absolute_url())
+            # Admin must get notified — approval needed to review quarantined vibe
+            try:
+                from .admin_notifications import notify_admins_quarantined_project
+                notify_admins_quarantined_project(p, reason="Virus detected by ClamAV")
+            except Exception:
+                logger.exception('admin quarantine notify failed %s', p.slug)
             return "quarantined"
     except FileNotFoundError:
         logger.warning(f"clamscan missing — leaving pending {p.slug}")
@@ -246,21 +252,45 @@ def _apply_trust(p):
 def _send_status_email(p):
     try:
         if p.owner.email:
+            from django.core.mail import EmailMultiAlternatives
             site = getattr(settings, 'SITE_URL', 'https://blaqvibes.co.za')
             if p.status == 'published':
-                subject = f"✓ Your vibe “{p.title}” is live on BlaqVibes!"
+                subject = f"Your vibe {p.title} is live on BlaqVibes!"
+                text = (
+                    f"Hi @{p.owner.username},\n\n"
+                    f"Your vibe '{p.title}' ({p.slug}) is live!\n\n"
+                    f"View: {site}/app/{p.slug}/\n"
+                    f"My Vibes: {site}/my-vibes/\n\n"
+                    f"BlaqVibes — Build. Show. Remix. Compete.\n"
+                )
+                html = (
+                    f"<html><body style=\"font-family:sans-serif;background:#0a0a0f;padding:24px;color:#ddd;\">"
+                    f"<div style=\"max-width:560px;margin:0 auto;background:#11111a;border:1px solid #222;border-radius:12px;padding:24px;\">"
+                    f"<h2 style=\"color:#fff;\">✓ {p.title} is live!</h2>"
+                    f"<p style=\"color:#aaa;\">Hi @{p.owner.username}, your vibe is now on the feed.</p>"
+                    f"<p><a href=\"{site}/app/{p.slug}/\" style=\"display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;\">View Vibe</a></p>"
+                    f"</div></body></html>"
+                )
             else:
-                subject = f"⏳ Your vibe “{p.title}” needs review"
-            msg = (
-                f"Hi @{p.owner.username},\n\n"
-                f"Your vibe '{p.title}' ({p.slug}) is {p.status}.\n\n"
-                f"View: {site}/app/{p.slug}/\n"
-                f"My Vibes: {site}/my-vibes/\n\n"
-                f"BlaqVibes — Build. Show. Remix. Compete.\n"
+                subject = f"Your vibe {p.title} needs review"
+                text = (
+                    f"Hi @{p.owner.username},\n\n"
+                    f"Your vibe '{p.title}' ({p.slug}) is {p.status}.\n\n"
+                    f"View: {site}/app/{p.slug}/\n"
+                    f"My Vibes: {site}/my-vibes/\n\n"
+                    f"BlaqVibes — Build. Show. Remix. Compete.\n"
+                )
+                html = None
+
+            msg = EmailMultiAlternatives(
+                subject, text, getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@blaqvibes.co.za'), [p.owner.email]
             )
-            send_mail(subject, msg, getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@blaqvibes.co.za'), [p.owner.email], fail_silently=True)
+            if html:
+                msg.attach_alternative(html, 'text/html')
+            msg.send(fail_silently=True)
     except Exception as e:
         logger.warning(f"Email fail {p.slug}: {e}")
+
 
 @shared_task(queue='scan')
 def finalize_publish(*args, project_id=None):
@@ -280,38 +310,22 @@ def finalize_publish(*args, project_id=None):
     if report.get('clamav') == 'unavailable':
         _set_scan_job(p, 'queued')
         _apply_trust(p)
-        # Notify admins about scanner unavailability
+        # Notify admins about scanner unavailability — in-app + Brevo email (admin must get most notifications)
         try:
-            from .reports import moderators_to_notify
-            for staff in moderators_to_notify(p.owner):
-                notify(
-                    staff,
-                    'review_needed',
-                    f'Scanner unavailable: {p.title}',
-                    f'@{p.owner.username} uploaded "{p.title}" — ClamAV scanner unavailable, manual review required.',
-                    p.get_absolute_url(),
-                )
+            from .admin_notifications import notify_admins_pending_project
+            notify_admins_pending_project(p, reason="ClamAV scanner unavailable, manual review required")
         except Exception:
             logger.exception('admin notify failed for unavailable scanner %s', p.slug)
         return "pending_no_scanner"
     if report.get('clamav') == 'disabled':
-        # ClamAV disabled by site admin — skip the scanner check and
-        # proceed to the publish logic. Secret scans still run.
         logger.info(f"ClamAV disabled — publishing {p.slug} without virus scan")
     if report.get('secrets'):
         _set_scan_job(p, 'pending')
         _apply_trust(p)
-        # Notify admins about project needing review
+        # Notify admins about project needing review — secrets detected (quarantined-like)
         try:
-            from .reports import moderators_to_notify
-            for staff in moderators_to_notify(p.owner):
-                notify(
-                    staff,
-                    'review_needed',
-                    f'Project needs review: {p.title}',
-                    f'@{p.owner.username} uploaded "{p.title}" — secrets detected, manual review required.',
-                    p.get_absolute_url(),
-                )
+            from .admin_notifications import notify_admins_quarantined_project
+            notify_admins_quarantined_project(p, reason="Secrets detected in ZIP, manual review required", secrets=report.get('secrets', [])[:5])
         except Exception:
             logger.exception('admin notify failed for pending project with secrets %s', p.slug)
         return "pending_secrets"
@@ -327,24 +341,18 @@ def finalize_publish(*args, project_id=None):
         except Exception as e:
             logger.error(f"Tree rebuild fail {p.slug}: {e}")
     if p.status == 'pending':
-        # Check if user has enough published projects for auto-approval
         published_count = p.owner.projects.filter(status='published').count()
         if published_count >= 3:
-            # Auto-publish for trusted users
             p.status = 'published'
             p.save(update_fields=['status'])
         else:
-            # Keep pending and notify admins for manual review
+            # Keep pending and notify admins for manual review — admin must get notified when approval needed
             try:
-                from .reports import moderators_to_notify
-                for staff in moderators_to_notify(p.owner):
-                    notify(
-                        staff,
-                        'review_needed',
-                        f'Project needs review: {p.title}',
-                        f'@{p.owner.username} uploaded "{p.title}" — new user, requires manual approval (has {published_count} published projects).',
-                        p.get_absolute_url(),
-                    )
+                from .admin_notifications import notify_admins_pending_project
+                notify_admins_pending_project(
+                    p,
+                    reason=f"New user, requires manual approval (has {published_count} published projects)"
+                )
             except Exception:
                 logger.exception('admin notify failed for pending project %s', p.slug)
             _set_scan_job(p, 'pending')
@@ -352,15 +360,10 @@ def finalize_publish(*args, project_id=None):
             _send_status_email(p)
             return "pending_review_needed"
     if p.status == 'published':
-        # Classify BEFORE the first appeal score: appeal reads preview_mode,
-        # and the feed reads both. Doing it here (not in the view) keeps the
-        # optional LLM call off the request path entirely.
         try:
             classify_and_score(p)
         except Exception:
             logger.exception('classify at publish failed %s', p.slug)
-        # Close the publish → launch loop: detect the shippable artifact in
-        # the ZIP and point the creator at the matching launch guide.
         launch_hint = ''
         launch_url = p.get_absolute_url()
         try:
@@ -372,19 +375,14 @@ def finalize_publish(*args, project_id=None):
                 launch_url = f'/launch/?artifact={artifact}'
         except Exception:
             logger.exception('artifact detect failed %s', p.slug)
-        notify(p.owner, 'published', f'“{p.title}” is live', launch_hint, launch_url)
+        notify(p.owner, 'published', f'"{p.title}" is live', launch_hint, launch_url)
         try:
             from users.progress import award
             award(p.owner, 'publish', ref=f'project:{p.pk}')
         except Exception:
             logger.exception('publish xp failed %s', p.slug)
-    # Update ScanJob for the JS poll (backend only — just a status string).
     _set_scan_job(p, 'clean' if p.status == 'published' else p.status)
-    # Trust badge last: every exit path of finalize writes the tier so the
-    # stored verdict can never describe a state the row has left. Published
-    # → verified/scanned from evidence; held → unknown (renders no badge).
     _apply_trust(p)
-    # Email (backend) notifies even when the tab is closed, where a JS toast dies.
     _send_status_email(p)
     return "published" if p.status == 'published' else p.status
 
@@ -466,18 +464,28 @@ def generate_weekly_challenges():
     try:
         from .challenge_ai import create_draft_challenges
         created = create_draft_challenges()
-        # Optionally notify superadmin via email
+        # Notify superadmins/admins — in-app + Brevo email (admin must get most notifications when approval needed)
         if created:
             try:
-                from django.contrib.auth.models import User
-                from django.core.mail import send_mail
-                from django.conf import settings
-                supers = User.objects.filter(profile__role='superadmin')
-                emails = [u.email for u in supers if u.email]
-                if emails:
-                    site = getattr(settings, 'SITE_URL', 'https://blaqvibes.co.za')
-                    send_mail(f"BlaqVibes: {len(created)} draft challenges ready", f"AI drafted {len(created)} challenges. Approve at {site}/challenges/", getattr(settings, 'DEFAULT_FROM_EMAIL','noreply@blaqvibes.co.za'), emails, fail_silently=True)
-            except Exception: pass
+                from .admin_notifications import notify_admins_challenge_drafts
+                notify_admins_challenge_drafts(created)
+            except Exception:
+                # Fallback to simple email
+                try:
+                    from django.contrib.auth.models import User
+                    from django.core.mail import EmailMultiAlternatives
+                    from django.conf import settings
+                    supers = User.objects.filter(profile__role='superadmin')
+                    emails = [u.email for u in supers if u.email]
+                    if emails:
+                        site = getattr(settings, 'SITE_URL', 'https://blaqvibes.co.za')
+                        subject = f"BlaqVibes: {len(created)} draft challenges ready"
+                        text = f"AI drafted {len(created)} challenges. Approve at {site}/challenges/"
+                        for email in emails:
+                            msg = EmailMultiAlternatives(subject, text, getattr(settings, 'DEFAULT_FROM_EMAIL','noreply@blaqvibes.co.za'), [email])
+                            msg.send(fail_silently=True)
+                except Exception:
+                    pass
         return len(created)
     except Exception as e:
         import logging
