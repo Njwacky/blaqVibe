@@ -1,0 +1,14 @@
+Hi @{{ user.username }},
+
+Welcome to BlaqVibes — Build. Show. Remix. Compete.
+
+Confirm your email to activate your account and claim your 5 ★ welcome grant:
+
+{{ verify_url }}
+
+This link expires in 24 hours and can only be used once.
+
+If you didn't create a BlaqVibes account, you can safely ignore this email.
+
+— BlaqVibes Team
+{{ site_url }}

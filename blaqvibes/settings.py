@@ -625,12 +625,33 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-# `or` rather than a default argument, because .env.example ships these keys
-# blank: an empty EMAIL_BACKEND would otherwise be handed to import_module('')
-# and take the whole process down at boot, and an empty host/port is a
-# mis-typed deploy, not a decision to talk to `:0`.
-EMAIL_BACKEND = os.getenv('EMAIL_BACKEND') or 'django.core.mail.backends.console.EmailBackend'
+
+# ------------------------------------------------------------------
+# Email — Brevo (transactional API) is the production path for
+# activation & password-reset. SMTP stays available for operators
+# who prefer it. Console is dev-only.
+#
+# Priority:
+#   1. EMAIL_BACKEND env if explicitly set (operator override)
+#   2. Brevo backend when BREVO_API_KEY present
+#   3. Console backend (dev fallback)
+# ------------------------------------------------------------------
+BREVO_API_KEY = os.getenv('BREVO_API_KEY', '').strip()
+BREVO_API_URL = os.getenv('BREVO_API_URL', 'https://api.brevo.com/v3/smtp/email').strip()
+BREVO_SENDER_NAME = os.getenv('BREVO_SENDER_NAME', 'BlaqVibes').strip()
+BREVO_TIMEOUT = int(os.getenv('BREVO_TIMEOUT', '10').strip() or 10)
+BREVO_ENABLED = bool(BREVO_API_KEY)
+
+_raw_email_backend = os.getenv('EMAIL_BACKEND', '').strip()
+if _raw_email_backend:
+    EMAIL_BACKEND = _raw_email_backend
+elif BREVO_ENABLED:
+    EMAIL_BACKEND = 'blaqvibes.email_backends.BrevoEmailBackend'
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
 DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL') or 'noreply@blaqvibes.co.za'
+
 # The console backend is a dev posture: verification, password-reset and
 # receipt mail land in the application log instead of an inbox, which
 # `manage.py security_check` ERRORs on for a public host. The SMTP keys are only
