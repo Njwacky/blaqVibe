@@ -496,12 +496,7 @@
         {{ s.project.short_description|truncatechars:60 }}
       </div>
       <div style="font-size: 11px; color: var(--muted); margin-top: 6px">
-        ★ {{ s.project.stars }} • by
-        <a
-          href="{% url 'profile_view' s.project.owner.username %}"
-          style="color: var(--link)"
-          >@{{ s.project.owner.username }}</a
-        >
+        ★ {{ s.project.stars }} • by @{{ s.project.owner.username }}
         • starred {{ s.created_at|timesince }} ago
       </div>
     </a>

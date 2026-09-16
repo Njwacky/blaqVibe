@@ -69,8 +69,8 @@ class ProfileForm(forms.ModelForm):
     def clean_avatar(self):
         f = self.cleaned_data.get('avatar')
         if f:
-            if f.size > 2 * 1024 * 1024:
-                raise forms.ValidationError("Avatar max 2MB")
+            if f.size > 7 * 1024 * 1024:
+                raise forms.ValidationError("Avatar max 7MB")
             content_type = getattr(f, 'content_type', '') or ''
             if content_type and not content_type.startswith('image/'):
                 raise forms.ValidationError("Only images")
