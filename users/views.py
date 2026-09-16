@@ -733,8 +733,12 @@ def delete_account(request):
     return redirect('feed')
 
 def send_verify_email(request, user):
+    """Send the activation email. Returns True only if a backend actually
+    accepted it — callers use that to avoid promising a link that never left
+    the server.
+    """
     if not (user and user.email):
-        return
+        return False
     try:
         from django.core.mail import EmailMultiAlternatives
         from django.template.loader import render_to_string
@@ -780,17 +784,33 @@ def send_verify_email(request, user):
         if html_body:
             msg.attach_alternative(html_body, 'text/html')
 
-        msg.send(fail_silently=True)
+        delivered = msg.send(fail_silently=True)
 
-        logging.getLogger(__name__).info(
-            'verify email queued to=%s user=%s via backend=%s brevo=%s',
+        if delivered:
+            logging.getLogger(__name__).info(
+                'verify email sent to=%s user=%s via backend=%s brevo=%s',
+                user.email,
+                getattr(user, 'username', ''),
+                getattr(settings, 'EMAIL_BACKEND', ''),
+                bool(getattr(settings, 'BREVO_ENABLED', False)),
+            )
+            return True
+
+        # The backend swallowed a Brevo rejection (fail_silently=True above keeps
+        # signup from 500-ing). Say so loudly here rather than logging success and
+        # letting the UI claim a confirmation link was sent.
+        logging.getLogger(__name__).error(
+            'verify email NOT sent to=%s user=%s — the %s backend rejected it. '
+            'Search the logs for BREVO_SEND_FAILED for Brevo\'s reason, or run '
+            '`python manage.py diagnose_email` for a full check.',
             user.email,
             getattr(user, 'username', ''),
             getattr(settings, 'EMAIL_BACKEND', ''),
-            bool(getattr(settings, 'BREVO_ENABLED', False)),
         )
+        return False
     except Exception:
         logging.getLogger(__name__).exception('send_verify_email failed for user=%s', getattr(user, 'pk', None))
+        return False
 
 def apply_unverified_email(user, email):
     """Point this account at a new unconfirmed mailbox.
@@ -876,7 +896,14 @@ def edit_email(request):
             if not request.user.email:
                 messages.error(request, 'Add an email to your account first.')
                 return redirect('edit_email')
-            send_verify_email(request, request.user)
+            sent = send_verify_email(request, request.user)
+            if not sent:
+                messages.error(
+                    request,
+                    f'Your email is saved as {email}, but the confirmation message could not be '
+                    'sent right now. Please try again shortly.',
+                )
+                return redirect('edit_email')
             if changed:
                 messages.success(
                     request,
