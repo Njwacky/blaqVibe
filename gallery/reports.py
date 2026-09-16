@@ -93,6 +93,13 @@ def create_report(project: AppProject, user, reason: str, details: str, cooldown
         body = (report.details or reported_by)[:400]
         for staff in moderators_to_notify(user):
             notify(staff, 'report', base, body, target_url)
+        # Admin email + in-app for approval — ensure admin gets MOST notifications
+        # When someone files a report that needs approval/triage, admin must be emailed via Brevo
+        try:
+            from .admin_notifications import notify_admins_new_report
+            notify_admins_new_report(report)
+        except Exception:
+            logger.exception('admin email notify failed for report slug=%s id=%s', project.slug, report.pk)
     except Exception:
         logger.exception('report notify failed slug=%s id=%s', project.slug, report.pk)
     return report, True

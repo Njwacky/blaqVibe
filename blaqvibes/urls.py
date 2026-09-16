@@ -58,10 +58,14 @@ login_view = ratelimit(key='ip', rate='20/m', method='POST')(
 # Reset-email bombing + password-set brute force: same ceiling. The email
 # form can't leak whether an address exists (Django's generic response), but
 # an unbounded POST loop still costs one email each — bound it.
+# Brevo path: html_email_template_name is rendered as the HTML alternative
+# (EmailMultiAlternatives) — Brevo backend posts both textContent and
+# htmlContent to /v3/smtp/email.
 password_reset_view = ratelimit(key='ip', rate='10/m', method='POST')(
     auth_views.PasswordResetView.as_view(
         template_name='registration/password_reset_form.html',
         email_template_name='registration/password_reset_email.txt',
+        html_email_template_name='registration/password_reset_email.html',
         subject_template_name='registration/password_reset_subject.txt',
         form_class=StyledPasswordResetForm,
         success_url=reverse_lazy('password_reset_done'),

@@ -1,0 +1,14 @@
+ADMIN ALERT — Challenge Drafts Need Approval
+
+{{ count }} draft challenges were AI-generated and are waiting for superadmin approval.
+
+{% for c in challenges %}
+- {{ c.title }} ({{ c.tag }}) — {{ c.bounty_stars }}★ bounty — {{ c.start|date:"Y-m-d" }} to {{ c.end|date:"Y-m-d" }}
+{% endfor %}
+
+Review and approve at: {{ site_url }}{{ challenges_url }}
+
+Approve one to make it live — is_active=False until you approve.
+
+— BlaqVibes Admin Alerts
+Sent to moderators/admins/superadmins.

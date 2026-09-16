@@ -94,6 +94,12 @@ def signup(request):
                     send_verify_email(request, user)
             except Exception:
                 logger.exception('verify email send failed')
+            # Admin must get notified when someone wants approval / new user joins
+            try:
+                from .admin_notifications import notify_admins_new_user
+                notify_admins_new_user(user)
+            except Exception:
+                logger.exception('admin new user notify failed %s', user.username)
             messages.success(request, "Welcome to BlaqVibes — we sent a confirmation link to your email.")
             return redirect(next_url or 'feed')
     else:
@@ -717,17 +723,23 @@ def register_zip_project(project, logger_name='publish'):
     except Exception as e:
         logger.warning("Queue error, fallback eager for %s: %s", project.slug, e)
     try:
-        from .reports import moderators_to_notify
-        for staff in moderators_to_notify(project.owner):
-            notify(
-                staff,
-                'upload',
-                f'New ZIP upload: {project.title}',
-                f'@{project.owner.username} uploaded a project and it is waiting in the scan queue.',
-                project.get_absolute_url(),
-            )
+        from .admin_notifications import notify_admins_pending_project
+        notify_admins_pending_project(project, reason="New ZIP upload — waiting in scan queue, needs approval check")
     except Exception:
         logger.exception('upload moderator fan-out failed slug=%s', project.slug)
+        # Fallback to in-app only
+        try:
+            from .reports import moderators_to_notify
+            for staff in moderators_to_notify(project.owner):
+                notify(
+                    staff,
+                    'upload',
+                    f'New ZIP upload: {project.title}',
+                    f'@{project.owner.username} uploaded a project and it is waiting in the scan queue.',
+                    project.get_absolute_url(),
+                )
+        except Exception:
+            pass
     return ScanJob.objects.filter(status__in=['queued', 'scanning']).count()
 
 @login_required
@@ -802,17 +814,22 @@ def publish(request):
                         project.get_absolute_url(),
                     )
                     try:
-                        from .reports import moderators_to_notify
-                        for staff in moderators_to_notify(project.owner):
-                            notify(
-                                staff,
-                                'report',
-                                f'Snippet held: {project.title}',
-                                'Secret-shaped content flagged at publish — needs a human look.',
-                                project.get_absolute_url(),
-                            )
+                        from .admin_notifications import notify_admins_quarantined_project
+                        notify_admins_quarantined_project(project, reason="Secret-shaped content flagged at publish — needs human review")
                     except Exception:
                         logger.debug('moderator fan-out skipped for %s', project.slug)
+                        try:
+                            from .reports import moderators_to_notify
+                            for staff in moderators_to_notify(project.owner):
+                                notify(
+                                    staff,
+                                    'report',
+                                    f'Snippet held: {project.title}',
+                                    'Secret-shaped content flagged at publish — needs a human look.',
+                                    project.get_absolute_url(),
+                                )
+                        except Exception:
+                            pass
                     messages.warning(
                         request,
                         "“%s” is held for review — the code looks like it contains an API "

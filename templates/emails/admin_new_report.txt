@@ -1,0 +1,15 @@
+ADMIN ALERT — New Report
+
+Project: {{ project.title }} ({{ project.slug }})
+Reason: {{ report.get_reason_display }}
+Details: {{ report.details }}
+Reporter: {% if reporter %}@{{ reporter.username }} ({{ reporter.email }}){% else %}Anonymous{% endif %}
+Created: {{ report.created_at }}
+
+Reports queue: {{ site_url }}{{ reports_url }}
+Project: {{ site_url }}/app/{{ project.slug }}/
+
+This report needs triage — ignore, quarantine, remove, or delete.
+
+— BlaqVibes Admin Alerts
+Sent to all moderators/admins.

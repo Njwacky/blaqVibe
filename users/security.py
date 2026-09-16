@@ -68,11 +68,50 @@ def record_login(request, user):
     event = 'login_recognized_device' if recognised else ('login_new_device' if prior.exists() else 'login_first_device')
     SecurityEvent.objects.create(user=user, event=event, ip_hash=ip_hash, device_hash=device_hash, detail=detail)
     if event == 'login_new_device' and user.email:
-        send_mail(
-            'New BlaqVibes sign-in',
-            'Your account signed in from a new device or network (' + detail + '). If this was not you, reset your password immediately. Changing your password signs every other device out.',
-            settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=True,
-        )
+        # Use Brevo-ready EmailMultiAlternatives with HTML for better inbox placement
+        try:
+            from django.core.mail import EmailMultiAlternatives
+
+            subject = 'New BlaqVibes sign-in detected'
+            text_body = (
+                f'Hi @{user.username},\n\n'
+                f'Your account signed in from a new device or network ({detail}).\n\n'
+                f'If this was you, you can ignore this email.\n'
+                f'If this was NOT you, reset your password immediately at '
+                f'{getattr(settings, "SITE_URL", "https://blaqvibes.co.za")}/accounts/password_reset/\n\n'
+                f'Changing your password signs every other device out and revokes git tokens.\n\n'
+                f'— BlaqVibes Security'
+            )
+            html_body = (
+                f'<html><body style="font-family:Inter,Helvetica,Arial,sans-serif;background:#0a0a0f;padding:24px;color:#ddd;">'
+                f'<div style="max-width:560px;margin:0 auto;background:#11111a;border:1px solid #222;border-radius:12px;padding:24px;">'
+                f'<h2 style="margin:0 0 12px 0;color:#fff;">New sign-in detected</h2>'
+                f'<p style="color:#aaa;line-height:1.6;">Hi @{user.username},<br><br>'
+                f'Your account signed in from a new device or network (<strong style="color:#fff;">{detail}</strong>).</p>'
+                f'<p style="color:#aaa;line-height:1.6;">If this was you, ignore this email.<br>'
+                f'If not, <a href="{getattr(settings, "SITE_URL", "https://blaqvibes.co.za")}/accounts/password_reset/" '
+                f'style="color:#ef4444;font-weight:600;">reset your password now</a> — it signs out other devices and revokes git tokens.</p>'
+                f'<p style="color:#666;font-size:12px;margin-top:20px;">BlaqVibes Security • {getattr(settings, "SITE_URL", "")}</p>'
+                f'</div></body></html>'
+            )
+            msg = EmailMultiAlternatives(
+                subject=subject,
+                body=text_body,
+                from_email=getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@blaqvibes.co.za'),
+                to=[user.email],
+            )
+            msg.attach_alternative(html_body, 'text/html')
+            msg.send(fail_silently=True)
+        except Exception:
+            # Fallback to simple send_mail — Brevo backend will still handle it
+            try:
+                send_mail(
+                    'New BlaqVibes sign-in',
+                    'Your account signed in from a new device or network (' + detail + '). If this was not you, reset your password immediately. Changing your password signs every other device out.',
+                    settings.DEFAULT_FROM_EMAIL, [user.email], fail_silently=True,
+                )
+            except Exception:
+                pass
 
 class AccountPasswordChangeView(LoginRequiredMixin, PasswordChangeView):
     template_name = 'registration/password_change_form.html'

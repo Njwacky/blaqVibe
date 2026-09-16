@@ -1,0 +1,14 @@
+ADMIN ALERT — Quarantined Project
+
+Project: {{ project.title }}
+Owner: @{{ owner.username }} ({{ owner.email }})
+Reason: {{ reason }}
+{% if secrets %}Files flagged: {{ secrets|join:", " }}{% endif %}
+Link: {{ site_url }}/app/{{ project.slug }}/
+Moderation queue: {{ site_url }}{{ moderation_url }}
+
+The project was automatically quarantined by ClamAV / secrets scan and needs human review.
+
+Action: {{ site_url }}{{ moderation_url }}
+
+— BlaqVibes Admin Alerts

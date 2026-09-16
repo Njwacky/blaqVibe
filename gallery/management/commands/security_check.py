@@ -136,9 +136,27 @@ class Command(BaseCommand):
             add('RATELIMIT_ENABLE is off — every @ratelimit decorator is currently decorative.')
 
         email_backend = getattr(settings, 'EMAIL_BACKEND', '')
+        brevo_enabled = bool(getattr(settings, 'BREVO_ENABLED', False) or getattr(settings, 'BREVO_API_KEY', ''))
         if production and email_backend == 'django.core.mail.backends.console.EmailBackend':
-            add('EMAIL_BACKEND is the console backend — verification, password-reset, and account mail '
-                'will be written to application logs instead of delivered. Configure a real SMTP/API backend.')
+            if brevo_enabled:
+                warnings.append(
+                    'EMAIL_BACKEND is console but BREVO_API_KEY is set — settings would normally auto-select '
+                    'blaqvibes.email_backends.BrevoEmailBackend. If you forced EMAIL_BACKEND=console, verification '
+                    'and password-reset mail will not be delivered.'
+                )
+            else:
+                add(
+                    'EMAIL_BACKEND is the console backend — verification, password-reset, and account mail '
+                    'will be written to application logs instead of delivered. '
+                    'Set BREVO_API_KEY (recommended: https://app.brevo.com/settings/keys/api) '
+                    'or configure a real SMTP backend via EMAIL_BACKEND/EMAIL_HOST.'
+                )
+        # If Brevo backend is selected but no key, it will fail at send time — catch early
+        if production and 'brevo' in email_backend.lower() and not brevo_enabled:
+            add(
+                'EMAIL_BACKEND is Brevo but BREVO_API_KEY is empty — no activation or password-reset email '
+                'will be delivered. Paste your Brevo API key as BREVO_API_KEY.'
+            )
 
         # Background work. The scan pipeline is the only path to `published`,
         # and finalize_publish deliberately holds a vibe in `pending` forever

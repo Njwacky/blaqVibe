@@ -8,7 +8,7 @@ from django.http import JsonResponse
 from django.views.decorators.http import require_POST
 from django.db.models import Count, Q, Sum
 from django.contrib import messages
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives, send_mail
 from django.conf import settings
 from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
 from django.utils.encoding import force_bytes, force_str
@@ -735,16 +735,62 @@ def delete_account(request):
 def send_verify_email(request, user):
     if not (user and user.email):
         return
-    uid = urlsafe_base64_encode(force_bytes(user.pk))
-    token = default_token_generator.make_token(user)
-    link = request.build_absolute_uri(f'/accounts/verify/{uid}/{token}/')
-    send_mail(
-        'Confirm your BlaqVibes email',
-        f'Hi @{user.username},\n\nConfirm your email:\n{link}\n\nBlaqVibes',
-        getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@blaqvibes.co.za'),
-        [user.email],
-        fail_silently=True,
-    )
+    try:
+        from django.core.mail import EmailMultiAlternatives
+        from django.template.loader import render_to_string
+
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        token = default_token_generator.make_token(user)
+        verify_path = f'/accounts/verify/{uid}/{token}/'
+        link = request.build_absolute_uri(verify_path)
+
+        site_url = getattr(settings, 'SITE_URL', '').rstrip('/') or request.build_absolute_uri('/').rstrip('/')
+
+        ctx = {
+            'user': user,
+            'verify_url': link,
+            'site_url': site_url,
+            'uid': uid,
+            'token': token,
+        }
+
+        try:
+            text_body = render_to_string('registration/verify_email.txt', ctx)
+        except Exception:
+            text_body = (
+                f'Hi @{user.username},\n\n'
+                f'Confirm your email to activate your BlaqVibes account:\n{link}\n\n'
+                f'This link expires in 24 hours.\n\nBlaqVibes — {site_url}'
+            )
+
+        try:
+            html_body = render_to_string('registration/verify_email.html', ctx)
+        except Exception:
+            html_body = None
+
+        subject = 'Confirm your BlaqVibes email — activate your account'
+        from_email = getattr(settings, 'DEFAULT_FROM_EMAIL', 'noreply@blaqvibes.co.za')
+
+        msg = EmailMultiAlternatives(
+            subject=subject,
+            body=text_body,
+            from_email=from_email,
+            to=[user.email],
+        )
+        if html_body:
+            msg.attach_alternative(html_body, 'text/html')
+
+        msg.send(fail_silently=True)
+
+        logging.getLogger(__name__).info(
+            'verify email queued to=%s user=%s via backend=%s brevo=%s',
+            user.email,
+            getattr(user, 'username', ''),
+            getattr(settings, 'EMAIL_BACKEND', ''),
+            bool(getattr(settings, 'BREVO_ENABLED', False)),
+        )
+    except Exception:
+        logging.getLogger(__name__).exception('send_verify_email failed for user=%s', getattr(user, 'pk', None))
 
 def apply_unverified_email(user, email):
     """Point this account at a new unconfirmed mailbox.

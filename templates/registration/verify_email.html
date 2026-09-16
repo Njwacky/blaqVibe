@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Confirm your BlaqVibes email</title>
+</head>
+<body style="margin:0;padding:0;background:#0a0a0f;font-family:Inter,Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0f;padding:32px 16px;">
+<tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#11111a;border:1px solid #222;border-radius:16px;overflow:hidden;">
+  <!-- Header -->
+  <tr>
+    <td style="padding:32px 32px 0 32px;text-align:center;">
+      <div style="display:inline-block;background:linear-gradient(135deg,#7c3aed,#22d3ee);color:#fff;font-weight:800;font-size:20px;letter-spacing:-0.02em;padding:10px 18px;border-radius:10px;">BlaqVibes</div>
+      <p style="color:#888;margin:12px 0 0 0;font-size:13px;letter-spacing:0.08em;text-transform:uppercase;">Build. Show. Remix. Compete.</p>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:28px 32px 0 32px;">
+      <h1 style="margin:0;color:#fff;font-size:24px;line-height:1.2;font-weight:700;">Confirm your email, @{{ user.username }}</h1>
+      <p style="margin:12px 0 0 0;color:#aaa;font-size:15px;line-height:1.6;">
+        Welcome to BlaqVibes — the place where builders publish real projects, get remixed, and climb the ranks.
+        Confirm your email to activate your account and claim your <strong style="color:#f5c518;">5 ★ welcome grant</strong>.
+      </p>
+    </td>
+  </tr>
+  <!-- CTA -->
+  <tr>
+    <td style="padding:28px 32px 0 32px;text-align:center;">
+      <a href="{{ verify_url }}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;font-weight:600;font-size:15px;padding:14px 28px;border-radius:10px;letter-spacing:0.01em;">✓ Confirm Email & Activate Account</a>
+      <p style="margin:14px 0 0 0;color:#666;font-size:12px;">Link expires in 24 hours • One-time use</p>
+    </td>
+  </tr>
+  <!-- Fallback link -->
+  <tr>
+    <td style="padding:24px 32px 0 32px;">
+      <p style="margin:0;color:#777;font-size:13px;line-height:1.6;">
+        Button not working? Copy and paste this link into your browser:
+      </p>
+      <p style="margin:8px 0 0 0;word-break:break-all;">
+        <a href="{{ verify_url }}" style="color:#22d3ee;text-decoration:none;font-size:13px;">{{ verify_url }}</a>
+      </p>
+    </td>
+  </tr>
+  <!-- Perks -->
+  <tr>
+    <td style="padding:28px 32px 0 32px;">
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#1a1a28;border-radius:10px;padding:16px;">
+        <tr><td style="padding:16px;">
+          <p style="margin:0;color:#ccc;font-size:13px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;">What you get after confirming</p>
+          <ul style="margin:10px 0 0 0;padding:0 0 0 18px;color:#aaa;font-size:14px;line-height:1.8;">
+            <li>5 ★ welcome stars in your wallet</li>
+            <li>Publish vibes, get starred, climb ranks</li>
+            <li>Remix other builders & earn reputation</li>
+            <li>Join battles & weekly challenges</li>
+          </ul>
+        </td></tr>
+      </table>
+    </td>
+  </tr>
+  <!-- Footer -->
+  <tr>
+    <td style="padding:28px 32px 32px 32px;border-top:1px solid #1e1e2e;margin-top:28px;">
+      <p style="margin:0;color:#555;font-size:12px;line-height:1.6;">
+        If you didn't create a BlaqVibes account, you can safely ignore this email.<br>
+        Need help? Reply to this email or visit <a href="{{ site_url }}" style="color:#7c3aed;text-decoration:none;">{{ site_url }}</a>
+      </p>
+      <p style="margin:12px 0 0 0;color:#444;font-size:11px;">BlaqVibes • Sent to {{ user.email }} • This is an automated message, please don't reply directly unless you need help.</p>
+    </td>
+  </tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>

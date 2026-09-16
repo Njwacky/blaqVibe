@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ count }} Challenge Drafts</title></head>
+<body style="margin:0;padding:0;background:#0a0a0f;font-family:Inter,Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0f;padding:32px 16px;">
+<tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#11111a;border:1px solid #222;border-radius:16px;overflow:hidden;">
+<tr><td style="padding:24px 32px 0 32px;">
+<div style="display:inline-block;background:#22d3ee;color:#000;font-weight:800;padding:6px 12px;border-radius:8px;font-size:12px;">CHALLENGES • DRAFTS READY</div>
+<h1 style="margin:16px 0 0 0;color:#fff;font-size:20px;">{{ count }} draft challenges need approval</h1>
+<p style="margin:8px 0 0 0;color:#aaa;font-size:14px;">AI-generated weekly challenges — superadmin must approve one to make it live.</p>
+</td></tr>
+<tr><td style="padding:16px 32px 0 32px;">
+{% for c in challenges %}
+<div style="background:#1a1a28;border-radius:10px;padding:14px;margin-bottom:10px;">
+<p style="margin:0;color:#fff;font-weight:600;font-size:14px;">{{ c.title }}</p>
+<p style="margin:4px 0 0 0;color:#aaa;font-size:13px;">{{ c.tag }} • {{ c.bounty_stars }}★ bounty • {{ c.start|date:"Y-m-d" }} → {{ c.end|date:"Y-m-d" }}</p>
+<p style="margin:6px 0 0 0;color:#888;font-size:12px;line-height:1.5;">{{ c.description|truncatechars:120 }}</p>
+</div>
+{% endfor %}
+</td></tr>
+<tr><td style="padding:24px 32px 0 32px;text-align:center;">
+<a href="{{ site_url }}{{ challenges_url }}" style="display:inline-block;background:#22d3ee;color:#000;text-decoration:none;font-weight:700;padding:12px 24px;border-radius:10px;">Review Challenges</a>
+</td></tr>
+<tr><td style="padding:24px 32px 32px 32px;border-top:1px solid #1e1e2e;">
+<p style="margin:0;color:#555;font-size:12px;">Drafts are is_active=False until superadmin approves. Only one should be active per week.</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>

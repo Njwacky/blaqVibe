@@ -103,7 +103,10 @@ class AuthAndProTests(TestCase):
     def test_edit_email_saves_typo_fix_and_mails_the_new_address(self):
         user = User.objects.create_user('fixme2', password='pass12345', email='wrong@test.com')
         self.client.login(username='fixme2', password='pass12345')
-        with patch('users.views.send_mail') as send:
+        # New implementation uses EmailMultiAlternatives (Brevo-ready) instead of send_mail
+        with patch('django.core.mail.EmailMultiAlternatives') as MockEmail:
+            mock_instance = MockEmail.return_value
+            mock_instance.send.return_value = 1
             response = self.client.post('/accounts/verify/email/', {
                 'email': 'right@test.com',
             })
@@ -111,8 +114,10 @@ class AuthAndProTests(TestCase):
         user.refresh_from_db()
         self.assertEqual(user.email, 'right@test.com')
         self.assertFalse(user.profile.email_verified)
-        send.assert_called_once()
-        self.assertEqual(send.call_args.kwargs.get('recipient_list') or send.call_args[0][3], ['right@test.com'])
+        MockEmail.assert_called_once()
+        args, kwargs = MockEmail.call_args
+        sent_to = kwargs.get('to') or (args[2] if len(args) > 2 else None)
+        self.assertEqual(sent_to, ['right@test.com'])
 
     def test_edit_email_rejects_taken_address(self):
         User.objects.create_user('taken', password='pass12345', email='taken@test.com')
@@ -127,12 +132,14 @@ class AuthAndProTests(TestCase):
     def test_edit_email_resend_same_address_sends_mail(self):
         User.objects.create_user('samebox', password='pass12345', email='same@test.com')
         self.client.login(username='samebox', password='pass12345')
-        with patch('users.views.send_mail') as send:
+        with patch('django.core.mail.EmailMultiAlternatives') as MockEmail:
+            mock_instance = MockEmail.return_value
+            mock_instance.send.return_value = 1
             response = self.client.post('/accounts/verify/email/', {
                 'email': 'same@test.com',
             })
         self.assertEqual(response.status_code, 302)
-        send.assert_called_once()
+        MockEmail.assert_called_once()
 
     def test_verified_user_cannot_use_activate_email_page(self):
         user = User.objects.create_user('done', password='pass12345', email='done@test.com')
