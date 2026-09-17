@@ -116,6 +116,12 @@ input, select, textarea { accent-color: var(--violet); }
 .nav-links { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .nav-links a { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
 .nav-links a:hover { color: var(--text); }
+/* The rule above (0,1,1) out-specifies .btn-violet's (0,1,0) white label, so
+   the nav's Build button rendered muted grey on violet. Give its label a
+   winning rule of its own — including when Build is the current page, where
+   the aria-current rule would otherwise paint --text dark-on-violet. */
+.nav-links a.btn-violet,
+.nav-links > a.btn-violet[aria-current="page"] { color: var(--on-accent); }
 .bv-icon {
   width: 17px;
   height: 17px;
@@ -498,8 +504,9 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
     border-bottom: none;
     border-right: 1px solid var(--line);
     /* The sidebar itself must never scroll as a whole — the brand stays
-       pinned at the top and only the link list scrolls (see .nav-links). */
-    overflow: hidden;
+       pinned at the top and only the link list scrolls (see .nav-links,
+       which owns the scroll region). overflow stays visible: clipping here
+       would cut off the fixed account popover (see .nav-menu below). */
   }
   body {
     padding-left: var(--nav-offset);
@@ -595,8 +602,31 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   .nav-user-btn { width: 100%; justify-content: flex-start; border-radius: 10px; padding: 6px 10px 6px 6px; }
   /* The username can grow to the rail width now there is no row to share. */
   .nav-user-name { max-width: none; flex: 1; text-align: left; }
-  /* The avatar dropdown opens inline inside the sidebar instead of floating. */
-  .nav-menu { position: static; min-width: 0; box-shadow: none; margin-top: 4px; }
+  /* The account menu is a popover pinned above the rail's bottom edge —
+     no longer position:static. Inline, the rail's own scroll area cut the
+     menu off at the viewport bottom: from about "Sales" down, rows rendered
+     half-drawn and Logout could sit out of reach entirely (the rail does
+     scroll, but nothing tells you that). position:fixed escapes that scroll
+     container; .nav's backdrop-filter makes .nav the containing block, so
+     left/bottom resolve against the rail — and in a browser that skips that,
+     the rail is pinned at the viewport's top-left corner anyway, so the
+     viewport resolves to the same geometry. Either way the whole menu stays
+     on screen and scrolls internally when taller than the rail. */
+  .nav-menu {
+    position: fixed;
+    top: auto;
+    bottom: 12px;
+    left: 12px;
+    right: auto;
+    margin-top: 0;
+    min-width: 0;
+    width: max(232px, calc(var(--nav-w) - 20px));
+    max-height: calc(100vh - 84px);
+    max-height: min(calc(100dvh - 84px), 760px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    box-shadow: var(--shadow);
+  }
   /* Desktop has a left rail, so --bv-nav-h is 0 and every sticky/anchor
      offset derived from it (filter bar, :target) resolves to a plain 12px —
      no per-element desktop overrides needed. */
@@ -1040,8 +1070,19 @@ html { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 3
   .nav-links{display:flex!important;flex-direction:row;flex-wrap:nowrap;overflow-x:auto;gap:6px;padding:6px 0 2px;max-height:none;scrollbar-width:none}
   .nav-links::-webkit-scrollbar{display:none}
   .nav-links a{flex:0 0 auto;padding:7px 10px;border-radius:100px;font-size:12px;font-weight:600;background:var(--card);border:1px solid var(--line);white-space:nowrap}
-  .nav-links a[aria-current=page]{background:var(--text);color:var(--bg);border-color:var(--text)}
-  .nav-links .btn-violet{flex:0 0 auto;padding:7px 14px;border-radius:100px;font-size:12px;font-weight:800;background:var(--violet);color:#fff;box-shadow:0 4px 14px color-mix(in srgb,var(--violet) 35%, transparent)}
+  /* The active pill inverts (—text background, —bg label). This must beat
+     premium.css, which loads after this file and sets
+     `.nav-links > a[aria-current="page"]:not(.btn-violet) { background: var(--input) }`
+     (and the same on :hover). Losing that race left the pill with a --bg
+     label on a --input pill — in light mode, near-invisible on the header:
+     the "wrong inverting colour" on mobile. !important settles it for good. */
+  .nav .nav-links > a[aria-current="page"]:not(.btn-violet){background:var(--text)!important;color:var(--bg)!important;border-color:var(--text)!important}
+  .nav-links .btn-violet{flex:0 0 auto;padding:7px 14px;border-radius:100px;font-size:12px;font-weight:800;background:var(--violet);color:var(--on-accent);box-shadow:0 4px 14px color-mix(in srgb,var(--violet) 35%, transparent)}
+  /* The account menu is a DOM descendant of .nav-links, so the pill styles
+     above match its rows too and every item rendered as a bordered pill.
+     Give the menu's own row rule the last word: clean rows, hover highlight,
+     exactly like the desktop menu. */
+  .nav .nav-menu a{display:flex;flex:auto;background:transparent;border:none;border-radius:9px;padding:8px 12px;font-size:13px;font-weight:400;white-space:normal}
   .nav-user{flex:0 0 auto;margin-left:auto}
   .nav-burger{display:none!important}
 }
