@@ -9,6 +9,8 @@ from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
+from users.decorators import not_quarantined
+
 from .skill_models import Skill, SkillUse
 from .models import AppProject
 from .prompt_sanitize import sanitize_prompt
@@ -97,6 +99,7 @@ def use_skill(request, slug):
     return redirect(f"{reverse('build_hub')}?skill={skill.slug}")
 
 
+@not_quarantined
 @login_required
 @require_POST
 @ratelimit(key='user', rate='10/h', method='POST')
@@ -138,6 +141,7 @@ def update_skill(request, slug):
     return redirect('skill_detail', slug=skill.slug)
 
 
+@not_quarantined
 @login_required
 @require_POST
 @ratelimit(key='user', rate='5/h', method='POST')

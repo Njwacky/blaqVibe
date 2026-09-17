@@ -55,3 +55,35 @@ def role_required(required_role):
 moderator_required = role_required('moderator')
 admin_required = role_required('admin')
 superadmin_required = role_required('superadmin')
+
+def not_quarantined(view):
+    """A quarantined account may READ; it may not post NEW public content.
+
+    Put this on the write views (publish, comment, review, PR, profile text,
+    skill). GET/HEAD/OPTIONS always pass, so the person can still browse,
+    read their notice, and use the appeal form — blocking those is how a 30-day
+    hold turns into "the site is broken" support mail.
+
+    Ordering: apply it as the OUTERMOST decorator. It is a cheap DB read and
+    it answers before rate-limit bookkeeping or form parsing; anonymous
+    visitors pass through untouched (active_quarantine returns None).
+    """
+    @wraps(view)
+    def _wrapped(request, *args, **kwargs):
+        if request.method not in ('GET', 'HEAD', 'OPTIONS'):
+            try:
+                from .quarantine import active_quarantine, quarantine_block_message
+                quarantine = active_quarantine(getattr(request, 'user', None))
+            except Exception:
+                logger.exception('quarantine check crush at %s', request.path)
+                quarantine = None
+            if quarantine is not None:
+                from django.contrib import messages
+                from django.shortcuts import redirect
+                try:
+                    messages.error(request, quarantine_block_message(quarantine))
+                except Exception:
+                    pass
+                return redirect('quarantine_notice')
+        return view(request, *args, **kwargs)
+    return _wrapped

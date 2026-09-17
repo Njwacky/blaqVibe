@@ -1,6 +1,14 @@
 from django.contrib import admin
 
-from .models import AdminLog, FooterContact, Profile, StarEvent
+from .models import (
+    AdminLog,
+    FooterContact,
+    Profile,
+    QuarantineAppeal,
+    RuleViolation,
+    StarEvent,
+    UserQuarantine,
+)
 
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
@@ -53,3 +61,56 @@ class FooterContactAdmin(admin.ModelAdmin):
     list_editable = ('position', 'is_active')
     search_fields = ('value', 'label')
     ordering = ('position', 'id')
+
+
+# Quarantine tables are append-only in the Django admin too: the ONLY writers
+# are users/quarantine.py's functions (they notify the person and fan out to
+# staff). An operator who edits a row here would silently change somebody's
+# access without telling them — point them at /moderation/appeals/ instead.
+@admin.register(UserQuarantine)
+class UserQuarantineAdmin(admin.ModelAdmin):
+    list_display = ('user', 'reason', 'status', 'source', 'started_at', 'ends_at', 'imposed_by')
+    list_filter = ('status', 'reason', 'source')
+    search_fields = ('user__username', 'detail', 'lift_note')
+    date_hierarchy = 'started_at'
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+@admin.register(QuarantineAppeal)
+class QuarantineAppealAdmin(admin.ModelAdmin):
+    list_display = ('user', 'status', 'created_at', 'reviewed_by', 'reviewed_at')
+    list_filter = ('status',)
+    search_fields = ('user__username', 'message', 'decision_note')
+    date_hierarchy = 'created_at'
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+@admin.register(RuleViolation)
+class RuleViolationAdmin(admin.ModelAdmin):
+    list_display = ('user', 'kind', 'surface', 'quarantined', 'created_at')
+    list_filter = ('kind', 'surface', 'quarantined')
+    search_fields = ('user__username', 'evidence', 'detail')
+    date_hierarchy = 'created_at'
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

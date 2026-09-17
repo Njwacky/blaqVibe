@@ -22,6 +22,7 @@ from .footer_contacts import (
 )
 from .charts import daily_bars_chart, h_bars_chart
 from gallery.models import AppProject, AppReport, CloneEvent, ScanJob, Trade
+from .models import QuarantineAppeal, RuleViolation, UserQuarantine
 
 DAYS = 14
 
@@ -59,6 +60,12 @@ def admin_dashboard(request):
         'open_reports': AppReport.objects.filter(status='open').count(),
         'users': User.objects.count(),
         'total_clones': AppProject.objects.aggregate(n=Sum('clones'))['n'] or 0,
+        # Account quarantine (users/quarantine.py) — people decisions, not
+        # scan verdicts, so they are counted separately from `quarantined` above.
+        'accounts_quarantined': UserQuarantine.objects.filter(status='active', ends_at__gt=timezone.now()).count(),
+        'open_appeals': QuarantineAppeal.objects.filter(status='open').count(),
+        'violations_7d': RuleViolation.objects.filter(created_at__gte=timezone.now() - timedelta(days=7)).count(),
+        'quarantines_lifted': UserQuarantine.objects.filter(status='lifted').count(),
     }
 
     # Quarantine rate over scans WITH a conclusive outcome.
@@ -158,10 +165,17 @@ def admin_dashboard(request):
         .select_related('project', 'project__owner', 'user', 'handled_by')
         .order_by('status', '-created_at')[:10]
     )
+    # Appeals first: they are a person waiting on a human answer.
+    recent_appeals = (
+        QuarantineAppeal.objects
+        .select_related('user', 'quarantine')
+        .order_by('status', '-created_at')[:8]
+    )
     return render(request, 'users/admin_dashboard.html', {
         'stats': stats,
         'charts': charts,
         'recent_reports': recent_reports,
+        'recent_appeals': recent_appeals,
     })
 
 @superadmin_required

@@ -1,0 +1,16 @@
+Hi @{{ user.username }},
+
+{{ headline }}
+
+Reason: {{ reason }}
+{% if ends_at %}Posting is paused until: {{ ends_at }}
+Reading, downloading and trading your existing vibes keep working.{% endif %}
+
+What you can do:
+{% if lifted %}Nothing is paused — your account can post again.{% else %}1. Read your notice: {{ site_url }}/quarantine/
+2. If this was a misunderstanding, send an appeal from that page. A human moderator reads every appeal, and you get an answer in your inbox either way.{% endif %}
+
+This is a people decision, not a bot verdict — you are always told why and given a way to respond.
+
+— BlaqVibes
+{{ site_url }}

@@ -17,11 +17,18 @@
     <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">USERS</div><div style="font-weight:800;font-size:20px">{{ stats.users }}</div></div>
     <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">★ VOLUME (14D)</div><div style="font-weight:800;font-size:20px">{{ stats.star_volume_14d }}</div></div>
   </div>
+  <div style="margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+    <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">ACCOUNTS QUARANTINED</div><div style="font-weight:800;font-size:20px;color:var(--danger-text)">{{ stats.accounts_quarantined }}</div></div>
+    <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">OPEN APPEALS</div><div style="font-weight:800;font-size:20px;color:var(--warning-text)">{{ stats.open_appeals }}</div></div>
+    <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">VIOLATIONS (7D)</div><div style="font-weight:800;font-size:20px">{{ stats.violations_7d }}</div></div>
+    <div class="card" style="padding:12px;text-align:center"><div style="font-size:11px;color:var(--muted)">QUARANTINE LIFTS</div><div style="font-weight:800;font-size:20px">{{ stats.quarantines_lifted }}</div></div>
+  </div>
 
   <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
     <a href="{% url 'moderation_queue' %}" class="btnV"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> Moderation Queue</a>
     <a href="{% url 'footer_contacts' %}" class="btnG"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-mail"></use></svg> Footer Contacts</a>
     {% if user.profile.is_superadmin %}<a href="{% url 'manage_roles' %}" class="btnG">Manage Roles</a>{% endif %}
+    <a href="{% url 'appeals_queue' %}" class="btnG"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-id"></use></svg> Quarantine &amp; Appeals{% if stats.open_appeals %} ({{ stats.open_appeals }}){% endif %}</a>
     <a href="{% url 'audit_log' %}" class="btnG"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-doc"></use></svg> Audit Log</a>
     <a href="/blaq-admin-secure/" class="btnG">Django Admin</a>
   </div>
@@ -71,5 +78,11 @@
     <a href="{% url 'reports_queue' %}" style="font-size:12px;font-weight:700;color:var(--link);text-decoration:none">Open report triage →</a>
   </div>
   {% for r in recent_reports %}<div style="background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:6px;font-size:12px"><b>{{ r.project.title }}</b> — {{ r.get_reason_display }} <span style="color:var(--muted)">[{{ r.get_status_display }}]</span> • {{ r.details|default:"—" }} • by {% if r.user %}@{{ r.user.username }}{% else %}anon{% endif %} • {{ r.created_at|timesince }} ago{% if r.handled_by %} • handled by @{{ r.handled_by.username }}{% endif %}</div>{% empty %}<div style="color:var(--muted);font-size:12px">No reports</div>{% endfor %}
+
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:20px;flex-wrap:wrap">
+    <h2 style="font-size:14px">Quarantines &amp; Appeals <span style="color:var(--warning-text);font-size:12px">{{ stats.open_appeals }} waiting</span></h2>
+    <a href="{% url 'appeals_queue' %}" style="font-size:12px;font-weight:700;color:var(--link);text-decoration:none">Open quarantine &amp; appeals →</a>
+  </div>
+  {% for a in recent_appeals %}<div style="background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:6px;font-size:12px"><b>@{{ a.user.username }}</b> — {{ a.quarantine.reason_label }} <span style="color:var(--muted)">[{{ a.get_status_display }}]</span> • “{{ a.message|truncatechars:160 }}” • {{ a.created_at|timesince }} ago</div>{% empty %}<div style="color:var(--muted);font-size:12px">No appeals</div>{% endfor %}
 </div>
 {% endblock %}

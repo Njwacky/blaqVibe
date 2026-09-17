@@ -3,7 +3,16 @@ from django.views.generic import RedirectView
 from . import views, trading_views, api_views, launch_views, health
 from .build_views import build_hub, capability_search, discover
 from .csp_views import csp_report
-from .moderation import moderation_queue, moderation_action, reports_queue, report_action
+from .moderation import (
+    appeal_action,
+    appeals_queue,
+    moderation_action,
+    moderation_queue,
+    quarantine_action,
+    quarantine_new,
+    report_action,
+    reports_queue,
+)
 from .skill_views import skill_list, skill_detail, use_skill, create_skill, update_skill
 from .share_card import share_card
 urlpatterns = [
@@ -67,6 +76,12 @@ urlpatterns = [
     # GET with 405 instead of rendering the queue.
     path('moderation/reports/', reports_queue, name='reports_queue'),
     path('moderation/reports/<int:report_id>/', report_action, name='report_action'),
+    # Account quarantine + appeals (users/quarantine.py). Same "specific before
+    # catch-all" rule as reports: these MUST precede moderation/<slug:slug>/.
+    path('moderation/appeals/', appeals_queue, name='appeals_queue'),
+    path('moderation/appeals/<int:appeal_id>/', appeal_action, name='appeal_action'),
+    path('moderation/quarantines/new/', quarantine_new, name='quarantine_new'),
+    path('moderation/quarantines/<int:quarantine_id>/', quarantine_action, name='quarantine_action'),
     path('moderation/<slug:slug>/', moderation_action, name='moderation_action'),
     path('app/<slug:slug>/', views.app_detail, name='app_detail'),
     path('app/<slug:slug>/edit/', views.edit_vibe, name='edit_vibe'),

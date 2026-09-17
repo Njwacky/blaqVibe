@@ -146,7 +146,8 @@ def notify_admins_for_approval(kind, title, body, url, email_subject=None, email
 
     Creates in-app Notification for each admin AND sends Brevo email.
 
-    kind: Notification kind — 'approval', 'pending', 'review_needed', 'report', 'upload', 'quarantined', 'challenge'
+    kind: Notification kind — 'approval', 'pending', 'review_needed', 'report', 'upload',
+          'quarantined', 'challenge', 'account_quarantine' (a person, not a project), 'appeal'
     title: in-app title (short)
     body: in-app body (short)
     url: link to action (e.g. project.get_absolute_url() or /moderation/)
@@ -226,7 +227,8 @@ def notify_admins_for_approval(kind, title, body, url, email_subject=None, email
 
         # Determine tags for Brevo dashboard
         tags = ['admin', 'approval']
-        if kind in ('report', 'quarantined', 'upload', 'pending', 'review_needed', 'challenge'):
+        if kind in ('report', 'quarantined', 'upload', 'pending', 'review_needed', 'challenge',
+                    'account_quarantine', 'appeal'):
             tags.append(kind)
 
         email_sent = send_admin_email(

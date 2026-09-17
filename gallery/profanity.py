@@ -12,6 +12,18 @@ PUBLIC_LANGUAGE_ERROR = (
     'vulgar, abusive, or hateful language.'
 )
 
+
+class PublicLanguageError(ValidationError):
+    """The refusal itself, as a type — not a string to pattern-match.
+
+    Views need to tell a language refusal apart from "this field is required"
+    for two reasons: the person who wrote it must be told their account was
+    recorded (`users.quarantine.note_blocked_language`), and the attempt must
+    never be confused with an ordinary validation error. Subclassing
+    ValidationError keeps every existing `except ValidationError` working.
+    """
+
+
 # Whole-token list. Keep compounds here ("asshole") rather than the short
 # stem "ass" — "class" / "pass" / "asset" must stay publishable.
 _BLOCKED_WORDS = frozenset({
@@ -182,7 +194,7 @@ def contains_profanity(text: str | None) -> bool:
         return True
 
 def validate_public_text(text: str | None, *, allow_blank: bool = True) -> str:
-    """Form/view helper. Returns the original text or raises ValidationError.
+    """Form/view helper. Returns the original text or raises PublicLanguageError.
 
     We do not rewrite the author's words. Masking ("f***") still *is*
     the word. They rephrase, or they do not publish.
@@ -193,7 +205,7 @@ def validate_public_text(text: str | None, *, allow_blank: bool = True) -> str:
             return value
         raise ValidationError('This field cannot be blank.')
     if contains_profanity(value):
-        raise ValidationError(PUBLIC_LANGUAGE_ERROR)
+        raise PublicLanguageError(PUBLIC_LANGUAGE_ERROR)
     return value
 
 def public_text_is_clean(text: str | None) -> bool:
