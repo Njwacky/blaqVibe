@@ -20,7 +20,12 @@ urlpatterns = [
     path('u/<str:username>/tip/', views.tip_user, name='tip_user'),
     path('admin/dashboard/', admin_views.admin_dashboard, name='admin_dashboard'),
     path('admin/footer-contacts/', admin_views.footer_contacts, name='footer_contacts'),
+    # Search-first role admin: /admin/roles/?q=@kwame finds the person,
+    # /admin/roles/kwame/ is the one page that changes their role.
     path('admin/roles/', admin_views.manage_roles, name='manage_roles'),
-    path('admin/roles/<str:username>/', admin_views.set_role, name='set_role'),
+    path('admin/roles/<str:username>/', admin_views.manage_user_role, name='manage_user_role'),
+    # Same view under the old name: links and POSTs written against `set_role`
+    # keep resolving instead of dying with NoReverseMatch after this change.
+    path('admin/roles/<str:username>/set/', admin_views.manage_user_role, name='set_role'),
     path('admin/audit/', admin_views.audit_log, name='audit_log'),
 ]

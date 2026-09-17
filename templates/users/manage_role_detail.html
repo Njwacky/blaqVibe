@@ -1,0 +1,108 @@
+{% extends 'gallery/base.html' %}
+{% load static %}
+{% block title %}@{{ target.username }} — Role — BlaqVibes{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'gallery/css/admin-roles.css' %}?v=roles-search-20260917">
+{% endblock %}
+{% block content %}
+{% comment %}
+One person, one page, one decision. Everything needed to be sure this is the
+right account is on this screen: identifiers, account state, current role,
+and the reason box that feeds the audit log.
+{% endcomment %}
+<div class="roles-page">
+  <p class="roles-back"><a href="{% url 'manage_roles' %}">← Find someone else</a></p>
+
+  <article class="roles-person">
+    {% include 'users/_avatar.html' with u=target size=56 radius='16px' font_size=22 frame='none' %}
+    <div class="roles-person-id">
+      <h1>@{{ target.username }}</h1>
+      <p class="roles-meta">
+        {% if target.email %}{{ target.email }}{% if target_profile.email_verified %} <span class="roles-verified" title="Email confirmed">✓ confirmed</span>{% else %} <span class="roles-muted">not confirmed</span>{% endif %}{% else %}<span class="roles-muted">no email on file</span>{% endif %}
+      </p>
+      <p class="roles-meta roles-person-facts">
+        <span>Joined {{ target.date_joined|date:"j M Y" }}</span>
+        <span>Last active {{ target.last_login|date:"j M Y H:i"|default:"never" }}</span>
+        <span>{{ project_count }} project{{ project_count|pluralize }}</span>
+        <span>{{ target_profile.stars_balance }}★</span>
+      </p>
+    </div>
+    <span class="role-badge role-{{ current_role }}">{{ current_role }}</span>
+  </article>
+
+  <ul class="roles-flags">
+    <li class="{% if target.is_active %}on{% else %}off{% endif %}">Account {% if target.is_active %}active{% else %}disabled{% endif %}</li>
+    <li class="{% if target.is_staff %}on{% else %}off{% endif %}">Django staff {% if target.is_staff %}yes{% else %}no{% endif %}</li>
+    <li class="{% if target.is_superuser %}on{% else %}off{% endif %}">Django superuser {% if target.is_superuser %}yes{% else %}no{% endif %}</li>
+    <li class="{% if target_profile.email_verified %}on{% else %}off{% endif %}">Email confirmed {% if target_profile.email_verified %}yes{% else %}no{% endif %}</li>
+  </ul>
+  {% if target.is_superuser %}
+  <p class="roles-warn">
+    This account also has Django superuser rights on <code>/blaq-admin-secure/</code>.
+    That flag is separate from the role below and is never changed here — revoke it
+    in the Django admin if the account must lose it entirely.
+  </p>
+  {% endif %}
+
+  {% if is_self %}
+  <p class="roles-warn">
+    This is <b>you</b>. You cannot change your own role — that is the rule that
+    stops an account from quietly handing itself more power, and it is enforced
+    in the server, not in this page. Ask another Super Admin.
+  </p>
+  {% endif %}
+
+  <form method="post" class="roles-form" action="{% url 'manage_user_role' target.username %}">
+    {% csrf_token %}
+    <fieldset class="roles-fieldset">
+      <legend>New role for @{{ target.username }}</legend>
+      {% for slug, label, what in role_guide %}
+      <label class="role-option{% if slug == current_role %} is-current{% endif %}">
+        <input type="radio" name="role" value="{{ slug }}"{% if slug == current_role %} checked{% endif %}{% if is_self %} disabled{% endif %}>
+        <span class="role-option-body">
+          <span class="role-option-head">
+            <b>{{ label }}</b>
+            {% if slug == current_role %}<span class="roles-muted">current role</span>{% endif %}
+          </span>
+          <small>{{ what }}</small>
+        </span>
+      </label>
+      {% endfor %}
+    </fieldset>
+
+    <label class="roles-field" for="roles-reason">
+      Why is this changing? <span class="roles-muted">required — this text is the audit trail</span>
+      <textarea id="roles-reason" name="reason" rows="2" maxlength="120" minlength="5"
+                placeholder="e.g. promoted to moderate the reports queue — ticket #482"{% if is_self %} disabled{% endif %}>{{ submitted_reason }}</textarea>
+    </label>
+
+    <label class="roles-field" for="roles-confirm">
+      Confirmation <span class="roles-muted">type {{ target.username }} — required when granting a higher role</span>
+      <input id="roles-confirm" type="text" name="confirm" autocomplete="off" autocapitalize="off"
+             placeholder="{{ target.username }}" class="roles-mono"{% if is_self %} disabled{% endif %}>
+    </label>
+
+    <div class="roles-submit">
+      <button type="submit" class="btn-violet"{% if is_self %} disabled title="You cannot change your own role"{% endif %}>Change role</button>
+      <span class="roles-muted">Recorded as @{{ user.username }} · shown to the account holder</span>
+    </div>
+  </form>
+
+  <section class="roles-section" aria-labelledby="roles-history-heading">
+    <h2 id="roles-history-heading" class="roles-section-title">Role history for @{{ target.username }}</h2>
+    <ul class="roles-history">
+      {% for log in history %}
+      <li>
+        {% if log.actor %}<b>@{{ log.actor.username }}</b>{% else %}<b>deleted account</b>{% endif %}
+        <span class="roles-log-action">{{ log.action }}</span>
+        <span class="roles-log-target">{{ log.target }}</span>
+        <time datetime="{{ log.created_at|date:'c' }}">{{ log.created_at|date:"j M Y H:i" }}</time>
+      </li>
+      {% empty %}
+      <li class="roles-muted">No role change recorded for this account.</li>
+      {% endfor %}
+    </ul>
+    <a class="btn-ghost roles-action" href="{% url 'audit_log' %}">Full audit log →</a>
+  </section>
+</div>
+{% endblock %}

@@ -4,13 +4,15 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.utils import timezone
-from django.views.decorators.http import require_POST, require_http_methods
+from django.views.decorators.http import require_http_methods
 from django.db.models import Count, Sum
 from django_ratelimit.decorators import ratelimit
 from django.db.models.functions import TruncDate
 
 from .decorators import admin_required, superadmin_required
 from .models import AdminLog, FooterContact, Profile
+from .roles import ROLE_GUIDE, ROLE_ORDER, apply_role_change
+from .user_search import elevated_rows, role_totals, search_users, users_with_role
 from .forms import FooterContactFormSet
 from .footer_contacts import (
     MAX_FOOTER_CONTACTS,
@@ -164,35 +166,94 @@ def admin_dashboard(request):
 
 @superadmin_required
 def manage_roles(request):
-    users = User.objects.select_related('profile').all().order_by('username')
-    logs = AdminLog.objects.select_related('actor').order_by('-created_at')[:10]
-    return render(request, 'users/manage_roles.html', {'users': users, 'logs': logs})
+    """Find a person. The page that used to list every user, now searches.
+
+    Three states, one URL:
+      ?q=          ranked, bounded search results
+      ?role=       everyone holding one role (access review)
+      (neither)    role totals + who holds elevated access + recent changes
+    """
+    query = (request.GET.get('q') or '').strip()
+    role = (request.GET.get('role') or '').strip()
+    if role not in ROLE_ORDER:
+        role = ''
+
+    results = None
+    role_rows = []
+    role_total = 0
+    if query:
+        results = search_users(query)
+        # One unambiguous hit: the operator typed the identifier they already
+        # knew, so go to the person instead of a one-row list.
+        exact = results.single_exact
+        if exact is not None and not role:
+            return redirect('manage_user_role', username=exact.username)
+    elif role:
+        role_rows, role_total = users_with_role(role)
+
+    return render(request, 'users/manage_roles.html', {
+        'query': results.query if results else query,
+        'raw_query': query,
+        'results': results,
+        'role': role,
+        'role_rows': role_rows,
+        'role_total': role_total,
+        'role_guide': ROLE_GUIDE,
+        'role_totals': role_totals(),
+        'elevated_rows': elevated_rows(),
+        'logs': AdminLog.objects.select_related('actor').order_by('-created_at')[:10],
+        'total_users': User.objects.count(),
+    })
+
 
 @superadmin_required
-@require_POST
-def set_role(request, username):
-    user = get_object_or_404(User, username=username)
-    role = request.POST.get('role')
-    if role not in ('user','moderator','admin','superadmin'):
-        messages.error(request, "Invalid role")
-        return redirect('manage_roles')
-    # Prevent demoting self
-    if user == request.user and role != 'superadmin':
-        messages.error(request, "You cannot demote yourself")
-        return redirect('manage_roles')
-    profile,_ = Profile.objects.get_or_create(user=user)
-    old = profile.role
-    profile.role = role
-    try:
-        profile.save(update_fields=['role'])
-        # Audit log — backend only
-        try:
-            AdminLog.objects.create(actor=request.user, action='set_role', target=f"@{user.username}: {old}→{role}")
-        except Exception: pass
-        messages.success(request, f"@{user.username}: {old} → {role}")
-    except Exception as e:
-        messages.error(request, f"Failed: {e}")
-    return redirect('manage_roles')
+@ratelimit(key='user', rate='20/h', method='POST')
+@require_http_methods(['GET', 'POST'])
+def manage_user_role(request, username):
+    """One person, one page: their account state, their role, the change.
+
+    POST is the same view as GET on purpose — a guard that refuses the change
+    re-renders the form with everything the operator typed (the reason they
+    just wrote is not thrown away by a bounce to the list).
+    """
+    user = get_object_or_404(User.objects.select_related('profile'), username=username)
+
+    if request.method == 'POST':
+        if getattr(request, 'limited', False):
+            messages.error(request, 'Too many role changes — try again in a minute.')
+            return redirect('manage_user_role', username=user.username)
+
+        result = apply_role_change(
+            actor=request.user,
+            target=user,
+            new_role=request.POST.get('role', ''),
+            reason=request.POST.get('reason', ''),
+            confirm=request.POST.get('confirm', ''),
+        )
+        getattr(messages, result.level, messages.error)(request, result.message)
+        if result.changed:
+            return redirect('manage_user_role', username=user.username)
+        # Refused: fall through and re-render with the submitted values.
+        submitted_reason = request.POST.get('reason', '')
+    else:
+        submitted_reason = ''
+
+    profile, _created = Profile.objects.get_or_create(user=user)
+    history = (AdminLog.objects
+               .filter(target__startswith=f'@{user.username}:')
+               .select_related('actor')
+               .order_by('-created_at')[:10])
+    return render(request, 'users/manage_role_detail.html', {
+        'target': user,
+        'target_profile': profile,
+        'current_role': profile.role,
+        'role_guide': ROLE_GUIDE,
+        'role_totals': role_totals(),
+        'history': history,
+        'submitted_reason': submitted_reason,
+        'project_count': user.projects.count(),
+        'is_self': user.pk == request.user.pk,
+    })
 
 @admin_required
 @ratelimit(key='user', rate='10/h', method='POST')

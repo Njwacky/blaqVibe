@@ -3,6 +3,7 @@ import logging
 
 from django.conf import settings
 from django.contrib.auth.views import redirect_to_login
+from django.http import Http404
 from django.shortcuts import render
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,12 @@ def role_required(required_role):
                     logger.warning(f"403 role {required_role} for {request.user}")
                     return render(request, '403.html', status=403)
                 return view(request, *args, **kwargs)
+            except Http404:
+                # A missing account is a 404, not a role problem. The blanket
+                # handler below used to turn every Http404 raised inside a
+                # protected view into "It's not you, it's me" — so an operator
+                # who searched a deleted username was told they lacked access.
+                raise
             except Exception as e:
                 logger.exception(f"role check crush: {e}")
                 return render(request, '403.html', status=403)
