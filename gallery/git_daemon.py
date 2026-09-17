@@ -792,6 +792,17 @@ def handle_git_request(request, username, slug, rest=''):
             return HttpResponse('This vibe was removed — push rejected.', status=403, content_type='text/plain')
         if not _push_allowed(basic_user, project):
             return HttpResponse('Push denied — only the owner or a co-owner can push.', status=403, content_type='text/plain')
+        # A quarantined account must not sidestep the post hold through git:
+        # a push writes new public bytes into a published vibe. Clones still
+        # work (reading is never blocked), pushes do not.
+        try:
+            from users.quarantine import active_quarantine, quarantine_block_message
+            held = active_quarantine(basic_user)
+        except Exception:
+            held = None
+        if held is not None:
+            return HttpResponse(f'Push rejected — {quarantine_block_message(held)}',
+                                status=403, content_type='text/plain')
     else:
         from .access import access_denied_message, user_can_download
         allowed = user_can_download(eff_user, project) or (

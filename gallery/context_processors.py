@@ -1,20 +1,41 @@
 def extras(request):
     unread = 0
     open_reports = 0
+    open_appeals = 0
+    # Account quarantine (users/quarantine.py): a person under a hold needs to
+    # see that on every page, and staff need the appeal badge in the nav — both
+    # are cheap, indexed reads that only run for signed-in users.
+    quarantine_active = False
+    quarantine_ends_at = None
+    quarantine_reason = ''
+    quarantine_appeal_open = False
     user = getattr(request, 'user', None)
     if user is not None and user.is_authenticated:
         try:
             unread = request.user.notifications.filter(is_read=False).count()
         except Exception:
             unread = 0
+        try:
+            from users.quarantine import active_quarantine, open_appeal
+            quarantine = active_quarantine(user)
+            if quarantine is not None:
+                quarantine_active = True
+                quarantine_ends_at = quarantine.ends_at
+                quarantine_reason = quarantine.reason_label
+                quarantine_appeal_open = open_appeal(quarantine) is not None
+        except Exception:
+            quarantine_active = False
         # One count only for staff, so the nav badge is free to show. Reads
         # an indexed row set; never performed on a public cache-key path.
         try:
             if user.profile.is_moderator():
                 from .models import AppReport
+                from users.models import QuarantineAppeal
                 open_reports = AppReport.objects.filter(status='open').count()
+                open_appeals = QuarantineAppeal.objects.filter(status='open').count()
         except Exception:
             open_reports = 0
+            open_appeals = 0
     social_providers = []
     try:
         from users.social import configured_social_providers
@@ -64,6 +85,11 @@ def extras(request):
     return {
         'unread_notifications': unread,
         'open_reports': open_reports,
+        'open_appeals': open_appeals,
+        'quarantine_active': quarantine_active,
+        'quarantine_ends_at': quarantine_ends_at,
+        'quarantine_reason': quarantine_reason,
+        'quarantine_appeal_open': quarantine_appeal_open,
         'social_providers': social_providers,
         'paystack_enabled': paystack_enabled,
         'nolo_backend': nolo_backend,

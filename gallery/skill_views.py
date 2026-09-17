@@ -9,6 +9,8 @@ from django.utils.text import slugify
 from django.views.decorators.http import require_POST
 from django_ratelimit.decorators import ratelimit
 
+from users.decorators import not_quarantined
+
 from .skill_models import Skill, SkillUse
 from .models import AppProject
 from .prompt_sanitize import sanitize_prompt
@@ -16,6 +18,27 @@ from .prompt_sanitize import sanitize_prompt
 
 def _clean(value, limit):
     return sanitize_prompt((value or '').strip())[:limit]
+
+
+# Every public text field on a skill. The gate treats them exactly like a
+# comment or a vibe: refusing is not enough — the refusal is recorded and the
+# author is told (users.quarantine.note_blocked_language).
+SKILL_TEXT_FIELDS = ('title', 'summary', 'problem', 'workflow', 'tools', 'expected_output', 'tags')
+
+
+def _language_gate(request, values):
+    """Return the first refused text (and record the breach), else ''."""
+    from gallery.profanity import contains_profanity
+    for name in SKILL_TEXT_FIELDS:
+        value = values.get(name)
+        if value and contains_profanity(value):
+            from users.quarantine import note_blocked_language
+            note_blocked_language(
+                request, surface='skill', text=value,
+                detail=f'Text refused by the public-language gate in the skill {name}.',
+            )
+            return value
+    return ''
 
 
 def skill_list(request):
@@ -97,6 +120,7 @@ def use_skill(request, slug):
     return redirect(f"{reverse('build_hub')}?skill={skill.slug}")
 
 
+@not_quarantined
 @login_required
 @require_POST
 @ratelimit(key='user', rate='10/h', method='POST')
@@ -125,6 +149,16 @@ def update_skill(request, slug):
     difficulty = (request.POST.get('difficulty') or skill.difficulty).strip().lower()
     if difficulty in {'beginner', 'intermediate', 'advanced'}:
         skill.difficulty = difficulty
+    from gallery.profanity import PUBLIC_LANGUAGE_ERROR
+    if _language_gate(request, {
+        'title': skill.title, 'summary': skill.summary, 'problem': skill.problem,
+        'workflow': skill.workflow, 'tools': skill.tools,
+        'expected_output': skill.expected_output, 'tags': skill.tags,
+    }):
+        # Nothing is saved on a refusal: the old version stays intact and the
+        # author is told why (in line, inbox, email) instead of losing words.
+        messages.error(request, PUBLIC_LANGUAGE_ERROR)
+        return redirect('skill_detail', slug=slug)
     if not skill.title or not skill.summary or not skill.workflow:
         messages.error(request, 'A skill needs a title, a summary and a workflow.')
         return redirect('skill_detail', slug=slug)
@@ -138,6 +172,7 @@ def update_skill(request, slug):
     return redirect('skill_detail', slug=skill.slug)
 
 
+@not_quarantined
 @login_required
 @require_POST
 @ratelimit(key='user', rate='5/h', method='POST')
@@ -153,6 +188,14 @@ def create_skill(request):
     expected_output = _clean(request.POST.get('expected_output'), 500)
     tags = _clean(request.POST.get('tags'), 300)
     difficulty = request.POST.get('difficulty', 'beginner').strip().lower()
+    from gallery.profanity import PUBLIC_LANGUAGE_ERROR
+    if _language_gate(request, {
+        'title': title, 'summary': summary, 'problem': problem,
+        'workflow': workflow, 'tools': tools,
+        'expected_output': expected_output, 'tags': tags,
+    }):
+        messages.error(request, PUBLIC_LANGUAGE_ERROR)
+        return redirect('skills')
     errors = []
     if not title: errors.append('Give the skill a title.')
     if not summary: errors.append('Explain the result in one short sentence.')

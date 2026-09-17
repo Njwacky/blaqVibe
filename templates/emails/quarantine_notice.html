@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>{{ headline }}</title></head>
+<body style="margin:0;padding:0;background:#0a0a0f;font-family:Inter,Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0f;padding:32px 16px;">
+<tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#11111a;border:1px solid #222;border-radius:16px;overflow:hidden;">
+<tr><td style="padding:24px 32px 0 32px;">
+<div style="display:inline-block;background:{% if lifted %}#10b981{% else %}#ef4444{% endif %};color:#fff;font-weight:800;padding:6px 12px;border-radius:8px;font-size:12px;">ACCOUNT NOTICE</div>
+<h1 style="margin:16px 0 0 0;color:#fff;font-size:20px;">{{ headline }}</h1>
+</td></tr>
+<tr><td style="padding:16px 32px 0 32px;">
+<div style="background:#1a1a28;border-radius:10px;padding:16px;">
+<p style="margin:0;color:#ccc;font-size:13px;font-weight:600;">Reason</p>
+<p style="margin:8px 0 0 0;color:#aaa;font-size:14px;line-height:1.6;">{{ reason }}</p>
+{% if ends_at %}<p style="margin:12px 0 0 0;color:#aaa;font-size:14px;">Posting is paused until <b style="color:#fff;">{{ ends_at }}</b>. Reading, downloading and trading keep working.</p>{% endif %}
+</div>
+</td></tr>
+{% if not lifted %}
+<tr><td style="padding:16px 32px 0 32px;color:#aaa;font-size:14px;line-height:1.6;">
+<p style="margin:0;">Think this was a misunderstanding? Say so in your own words — a human moderator reads every appeal, and you get an answer either way.</p>
+</td></tr>
+{% endif %}
+<tr><td style="padding:24px 32px 0 32px;text-align:center;">
+<a href="{{ site_url }}/quarantine/" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;font-weight:700;padding:12px 24px;border-radius:10px;">{% if lifted %}Open my account notice{% else %}Read the notice &amp; appeal{% endif %}</a>
+</td></tr>
+<tr><td style="padding:24px 32px 32px 32px;border-top:1px solid #1e1e2e;">
+<p style="margin:0;color:#555;font-size:12px;">You are getting this because your BlaqVibes account was affected by a moderation decision. Replies to this address reach the moderators.</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>

@@ -28,6 +28,7 @@ from .notify import notify
 from . import taste
 from .taxonomy import KIND_BY_VALUE, PROGRAM_KINDS, coerce_kind
 from django.core.mail import send_mail
+from users.decorators import not_quarantined
 from users.forms import SignUpForm
 from django.utils.http import url_has_allowed_host_and_scheme
 
@@ -755,6 +756,7 @@ def register_zip_project(project, logger_name='publish'):
 
 @login_required
 @ratelimit(key='user', rate='5/h', method='POST')
+@not_quarantined
 def publish(request):
     from users.models import SiteSettings
     from gallery.models import Challenge
@@ -888,6 +890,11 @@ def publish(request):
             # and the strengthen-your-proof steps are invited from there —
             # never forced here.
             return redirect('publish_success', slug=project.slug)
+        else:
+            # A public-language refusal is a rule breach, not a typo. Record it
+            # and tell the author what it means for their account (a hold).
+            from users.quarantine import note_blocked_language
+            note_blocked_language(request, surface='project', form=form)
     else:
         form = QuickPublishForm()
     from .forms import BUILD_METHOD_HINTS, BUILD_METHOD_PUBLISH_CHOICES
@@ -1000,6 +1007,7 @@ def file_preview(request, slug, path):
         return JsonResponse({'error': 'Binary file'}, status=400)
     return JsonResponse({'path': path, 'content': text})
 
+@not_quarantined
 @require_POST
 @login_required
 @ratelimit(key='user', rate='10/h', method='POST')
@@ -1014,7 +1022,11 @@ def post_comment(request, slug):
         form = CommentForm(request.POST)
         if not form.is_valid():
             # Surface the first error (length or language) so the author
-            # can reword. Never persist, never notify.
+            # can reword. The refused text is NOT persisted as a comment —
+            # but a language refusal is recorded as a rule breach and the
+            # author is told, in line, what it means for their account.
+            from users.quarantine import note_blocked_language
+            note_blocked_language(request, surface='comment', form=form, project=project)
             err = next(iter(form.errors.values()))[0]
             messages.error(request, err)
             return redirect(project.get_absolute_url() + '#comments')
@@ -1050,6 +1062,7 @@ def post_comment(request, slug):
         logging.getLogger(__name__).exception(f"post_comment crush: {e}")
         return redirect(get_object_or_404(AppProject, slug=slug).get_absolute_url() + '#comments')
 
+@not_quarantined
 @require_POST
 @login_required
 @ratelimit(key='user', rate='10/h', method='POST')
@@ -1062,6 +1075,8 @@ def post_review(request, slug):
             return redirect(project.get_absolute_url())
         form = ReviewForm(request.POST)
         if not form.is_valid():
+            from users.quarantine import note_blocked_language
+            note_blocked_language(request, surface='review', form=form, project=project)
             err = next(iter(form.errors.values()))[0]
             messages.error(request, err)
             return redirect(project.get_absolute_url() + '#reviews')
@@ -1258,6 +1273,7 @@ def vibe_stats(request, slug):
         'headline': headline,
     })
 
+@not_quarantined
 @login_required
 def edit_vibe(request, slug):
     project = get_object_or_404(AppProject, slug=slug, owner=request.user)
@@ -1270,12 +1286,23 @@ def edit_vibe(request, slug):
             p = form.save(commit=False)
             # Versioning: if new ZIP, save old as AppVersion
             if new_zip and project.zip_file:
-                from .profanity import validate_public_text
+                from .profanity import PublicLanguageError, validate_public_text
                 from .prompt_sanitize import sanitize_prompt
                 try:
                     changelog = validate_public_text(
                         sanitize_prompt(request.POST.get('changelog', 'Update'))[:280]
                     ) or 'Update'
+                except PublicLanguageError:
+                    # The changelog is PUBLIC (it renders on the vibe), so a
+                    # refusal is recorded and the author is told — the old
+                    # catch-all silently swapped in 'Update' and nobody knew.
+                    from users.quarantine import note_blocked_language
+                    note_blocked_language(
+                        request, surface='project', project=project,
+                        text=request.POST.get('changelog', ''),
+                        detail='Text refused by the public-language gate in a version changelog.',
+                    )
+                    changelog = 'Update'
                 except Exception:
                     changelog = 'Update'
                 AppVersion.objects.create(project=project, zip_file=project.zip_file, version=f"1.{project.versions.count()+1}.0", changelog=changelog)
@@ -1381,6 +1408,9 @@ def edit_vibe(request, slug):
                 )
                 return redirect(p.get_absolute_url())
             return _finish_snippet_edit(request, p, republished=True)
+        else:
+            from users.quarantine import note_blocked_language
+            note_blocked_language(request, surface='project', form=form, project=project)
     else:
         form = AppUploadForm(instance=project)
     return render(request, 'gallery/edit_vibe.html', {'form': form, 'project': project, 'co_owner_form': CoOwnerForm()})
@@ -1626,6 +1656,7 @@ def trade_download(request, slug):
         )
     return redirect('download_zip', slug=slug)
 
+@not_quarantined
 @login_required
 @require_POST
 @ratelimit(key='user', rate='5/h', method='POST')
@@ -1790,6 +1821,7 @@ def share_to_anypost(request, slug):
         messages.success(request, 'Project shared through AnyPost.')
     return redirect(project.get_absolute_url())
 
+@not_quarantined
 @login_required
 @require_POST
 def apply_ai_readme(request, slug):
@@ -1798,6 +1830,11 @@ def apply_ai_readme(request, slug):
         if project.ai_readme:
             from .profanity import PUBLIC_LANGUAGE_ERROR, contains_profanity
             if contains_profanity(project.ai_readme):
+                from users.quarantine import note_blocked_language
+                note_blocked_language(
+                    request, surface='ai_readme',
+                    text=project.ai_readme, project=project,
+                )
                 messages.error(request, PUBLIC_LANGUAGE_ERROR)
                 return redirect(project.get_absolute_url())
             project.readme = project.ai_readme

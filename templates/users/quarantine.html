@@ -1,0 +1,107 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Account notice — BlaqVibes{% endblock %}
+{% block content %}
+<div class="page" style="max-width:760px">
+  {% if not quarantine %}
+    <div class="card" style="padding:20px">
+      <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">No quarantine on this account</h1>
+      <p class="help" style="margin-top:8px">Nothing is paused. If you followed a link about a rule breach and expected something here, check your inbox — or contact the moderators through the footer.</p>
+      <a href="{% url 'feed' %}" class="btn-ghost" style="display:inline-block;margin-top:12px;padding:8px 12px;font-size:13px">← Back to projects</a>
+    </div>
+  {% else %}
+    <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px;display:flex;align-items:center;gap:8px">
+      <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg>
+      {% if live %}Your account is quarantined{% else %}Your account notice{% endif %}
+    </h1>
+
+    <div class="card" style="padding:16px;margin-top:12px;border-left:4px solid {% if live %}var(--danger-border){% else %}var(--line){% endif %}">
+      <div style="display:flex;gap:16px;flex-wrap:wrap;align-items:baseline">
+        <div style="font-size:13px;color:var(--muted)">Reason</div>
+        <div style="font-weight:700">{{ quarantine.reason_label }}</div>
+      </div>
+      {% if quarantine.detail %}
+      <div class="help" style="margin-top:6px">{{ quarantine.detail }}</div>
+      {% endif %}
+      <div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:12px">
+        <div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase">Started</div>
+          <div style="font-weight:700">{{ quarantine.started_at|date:"j M Y" }}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase">Ends</div>
+          <div style="font-weight:700">{{ quarantine.ends_at|date:"j M Y" }}</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase">Status</div>
+          <div style="font-weight:700">
+            {% if live %}{{ quarantine.days_left }} day{{ quarantine.days_left|pluralize }} left{% else %}{{ quarantine.get_status_display }}{% endif %}
+          </div>
+        </div>
+        {% if quarantine.source == 'staff' and quarantine.imposed_by %}
+        <div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase">Applied by</div>
+          <div style="font-weight:700">@{{ quarantine.imposed_by.username }} (staff)</div>
+        </div>
+        {% endif %}
+      </div>
+      {% if quarantine.lift_note %}
+      <div class="help" style="margin-top:10px">Moderator note: {{ quarantine.lift_note }}</div>
+      {% endif %}
+    </div>
+
+    <div class="card" style="padding:16px;margin-top:12px">
+      <h2 style="font-size:15px;margin:0">What is paused — and what is not</h2>
+      <ul class="help" style="margin:8px 0 0 18px;line-height:1.7">
+        <li><b>Paused:</b> publishing, comments, reviews, pull requests, profile text and git pushes.</li>
+        <li><b>Still yours:</b> signing in, reading, downloading and trading — your account and your existing projects are untouched.</li>
+        <li>{% if live %}Posting reopens by itself on <b>{{ quarantine.ends_at|date:"j M Y" }}</b>.{% else %}This hold is over — posting is open again.{% endif %}</li>
+      </ul>
+    </div>
+
+    {% if live %}
+    <div class="card" style="padding:16px;margin-top:12px">
+      <h2 style="font-size:15px;margin:0">Think this was a misunderstanding?</h2>
+      <p class="help" style="margin:6px 0 10px">Appeals are read by a human moderator, not a bot. Say what you actually meant — a word the filter read one way, context it could not see, or a mistake you want to own.</p>
+
+      {% if open_appeal %}
+        <div style="padding:12px;border-radius:12px;background:var(--info-bg);border:1px solid var(--info-border);color:var(--info-text);font-size:13px">
+          <b>Appeal sent {{ open_appeal.created_at|timesince }} ago.</b>
+          <div class="help" style="margin-top:6px">{{ open_appeal.message|linebreaksbr }}</div>
+          <div class="help" style="margin-top:6px">Waiting for a moderator — you will get an answer in your inbox.</div>
+        </div>
+      {% elif appeal_allowed %}
+        <form method="post" action="{% url 'quarantine_notice' %}">
+          {% csrf_token %}
+          <textarea name="message" rows="5" maxlength="2000" required minlength="10"
+                    placeholder="What happened, in your own words…"
+                    style="width:100%;background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:12px;padding:10px;font-size:13px"></textarea>
+          <button class="btn-violet" style="margin-top:10px;padding:10px 14px;font-size:13px">Send appeal to the moderators</button>
+        </form>
+      {% else %}
+        <div class="help" style="padding:10px;border-radius:10px;background:var(--bg);border:1px dashed var(--line)">{{ appeal_blocked_reason }}</div>
+      {% endif %}
+
+      {% if last_appeal %}
+      <div style="margin-top:12px;font-size:12px;color:var(--muted)">
+        Last appeal {{ last_appeal.created_at|timesince }} ago — {{ last_appeal.get_status_display }}
+        {% if last_appeal.decision_note %}· {{ last_appeal.decision_note }}{% endif %}
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    {% if violations %}
+    <div class="card" style="padding:16px;margin-top:12px">
+      <h2 style="font-size:15px;margin:0">What the record shows</h2>
+      <p class="help" style="margin:6px 0 10px">The evidence stays here and on the staff appeals page. Nothing else on your account is used to decide an appeal.</p>
+      {% for v in violations %}
+      <div style="padding:10px;border-radius:10px;background:var(--bg);border:1px solid var(--line);margin-bottom:6px">
+        <div style="font-size:12px;font-weight:700">{{ v.get_kind_display }}{% if v.surface %} · {{ v.surface }}{% endif %} <span style="color:var(--muted);font-weight:400">· {{ v.created_at|timesince }} ago</span></div>
+        {% if v.evidence %}<div class="help" style="margin-top:4px;word-break:break-word">{{ v.evidence|truncatechars:240 }}</div>{% endif %}
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endif %}
+</div>
+{% endblock %}

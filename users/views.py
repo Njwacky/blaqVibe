@@ -24,6 +24,7 @@ from .models import (
     UsernameHistory,
     name_style_preview_maps,
 )
+from .decorators import not_quarantined
 from .forms import ChangeEmailForm, NameStyleForm, ProfileForm, RenameForm, TipForm
 from .security import revoke_user_sessions
 from .social import social_connection_context
@@ -258,6 +259,7 @@ def proof_cv_view(request, username):
     })
 
 
+@not_quarantined
 @login_required
 def edit_profile(request):
     profile, _ = Profile.objects.get_or_create(user=request.user)
@@ -267,6 +269,10 @@ def edit_profile(request):
             form.save()
             messages.success(request, "✓ Profile updated — no sensitive info leaked, all backend sanitized.")
             return redirect('profile_view', username=request.user.username)
+        # A refused bio/name is a rule breach like any other: recorded, and
+        # the author is told what it means (30-day hold + how to appeal).
+        from .quarantine import note_blocked_language
+        note_blocked_language(request, surface='profile', form=form)
     else:
         form = ProfileForm(instance=profile)
     # Identity panel (moved here from Settings — "my profile" is where a
@@ -338,6 +344,8 @@ def tip_user(request, username):
         return JsonResponse({'error': 'You cannot tip yourself'}, status=400)
     form = TipForm(request.POST)
     if not form.is_valid():
+        from .quarantine import note_blocked_language
+        note_blocked_language(request, surface='tip', form=form)
         return JsonResponse({'error': 'Tip must be 1–1000 stars with a note up to 200 chars.'}, status=400)
     from .wallet import send_tip
     try:
@@ -567,6 +575,7 @@ def logout_other_devices(request):
     messages.success(request, f'Signed out {count} other device(s).')
     return redirect('settings')
 
+@not_quarantined
 @login_required
 @require_POST
 @ratelimit(key='user', rate='5/h', method='POST')
@@ -583,6 +592,8 @@ def rename_username(request):
     """
     form = RenameForm(request.POST)
     if not form.is_valid():
+        from .quarantine import note_blocked_language
+        note_blocked_language(request, surface='username', form=form)
         for errors in form.errors.values():
             for error in errors:
                 messages.error(request, error)

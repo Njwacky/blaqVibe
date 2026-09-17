@@ -1,0 +1,16 @@
+ADMIN ALERT — Account quarantine
+
+Account: @{{ target.username }} ({{ target.email }})
+Reason: {{ quarantine.reason_label }}
+Held until: {{ quarantine.ends_at }}
+{% if quarantine.detail %}Detail: {{ quarantine.detail }}
+{% endif %}{% if violation %}Latest breach: {{ violation.get_kind_display }}{% if violation.surface %} in {{ violation.surface }}{% endif %} — {{ violation.created_at }}
+{% endif %}{% if appeal %}APPEAL WAITING — the person says this was a misunderstanding. Read it and decide on the appeals page.{% endif %}
+
+What the person was told: their account is quarantined, posting is paused, reading/downloading/trading still work, and they can appeal.
+
+Appeals queue: {{ site_url }}{{ appeals_url }}
+Their notice page: {{ site_url }}{{ notice_url }}
+
+— BlaqVibes Admin Alerts
+Sent to all moderators/admins.

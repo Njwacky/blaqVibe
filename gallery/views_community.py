@@ -25,6 +25,7 @@ from .models import (
 )
 from .notify import notify
 from .access import user_can_see_project
+from users.decorators import not_quarantined
 
 logger = logging.getLogger(__name__)
 
@@ -207,6 +208,7 @@ def studio(request, slug=''):
         ],
     })
 
+@not_quarantined
 @login_required
 @ratelimit(key='user', rate='5/h', method='POST')
 def create_pr(request, slug):
@@ -236,6 +238,12 @@ def create_pr(request, slug):
         title = sanitize_prompt(request.POST.get('title',''))[:200] or f"PR: {source.title} → {target.title}"
         description = sanitize_prompt(request.POST.get('description',''))[:2000]
         if contains_profanity(title) or contains_profanity(description):
+            from users.quarantine import note_blocked_language
+            note_blocked_language(
+                request, surface='pr',
+                text=title if contains_profanity(title) else description,
+                project=source,
+            )
             messages.error(request, PUBLIC_LANGUAGE_ERROR)
             return redirect(source.get_absolute_url())
         pr = PullRequest.objects.create(source=source, target=target, author=request.user, title=title, description=description, status='open')

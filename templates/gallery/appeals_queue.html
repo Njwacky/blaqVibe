@@ -1,0 +1,136 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Account Quarantine &amp; Appeals — BlaqVibes{% endblock %}
+{% block content %}
+<div style="max-width:1100px;margin:0 auto;padding:20px">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+    <div>
+      <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">
+        <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg>
+        Account Quarantine &amp; Appeals
+      </h1>
+      <p style="color:var(--muted);font-size:13px">
+        Staff only. Rule breaches hold an account for 30 days (no new posts — reading, downloads and trading stay open). Every action tells the person, in their inbox and by email.
+      </p>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <a href="{% url 'moderation_queue' %}" style="font-size:12px;font-weight:700;color:var(--link);text-decoration:none">← Scan queue</a>
+      <a href="{% url 'reports_queue' %}" style="font-size:12px;font-weight:700;color:var(--link);text-decoration:none">Report triage →</a>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin:16px 0">
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+      <div style="font-size:11px;color:var(--muted)">OPEN APPEALS</div>
+      <div style="font-size:24px;font-weight:800;color:var(--danger-text)">{{ stats.open_appeals }}</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+      <div style="font-size:11px;color:var(--muted)">ACCOUNTS HELD NOW</div>
+      <div style="font-size:24px;font-weight:800">{{ stats.active_accounts }}</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+      <div style="font-size:11px;color:var(--muted)">VIOLATIONS · 7 DAYS</div>
+      <div style="font-size:24px;font-weight:800">{{ stats.violations_7d }}</div>
+    </div>
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">
+      <div style="font-size:11px;color:var(--muted)">QUARANTINES ALL TIME</div>
+      <div style="font-size:24px;font-weight:800;color:var(--muted)">{{ stats.quarantined_total }}</div>
+    </div>
+  </div>
+
+  <h2 style="margin:16px 0 8px;font-size:14px;color:var(--danger-text)">Open appeals ({{ open_appeals|length }}) — oldest first</h2>
+  {% for a in open_appeals %}
+  <div style="background:var(--danger-bg);border:1px solid var(--danger-border);border-radius:12px;padding:14px;margin-bottom:10px">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap">
+      <div style="min-width:280px;flex:1">
+        <div style="font-weight:700;font-size:14px">
+          <a href="{% url 'profile_view' a.user.username %}" style="color:var(--link);text-decoration:none" target="_blank">@{{ a.user.username }}</a>
+          <span style="font-size:11px;color:var(--muted)">· {{ a.quarantine.reason_label }} · {{ a.days_left }} day{{ a.days_left|pluralize }} left ({{ a.quarantine.ends_at|date:"j M Y" }}) · violation{{ a.quarantine_strikes|pluralize }} on record: {{ a.quarantine_strikes }}</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">Sent {{ a.created_at|timesince }} ago · account joined {{ a.user.date_joined|date:"j M Y" }}</div>
+        <div style="font-size:13px;margin-top:8px;padding:10px;background:var(--card);border:1px solid var(--line);border-radius:10px;white-space:pre-wrap;word-break:break-word">{{ a.message }}</div>
+      </div>
+      <form method="post" action="{% url 'appeal_action' a.id %}" style="min-width:260px;display:flex;flex-direction:column;gap:8px">{% csrf_token %}
+        <label style="font-size:11px;color:var(--muted)">Decision</label>
+        <select name="decision" style="background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px">
+          {% for value, label in decisions %}
+          <option value="{{ value }}">{{ label }}</option>
+          {% endfor %}
+        </select>
+        <input type="text" name="note" maxlength="400" placeholder="Note shown to the person — say why"
+               style="background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px">
+        <button class="btnV" style="padding:8px 12px;font-size:12px">Apply decision</button>
+      </form>
+    </div>
+  </div>
+  {% empty %}
+  <div style="color:var(--muted);font-size:13px;padding:14px;background:var(--bg);border:1px dashed var(--line);border-radius:10px">No open appeals. Nobody is waiting.</div>
+  {% endfor %}
+
+  <h2 style="margin:20px 0 8px;font-size:14px">Accounts held now ({{ active_quarantines|length }})</h2>
+  {% for q in active_quarantines %}
+  <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px;margin-bottom:8px;flex-wrap:wrap">
+    <div style="flex:1;min-width:260px">
+      <div style="font-weight:700">
+        <a href="{% url 'profile_view' q.user.username %}" style="color:var(--link);text-decoration:none" target="_blank">@{{ q.user.username }}</a>
+        <span style="font-size:11px;color:var(--danger-text)">{{ q.reason_label }} · until {{ q.ends_at|date:"j M Y" }} ({{ q.days_left_now }} day{{ q.days_left_now|pluralize }} left)</span>
+      </div>
+      <div style="font-size:12px;color:var(--muted)">{{ q.detail|default:"—" }}</div>
+      <div style="font-size:11px;color:var(--muted)">
+        {{ q.get_source_display }}{% if q.imposed_by %} · by @{{ q.imposed_by.username }}{% endif %} · applied {{ q.started_at|timesince }} ago
+      </div>
+    </div>
+    <form method="post" action="{% url 'quarantine_action' q.id %}" style="display:flex;gap:6px;flex-wrap:wrap">{% csrf_token %}
+      <input type="text" name="note" maxlength="400" placeholder="Note to the person (optional)"
+             style="background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px">
+      <button name="action" value="lift" class="btnV" style="padding:8px 12px;font-size:12px">Lift now</button>
+      <button name="action" value="extend" class="btn-ghost" style="padding:8px 12px;font-size:12px;color:var(--warning-text)">+30 days</button>
+      <button name="action" value="expire" class="btn-ghost" style="padding:8px 12px;font-size:12px">Mark expired</button>
+    </form>
+  </div>
+  {% empty %}
+  <div style="color:var(--muted);font-size:13px;padding:12px;background:var(--bg);border:1px dashed var(--line);border-radius:10px">No accounts are quarantined.</div>
+  {% endfor %}
+
+  <h2 style="margin:20px 0 8px;font-size:14px">Quarantine an account (any other rule breach)</h2>
+  <p style="color:var(--muted);font-size:12px;margin:0 0 8px">
+    Offensive language is caught automatically when someone posts it. Harassment, spam and impersonation are human calls — this applies the same 30-day hold, the same notice and the same appeal box.
+  </p>
+  <form method="post" action="{% url 'quarantine_new' %}" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px">{% csrf_token %}
+    <input type="text" name="username" required placeholder="@username"
+           style="background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px">
+    <select name="kind" style="background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px">
+      {% for value, label in violation_kinds %}<option value="{{ value }}">{{ label }}</option>{% endfor %}
+    </select>
+    <input type="number" name="days" min="1" max="365" placeholder="days (30)"
+           style="background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px;width:110px">
+    <input type="text" name="detail" maxlength="400" placeholder="What they did — shown to them and kept as evidence"
+           style="flex:1;min-width:260px;background:var(--input);color:var(--text);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:12px">
+    <button class="btnV" style="padding:8px 14px;font-size:12px;background:var(--danger-action)">Quarantine 30 days</button>
+  </form>
+
+  <h2 style="margin:20px 0 8px;font-size:14px">Recent violations — evidence ({{ recent_violations|length }})</h2>
+  {% for v in recent_violations %}
+  <div style="background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:6px;font-size:12px">
+    <b><a href="{% url 'profile_view' v.user.username %}" style="color:var(--link);text-decoration:none" target="_blank">@{{ v.user.username }}</a></b>
+    — {{ v.get_kind_display }}{% if v.surface %} · {{ v.surface }}{% endif %}
+    <span style="color:var(--muted)">· {{ v.created_at|timesince }} ago{% if v.quarantined %} · <span style="color:var(--danger-text)">started a quarantine</span>{% endif %}{% if v.project_slug %} · <a href="/app/{{ v.project_slug }}/" style="color:var(--muted)" target="_blank">{{ v.project_slug }}</a>{% endif %}</span>
+    {% if v.evidence %}<div style="color:var(--muted);margin-top:4px;word-break:break-word;font-family:JetBrains Mono,monospace">{{ v.evidence|truncatechars:300 }}</div>{% endif %}
+  </div>
+  {% empty %}
+  <div style="color:var(--muted);font-size:13px;padding:12px;background:var(--bg);border:1px dashed var(--line);border-radius:10px">No violations recorded.</div>
+  {% endfor %}
+
+  <h2 style="margin:20px 0 8px;font-size:14px;color:var(--muted)">Handled appeals — latest 25</h2>
+  {% for a in handled_appeals %}
+  <div style="background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:6px;font-size:12px">
+    <b>@{{ a.user.username }}</b> — {{ a.get_status_display }}
+    <span style="color:var(--muted)">· reviewed by {% if a.reviewed_by %}@{{ a.reviewed_by.username }}{% else %}—{% endif %}
+      {% if a.reviewed_at %}{{ a.reviewed_at|timesince }} ago{% endif %}
+      {% if a.decision_note %}· {{ a.decision_note }}{% endif %}</span>
+    <div style="color:var(--muted);margin-top:4px">{{ a.message|truncatechars:200 }}</div>
+  </div>
+  {% empty %}
+  <div style="color:var(--muted);font-size:13px;padding:12px;background:var(--bg);border:1px dashed var(--line);border-radius:10px">No reviewed appeals yet.</div>
+  {% endfor %}
+</div>
+{% endblock %}

@@ -819,6 +819,181 @@ class Achievement(models.Model):
     def __str__(self):
         return f'@{self.user.username} · {self.slug}'
 
+# ---------------------------------------------------------------------------
+# Account quarantine — the 30-day hold for people who break the rules.
+#
+# Two different words, two different things, on purpose:
+#   * AppProject.status == 'quarantined'  → one VIBE (virus / secrets), and
+#     the owner is told to fix the bytes.
+#   * UserQuarantine                      → one ACCOUNT (offensive language,
+#     harassment, spam), and the person is told what they did, how long it
+#     lasts, and how to appeal. This is a people decision, not a file scan.
+#
+# The models live in `users` because the unit of quarantine is the account.
+# Everything that READS or WRITES them goes through `users/quarantine.py`,
+# which is the only writer of UserQuarantine.status.
+# ---------------------------------------------------------------------------
+
+class RuleViolation(models.Model):
+    """One recorded breach of the public rules, with the evidence.
+
+    Why a table instead of a counter? An appeal is a human asking "what did
+    I actually say?" — staff need the refused text and where it happened to
+    answer that honestly. It is also the audit trail if a quarantine is ever
+    questioned, and the raw material for spotting repeat offenders.
+    """
+
+    KINDS = [
+        ('offensive_language', 'Offensive language'),
+        ('harassment', 'Harassment / abuse'),
+        ('spam', 'Spam / flooding'),
+        ('impersonation', 'Impersonation'),
+        ('other', 'Other rule breach'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='rule_violations')
+    kind = models.CharField(max_length=24, choices=KINDS, default='other', db_index=True)
+    # Where it happened, as a slug: comment / review / profile / username /
+    # pr / tip / project / ai_readme. Kept small and stable so the staff page
+    # can label it without a second lookup table.
+    surface = models.CharField(max_length=24, blank=True)
+    detail = models.CharField(max_length=300, blank=True)
+    # The text that was refused. Staff-only surface (appeals queue) — never
+    # rendered publicly, and deliberately never copied into an email or an
+    # in-app notification (nobody needs the slur in their inbox).
+    evidence = models.TextField(blank=True)
+    project_slug = models.CharField(max_length=120, blank=True)
+    # True when this violation is what started (or escalated to) a quarantine.
+    quarantined = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['user', '-created_at'])]
+
+    def __str__(self):
+        return f'@{self.user.username} {self.kind} ({self.created_at:%Y-%m-%d})'
+
+class UserQuarantine(models.Model):
+    """A 30-day hold on one account: no new public content, appealable.
+
+    What it does NOT do: delete anything, hide the person's existing work, or
+    stop them reading/downloading. A quarantine is a pause on *posting*, not
+    a deletion — the person keeps their account, and 30 days later it lifts
+    by itself. Staff can lift it sooner from the appeals queue.
+    """
+
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('lifted', 'Lifted'),
+        ('expired', 'Expired'),
+    ]
+    SOURCE_CHOICES = [
+        ('auto', 'Automatic — rule violation'),
+        ('staff', 'Staff decision'),
+    ]
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='quarantines')
+    # Same vocabulary as RuleViolation.KINDS so a staff-written quarantine and
+    # an automatic one read identically on the appeals page.
+    reason = models.CharField(max_length=24, choices=RuleViolation.KINDS, default='other')
+    detail = models.CharField(max_length=300, blank=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active', db_index=True)
+    source = models.CharField(max_length=10, choices=SOURCE_CHOICES, default='auto')
+    days = models.PositiveSmallIntegerField(default=30)
+    # How many rule violations were on record when this hold was applied.
+    strike_count = models.PositiveSmallIntegerField(default=1)
+    imposed_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='quarantines_imposed',
+    )
+    started_at = models.DateTimeField(auto_now_add=True)
+    ends_at = models.DateTimeField(db_index=True)
+    lifted_at = models.DateTimeField(null=True, blank=True)
+    lifted_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='quarantines_lifted',
+    )
+    lift_note = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        ordering = ['-started_at']
+        indexes = [models.Index(fields=['user', 'status', '-started_at'])]
+
+    def is_active(self, now=None) -> bool:
+        """True while the hold is live. Expiry is a clock, not a cron job."""
+        now = now or timezone.now()
+        return self.status == 'active' and self.ends_at > now
+
+    def days_left(self, now=None) -> int:
+        now = now or timezone.now()
+        if not self.is_active(now):
+            return 0
+        seconds = (self.ends_at - now).total_seconds()
+        return max(0, -(-int(seconds) // 86400))  # ceil: 0.2 days → 1 day left
+
+    def ends_label(self) -> str:
+        """Local date the hold ends, formatted for a human sentence."""
+        from django.utils.formats import date_format
+        try:
+            return date_format(timezone.localtime(self.ends_at), 'j M Y')
+        except Exception:
+            return self.ends_at.date().isoformat()
+
+    @property
+    def reason_label(self) -> str:
+        return dict(RuleViolation.KINDS).get(self.reason, self.reason)
+
+    def __str__(self):
+        return f'@{self.user.username} {self.reason} until {self.ends_at:%Y-%m-%d} ({self.status})'
+
+class QuarantineAppeal(models.Model):
+    """A quarantined person saying "that was a misunderstanding" — in writing.
+
+    One row per attempt, so a refusal can be explained and a later, better
+    appeal can be sent without re-creating the quarantine. Staff read every
+    one from /moderation/appeals/ and the outcome is told back to the person
+    in their inbox (and by email) — never left hanging.
+    """
+
+    STATUS_CHOICES = [
+        ('open', 'Open — awaiting staff'),
+        ('accepted', 'Accepted — quarantine lifted'),
+        ('denied', 'Denied — quarantine stands'),
+    ]
+    # What a moderator can do with an open appeal.
+    DECISIONS = [
+        ('accept', 'Accept — lift the quarantine now'),
+        ('deny', 'Deny — the quarantine stands'),
+        ('extend', 'Deny and add another 30 days'),
+    ]
+
+    quarantine = models.ForeignKey(UserQuarantine, on_delete=models.CASCADE, related_name='appeals')
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='quarantine_appeals')
+    message = models.TextField(max_length=2000)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='open', db_index=True)
+    reviewed_by = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='quarantine_appeals_reviewed',
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+    decision_note = models.CharField(max_length=400, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['status', 'created_at'])]
+
+    def save(self, *args, **kwargs):
+        # The appellant is the quarantined person, always. A caller cannot
+        # hand in an appeal that belongs to somebody else's quarantine.
+        if self.quarantine_id:
+            self.user_id = self.quarantine.user_id
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f'@{self.user.username} appeal #{self.pk} ({self.status})'
+
 @receiver(post_save, sender=User)
 def create_profile(sender, instance, created, **kwargs):
     if created:

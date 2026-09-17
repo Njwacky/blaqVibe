@@ -139,7 +139,7 @@ literal text — the regression guard in gallery/test_engagement.py pins that.
           <a role="menuitem" href="{% url 'trading_history' %}">Trades</a>
           <a role="menuitem" href="{% url 'sales_dashboard' %}"><svg class="bv-icon"><use href="#bv-ico-sales"></use></svg> Sales</a>
           <a role="menuitem" href="{% url 'settings' %}"><svg class="bv-icon"><use href="#bv-ico-settings"></use></svg> Settings</a>
-          {% if user.profile.is_moderator %}<div class="nav-menu-sep"></div><a role="menuitem" href="{% url 'moderation_queue' %}"><svg class="bv-icon"><use href="#bv-ico-shield"></use></svg> Moderation queue</a><a role="menuitem" href="{% url 'reports_queue' %}"><svg class="bv-icon"><use href="#bv-ico-report"></use></svg> Reports{% if open_reports %} <span class="nav-badge">{{ open_reports }}</span>{% endif %}</a>{% endif %}
+          {% if user.profile.is_moderator %}<div class="nav-menu-sep"></div><a role="menuitem" href="{% url 'moderation_queue' %}"><svg class="bv-icon"><use href="#bv-ico-shield"></use></svg> Moderation queue</a><a role="menuitem" href="{% url 'reports_queue' %}"><svg class="bv-icon"><use href="#bv-ico-report"></use></svg> Reports{% if open_reports %} <span class="nav-badge">{{ open_reports }}</span>{% endif %}</a><a role="menuitem" href="{% url 'appeals_queue' %}"><svg class="bv-icon"><use href="#bv-ico-id"></use></svg> Account quarantine{% if open_appeals %} <span class="nav-badge">{{ open_appeals }}</span>{% endif %}</a>{% endif %}
           {% if user.profile.is_admin %}<a role="menuitem" href="{% url 'admin_dashboard' %}"><svg class="bv-icon"><use href="#bv-ico-admin"></use></svg> Admin</a>{% endif %}
           {% if user.profile.is_superadmin %}<a role="menuitem" href="{% url 'manage_roles' %}"><svg class="bv-icon"><use href="#bv-ico-id"></use></svg> Manage roles</a>{% endif %}
           <div class="nav-menu-sep"></div>
@@ -161,6 +161,15 @@ literal text — the regression guard in gallery/test_engagement.py pins that.
   <div style="padding:12px 14px;border-radius:12px;font-size:13px;background:var(--warning-bg);border:1px solid var(--warning-border);color:var(--warning-soft-text);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
     <span>Confirm {% if user.email %}{{ user.email }}{% else %}your email{% endif %} to unlock your 5 ★ welcome grant. Typed the wrong address? Fix it before we resend.</span>
     <a href="{% url 'edit_email' %}" class="btn-ghost" style="padding:6px 10px;font-size:12px">Resend link</a>
+  </div>
+</div>
+{% endif %}
+{# A quarantine must be impossible to miss: it changes what the person can do. #}
+{% if quarantine_active %}
+<div style="max-width:1100px;margin:12px auto 0;padding:0 20px">
+  <div style="padding:12px 14px;border-radius:12px;font-size:13px;background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger-text);display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg>
+    <span><b>Your account is quarantined until {{ quarantine_ends_at|date:"j M Y" }}</b> ({{ quarantine_reason }}) — you can still read, download and trade, but posting is paused.{% if quarantine_appeal_open %} Your appeal is with the moderators.{% else %} Think this was a misunderstanding? <a href="{% url 'quarantine_notice' %}" style="color:inherit;text-decoration:underline">Appeal here</a> — a moderator reads every one.{% endif %}</span>
   </div>
 </div>
 {% endif %}

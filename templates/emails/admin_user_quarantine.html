@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Account quarantine — @{{ target.username }}</title></head>
+<body style="margin:0;padding:0;background:#0a0a0f;font-family:Inter,Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0f;padding:32px 16px;">
+<tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#11111a;border:1px solid #222;border-radius:16px;overflow:hidden;">
+<tr><td style="padding:24px 32px 0 32px;">
+<div style="display:inline-block;background:#ef4444;color:#fff;font-weight:800;padding:6px 12px;border-radius:8px;font-size:12px;">ACCOUNT QUARANTINE</div>
+<h1 style="margin:16px 0 0 0;color:#fff;font-size:20px;">@{{ target.username }} — {{ quarantine.reason_label }}</h1>
+<p style="margin:8px 0 0 0;color:#aaa;font-size:14px;">Held until {{ quarantine.ends_at }} • applied {{ quarantine.started_at }}{% if quarantine.imposed_by %} by @{{ quarantine.imposed_by.username }}{% endif %}</p>
+</td></tr>
+{% if appeal %}
+<tr><td style="padding:16px 32px 0 32px;">
+<div style="background:#2a1f0a;border:1px solid #f59e0b;border-radius:10px;padding:14px;">
+<p style="margin:0;color:#f5c518;font-size:13px;font-weight:700;">APPEAL WAITING</p>
+<p style="margin:8px 0 0 0;color:#ccc;font-size:14px;line-height:1.6;">@{{ target.username }} says this was a misunderstanding: “{{ appeal.message|truncatechars:300 }}”</p>
+</div>
+</td></tr>
+{% endif %}
+<tr><td style="padding:16px 32px 0 32px;">
+<div style="background:#1a1a28;border-radius:10px;padding:16px;">
+<p style="margin:0;color:#ccc;font-size:13px;font-weight:600;">Detail</p>
+<p style="margin:8px 0 0 0;color:#aaa;font-size:14px;line-height:1.6;">{{ quarantine.detail|default:"—" }}</p>
+{% if violation %}<p style="margin:12px 0 0 0;color:#aaa;font-size:13px;">Latest breach: {{ violation.get_kind_display }}{% if violation.surface %} in {{ violation.surface }}{% endif %} — {{ violation.created_at }}</p>{% endif %}
+</div>
+</td></tr>
+<tr><td style="padding:24px 32px 0 32px;text-align:center;">
+<a href="{{ site_url }}{{ appeals_url }}" style="display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;font-weight:700;padding:12px 24px;border-radius:10px;">Open quarantine &amp; appeals</a>
+<a href="{{ site_url }}/u/{{ target.username }}/" style="display:inline-block;background:#222;color:#fff;text-decoration:none;font-weight:600;padding:12px 24px;border-radius:10px;margin-left:8px;">View profile</a>
+</td></tr>
+<tr><td style="padding:24px 32px 32px 32px;border-top:1px solid #1e1e2e;">
+<p style="margin:0;color:#555;font-size:12px;">Lift, extend or mark expired from the appeals page. The person is told about every decision automatically.</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>

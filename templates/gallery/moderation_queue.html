@@ -7,7 +7,10 @@
       <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> Moderation Queue</h1>
       <p style="color:var(--muted);font-size:13px">Staff only — approve pending vibes or review quarantined (virus/secrets). All actions are backend, no JS secrets.</p>
     </div>
-    <a href="{% url 'reports_queue' %}" style="font-size:12px;font-weight:700;color:var(--danger-text);text-decoration:none"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-alert"></use></svg> Report triage{% if open_reports %} ({{ open_reports }} open){% endif %} →</a>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <a href="{% url 'reports_queue' %}" style="font-size:12px;font-weight:700;color:var(--danger-text);text-decoration:none"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-alert"></use></svg> Report triage{% if open_reports %} ({{ open_reports }} open){% endif %} →</a>
+      <a href="{% url 'appeals_queue' %}" style="font-size:12px;font-weight:700;color:var(--warning-text);text-decoration:none"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> Account quarantine &amp; appeals{% if open_appeals %} ({{ open_appeals }} open){% endif %} →</a>
+    </div>
   </div>
 
   <h2 style="margin:16px 0 8px;font-size:14px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-clock"></use></svg> Pending Scan/Review ({{ pending.count }})</h2>

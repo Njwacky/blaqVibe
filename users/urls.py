@@ -1,5 +1,5 @@
 from django.urls import path
-from . import views, admin_views
+from . import views, admin_views, quarantine_views
 urlpatterns = [
     path('u/<str:username>/proof/', views.proof_cv_view, name='proof_cv'),
     path('u/<str:username>/', views.profile_view, name='profile_view'),
@@ -14,6 +14,9 @@ urlpatterns = [
     path('accounts/verify/email/', views.edit_email, name='edit_email'),
     path('accounts/verify/send/', views.resend_verify_email, name='resend_verify_email'),
     path('settings/profile/', views.edit_profile, name='edit_profile'),
+    # The quarantined person's notice + appeal. Reached from the site-wide
+    # banner, the inbox notification, and every blocked write.
+    path('quarantine/', quarantine_views.quarantine_notice, name='quarantine_notice'),
     path('sales/', views.sales_dashboard, name='sales_dashboard'),
     path('pro/activate/', views.activate_pro_trial, name='activate_pro_trial'),
     path('u/<str:username>/follow/', views.toggle_follow, name='toggle_follow'),

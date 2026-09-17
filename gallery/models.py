@@ -863,6 +863,11 @@ class Notification(models.Model):
         # privilege change is exactly the one that should never be silent
         # (users/roles.apply_role_change is the writer).
         ('role', 'Role'),
+        # Account quarantine (users/quarantine.py) — a hold on the PERSON, not
+        # on one vibe. 'quarantined' above is the vibe-level scan verdict; this
+        # one is the rule-breach hold, and 'appeal' is the answer to an appeal.
+        ('account_quarantine', 'Account quarantine'),
+        ('appeal', 'Quarantine appeal'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
     kind = models.CharField(max_length=20, choices=KIND_CHOICES)
