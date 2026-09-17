@@ -994,6 +994,69 @@ class QuarantineAppeal(models.Model):
     def __str__(self):
         return f'@{self.user.username} appeal #{self.pk} ({self.status})'
 
+# --------------------------------------------------------------------
+# Feedback conversations — the temporary fast path to a human.
+#
+# The product is still under construction, so every page carries a
+# glowing floating button (the .bv-fab in the base template). It opens
+# /feedback/: a thread the user writes into, and a superadmin reads in
+# their inbox and REPLIES HERE — into the same thread — not to a
+# mailbox nobody checks. That is why this is two tables: a thread
+# (who is talking, and the read markers) and its messages (who said
+# what, in order).
+# --------------------------------------------------------------------
+class FeedbackThread(models.Model):
+    STATUS_CHOICES = [
+        ('open', 'Open — waiting on the team'),
+        ('answered', 'Answered'),
+        ('closed', 'Closed'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='feedback_threads')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='open', db_index=True)
+    # Newest message FROM THE USER. Drives both the staff-unread calc
+    # (admin_last_read_at < last_user_message_at) and queue ordering, so a
+    # staff reply can never push its own conversation back to the front.
+    last_user_message_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    # When a superadmin last opened this conversation (the read marker).
+    admin_last_read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-last_user_message_at', '-created_at']
+        indexes = [models.Index(fields=['status', 'last_user_message_at'])]
+
+    def __str__(self):
+        return f'Feedback #{self.pk} — @{self.user.username} ({self.status})'
+
+    def unread_for_staff(self):
+        """True while a user message is still waiting on the superadmin."""
+        if self.last_user_message_at is None:
+            return False
+        if self.admin_last_read_at is None:
+            return True
+        return self.last_user_message_at > self.admin_last_read_at
+
+
+class FeedbackMessage(models.Model):
+    thread = models.ForeignKey(FeedbackThread, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='feedback_messages')
+    # Stored at write time: "which side of the conversation is this" must
+    # not change if the sender's role changes later — a demoted admin's
+    # old reply is still a team reply.
+    from_staff = models.BooleanField(default=False)
+    body = models.TextField(max_length=4000)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']
+        indexes = [models.Index(fields=['thread', 'created_at'])]
+
+    def __str__(self):
+        who = 'team' if self.from_staff else f'@{self.sender.username}'
+        return f'{who}: {self.body[:40]}'
+
+
 @receiver(post_save, sender=User)
 def create_profile(sender, instance, created, **kwargs):
     if created:

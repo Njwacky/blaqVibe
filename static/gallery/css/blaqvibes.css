@@ -1094,3 +1094,32 @@ html { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 3
 .builder-evidence{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;margin-top:10px}
 .builder-evidence div{font-size:12px;line-height:1.5;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
 .builder-evidence b{font-size:11px;letter-spacing:.04em;color:var(--muted);display:block;margin-bottom:2px}
+
+/* ── Feedback floating button — the temporary construction channel ──
+   It must be EASY TO SEE, so it breathes: a violet glow that pulses,
+   paused under prefers-reduced-motion. Desktop parks it bottom-right
+   (the classic spot, nothing else lives there). On mobile it floats
+   just under the sticky top bar, next to the theme (day/night) toggle —
+   the bottom edge is the sticky action bar's territory there.
+   --bv-nav-h is measured live on mobile by blaqvibes.js (fallback 64px
+   is the bar's min-height, so no-JS still sits under the bar).
+   z 94: above the nav (50) and mobile sticky actions (90), below the
+   publish chooser (95) and the transient toast/PWA banners (999). */
+.bv-fab{position:fixed;z-index:94;right:20px;bottom:20px;width:54px;height:54px;border-radius:50%;display:grid;place-items:center;text-decoration:none;color:#fff;background:linear-gradient(140deg,#a78bfa 0%,#7c3aed 60%);border:1px solid rgba(196,181,253,.55);box-shadow:0 0 16px rgba(124,58,237,.55),0 10px 30px rgba(0,0,0,.35);animation:bv-fab-glow 2.4s ease-in-out infinite;transition:transform .15s ease;will-change:box-shadow}
+.bv-fab:hover{transform:scale(1.08)}
+.bv-fab:active{transform:scale(.96)}
+.bv-fab:focus-visible{outline:3px solid rgba(167,139,250,.9);outline-offset:3px}
+.bv-fab .bv-icon{width:24px;height:24px;flex-basis:24px}
+@keyframes bv-fab-glow{
+  0%,100%{box-shadow:0 0 12px rgba(124,58,237,.5),0 10px 30px rgba(0,0,0,.35)}
+  50%{box-shadow:0 0 34px rgba(139,92,246,.95),0 0 0 9px rgba(124,58,237,.16),0 10px 30px rgba(0,0,0,.35)}
+}
+@media (max-width:900px){
+  /* Mobile: on TOP, near the day toggle button (it sits in the sticky
+     top bar's right cluster) — just under the bar, not over it. */
+  .bv-fab{top:calc(var(--bv-nav-h, 64px) + 10px);bottom:auto;right:12px;width:48px;height:48px}
+  .bv-fab .bv-icon{width:22px;height:22px;flex-basis:22px}
+}
+@media (prefers-reduced-motion:reduce){
+  .bv-fab{animation:none;box-shadow:0 0 22px rgba(124,58,237,.75),0 10px 30px rgba(0,0,0,.35)}
+}

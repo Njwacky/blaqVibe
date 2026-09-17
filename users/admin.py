@@ -2,6 +2,8 @@ from django.contrib import admin
 
 from .models import (
     AdminLog,
+    FeedbackMessage,
+    FeedbackThread,
     FooterContact,
     Profile,
     QuarantineAppeal,
@@ -104,6 +106,39 @@ class RuleViolationAdmin(admin.ModelAdmin):
     list_display = ('user', 'kind', 'surface', 'quarantined', 'created_at')
     list_filter = ('kind', 'surface', 'quarantined')
     search_fields = ('user__username', 'evidence', 'detail')
+    date_hierarchy = 'created_at'
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+# Feedback conversations are read-only in the Django admin too: the ONLY
+# writers are users/feedback.py's views, which keep the superadmin inbox,
+# the nav badge and the user's notification rows in sync. An operator who
+# edits a row here would desync the unread counts — they reply from
+# /admin/feedback/ instead, which is the whole point of the channel.
+class FeedbackMessageInline(admin.TabularInline):
+    model = FeedbackMessage
+    extra = 0
+    can_delete = False
+    readonly_fields = ('sender', 'from_staff', 'body', 'created_at')
+
+    def has_add_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(FeedbackThread)
+class FeedbackThreadAdmin(admin.ModelAdmin):
+    list_display = ('pk', 'user', 'status', 'last_user_message_at', 'admin_last_read_at', 'created_at')
+    list_filter = ('status',)
+    search_fields = ('user__username', 'user__email')
+    readonly_fields = ('user', 'status', 'last_user_message_at', 'admin_last_read_at', 'created_at', 'updated_at')
+    inlines = [FeedbackMessageInline]
     date_hierarchy = 'created_at'
 
     def has_add_permission(self, request):
