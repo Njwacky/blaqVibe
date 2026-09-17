@@ -2052,10 +2052,51 @@ def saved_vibes(request):
 
 @login_required
 def notifications_inbox(request):
-    from .models import Notification
-    notes = Notification.objects.filter(user=request.user)[:50]
-    Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
-    return render(request, 'gallery/notifications.html', {'notifications': notes})
+    """The inbox, ordered by SEVERITY so the critical rows are read first.
+
+    Two changes from the old "newest 50, mark everything read":
+
+    1. Ordering. `notify.inbox_queryset` sorts by the stored category rank
+       (critical → action → money → social → system), newest within a band.
+       A quarantined build from yesterday must outrank a star from a minute
+       ago, or the colour stripe is decoration instead of an instruction.
+    2. Read-marking. An attention case carries a deadline, so its row stays
+       UNREAD until the case is answered — glancing at the inbox must not be
+       able to silence a countdown. Everything else behaves as before.
+    """
+    from .models import AttentionCase, Notification
+    from .notify import inbox_queryset
+    notes = list(inbox_queryset(request.user, limit=50))
+    waiting = set(
+        AttentionCase.objects
+        .filter(user=request.user, status__in=('open', 'decided'))
+        .values_list('pk', flat=True)
+    )
+    readable = [
+        n.pk for n in notes
+        if not (n.attention_case_id and n.attention_case_id in waiting)
+    ]
+    if readable:
+        Notification.objects.filter(pk__in=readable, is_read=False).update(is_read=True)
+    counts = {}
+    for note in notes:
+        counts[note.category] = counts.get(note.category, 0) + 1
+    from . import attention as attention_engine
+    legend = [
+        dict(attention_engine.category_meta(key), count=counts.get(key, 0))
+        for key in ('critical', 'action', 'money', 'social', 'system')
+    ]
+    wanted = request.GET.get('category', '')
+    category_filter = wanted if wanted in counts else ''
+    if category_filter:
+        notes = [n for n in notes if n.category == category_filter]
+    return render(request, 'gallery/notifications.html', {
+        'notifications': notes,
+        'legend': legend,
+        'category_filter': category_filter,
+        'open_cases': len(waiting),
+        'total_notifications': sum(counts.values()),
+    })
 
 @login_required
 @require_POST
@@ -2073,10 +2114,25 @@ def notifications_mark_read(request, notification_id):
 @login_required
 @require_POST
 def notifications_mark_all_read(request):
-    """Mark every notification for the current user as read. Owner-scoped."""
-    from .models import Notification
-    Notification.objects.filter(user=request.user, is_read=False).update(is_read=True)
-    return JsonResponse({'ok': True, 'unread': 0})
+    """Mark every notification read — except the ones still owed an answer.
+
+    An attention case (duplicate / malfunction) has a deadline attached, so
+    "mark all read" must not be able to silence it: the row stays unread while
+    the case is open or waiting on a FINAL DELETE. Everything else clears, and
+    the badge reports what is genuinely left.
+    """
+    from .models import AttentionCase, Notification
+    waiting = set(
+        AttentionCase.objects
+        .filter(user=request.user, status__in=('open', 'decided'))
+        .values_list('pk', flat=True)
+    )
+    qs = Notification.objects.filter(user=request.user, is_read=False)
+    if waiting:
+        qs = qs.exclude(attention_case_id__in=waiting)
+    qs.update(is_read=True)
+    unread = Notification.objects.filter(user=request.user, is_read=False).count()
+    return JsonResponse({'ok': True, 'unread': unread, 'held': len(waiting)})
 
 def sitemap_xml(request):
     projects = AppProject.objects.filter(status='published').only('slug', 'updated_at')[:500]

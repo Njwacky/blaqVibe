@@ -1,0 +1,77 @@
+{% extends 'gallery/base.html' %}
+{% load static %}
+{% block title %}Needs your decision — BlaqVibes{% endblock %}
+{% block meta_desc %}Duplicated and broken builds waiting on your decision, with the countdown and the evidence BlaqVibes would use if you do not answer.{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'gallery/css/attention.css' %}?v=attention-20260917">{% endblock %}
+{% block content %}
+{% comment %}
+The attention centre. It opens with a live detection pass for this owner (see
+gallery.views_attention.attention_center), so the page can never claim "nothing
+needs you" while a duplicate uploaded two minutes ago waits for the hourly
+sweep. The rules are printed on the page rather than hidden in a doc: a
+deadline the platform enforces has to be a deadline the person can read.
+{% endcomment %}
+<div class="attention-shell">
+  <div class="attention-hero">
+    <div>
+      <p class="attention-kicker">YOUR WORKSHOP <span> / </span> NEEDS A DECISION</p>
+      <h1>Needs your decision</h1>
+      <p class="attention-lead">
+        Two of your builds look like the same build, or one of them is broken in a way BlaqVibes can prove.
+        Only you know which copy you meant — so you get {{ decision_days }} days. After that BlaqVibes decides,
+        writes down exactly why, parks the other copy, and hands you a FINAL DELETE button.
+      </p>
+    </div>
+  </div>
+
+  <div class="bv-legend" aria-label="What the colours mean">
+    {% for row in legend %}
+    <span class="bv-legend__item bv-cat--{{ row.key }}" style="--swatch:var(--cat-{{ row.key }})" title="{{ row.meaning }}">
+      <span class="bv-legend__swatch" aria-hidden="true"></span>{{ row.label }}
+    </span>
+    {% endfor %}
+  </div>
+
+  <div class="attention-tabs">
+    <a href="?show=waiting" class="{% if show == 'waiting' %}is-active{% endif %}">Waiting on you <span>{{ waiting|length }}</span></a>
+    <a href="?show=answered" class="{% if show == 'answered' %}is-active{% endif %}">Answered <span>{{ answered|length }}</span></a>
+  </div>
+
+  {% if show == 'waiting' %}
+    {% for case in waiting %}
+      {% include 'gallery/includes/_attention_case.html' %}
+    {% empty %}
+    <div class="attention-empty">
+      <p style="font-size:26px" aria-hidden="true">✓</p>
+      <p><b>Nothing is waiting on you.</b></p>
+      <p class="help" style="margin-top:6px">No duplicated builds, nothing broken. BlaqVibes checks again every time you upload and once an hour after that.</p>
+    </div>
+    {% endfor %}
+  {% else %}
+    {% for case in answered %}
+      {% include 'gallery/includes/_attention_case.html' %}
+    {% empty %}
+    <div class="attention-empty">
+      <p><b>Nothing decided yet.</b></p>
+      <p class="help" style="margin-top:6px">When you pick a keeper — or let BlaqVibes pick — the reasoning and the cleanup land here.</p>
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <section class="attention-case" style="border-left-color:var(--cat-system);margin-top:28px">
+    <h2 class="attention-case__title" style="font-size:15px">How the countdown works</h2>
+    <ol class="attention-case__detail" style="padding-left:18px;margin-top:8px">
+      <li><b>Now:</b> you are told, in the inbox and in a banner on every page, and reminded every {{ reminder_minutes }} minutes until you answer.</li>
+      <li><b>You choose</b> a copy to keep — or press <i>Let BlaqVibes decide</i> and read the reason it gives.</li>
+      <li><b>{{ decision_days }} days of silence:</b> BlaqVibes chooses for you, using the rule printed on every case:
+        never delete a receipt → keep the published copy → keep the one that passed the scan → keep the one with the real
+        artifact → keep the one you wrote proof for → keep the one others remixed → then reviews, stars and views, capped so
+        popularity can tie-break but never decide → then the copy you were still working on → then the original upload.</li>
+      <li><b>The loser is parked, not deleted:</b> off the public site, still yours, restorable with one click.</li>
+      <li><b>FINAL DELETE</b> is yours to press. If you open that decision and then do nothing for
+        {{ final_delete_hours }} hours, BlaqVibes treats the silence as a yes and erases it. A build somebody paid for is
+        never erased — their download is their receipt.</li>
+    </ol>
+  </section>
+</div>
+{% endblock %}

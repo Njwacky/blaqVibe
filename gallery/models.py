@@ -868,21 +868,283 @@ class Notification(models.Model):
         # one is the rule-breach hold, and 'appeal' is the answer to an appeal.
         ('account_quarantine', 'Account quarantine'),
         ('appeal', 'Quarantine appeal'),
+        # Attention cases (gallery/attention.py): two of your builds are the
+        # same build, or one of them is broken. These are the notifications
+        # that ASK for a decision, which is why they carry a deadline and a
+        # 30-minute reminder instead of sitting quietly in the inbox.
+        ('duplicate', 'Duplicate build'),
+        ('malfunction', 'Malfunction'),
+    ]
+    # ------------------------------------------------------------------
+    # Severity categories. Five, not one per kind, because the job of the
+    # colour is to answer ONE question before the person reads a word:
+    # "what do I have to deal with first?" Twenty-eight kinds would give
+    # twenty-eight colours and no ordering at all — the exact distraction
+    # problem the stripe exists to solve. Every kind maps to exactly one
+    # category in gallery.notify.CATEGORY_OF_KIND, and the row stores the
+    # answer so an old notification never changes colour when the map moves.
+    # The label is rendered as TEXT next to the stripe: colour alone is not
+    # an interface (colour-blind builders read the same inbox).
+    # ------------------------------------------------------------------
+    CATEGORY_CHOICES = [
+        ('critical', 'Critical'),
+        ('action', 'Action needed'),
+        ('money', 'Money'),
+        ('social', 'Social'),
+        ('system', 'System'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
     kind = models.CharField(max_length=20, choices=KIND_CHOICES)
+    category = models.CharField(
+        max_length=10, choices=CATEGORY_CHOICES, default='system', db_index=True,
+        help_text='Severity stripe — see gallery.notify.CATEGORY_OF_KIND. Stored, not derived.',
+    )
     title = models.CharField(max_length=200)
     body = models.CharField(max_length=400, blank=True)
     url = models.CharField(max_length=300, blank=True)
     is_read = models.BooleanField(default=False)
+    # The case this row is the pinned notification for. One row per case,
+    # ever: a reminder BUMPS this row (is_read=False, reminded_at=now)
+    # instead of appending a new one, so a 30-minute cadence for 7 days is
+    # 336 nudges and still exactly one inbox entry.
+    attention_case = models.ForeignKey(
+        'gallery.AttentionCase', null=True, blank=True,
+        on_delete=models.CASCADE, related_name='notifications',
+    )
+    reminded_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text='Last time this row was re-delivered as a reminder.',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['-created_at']
-        indexes = [models.Index(fields=['user', 'is_read', '-created_at'])]
+        indexes = [
+            models.Index(fields=['user', 'is_read', '-created_at']),
+            models.Index(fields=['user', 'category', '-created_at']),
+        ]
+
+    @property
+    def category_meta(self):
+        """Fixed presentation row (label, css modifier, rank) — a server
+        table, never user-supplied, so nobody can style their own urgency."""
+        from .notify import category_meta
+        return category_meta(self.category)
+
+    @property
+    def effective_at(self):
+        """When this notification should be treated as arriving.
+
+        A bumped reminder is a re-delivery, so it sorts as new; an ordinary
+        row sorts by created_at. The inbox orders on this (severity first).
+        """
+        return self.reminded_at or self.created_at
 
     def __str__(self):
         return f'{self.user} {self.kind}: {self.title}'
+
+class AttentionCase(models.Model):
+    """One decision the platform owes the owner — and the owner owes back.
+
+    Two facts about a builder's own workshop need a HUMAN answer, and both
+    were previously invisible:
+
+    * `duplicate` — two of THEIR builds are the same build (a re-upload, a
+      "final-v2", the same ZIP twice). Only the owner can say which one is
+      the real one, because only they know which one they meant.
+    * `malfunction` — one of their builds is broken in a way the platform can
+      prove (quarantined bytes, a failed scan, a preview that points at a
+      file that is not in the archive, a build stuck in the queue).
+
+    The lifecycle is a countdown, not a queue:
+
+        open ──(owner picks a keeper)──────────────► decided ──► deleted
+          │                                            ▲   └────► restored
+          ├──(owner: "let BlaqVibes decide")───────────┤
+          ├──(expires_at passes: system decides) ──────┘
+          └──(owner: "keep both" / "I'll fix it")──► dismissed
+
+    `decided` parks the loser with lifecycle.park_project (soft: off the
+    public site, buyers keep receipts, restorable). The FINAL DELETE button
+    is the only hard-delete path, and it is always the owner's click — unless
+    they open the decision and then do nothing for 24h, which is the one
+    silence this model treats as consent (see final_delete_at).
+
+    WRITER RULE: gallery.attention is the only writer. Views, tasks and the
+    management command all call it, so the countdown, the notification and
+    the audit row can never drift apart.
+    """
+    KIND_CHOICES = [
+        ('duplicate', 'Duplicate build'),
+        ('malfunction', 'Malfunction'),
+    ]
+    STATUS_CHOICES = [
+        ('open', 'Waiting for the owner'),
+        ('decided', 'Keeper chosen — loser parked'),
+        ('deleted', 'Cleaned up'),
+        ('restored', 'Undone — both kept'),
+        ('dismissed', 'Dismissed by the owner'),
+    ]
+    DECISION_CHOICES = [
+        ('', '—'),
+        ('user', 'You chose'),
+        ('system', 'BlaqVibes chose'),
+    ]
+    DISMISS_CHOICES = [
+        ('', '—'),
+        ('not_a_duplicate', 'Not a duplicate — keep both'),
+        ('will_fix', "Keep it — I'll fix it"),
+        ('system_keep', 'BlaqVibes decided it is worth fixing'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='attention_cases')
+    kind = models.CharField(max_length=12, choices=KIND_CHOICES)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='open', db_index=True)
+    # One of Notification.CATEGORY_CHOICES. Stored per case so the inbox
+    # stripe, the banner and the sort order all read the same decision.
+    severity = models.CharField(
+        max_length=10, choices=Notification.CATEGORY_CHOICES, default='action', db_index=True,
+    )
+    headline = models.CharField(max_length=200)
+    detail = models.CharField(max_length=500, blank=True)
+    fix_hint = models.CharField(
+        max_length=300, blank=True,
+        help_text='Malfunction only: the concrete repair, in one sentence.',
+    )
+    # The project the case is ABOUT. For a malfunction that is the broken
+    # build; for a duplicate it is the most recent copy (the one that caused
+    # the collision). SET_NULL because a cleanup deletes it — the candidates
+    # below keep the snapshot, so the case still reads afterwards.
+    subject = models.ForeignKey(
+        AppProject, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='attention_subjects',
+    )
+    # Idempotency key: sha256 of (user, kind, problem identity). UNIQUE, so a
+    # sweep that runs hourly can never open the same problem twice, and a
+    # dismissed problem stays dismissed forever.
+    pair_key = models.CharField(max_length=64, unique=True)
+    evidence = models.JSONField(
+        default=dict, blank=True,
+        help_text='Backend-only proof: matched signals, similarity score, scan facts.',
+    )
+    decision_source = models.CharField(max_length=6, choices=DECISION_CHOICES, blank=True, default='')
+    keeper = models.ForeignKey(
+        AppProject, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='attention_kept',
+    )
+    rationale = models.TextField(
+        blank=True,
+        help_text='Why THIS keeper — written by gallery.attention.explain_choice, shown verbatim.',
+    )
+    scores = models.JSONField(
+        default=list, blank=True,
+        help_text='Per-candidate score breakdown behind the rationale (auditable).',
+    )
+    # --- the countdown -------------------------------------------------
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    expires_at = models.DateTimeField(
+        db_index=True,
+        help_text='When BlaqVibes decides for you (created_at + ATTENTION_DECISION_DAYS).',
+    )
+    decided_at = models.DateTimeField(null=True, blank=True)
+    acknowledged_at = models.DateTimeField(
+        null=True, blank=True,
+        help_text='First time the owner saw the decision. Starts the 24h final-delete clock.',
+    )
+    final_delete_at = models.DateTimeField(
+        null=True, blank=True, db_index=True,
+        help_text='acknowledged_at + ATTENTION_FINAL_DELETE_HOURS — silence after that erases the parked copy.',
+    )
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    reminded_at = models.DateTimeField(null=True, blank=True)
+    remind_count = models.PositiveIntegerField(default=0)
+    dismissed_reason = models.CharField(max_length=16, choices=DISMISS_CHOICES, blank=True, default='')
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['user', 'status', '-created_at']),
+            models.Index(fields=['status', 'expires_at']),
+            models.Index(fields=['status', 'final_delete_at']),
+        ]
+
+    @property
+    def severity_meta(self):
+        from .notify import category_meta
+        return category_meta(self.severity)
+
+    @property
+    def is_due(self):
+        """True when the 7-day window has run out and the system may decide."""
+        from django.utils import timezone
+        return self.status == 'open' and self.expires_at is not None and self.expires_at <= timezone.now()
+
+    @property
+    def dropped(self):
+        return [c for c in self.candidates.all() if c.role == 'dropped']
+
+    def get_absolute_url(self):
+        return reverse('attention_case', args=[self.pk])
+
+    def __str__(self):
+        return f'{self.kind} #{self.pk} ({self.status}) for @{self.user.username}'
+
+class AttentionCandidate(models.Model):
+    """One build inside an attention case, with the facts that describe it.
+
+    `snapshot` is the reason this model exists separately from a plain FK:
+    the attention page has to keep saying "the copy you uploaded on 2 Jan,
+    14 files, never published" AFTER that copy has been deleted, or the
+    decision the owner just made becomes unreadable history. The snapshot is
+    written from server-side fields at open time — never from user input.
+    """
+    ROLE_CHOICES = [
+        ('', 'Candidate'),
+        ('keeper', 'Keeper'),
+        ('dropped', 'Dropped'),
+    ]
+    OUTCOME_CHOICES = [
+        ('', '—'),
+        ('parked', 'Parked (soft delete — restorable)'),
+        ('deleted', 'Deleted for good'),
+        ('restored', 'Restored'),
+        ('kept', 'Kept — nothing removed'),
+    ]
+    case = models.ForeignKey(AttentionCase, on_delete=models.CASCADE, related_name='candidates')
+    project = models.ForeignKey(
+        AppProject, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='attention_candidates',
+    )
+    role = models.CharField(max_length=8, choices=ROLE_CHOICES, blank=True, default='')
+    score = models.FloatField(default=0)
+    reasons = models.JSONField(
+        default=list, blank=True,
+        help_text='Fixed sentences from the keeper strategy — the readable half of the score.',
+    )
+    snapshot = models.JSONField(default=dict, blank=True)
+    outcome = models.CharField(max_length=10, choices=OUTCOME_CHOICES, blank=True, default='')
+    parked_at = models.DateTimeField(null=True, blank=True)
+    restored_at = models.DateTimeField(null=True, blank=True)
+    deleted_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-score', 'id']
+        indexes = [models.Index(fields=['case', 'role'])]
+        constraints = [
+            models.UniqueConstraint(fields=['case', 'project'], name='one_candidate_row_per_case_project'),
+        ]
+
+    @property
+    def title(self):
+        return (self.snapshot or {}).get('title') or (self.project.title if self.project else 'Deleted build')
+
+    @property
+    def slug(self):
+        return (self.snapshot or {}).get('slug') or (self.project.slug if self.project else '')
+
+    def __str__(self):
+        return f'{self.case_id}: {self.title} ({self.role or "candidate"})'
 
 class Bookmark(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bookmarks')

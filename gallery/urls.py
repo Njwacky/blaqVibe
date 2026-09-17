@@ -1,6 +1,6 @@
 from django.urls import path
 from django.views.generic import RedirectView
-from . import views, trading_views, api_views, launch_views, health
+from . import views, trading_views, api_views, launch_views, health, views_attention
 from .build_views import build_hub, capability_search, discover
 from .csp_views import csp_report
 from .moderation import (
@@ -52,6 +52,21 @@ urlpatterns = [
     path('inbox/', views.notifications_inbox, name='notifications'),
     path('inbox/read-all/', views.notifications_mark_all_read, name='notifications_mark_all_read'),
     path('inbox/<int:notification_id>/read/', views.notifications_mark_read, name='notifications_mark_read'),
+    # ------------------------------------------------------------------
+    # Attention centre: duplicated builds and broken builds, decided on a
+    # clock. Utility, so it lives in the account menu (README §"Five places")
+    # — but it is the one utility that also puts a banner on every page,
+    # because a deadline nobody opens is not a deadline.
+    # ------------------------------------------------------------------
+    path('attention/', views_attention.attention_center, name='attention_center'),
+    path('attention/status/', views_attention.attention_status, name='attention_status'),
+    path('attention/<int:case_id>/', views_attention.attention_case_detail, name='attention_case'),
+    path('attention/<int:case_id>/decide/', views_attention.attention_decide, name='attention_decide'),
+    path('attention/<int:case_id>/delegate/', views_attention.attention_delegate, name='attention_delegate'),
+    path('attention/<int:case_id>/reopen/', views_attention.attention_reopen, name='attention_reopen'),
+    path('attention/<int:case_id>/dismiss/', views_attention.attention_dismiss, name='attention_dismiss'),
+    path('attention/<int:case_id>/delete/<int:candidate_id>/', views_attention.attention_delete_now, name='attention_delete'),
+    path('attention/<int:case_id>/undo/<int:candidate_id>/', views_attention.attention_undo, name='attention_undo'),
     path('saved/', views.saved_vibes, name='saved_vibes'),
     path('oops/', views.oops_demo, name='oops_demo'),
     path('publish/', views.publish, name='publish'),

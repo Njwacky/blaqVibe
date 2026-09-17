@@ -1,0 +1,185 @@
+{% comment %}
+One attention case, rendered identically on the centre page and on its own page
+— one markup, one set of buttons, so a decision can never behave differently
+depending on where the owner happened to click it.
+
+Expects: `case` (with `case.ranked` and `case.countdown` attached by the view).
+
+The facts about each copy come from AttentionCandidate.snapshot, written from
+server-side columns when the case opens. That is what lets this block keep
+saying "uploaded 02 Jan 2026, 14 files, never published" about a copy that has
+already been deleted — the decision has to stay readable after the cleanup,
+or the owner cannot tell what they just agreed to.
+
+Progressive enhancement: "Keep my pick" is NOT disabled here. attention.js
+disables it until a copy is chosen; without JS the button still posts, the
+browser's own `required` catches an empty pick, and the engine refuses politely
+if both of those are bypassed. A deadline nobody can click is worse than a
+deadline that answers "pick which copy to keep".
+{% endcomment %}
+<article class="attention-case attention-case--{{ case.severity }}" id="case-{{ case.pk }}">
+  <div class="attention-case__top">
+    <span class="bv-cat bv-cat--{{ case.severity }}"><span class="bv-cat__dot" aria-hidden="true"></span>{{ case.severity_meta.label }}</span>
+    <h2 class="attention-case__title">{{ case.headline }}</h2>
+    {% if case.countdown %}
+    <span class="attention-clock{% if 'overdue' in case.countdown %} attention-clock--late{% endif %}">{{ case.countdown }}</span>
+    {% endif %}
+  </div>
+
+  {% if case.detail %}<p class="attention-case__detail">{{ case.detail }}</p>{% endif %}
+  {% if case.fix_hint %}<p class="attention-case__detail"><b>How to fix it:</b> {{ case.fix_hint }}</p>{% endif %}
+
+  {% if case.status == 'open' %}
+  <div class="attention-grid">
+    {% for row in case.ranked %}
+    <div class="attention-copy{% if forloop.first and case.kind == 'duplicate' %} attention-copy--recommended{% endif %}">
+      {% if forloop.first and case.kind == 'duplicate' %}<span class="attention-recommend">BlaqVibes would keep this</span>{% endif %}
+      <div class="attention-copy__name">
+        {% if row.project %}<a href="{{ row.project.get_absolute_url }}">{{ row.project.title }}</a>{% else %}{{ row.candidate.title }}{% endif %}
+      </div>
+      {% if row.project %}
+      <div class="attention-copy__facts">
+        <span>Uploaded <b>{{ row.candidate.snapshot.uploaded_on|default:"unknown" }}</b>{% if row.candidate.snapshot.published_on %} · published {{ row.candidate.snapshot.published_on }}{% else %} · never published{% endif %}</span>
+        <span>Last updated <b>{{ row.project.updated_at|timesince }} ago</b></span>
+        <span>Status <b>{{ row.project.get_status_display }}</b>{% if row.project.trust %} · trust <b>{{ row.project.trust }}</b>{% endif %}</span>
+        <span>Files <b>{{ row.project.file_count }}</b>{% if row.project.zip_file %} · ZIP attached{% else %} · no ZIP{% endif %}</span>
+        <span>Stars <b>{{ row.project.stars }}</b> · views <b>{{ row.project.views }}</b> · reviews <b>{{ row.project.review_count }}</b></span>
+        {% if row.candidate.snapshot.trades or row.candidate.snapshot.sales %}
+        <span>Paid <b>{{ row.candidate.snapshot.trades }} trade{{ row.candidate.snapshot.trades|pluralize }}</b>, <b>{{ row.candidate.snapshot.sales }} sale{{ row.candidate.snapshot.sales|pluralize }}</b> — receipts exist</span>
+        {% endif %}
+        {% if row.project.forked_from %}<span>⑂ Remix of another build</span>{% endif %}
+      </div>
+      {% if row.reasons %}
+      <ul class="attention-copy__why">
+        {% for reason in row.reasons|slice:":3" %}<li>{{ reason }}</li>{% endfor %}
+      </ul>
+      {% endif %}
+      {% if case.kind == 'duplicate' %}
+      <label class="attention-pick">
+        <input type="radio" name="project_id" value="{{ row.project.pk }}" form="decide-{{ case.pk }}" required>
+        Keep this one
+      </label>
+      {% endif %}
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="attention-actions">
+    {% if case.kind == 'duplicate' %}
+    <form method="post" action="{% url 'attention_decide' case.pk %}" id="decide-{{ case.pk }}">
+      {% csrf_token %}
+      <button type="submit" class="btn-violet" data-needs-pick="decide-{{ case.pk }}">Keep my pick</button>
+    </form>
+    {% else %}
+    <form method="post" action="{% url 'attention_dismiss' case.pk %}">
+      {% csrf_token %}<input type="hidden" name="reason" value="will_fix">
+      <button type="submit" class="btn-violet">Keep it — I'll fix it</button>
+    </form>
+    <form method="post" action="{% url 'attention_decide' case.pk %}"
+          onsubmit="return confirm('Park this build? It comes off the public site now, and you get {{ final_delete_hours }} hours to press FINAL DELETE or undo.');">
+      {% csrf_token %}
+      <button type="submit" class="btn-danger">Delete it</button>
+    </form>
+    {% endif %}
+    <form method="post" action="{% url 'attention_delegate' case.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="btn-ghost">Let BlaqVibes decide</button>
+    </form>
+    {% if case.kind == 'duplicate' %}
+    <form method="post" action="{% url 'attention_dismiss' case.pk %}">
+      {% csrf_token %}<input type="hidden" name="reason" value="not_a_duplicate">
+      <button type="submit" class="btn-ghost">Not a duplicate — keep both</button>
+    </form>
+    {% endif %}
+  </div>
+  <p class="attention-note">
+    No answer in <b>{{ decision_days }} days</b>? BlaqVibes picks the keeper, writes down exactly why,
+    parks the other copy off the public site, and gives you <b>{{ final_delete_hours }} hours</b> to press
+    FINAL DELETE — or to take the decision back. Nothing is erased without one of those two happening.
+    Until it is answered, it nudges you every <b>{{ reminder_minutes }} minutes</b>.
+  </p>
+
+  {% elif case.status == 'decided' %}
+  <div class="attention-actions" style="margin-top:12px">
+    <span class="bv-cat bv-cat--{{ case.severity }}">
+      <span class="bv-cat__dot" aria-hidden="true"></span>
+      {% if case.decision_source == 'system' %}BlaqVibes decided{% else %}You decided{% endif %}
+    </span>
+    {% if case.keeper %}<span class="help">Keeping “{{ case.keeper.title }}”</span>{% endif %}
+  </div>
+
+  {% if case.rationale %}
+  <div class="attention-rationale">
+    <span class="attention-rationale__label">{% if case.decision_source == 'system' %}Why BlaqVibes chose this one{% else %}What was decided{% endif %}</span>{{ case.rationale }}
+  </div>
+  {% endif %}
+
+  <div class="attention-grid">
+    {% for candidate in case.candidates.all %}
+    <div class="attention-copy{% if candidate.role == 'dropped' %} attention-copy--dropped{% endif %}">
+      <div class="attention-copy__name">
+        {{ candidate.title }}
+        {% if candidate.role == 'keeper' %}<span class="attention-recommend">Keeper</span>{% endif %}
+        {% if candidate.outcome == 'parked' %}<span class="bv-cat bv-cat--critical">Parked</span>{% endif %}
+        {% if candidate.outcome == 'deleted' %}<span class="bv-cat bv-cat--system">Deleted</span>{% endif %}
+        {% if candidate.outcome == 'restored' %}<span class="bv-cat bv-cat--money">Restored</span>{% endif %}
+      </div>
+      <div class="attention-copy__facts">
+        <span>Uploaded <b>{{ candidate.snapshot.uploaded_on|default:"unknown" }}</b> · last updated <b>{{ candidate.snapshot.updated_on|default:"unknown" }}</b></span>
+        <span>Status when the case opened <b>{{ candidate.snapshot.status_label|default:candidate.snapshot.status }}</b></span>
+        <span>Files <b>{{ candidate.snapshot.file_count }}</b> · stars <b>{{ candidate.snapshot.stars }}</b> · views <b>{{ candidate.snapshot.views }}</b> · reviews <b>{{ candidate.snapshot.review_count }}</b></span>
+        {% if candidate.snapshot.trades or candidate.snapshot.sales %}<span>Paid <b>{{ candidate.snapshot.trades }}</b> trade{{ candidate.snapshot.trades|pluralize }}, <b>{{ candidate.snapshot.sales }}</b> sale{{ candidate.snapshot.sales|pluralize }}</span>{% endif %}
+      </div>
+      {% if candidate.outcome == 'parked' and candidate.project %}
+        {% if candidate.snapshot.cannot_erase %}
+        <p class="attention-note">Off the public site, and that is as far as it goes: somebody paid for this
+          build, so their download is their receipt. It cannot be erased.</p>
+        {% else %}
+        <div class="attention-actions">
+          <form method="post" action="{% url 'attention_delete' case.pk candidate.pk %}"
+                onsubmit="return confirm('Delete “{{ candidate.title|escapejs }}” for good? This cannot be undone.');">
+            {% csrf_token %}
+            <button type="submit" class="btn-danger">Final delete</button>
+          </form>
+          <form method="post" action="{% url 'attention_undo' case.pk candidate.pk %}">
+            {% csrf_token %}
+            <button type="submit" class="btn-ghost">Undo — put it back</button>
+          </form>
+        </div>
+        {% endif %}
+      {% elif candidate.outcome == 'deleted' %}
+      <p class="attention-note">Erased {{ candidate.deleted_at|date:"j M Y H:i" }}.</p>
+      {% endif %}
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if case.final_delete_at and case.dropped %}
+  <p class="attention-note">
+    {% if case.acknowledged_at %}
+    You opened this decision {{ case.acknowledged_at|timesince }} ago. If FINAL DELETE is still unpressed when
+    the clock runs out, BlaqVibes erases the parked cop{{ case.dropped|length|pluralize:"y,ies" }} —
+    that silence is the one thing this feature treats as a yes.
+    {% else %}
+    The parked cop{{ case.dropped|length|pluralize:"y,ies" }} will be erased {{ case.final_delete_at|timeuntil }} from now if this
+    decision is never opened. Opening it restarts the clock at {{ final_delete_hours }} hours from that moment.
+    {% endif %}
+  </p>
+  {% endif %}
+  <div class="attention-actions">
+    <form method="post" action="{% url 'attention_reopen' case.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="btn-ghost">Let me choose instead</button>
+    </form>
+    <span class="help">Puts every parked copy back and gives you a fresh {{ decision_days }} days.</span>
+  </div>
+
+  {% else %}
+  <div class="attention-actions" style="margin-top:12px">
+    <span class="bv-cat bv-cat--system"><span class="bv-cat__dot" aria-hidden="true"></span>{{ case.get_status_display }}</span>
+    {% if case.dismissed_reason %}<span class="help">{{ case.get_dismissed_reason_display }}</span>{% endif %}
+  </div>
+  {% if case.rationale %}<div class="attention-rationale"><span class="attention-rationale__label">Record</span>{{ case.rationale }}</div>{% endif %}
+  {% endif %}
+</article>

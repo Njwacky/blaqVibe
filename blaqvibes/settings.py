@@ -288,6 +288,36 @@ CELERY_TASK_ROUTES = {
 CELERY_TASK_TIME_LIMIT = 120  # 2min hard kill per scan
 CELERY_TASK_SOFT_TIME_LIMIT = 90
 CELERY_BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 3600}
+
+# ----------------------------------------------------------------------
+# Attention cases (gallery/attention.py): duplicated builds + malfunctions.
+# Every number here is a promise made to the user in the notification copy, so
+# they are settings (tunable without a redeploy) and the copy is generated from
+# them — a countdown that says "7 days" must be 7 days.
+# ----------------------------------------------------------------------
+ATTENTION_ENABLED = os.getenv('ATTENTION_ENABLED', '1') == '1'
+# How long the owner has to choose a keeper before BlaqVibes chooses for them.
+ATTENTION_DECISION_DAYS = max(1, int(os.getenv('ATTENTION_DECISION_DAYS', '7')))
+# How often an undecided case re-surfaces (banner + unread inbox bump).
+ATTENTION_REMINDER_MINUTES = max(1, int(os.getenv('ATTENTION_REMINDER_MINUTES', '30')))
+# After the owner SEES a decision, how long the FINAL DELETE button stays the
+# only thing standing between a parked copy and erasure. Silence past this is
+# treated as consent — the one silence this feature treats that way, because
+# the copy is already off the public site and restorable until this moment.
+ATTENTION_FINAL_DELETE_HOURS = max(1, int(os.getenv('ATTENTION_FINAL_DELETE_HOURS', '24')))
+# Backstop for a decision that is never opened at all: without it a parked
+# copy would sit in limbo forever. Longer than the opened window on purpose —
+# nobody saw it, so it gets more of the benefit of the doubt.
+ATTENTION_UNOPENED_BACKSTOP_DAYS = max(1, int(os.getenv('ATTENTION_UNOPENED_BACKSTOP_DAYS', '7')))
+# Duplicate detector: similarity score (0-100) at which two of one owner's
+# builds become a case. The scoring table lives in gallery/attention.py.
+ATTENTION_DUPLICATE_THRESHOLD = max(1, min(100, int(os.getenv('ATTENTION_DUPLICATE_THRESHOLD', '70'))))
+# A build sitting in 'pending' longer than this with no scan verdict is a
+# malfunction of OUR pipeline, not of the upload — so it is reported as one.
+ATTENTION_STUCK_HOURS = max(1, int(os.getenv('ATTENTION_STUCK_HOURS', '48')))
+# Sweep ceilings: one hourly pass must stay cheap on a big table.
+ATTENTION_DETECT_BATCH = max(10, int(os.getenv('ATTENTION_DETECT_BATCH', '400')))
+
 from celery.schedules import crontab
 CELERY_BEAT_SCHEDULE = {
     'generate-weekly-challenges': {
@@ -309,6 +339,24 @@ CELERY_BEAT_SCHEDULE = {
     'daily-challenge': {
         'task': 'gallery.tasks.run_daily_challenges',
         'schedule': crontab(hour=0, minute=5),
+    },
+    # Attention reminders. The cadence is a PROMISE ("we'll nudge you every
+    # 30 minutes"), so the beat schedule is derived from the same setting the
+    # copy is generated from — they cannot disagree. Offset by 5 minutes from
+    # the */10 ranking job so two workers are not fighting for the same slot.
+    'attention-reminders': {
+        'task': 'gallery.tasks.attention_reminders',
+        'schedule': crontab(minute=f'*/{ATTENTION_REMINDER_MINUTES}')
+        if ATTENTION_REMINDER_MINUTES <= 30 and 60 % ATTENTION_REMINDER_MINUTES == 0
+        else ATTENTION_REMINDER_MINUTES * 60,
+    },
+    # Detection + the 7-day auto-decision + the final-delete sweep. Hourly,
+    # off the round minute, because a case opening 40 minutes late is invisible
+    # to the owner and a deadline landing an hour late is not.
+    'attention-sweep': {
+        'task': 'gallery.tasks.attention_sweep',
+        'schedule': crontab(minute=17),
+        'kwargs': {'limit': ATTENTION_DETECT_BATCH},
     },
 }
 

@@ -105,6 +105,44 @@ A project can be:
 
 AI labels are not quality scores. Trust comes from evidence: the files, README, runnable preview when available, security scanning, project history, creator identity, reviews and remix lineage.
 
+## When two builds are the same build
+
+A builder uploads the same ZIP twice (`final`, `final-v2`), or a build breaks in
+a way the platform can prove. Both used to be invisible: the duplicate confused
+every visitor who came to look at the work, and the broken build sat in the
+workshop looking like progress.
+
+`/attention/` turns either fact into a **case with a deadline**, and the inbox
+turns every notification into something you can triage without reading it:
+
+- **Five severity colours, on the side of the border.** `critical` (red) is
+  blocked, unsafe, or about to be erased; `action` (amber) is a decision with a
+  deadline; `money` (green); `social` (blue); `system` (grey). The inbox sorts on
+  the same ranks, so a quarantined build from yesterday outranks a star from a
+  minute ago — and the colour always arrives with the category **word** next to
+  it, because colour alone is not an interface.
+- **You choose first.** Pick the copy to keep, or press **Let BlaqVibes decide**.
+  A duplicate of *your* work is your decision; the platform can rank evidence, it
+  cannot know intent. Cross-user similarity stays in the report + moderation flow.
+- **If you do not answer in 7 days, the platform decides and explains itself.**
+  The rule is printed on every case: never delete a receipt → keep the published
+  copy → keep the one that passed the scan → keep the one with the real artifact
+  → keep the one you wrote proof for → keep the one others remixed → then
+  reviews, stars and views, **capped** so popularity can tie-break but never
+  decide → then the copy you were still working on → then the original upload.
+  Every copy shows when it was uploaded and last updated, so old and new are
+  tellable apart.
+- **The loser is parked, not deleted.** Off the public site, still yours,
+  restorable with **Undo**. **FINAL DELETE** is your click — and if you open that
+  decision and then do nothing for 24 hours, the silence is treated as a yes. A
+  build somebody paid for is never erased; their download is their receipt.
+- **It reminds you every 30 minutes** until you answer: a banner on every page,
+  the *same* inbox row bumped back to unread rather than a fresh row per nag,
+  and a re-check in a tab you left open all day.
+
+Full spec, weights, and why detection is O(n) rather than O(n²):
+[`docs/specs/BlaqVibes_Attention_Duplicates_Spec.md`](docs/specs/BlaqVibes_Attention_Duplicates_Spec.md).
+
 ## Run locally
 
 ```bash
@@ -247,6 +285,8 @@ CI covers migrations, demo seeding, tests, security posture and feed smoke check
 - **AI tooling is honest.** Claude/Gemini/Groq are used only when configured; otherwise the built-in helper is presented as such. AI assistance is disclosed rather than hidden.
 - **AI creation metadata is validated.** A publisher who marks a project as AI-assisted must name the tool and provide a short creation/workflow note. This makes the origin legible instead of turning AI into a mystery badge.
 - **Nolo is an assistant, not the author.** Nolo can compare, explain and help with project material, but it does not turn BlaqVibes into an "AI app generator" identity.
+- **Attention cases never destroy quietly.** A duplicated or broken build becomes a case the owner answers; the platform's own choice parks the loser (soft, restorable) instead of deleting it, and the only hard delete is the owner's FINAL DELETE click or their 24 hours of silence *after* opening that decision. Anything ever paid for is never erased.
+- **Notification severity is data.** `Notification.category` is written once by `notify()` from a fixed kind→category table; the inbox stripe, the sort order and the site-wide banner all read the same stored value, and an unmapped kind fails the test suite rather than falling back to grey.
 - **Social sign-in is configurable.** Google, GitHub and Facebook providers require their own credentials in the environment.
 
 ## Stability and operations
@@ -256,6 +296,7 @@ CI covers migrations, demo seeding, tests, security posture and feed smoke check
 - Structured logging is enabled by default; `LOG_LEVEL` controls verbosity.
 - `python manage.py backup_db` creates consistent database snapshots and prunes old backups.
 - Docker Compose healthchecks wait for healthy dependencies before starting dependent services.
+- Attention cases run on the clock: `gallery.tasks.attention_reminders` (every `ATTENTION_REMINDER_MINUTES`) and `gallery.tasks.attention_sweep` (hourly detect → expire → remind → erase). `python manage.py attention_sweep --dry-run` reports what a sweep would do without writing anything.
 - Production security is intentionally fail-closed: missing required secrets, unsafe debug posture and unsafe demo configuration can stop a deployment.
 
 ## Security note
