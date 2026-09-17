@@ -141,6 +141,7 @@ literal text — the regression guard in gallery/test_engagement.py pins that.
           <a role="menuitem" href="{% url 'settings' %}"><svg class="bv-icon"><use href="#bv-ico-settings"></use></svg> Settings</a>
           {% if user.profile.is_moderator %}<div class="nav-menu-sep"></div><a role="menuitem" href="{% url 'moderation_queue' %}"><svg class="bv-icon"><use href="#bv-ico-shield"></use></svg> Moderation queue</a><a role="menuitem" href="{% url 'reports_queue' %}"><svg class="bv-icon"><use href="#bv-ico-report"></use></svg> Reports{% if open_reports %} <span class="nav-badge">{{ open_reports }}</span>{% endif %}</a>{% endif %}
           {% if user.profile.is_admin %}<a role="menuitem" href="{% url 'admin_dashboard' %}"><svg class="bv-icon"><use href="#bv-ico-admin"></use></svg> Admin</a>{% endif %}
+          {% if user.profile.is_superadmin %}<a role="menuitem" href="{% url 'manage_roles' %}"><svg class="bv-icon"><use href="#bv-ico-id"></use></svg> Manage roles</a>{% endif %}
           <div class="nav-menu-sep"></div>
           <a role="menuitem" href="#" class="js-logout"><svg class="bv-icon"><use href="#bv-ico-logout"></use></svg> Logout</a>
         </div>

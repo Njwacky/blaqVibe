@@ -23,7 +23,12 @@
 - `users/models.py:Profile.role` CharField choices, default `user`
 - `users/decorators.py: @moderator_required, @admin_required, @superadmin_required` — check `request.user.profile.role` + `is_authenticated`, on fail → safe 403 page (fork image, “It’s not you, it’s me”, Home btn), crush silently + Sentry.
 - `gallery/moderation.py` now checks `@moderator_required` not just `staff_member_required`.
-- `users/views.py:admin_dashboard` + `manage_roles` — list users, change role (superadmin only), stats: total vibes, pending, quarantined, trades, top creators.
+- `users/admin_views.py:admin_dashboard` — stats: total vibes, pending, quarantined, trades, top creators.
+- `users/admin_views.py:manage_roles` + `manage_user_role` — **search** a person by @username/email (ranked,
+  bounded to 20 rows, `/admin/roles/?q=`), then change their role on one page. Full design, guards and SQL
+  notes: [`BlaqVibes_Admin_User_Search_Spec.md`](BlaqVibes_Admin_User_Search_Spec.md).
+- `users/roles.py:apply_role_change` — the only writer of `Profile.role`: guards (self, last superadmin,
+  reason, typed confirmation on a promotion), `AdminLog` row, in-app notification + email to the person.
 - `gallery/admin.py` list_display role, filter.
 
 ## Security

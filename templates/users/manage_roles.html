@@ -1,30 +1,156 @@
 {% extends 'gallery/base.html' %}
+{% load static %}
 {% block title %}Manage Roles — BlaqVibes{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'gallery/css/admin-roles.css' %}?v=roles-search-20260917">
+{% endblock %}
 {% block content %}
-<div style="max-width:1100px;margin:0 auto;padding:20px">
-  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">Manage Roles — Super Admin Only</h1>
-  <p style="color:var(--muted);font-size:13px">Backend only, never in JS. Choose: user / moderator (queue) / admin (queue+delete+ban) / superadmin (all+assign).</p>
-  <div style="overflow-x:auto;margin-top:12px">
-  <table style="width:100%;border-collapse:collapse;font-size:13px">
-    <tr style="color:var(--muted);text-align:left;border-bottom:1px solid var(--line)"><th style="padding:8px">User</th><th>Current Role</th><th>Stars</th><th>Change To</th></tr>
-    {% for u in users %}
-    <tr style="border-bottom:1px solid var(--line)"><td style="padding:8px">@{{ u.username }} {% if u.is_staff %}<span style="font-size:10px;background:var(--warning-fill);color:var(--on-warning);padding:2px 6px;border-radius:6px">STAFF</span>{% endif %}</td>
-      <td style="padding:8px"><span style="background:var(--input);border:1px solid var(--line);padding:4px 8px;border-radius:8px;font-size:11px">{{ u.profile.role }}</span></td>
-      <td style="padding:8px">{{ u.profile.stars_balance }} ★</td>
-      <td style="padding:8px">
-        <form method="post" action="{% url 'set_role' u.username %}" style="display:flex;gap:6px;flex-wrap:wrap">{% csrf_token %}
-          <select name="role" style="background:var(--input);border:1px solid var(--line);border-radius:8px;padding:6px;color:var(--text);font-size:12px">
-            <option value="user" {% if u.profile.role == 'user' %}selected{% endif %}>user</option>
-            <option value="moderator" {% if u.profile.role == 'moderator' %}selected{% endif %}>moderator</option>
-            <option value="admin" {% if u.profile.role == 'admin' %}selected{% endif %}>admin</option>
-            <option value="superadmin" {% if u.profile.role == 'superadmin' %}selected{% endif %}>superadmin</option>
-          </select>
-          <button class="btnV" style="padding:6px 10px;font-size:11px">Set</button>
-        </form>
-      </td>
-    </tr>
-    {% endfor %}
-  </table>
-  </div>
+{% comment %}
+Find a person → change their role. Three states on one URL:
+  ?q=        ranked, bounded results (never the whole user table)
+  ?role=     everyone holding one role, for access review
+  (neither)  role totals + who holds elevated access + recent changes
+{% endcomment %}
+<div class="roles-page">
+  <header class="roles-head">
+    <p class="roles-kicker">Super Admin · {{ total_users }} account{{ total_users|pluralize }}</p>
+    <h1>Find a person, then change their role</h1>
+    <p class="roles-intro">
+      Search by <b>@username</b> or <b>email</b>. Typing the exact handle takes you
+      straight to their page. Every change needs a reason and lands in the
+      <a href="{% url 'audit_log' %}">audit log</a>.
+    </p>
+  </header>
+
+  <form class="roles-search" method="get" action="{% url 'manage_roles' %}" role="search">
+    <label class="roles-search-label" for="roles-q">Search for someone</label>
+    <div class="roles-search-row">
+      <input id="roles-q" type="search" name="q" value="{{ query }}"
+             placeholder="@kwame or kwame@mail.com" autocomplete="off"
+             spellcheck="false" maxlength="80" autocapitalize="off" autofocus>
+      <button type="submit" class="btn-violet">Search</button>
+      {% if query or role %}<a class="btn-ghost" href="{% url 'manage_roles' %}">Clear</a>{% endif %}
+    </div>
+    <p class="roles-search-hint">At least 2 characters. Username prefix, contains, email and confirmed alternative addresses all match.</p>
+  </form>
+
+  {% if results %}
+    {% if results.too_short %}
+      <div class="roles-empty">
+        <b>Type at least 2 characters.</b>
+        <span>A one-letter search would match half the network — narrow it down.</span>
+      </div>
+    {% elif results.users %}
+      <section class="roles-section" aria-labelledby="roles-results-heading">
+        <h2 id="roles-results-heading" class="roles-section-title">
+          {% if results.exhausted %}{{ results.total }} match{{ results.total|pluralize:"es" }}{% else %}Showing {{ results.users|length }} of {{ results.total }} matches{% endif %}
+          for “{{ query }}”
+        </h2>
+        {% if not results.exhausted %}
+          <p class="roles-note">Narrow it down — add the domain, a second word, or the exact @handle.</p>
+        {% endif %}
+        <ul class="roles-results">
+          {% for u in results.users %}
+          <li class="roles-row{% if u.profile.role != 'user' %} roles-row-elevated{% endif %}">
+            {% include 'users/_avatar.html' with u=u size=40 radius='12px' font_size=15 frame='none' %}
+            <div class="roles-identity">
+              <a class="roles-username" href="{% url 'profile_view' u.username %}">@{{ u.username }}</a>
+              <p class="roles-meta">
+                {% if u.email %}{{ u.email }}{% if u.profile.email_verified %} <span class="roles-verified" title="Email confirmed">✓</span>{% endif %}{% else %}<span class="roles-muted">no email on file</span>{% endif %}
+                · {{ u.project_count }} project{{ u.project_count|pluralize }}
+                · {{ u.profile.stars_balance }}★
+                · {{ u.match_label }}
+              </p>
+            </div>
+            <span class="role-badge role-{{ u.profile.role }}">{{ u.profile.role }}</span>
+            <a class="btn-violet roles-action" href="{% url 'manage_user_role' u.username %}">Change role</a>
+          </li>
+          {% endfor %}
+        </ul>
+      </section>
+    {% else %}
+      <div class="roles-empty">
+        <b>No account matches “{{ query }}”.</b>
+        <span>Check the spelling, try the email address instead of the handle, or paste the handle without the @. People who never confirmed an email have no address on file.</span>
+      </div>
+    {% endif %}
+  {% elif role %}
+    <section class="roles-section" aria-labelledby="roles-role-heading">
+      <h2 id="roles-role-heading" class="roles-section-title">
+        {{ role_total }} account{{ role_total|pluralize }} with role <span class="role-badge role-{{ role }}">{{ role }}</span>
+      </h2>
+      {% if role_total > role_rows|length %}
+        <p class="roles-note">Showing the {{ role_rows|length }} seen most recently — search a name to find a specific person.</p>
+      {% endif %}
+      <ul class="roles-results">
+        {% for u in role_rows %}
+        <li class="roles-row">
+          {% include 'users/_avatar.html' with u=u size=40 radius='12px' font_size=15 frame='none' %}
+          <div class="roles-identity">
+            <a class="roles-username" href="{% url 'profile_view' u.username %}">@{{ u.username }}</a>
+            <p class="roles-meta">{{ u.project_count }} project{{ u.project_count|pluralize }} · {{ u.profile.stars_balance }}★ · last active {{ u.last_login|date:"j M Y"|default:"never" }}</p>
+          </div>
+          <a class="btn-violet roles-action" href="{% url 'manage_user_role' u.username %}">Change role</a>
+        </li>
+        {% empty %}
+        <li class="roles-empty">Nobody holds this role.</li>
+        {% endfor %}
+      </ul>
+    </section>
+  {% else %}
+    <section class="roles-section" aria-labelledby="roles-totals-heading">
+      <h2 id="roles-totals-heading" class="roles-section-title">Roles in the network</h2>
+      <ul class="roles-totals">
+        {% for slug, label, what in role_guide %}
+        <li>
+          <a class="roles-total role-{{ slug }}" href="{% url 'manage_roles' %}?role={{ slug }}">
+            <b>{{ label }}</b>
+            <span class="roles-total-n">
+              {% if slug == 'user' %}{{ role_totals.user }}{% elif slug == 'moderator' %}{{ role_totals.moderator }}{% elif slug == 'admin' %}{{ role_totals.admin }}{% else %}{{ role_totals.superadmin }}{% endif %}
+            </span>
+            <small>{{ what }}</small>
+          </a>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="roles-section" aria-labelledby="roles-elevated-heading">
+      <h2 id="roles-elevated-heading" class="roles-section-title">Who can touch other people's work</h2>
+      <p class="roles-note">Moderators and above. This is the list to check first when access is questioned.</p>
+      <ul class="roles-results">
+        {% for u in elevated_rows %}
+        <li class="roles-row roles-row-elevated">
+          {% include 'users/_avatar.html' with u=u size=40 radius='12px' font_size=15 frame='none' %}
+          <div class="roles-identity">
+            <a class="roles-username" href="{% url 'profile_view' u.username %}">@{{ u.username }}</a>
+            <p class="roles-meta">{% if u.is_superuser %}Django superuser · {% endif %}last active {{ u.last_login|date:"j M Y"|default:"never" }}</p>
+          </div>
+          <span class="role-badge role-{{ u.profile.role }}">{{ u.profile.role }}</span>
+          <a class="btn-violet roles-action" href="{% url 'manage_user_role' u.username %}">Change role</a>
+        </li>
+        {% empty %}
+        <li class="roles-empty">No moderators yet — you are the only one with access.</li>
+        {% endfor %}
+      </ul>
+    </section>
+
+    <section class="roles-section" aria-labelledby="roles-log-heading">
+      <h2 id="roles-log-heading" class="roles-section-title">Recent role changes</h2>
+      <ul class="roles-history">
+        {% for log in logs %}
+        <li>
+          {% if log.actor %}<b>@{{ log.actor.username }}</b>{% else %}<b>deleted account</b>{% endif %}
+          <span class="roles-log-action">{{ log.action }}</span>
+          <span class="roles-log-target">{{ log.target }}</span>
+          <time datetime="{{ log.created_at|date:'c' }}">{{ log.created_at|date:"j M Y H:i" }}</time>
+        </li>
+        {% empty %}
+        <li class="roles-muted">No admin actions yet.</li>
+        {% endfor %}
+      </ul>
+      <a class="btn-ghost roles-action" href="{% url 'audit_log' %}">Full audit log →</a>
+    </section>
+  {% endif %}
 </div>
 {% endblock %}

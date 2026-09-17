@@ -859,6 +859,10 @@ class Notification(models.Model):
         ('pending', 'Pending approval'),
         ('review_needed', 'Review needed'),
         ('challenge_draft', 'Challenge draft'),
+        # Access change. The person affected is told, because a silent
+        # privilege change is exactly the one that should never be silent
+        # (users/roles.apply_role_change is the writer).
+        ('role', 'Role'),
     ]
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
     kind = models.CharField(max_length=20, choices=KIND_CHOICES)
