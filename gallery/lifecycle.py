@@ -33,6 +33,41 @@ def get_ghost_user():
         ghost.save(update_fields=['password'])
     return ghost
 
+def park_project(project) -> str:
+    """Soft-delete a vibe WITHOUT ever destroying it. Returns 'removed'.
+
+    Why this is separate from remove_project(): remove_project is the owner's
+    own delete, so it is allowed to be hard (nothing was ever paid → the bytes
+    go). Attention cases (gallery/attention.py) park a build the platform
+    chose to drop, and a machine decision must be reversible: the loser goes
+    off the public site, buyers keep their receipts, and the owner can restore
+    it or press FINAL DELETE themselves. Erasing on a timer is what the
+    final-delete step is for, and it uses remove_project — money-aware, like
+    every other delete in the codebase.
+    """
+    with transaction.atomic():
+        locked = AppProject.objects.select_for_update().get(pk=project.pk)
+        locked.status = 'removed'
+        locked.is_featured = False
+        locked.save(update_fields=['status', 'is_featured'])
+    return 'removed'
+
+def restore_project(project, status: str) -> str:
+    """Undo a park: put the vibe back at the status it had before.
+
+    `status` comes from AttentionCandidate.snapshot, which recorded it when the
+    case opened, so restoring a build that was pending scan does not silently
+    publish it. Anything unrecognized falls back to 'pending' — visible to the
+    owner, invisible to the feed, which is the safe direction to be wrong in.
+    """
+    allowed = {'pending', 'published', 'quarantined'}
+    target = status if status in allowed else 'pending'
+    with transaction.atomic():
+        locked = AppProject.objects.select_for_update().get(pk=project.pk)
+        locked.status = target
+        locked.save(update_fields=['status'])
+    return target
+
 def remove_project(project) -> str:
     """Delete a vibe without destroying purchases.
 

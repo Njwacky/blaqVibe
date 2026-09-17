@@ -2,6 +2,13 @@ def extras(request):
     unread = 0
     open_reports = 0
     open_appeals = 0
+    # Attention cases (gallery/attention.py): a duplicate or a broken build the
+    # owner has not answered yet. It rides on EVERY page for the same reason the
+    # quarantine banner does — a deadline that only appears in the inbox is a
+    # deadline most people never meet. One indexed aggregate, signed-in users
+    # only, and it degrades to zeros on any error.
+    attention = {'open': 0, 'critical': 0, 'awaiting_delete': 0, 'oldest_days': 0,
+                 'next_deadline': None, 'due_reminder': False, 'reminder_seconds': 1800}
     # Account quarantine (users/quarantine.py): a person under a hold needs to
     # see that on every page, and staff need the appeal badge in the nav — both
     # are cheap, indexed reads that only run for signed-in users.
@@ -15,6 +22,13 @@ def extras(request):
             unread = request.user.notifications.filter(is_read=False).count()
         except Exception:
             unread = 0
+        try:
+            from .attention import summary as attention_summary
+            attention = attention_summary(user)
+        except Exception:
+            attention = {'open': 0, 'critical': 0, 'awaiting_delete': 0,
+                         'oldest_days': 0, 'next_deadline': None, 'due_reminder': False,
+                         'reminder_seconds': 1800}
         try:
             from users.quarantine import active_quarantine, open_appeal
             quarantine = active_quarantine(user)
@@ -84,6 +98,7 @@ def extras(request):
         ]
     return {
         'unread_notifications': unread,
+        'attention': attention,
         'open_reports': open_reports,
         'open_appeals': open_appeals,
         'quarantine_active': quarantine_active,

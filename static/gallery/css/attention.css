@@ -1,0 +1,226 @@
+/* ============================================================================
+   ATTENTION + NOTIFICATION SEVERITY
+   ---------------------------------------------------------------------------
+   The one job of this stylesheet: a person opening their inbox must know what
+   to deal with FIRST, before reading a single word. So severity is drawn as a
+   colour stripe on the left border of the row (the "side of the border"), and
+   the rows are sorted critical-first by the server.
+
+   5 Whys for the stripe, and not a coloured background:
+   1. Why not tint the whole card? A wall of red cards is unreadable and stops
+      being urgent — the fifth red card looks like the first.
+   2. Why not an icon? An icon needs the same lookup the colour does, and it
+      costs 17px of the row we need for the sentence.
+   3. Why the LEFT border specifically? It is the one place a colour can repeat
+      50 times down a list without competing with the text, and the eye scans
+      down the left edge of a list before it reads across.
+   4. Why five colours and not one per notification kind? Twenty-eight kinds
+      would give twenty-eight colours and no ORDER. Five map to five sentences:
+      deal with this, decide this, money moved, somebody responded, FYI.
+   5. Why is the colour never alone? Every stripe is paired with the category
+      WORD in the same colour, because colour alone is not an interface — a
+      colour-blind builder reads the same inbox and must get the same ordering.
+   ========================================================================= */
+
+:root, [data-theme="dark"] {
+  --cat-critical: #F43F5E;
+  --cat-critical-bg: #2A0E14;
+  --cat-critical-text: #FDA4AF;
+  --cat-action: #F59E0B;
+  --cat-action-bg: #241A05;
+  --cat-action-text: #FCD34D;
+  --cat-money: #10B981;
+  --cat-money-bg: #06241B;
+  --cat-money-text: #6EE7B7;
+  --cat-social: #38BDF8;
+  --cat-social-bg: #07202E;
+  --cat-social-text: #7DD3FC;
+  --cat-system: #8B8BA3;
+  --cat-system-bg: #131318;
+  --cat-system-text: #A1A1B5;
+}
+[data-theme="light"] {
+  /* Darker stripes on white: the same hue at the weight it needs to survive
+     daylight, so light mode does not turn "critical" into pink. */
+  --cat-critical: #DC2626;
+  --cat-critical-bg: #FEF2F2;
+  --cat-critical-text: #991B1B;
+  --cat-action: #D97706;
+  --cat-action-bg: #FFFBEB;
+  --cat-action-text: #92400E;
+  --cat-money: #059669;
+  --cat-money-bg: #ECFDF5;
+  --cat-money-text: #065F46;
+  --cat-social: #0284C7;
+  --cat-social-bg: #F0F9FF;
+  --cat-social-text: #075985;
+  --cat-system: #6B7280;
+  --cat-system-bg: #F8F8FA;
+  --cat-system-text: #4B5563;
+}
+
+/* --- the inbox row ------------------------------------------------------- */
+.bv-notif {
+  position: relative;
+  display: block;
+  padding: 12px 14px 12px 16px;
+  border: 1px solid var(--line);
+  /* 4px stripe, drawn INSIDE the card so the border-radius still reads. */
+  border-left: 4px solid var(--cat-system);
+  border-radius: 14px;
+  background: var(--card);
+  color: var(--text);
+  transition: transform .16s ease, border-color .16s ease, box-shadow .2s ease;
+}
+a.bv-notif:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+.bv-notif--critical { border-left-color: var(--cat-critical); background: linear-gradient(90deg, var(--cat-critical-bg), var(--card) 42%); }
+.bv-notif--action   { border-left-color: var(--cat-action);   background: linear-gradient(90deg, var(--cat-action-bg), var(--card) 42%); }
+.bv-notif--money    { border-left-color: var(--cat-money);    background: linear-gradient(90deg, var(--cat-money-bg), var(--card) 42%); }
+.bv-notif--social   { border-left-color: var(--cat-social);   background: linear-gradient(90deg, var(--cat-social-bg), var(--card) 42%); }
+.bv-notif--system   { border-left-color: var(--cat-system); }
+
+.bv-notif__head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; color: var(--muted); }
+.bv-notif__title { font-weight: 700; margin-top: 5px; font-size: 14px; }
+.bv-notif__body { margin-top: 4px; font-size: 13px; color: var(--muted); line-height: 1.45; }
+.bv-notif__unread { position: absolute; top: 14px; right: 14px; width: 7px; height: 7px; border-radius: 50%; background: var(--violet); }
+
+/* The category WORD, in the category colour. Never the colour alone. */
+.bv-cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+}
+.bv-cat__dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex: 0 0 6px; }
+.bv-cat--critical { color: var(--cat-critical); }
+.bv-cat--action   { color: var(--cat-action); }
+.bv-cat--money    { color: var(--cat-money); }
+.bv-cat--social   { color: var(--cat-social); }
+.bv-cat--system   { color: var(--cat-system); }
+
+/* --- the legend / filter row --------------------------------------------- */
+.bv-legend { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 16px; }
+.bv-legend__item {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 6px 10px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--surface-subtle);
+  font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--muted);
+  text-transform: uppercase;
+}
+.bv-legend__item[aria-pressed="true"] { border-color: currentColor; color: var(--text); }
+.bv-legend__swatch { width: 10px; height: 10px; border-radius: 3px; background: var(--swatch, var(--muted)); flex: 0 0 10px; }
+.bv-legend__count { font-variant-numeric: tabular-nums; opacity: .8; }
+
+/* --- the site-wide banner ------------------------------------------------- */
+.bv-attention-banner {
+  max-width: 1100px; margin: 12px auto 0; padding: 0 20px;
+}
+.bv-attention-banner__inner {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 12px 14px; border-radius: 12px; font-size: 13px;
+  border: 1px solid var(--cat-action);
+  border-left: 5px solid var(--cat-action);
+  background: var(--cat-action-bg);
+  color: var(--cat-action-text);
+}
+.bv-attention-banner--critical .bv-attention-banner__inner {
+  border-color: var(--cat-critical);
+  border-left-color: var(--cat-critical);
+  background: var(--cat-critical-bg);
+  color: var(--cat-critical-text);
+}
+.bv-attention-banner__text { flex: 1 1 260px; }
+.bv-attention-banner__actions { display: flex; gap: 8px; align-items: center; }
+
+/* --- the attention centre ------------------------------------------------- */
+.attention-shell { max-width: 1000px; margin: 0 auto; padding: 28px 20px 60px; }
+.attention-hero { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; margin-bottom: 8px; }
+.attention-hero h1 { font-family: Space Grotesk, sans-serif; font-size: 26px; }
+.attention-kicker { font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); font-weight: 700; }
+.attention-lead { color: var(--muted); font-size: 13px; margin-top: 6px; max-width: 62ch; line-height: 1.5; }
+
+.attention-case {
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--cat-action);
+  border-radius: 16px;
+  background: var(--card);
+  padding: 16px;
+  margin-top: 14px;
+}
+.attention-case--critical { border-left-color: var(--cat-critical); }
+.attention-case--action { border-left-color: var(--cat-action); }
+.attention-case__top { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.attention-case__title { font-family: Space Grotesk, sans-serif; font-size: 17px; font-weight: 700; }
+.attention-case__detail { color: var(--muted); font-size: 13px; margin-top: 8px; line-height: 1.55; }
+.attention-clock {
+  margin-left: auto; font-size: 11px; font-weight: 800; letter-spacing: .06em;
+  text-transform: uppercase; padding: 4px 9px; border-radius: 999px;
+  border: 1px solid currentColor; color: var(--cat-action); white-space: nowrap;
+}
+.attention-clock--late { color: var(--cat-critical); }
+
+.attention-grid { display: grid; gap: 10px; margin-top: 14px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.attention-copy {
+  border: 1px solid var(--line); border-radius: 12px; padding: 12px;
+  background: var(--surface-subtle); position: relative;
+}
+.attention-copy--recommended { border-color: var(--violet); box-shadow: 0 0 0 1px var(--violet) inset; }
+.attention-copy--dropped { opacity: .78; }
+.attention-copy__name { font-weight: 700; font-size: 14px; }
+.attention-copy__facts { margin-top: 8px; display: grid; gap: 3px; font-size: 12px; color: var(--muted); }
+.attention-copy__facts b { color: var(--text); font-weight: 600; }
+.attention-copy__why { margin-top: 8px; font-size: 12px; color: var(--muted); line-height: 1.5; }
+.attention-copy__why li { margin-left: 16px; }
+.attention-recommend {
+  display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--on-accent); background: var(--violet);
+  border-radius: 999px; padding: 3px 8px;
+}
+.attention-pick { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 12px; color: var(--muted); }
+.attention-pick input { width: 16px; height: 16px; }
+
+.attention-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; align-items: center; }
+.attention-note { font-size: 12px; color: var(--muted); margin-top: 10px; line-height: 1.5; }
+
+.attention-rationale {
+  margin-top: 14px; border: 1px dashed var(--line); border-radius: 12px;
+  padding: 12px 14px; background: var(--surface-subtle);
+  font-size: 12.5px; line-height: 1.6; color: var(--text); white-space: pre-line;
+}
+.attention-rationale__label {
+  font-size: 10px; letter-spacing: .1em; text-transform: uppercase;
+  color: var(--muted); font-weight: 800; margin-bottom: 6px; display: block;
+}
+
+.btn-danger {
+  background: var(--danger-action); color: #fff; border: none;
+  padding: 8px 14px; border-radius: 10px; font-weight: 700; font-size: 13px;
+  cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-danger:hover { filter: brightness(1.1); }
+
+.attention-empty { border: 1px solid var(--line); border-radius: 16px; padding: 28px; text-align: center; color: var(--muted); margin-top: 14px; }
+.attention-tabs { display: flex; gap: 8px; margin-top: 18px; }
+.attention-tabs a {
+  font-size: 12px; font-weight: 700; padding: 7px 12px; border-radius: 999px;
+  border: 1px solid var(--line); color: var(--muted);
+}
+.attention-tabs a.is-active { border-color: var(--violet); color: var(--text); background: var(--accent-soft-bg); }
+
+/* Reduced motion: the countdown pulse is decoration, and decoration must be
+   the first thing to go when somebody asks for it to. */
+@media (prefers-reduced-motion: reduce) {
+  .bv-notif, a.bv-notif:hover, .btn-danger { transition: none; transform: none; }
+}
+
+@media (max-width: 640px) {
+  .attention-clock { margin-left: 0; }
+  .attention-grid { grid-template-columns: 1fr; }
+}

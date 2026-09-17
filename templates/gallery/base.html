@@ -19,9 +19,14 @@
 <link rel="stylesheet" href="{% static 'gallery/css/cards.css' %}?v=mobile-20260906b">
 <link rel="stylesheet" href="{% static 'gallery/css/premium.css' %}?v=product-system-20260909">
 <link rel="stylesheet" href="{% static 'gallery/css/footer.css' %}?v=footer-contacts-20260910">
+{% comment %}Attention + severity stripes. Site-wide, not page-scoped: the banner
+rides every page and the inbox is reachable from every page, so the colour
+tokens have to exist everywhere they are drawn.{% endcomment %}
+<link rel="stylesheet" href="{% static 'gallery/css/attention.css' %}?v=attention-20260917">
 <script src="{% static 'gallery/js/head-theme.js' %}?v=ext-20260827"></script>
 <script src="{% static 'gallery/js/alpine.min.js' %}?v=alpine-3.16.3" defer></script>
 <script src="{% static 'gallery/js/blaqvibes.js' %}?v=navfix-20260909" defer></script>
+<script src="{% static 'gallery/js/attention.js' %}?v=attention-20260917" defer></script>
 {% block head %}{% endblock %}
 </head>
 <body>
@@ -38,6 +43,9 @@
      up and left, with a plus in the corner they were never drawn into.{% endcomment %}
   <symbol id="bv-ico-vibes-add" viewBox="0 0 24 24"><path d="M3.6 7.1 11 2.9l7.4 4.2L11 11.3 3.6 7.1Z"/><path d="m3.6 11.9 7.4 4.2 7.4-4.2"/><path d="M18.2 16.6v5.2M15.6 19.2h5.2"/></symbol>
   <symbol id="bv-ico-saved" viewBox="0 0 24 24"><path d="M6 4h12v17l-6-3.5L6 21V4Z"/><path d="M9 8h6"/></symbol>
+  {% comment %}Two stacked cards with an exclamation: "you have more than one of
+     these, and it needs a decision".{% endcomment %}
+  <symbol id="bv-ico-attention" viewBox="0 0 24 24"><rect x="3" y="8" width="11" height="12" rx="2"/><path d="M9 4h10a2 2 0 0 1 2 2v10"/><path d="M8.5 11.5v3.2M8.5 17.2h.01"/></symbol>
   <symbol id="bv-ico-battle" viewBox="0 0 24 24"><path d="m5 19 14-14"/><path d="m14 5 5 5"/><path d="m10 19-5-5"/><path d="M4 20h6"/><path d="M14 4h6"/></symbol>
   <symbol id="bv-ico-challenges" viewBox="0 0 24 24"><path d="M8 4h8v3a4 4 0 0 1-8 0V4Z"/><path d="M8 6H5a2 2 0 0 0 2 4"/><path d="M16 6h3a2 2 0 0 1-2 4"/><path d="M12 11v5"/><path d="M8 20h8"/><path d="M10 16h4v4h-4z"/></symbol>
   <symbol id="bv-ico-chat" viewBox="0 0 24 24"><path d="M5 6h14a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-8l-5 3v-3H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2Z"/><path d="M8 10h8M8 14h5"/></symbol>
@@ -121,12 +129,16 @@ literal text — the regression guard in gallery/test_engagement.py pins that.
         <button type="button" id="nav-user-btn" class="nav-user-btn" aria-haspopup="true" aria-expanded="false">
           {% include 'users/_avatar.html' with u=user size=28 font_size=13 extra_class='nav-avatar' %}
           <span class="nav-user-name">@{{ user.username }}</span>
-          {% if unread_notifications %}<span class="nav-badge">{{ unread_notifications }}</span>{% endif %}
+          {% if unread_notifications %}<span class="nav-badge" data-attention-unread>{{ unread_notifications }}</span>{% endif %}
           <span aria-hidden="true" style="font-size:10px">▾</span>
         </button>
         <div class="nav-menu" id="nav-menu" role="menu">
           <a role="menuitem" href="{% url 'profile_view' user.username %}"><svg class="bv-icon"><use href="#bv-ico-profile"></use></svg> My profile</a>
-          <a role="menuitem" href="{% url 'notifications' %}"><svg class="bv-icon"><use href="#bv-ico-inbox"></use></svg> Inbox{% if unread_notifications %} <span class="nav-badge">{{ unread_notifications }}</span>{% endif %}</a>
+          <a role="menuitem" href="{% url 'notifications' %}"><svg class="bv-icon"><use href="#bv-ico-inbox"></use></svg> Inbox{% if unread_notifications %} <span class="nav-badge" data-attention-unread>{{ unread_notifications }}</span>{% endif %}</a>
+          {% comment %}A utility, so it lives in the account menu (README: five
+             places, on purpose) — but it carries a badge, because it is the one
+             utility with a deadline attached.{% endcomment %}
+          {% if attention.open or attention.awaiting_delete %}<a role="menuitem" href="{% url 'attention_center' %}"><svg class="bv-icon"><use href="#bv-ico-attention"></use></svg> Needs a decision <span class="nav-badge" style="background:{% if attention.critical %}var(--cat-critical){% else %}var(--cat-action){% endif %}">{{ attention.open|add:attention.awaiting_delete }}</span></a>{% endif %}
           <a role="menuitem" href="{% url 'my_vibes' %}"><svg class="bv-icon"><use href="#bv-ico-vibes"></use></svg> My projects</a>
           <a role="menuitem" href="{% url 'saved_vibes' %}"><svg class="bv-icon"><use href="#bv-ico-saved"></use></svg> Saved</a>
           <a role="menuitem" href="{% url 'publish' %}"><svg class="bv-icon"><use href="#bv-ico-vibes-add"></use></svg> Publish a project</a>
@@ -173,6 +185,10 @@ literal text — the regression guard in gallery/test_engagement.py pins that.
   </div>
 </div>
 {% endif %}
+{% comment %}A decision with a deadline belongs on every page, next to the
+   quarantine hold: both change what happens to the person's work whether or not
+   they are looking.{% endcomment %}
+{% include 'gallery/includes/attention_banner.html' %}
 {% if messages %}
 <div style="max-width:1100px;margin:12px auto 0;padding:0 20px;display:flex;flex-direction:column;gap:8px">
   {% for message in messages %}

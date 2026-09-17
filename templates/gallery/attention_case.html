@@ -1,0 +1,23 @@
+{% extends 'gallery/base.html' %}
+{% load static %}
+{% block title %}{{ case.headline }} — BlaqVibes{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'gallery/css/attention.css' %}?v=attention-20260917">{% endblock %}
+{% block content %}
+<div class="attention-shell" style="max-width:860px">
+  <p class="attention-kicker"><a href="{% url 'attention_center' %}" style="color:inherit">← Everything needing a decision</a></p>
+  {% include 'gallery/includes/_attention_case.html' %}
+
+  {% if case.status == 'open' and strategy %}
+  <section class="attention-case" style="border-left-color:var(--cat-system);margin-top:20px">
+    <h2 class="attention-case__title" style="font-size:15px">The rule BlaqVibes applies if you do not answer</h2>
+    <ol class="attention-case__detail" style="padding-left:18px;margin-top:8px">
+      {% for rule in strategy %}<li>{{ rule }}</li>{% endfor %}
+    </ol>
+    <p class="attention-note">
+      It is printed here and on every case so the choice is predictable rather than arbitrary — and so you can
+      beat it: pick the copy you actually meant, and the platform's ranking is only a tie-break you overruled.
+    </p>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,43 @@
+{% comment %}
+The site-wide attention banner.
+
+Why it exists on EVERY page and not only in the inbox: a deadline that lives in
+one place is a deadline most people never meet, and the consequence here is that
+BlaqVibes makes the decision for them. The quarantine banner above it is the
+precedent — a hold on the person is impossible to miss, so a decision that ends
+in a deletion should be too.
+
+`data-attention-banner` is the hook static/gallery/js/attention.js uses: "Not
+now" hides it for this tab, and the 30-minute poll puts it back. Dismissing a
+reminder is allowed; dismissing the countdown forever is not.
+{% endcomment %}
+{% if attention.open or attention.awaiting_delete %}
+{% if request.resolver_match.url_name != 'attention_center' and request.resolver_match.url_name != 'attention_case' %}
+<div class="bv-attention-banner{% if attention.critical %} bv-attention-banner--critical{% endif %}"
+     data-attention-banner
+     data-attention-open="{{ attention.open }}"
+     data-attention-critical="{{ attention.critical }}"
+     data-attention-status-url="{% url 'attention_status' %}"
+     data-attention-reminder-seconds="{{ attention.reminder_seconds|default:1800 }}">
+  <div class="bv-attention-banner__inner">
+    <span class="bv-cat bv-cat--{% if attention.critical %}critical{% else %}action{% endif %}">
+      <span class="bv-cat__dot" aria-hidden="true"></span>{% if attention.critical %}Critical{% else %}Action needed{% endif %}
+    </span>
+    <span class="bv-attention-banner__text">
+      {% if attention.awaiting_delete and not attention.open %}
+      <b>{{ attention.awaiting_delete }} parked build{{ attention.awaiting_delete|pluralize }}</b> waiting on a FINAL DELETE.
+      {% else %}
+      <b>{{ attention.open }} decision{{ attention.open|pluralize }} waiting</b>{% if attention.critical %},
+      {{ attention.critical }} of them critical{% endif %}.
+      {% endif %}
+      {% if attention.oldest_days %}Oldest has been waiting {{ attention.oldest_days }} day{{ attention.oldest_days|pluralize }}.{% endif %}
+      BlaqVibes decides for you when the clock runs out, and tells you exactly why.
+    </span>
+    <span class="bv-attention-banner__actions">
+      <a href="{% url 'attention_center' %}" class="btn-violet" style="padding:6px 12px;font-size:12px">Decide now</a>
+      <button type="button" class="btn-ghost" style="padding:6px 12px;font-size:12px" data-attention-snooze>Not now</button>
+    </span>
+  </div>
+</div>
+{% endif %}
+{% endif %}

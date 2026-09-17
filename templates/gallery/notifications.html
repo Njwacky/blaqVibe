@@ -1,18 +1,65 @@
 {% extends 'gallery/base.html' %}
+{% load static %}
 {% block title %}Inbox — BlaqVibes{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'gallery/css/attention.css' %}?v=attention-20260917">{% endblock %}
 {% block content %}
-<div class="page" style="max-width:720px">
-  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">Inbox</h1>
-  <p class="help" style="margin:6px 0 14px">Comments, trades, PRs, and publish updates stay here after the toast is gone.</p>
+{% comment %}
+The inbox is ordered by SEVERITY, not by time: critical first, then action,
+money, social, system — newest inside each band (gallery.notify.inbox_queryset).
+The stripe on the left border is the same fact as the sort, so a person who
+never reads a word still sees which end of the list to start at.
+
+An attention case (duplicate / malfunction) stays unread while it is waiting on
+an answer, because "I glanced at my inbox" must not be able to silence a
+countdown that ends in a deletion.
+{% endcomment %}
+<div class="page attention-shell" style="max-width:760px">
+  <div class="attention-hero">
+    <div>
+      <p class="attention-kicker">YOUR INBOX <span> / </span> MOST URGENT FIRST</p>
+      <h1>Inbox</h1>
+      <p class="attention-lead">Sorted by what needs you first. The colour on the left edge is the severity —
+        red is blocking or about to be erased, amber is a decision with a deadline, green is money,
+        blue is people responding to your work, grey is information.</p>
+    </div>
+    {% if open_cases %}
+    <a href="{% url 'attention_center' %}" class="btn-violet" style="margin-left:auto">{{ open_cases }} waiting on you →</a>
+    {% endif %}
+  </div>
+
+  {% if legend %}
+  <div class="bv-legend" role="group" aria-label="Filter the inbox by severity">
+    <a href="{% url 'notifications' %}" class="bv-legend__item" aria-pressed="{% if not category_filter %}true{% else %}false{% endif %}" style="--swatch:var(--text)">
+      All <span class="bv-legend__count">{{ total_notifications }}</span>
+    </a>
+    {% for row in legend %}
+    {% if row.count %}
+    <a href="?category={{ row.key }}" class="bv-legend__item bv-cat--{{ row.key }}"
+       aria-pressed="{% if category_filter == row.key %}true{% else %}false{% endif %}"
+       style="--swatch:var(--cat-{{ row.key }})" title="{{ row.meaning }}">
+      <span class="bv-legend__swatch" aria-hidden="true"></span>{{ row.label }}
+      <span class="bv-legend__count">{{ row.count }}</span>
+    </a>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
   <div style="display:flex;flex-direction:column;gap:8px">
     {% for n in notifications %}
-    <a href="{{ n.url|default:'#' }}" class="card" style="padding:12px;display:block">
-      <div style="font-size:11px;color:var(--muted);text-transform:uppercase">{{ n.kind }} • {{ n.created_at|timesince }} ago</div>
-      <div style="font-weight:700;margin-top:4px">{{ n.title }}</div>
-      {% if n.body %}<div class="help" style="margin-top:4px">{{ n.body }}</div>{% endif %}
+    <a href="{% if n.attention_case_id %}{% url 'attention_case' n.attention_case_id %}{% else %}{{ n.url|default:'#' }}{% endif %}"
+       class="bv-notif bv-notif--{{ n.category }}">
+      {% if not n.is_read %}<span class="bv-notif__unread" aria-label="Unread"></span>{% endif %}
+      <div class="bv-notif__head">
+        <span class="bv-cat bv-cat--{{ n.category }}"><span class="bv-cat__dot" aria-hidden="true"></span>{{ n.category_meta.label }}</span>
+        <span>{{ n.get_kind_display }} • {{ n.created_at|timesince }} ago</span>
+        {% if n.reminded_at %}<span aria-label="Reminder">↻ reminded {{ n.reminded_at|timesince }} ago</span>{% endif %}
+      </div>
+      <div class="bv-notif__title">{{ n.title }}</div>
+      {% if n.body %}<div class="bv-notif__body">{{ n.body }}</div>{% endif %}
     </a>
     {% empty %}
-    <div class="card" style="padding:24px;text-align:center;color:var(--muted)">No notifications yet.</div>
+    <div class="attention-empty">Nothing in the inbox. Build something and this fills up.</div>
     {% endfor %}
   </div>
 </div>

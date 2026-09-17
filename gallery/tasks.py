@@ -428,8 +428,17 @@ def process_upload_pipeline(project_id):
     """Master queue: Ensures EVERY app is checked in order, even with 20 concurrent uploads.
     Called via .delay() from publish view — Celery FIFO queue 'scan' serializes.
     No sensitive info leaves backend — JS only gets status poll via /app/<slug>/scan-status/ (clean/pending/quarantined)."""
-    # Chain: virus -> vuln -> finalize. If any quarantines, later steps still run but finalize skips publish.
-    c = chain(scan_zip_with_clamav.s(project_id), vulnerability_scan.s(project_id), finalize_publish.s(project_id))
+    # Chain: virus -> vuln -> finalize -> attention. If any quarantines, later
+    # steps still run but finalize skips publish. `attention_check` is last on
+    # purpose: a duplicate or a malfunction can only be judged against the
+    # verdict the scan just produced, and it must never be able to fail the
+    # upload (it catches everything and returns counts).
+    c = chain(
+        scan_zip_with_clamav.s(project_id),
+        vulnerability_scan.s(project_id),
+        finalize_publish.s(project_id),
+        attention_check.s(project_id),
+    )
     return c.apply_async(queue='scan')
 
 @shared_task(queue='scan')
@@ -490,4 +499,67 @@ def generate_weekly_challenges():
     except Exception as e:
         import logging
         logging.getLogger(__name__).exception(f"generate_weekly_challenges crush: {e}")
+        return 0
+
+# ----------------------------------------------------------------------
+# Attention cases (gallery/attention.py): duplicated + broken builds.
+#
+# Two tasks, not one, because they have different failure modes:
+#   * attention_reminders runs every ATTENTION_REMINDER_MINUTES and only
+#     touches rows already in the table — cheap, and a missed run just means a
+#     nudge lands late.
+#   * attention_sweep does the detection + the 7-day auto-decision + the
+#     final-delete erase. It is the one that touches projects, so it runs on
+#     the 'scan' queue behind the same serialization the upload pipeline uses
+#     and never inside a web request.
+# Both catch everything: a background job that raises becomes a broker
+# retry-storm, and a reminder is never worth that.
+# ----------------------------------------------------------------------
+@shared_task(queue='scan')
+def attention_check(*args, project_id=None):
+    """Post-upload detection for ONE owner — the last link of the upload chain.
+
+    Why here and not in the view: the duplicate only exists once the scan has
+    settled the build's real state (quarantined bytes are a malfunction; a
+    clean publish is what makes two copies a public problem). Chained after
+    finalize_publish, so it reads the verdict instead of guessing it.
+    """
+    try:
+        from .attention import detect_for_user
+        from .models import AppProject
+        if project_id is None and args:
+            project_id = args[-1]
+        project = AppProject.objects.filter(pk=project_id).select_related('owner').first()
+        if project is None or project.owner_id is None:
+            return {'duplicates': 0, 'malfunctions': 0}
+        return detect_for_user(project.owner)
+    except Exception:
+        logger.exception('attention_check failed project_id=%s', project_id)
+        return {'duplicates': 0, 'malfunctions': 0}
+
+@shared_task(queue='scan')
+def attention_sweep(limit=400):
+    """Hourly beat: detect new cases, decide the ones that hit 7 days, remind
+    the ones that are due, erase the ones whose 24 hours of silence ran out."""
+    try:
+        from .attention import sweep
+        result = sweep(limit=limit)
+        logger.info('attention sweep %s', result)
+        return result
+    except Exception:
+        logger.exception('attention_sweep failed')
+        return {}
+
+@shared_task
+def attention_reminders(limit=500):
+    """Beat on the reminder cadence: re-surface every unanswered case whose
+    last nudge is older than ATTENTION_REMINDER_MINUTES."""
+    try:
+        from .attention import remind_due
+        nudged = remind_due(limit=limit)
+        if nudged:
+            logger.info('attention reminders nudged=%s', nudged)
+        return nudged
+    except Exception:
+        logger.exception('attention_reminders failed')
         return 0
