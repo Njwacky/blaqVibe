@@ -37,6 +37,7 @@ CATEGORY_OF_KIND = {
     'star': 'social',
     'fork': 'social',
     'challenge': 'social',
+    'feedback': 'social',
     'published': 'system',
     'upload': 'system',
     'git_push': 'system',

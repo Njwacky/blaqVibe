@@ -16,6 +16,10 @@ def extras(request):
     quarantine_ends_at = None
     quarantine_reason = ''
     quarantine_appeal_open = False
+    # The superadmin's feedback channel (users/feedback.py): unread threads
+    # wait in the queue, and the badge in the nav keeps that count visible
+    # on every page — the glowing button promised a human would read it.
+    feedback_unread = 0
     user = getattr(request, 'user', None)
     if user is not None and user.is_authenticated:
         try:
@@ -50,6 +54,17 @@ def extras(request):
         except Exception:
             open_reports = 0
             open_appeals = 0
+        try:
+            if user.profile.is_superadmin():
+                from django.db.models import F, Q
+                from users.models import FeedbackThread
+                feedback_unread = FeedbackThread.objects.filter(
+                    Q(last_user_message_at__isnull=False)
+                    & (Q(admin_last_read_at__isnull=True)
+                       | Q(last_user_message_at__gt=F('admin_last_read_at'))),
+                ).count()
+        except Exception:
+            feedback_unread = 0
     social_providers = []
     try:
         from users.social import configured_social_providers
@@ -101,6 +116,7 @@ def extras(request):
         'attention': attention,
         'open_reports': open_reports,
         'open_appeals': open_appeals,
+        'feedback_unread': feedback_unread,
         'quarantine_active': quarantine_active,
         'quarantine_ends_at': quarantine_ends_at,
         'quarantine_reason': quarantine_reason,

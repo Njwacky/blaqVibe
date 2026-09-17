@@ -868,6 +868,11 @@ class Notification(models.Model):
         # one is the rule-breach hold, and 'appeal' is the answer to an appeal.
         ('account_quarantine', 'Account quarantine'),
         ('appeal', 'Quarantine appeal'),
+        # Feedback conversations (users/feedback.py): the glowing button on
+        # every page opens /feedback/ — a thread the superadmin replies into.
+        # New user messages fan out to the superadmin inbox as this kind;
+        # a reply comes back to the user through the same kind.
+        ('feedback', 'Feedback'),
         # Attention cases (gallery/attention.py): two of your builds are the
         # same build, or one of them is broken. These are the notifications
         # that ASK for a decision, which is why they carry a deadline and a

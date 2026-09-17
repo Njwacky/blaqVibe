@@ -1,0 +1,125 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Conversation #{{ thread.pk }} — Feedback{% endblock %}
+{% block content %}
+{% comment %}
+The conversation itself. One template serves both sides:
+- the builder (is_admin_view=False) — reads the thread and replies;
+- the superadmin (is_admin_view=True) — reads the builder's profile,
+  replies, and can close/reopen the loop.
+The reply box is a form on every page because this is a thread, not a
+one-way form: the superadmin "must be able to reply to a person".
+{% endcomment %}
+<div class="page" style="max-width:760px;margin:0 auto;padding:24px 20px 96px">
+  <style>
+    .fb-msg{display:flex;flex-direction:column;max-width:82%}
+    .fb-msg--user{align-self:flex-start;align-items:flex-start}
+    .fb-msg--staff{align-self:flex-end;align-items:flex-end}
+    .fb-msg__meta{font-size:11px;color:var(--muted);margin:0 0 4px 6px;display:flex;gap:8px;align-items:center}
+    .fb-msg__body{font-size:13.5px;line-height:1.6;padding:12px 14px;border-radius:14px;white-space:pre-line;word-break:break-word}
+    .fb-msg--user .fb-msg__body{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px}
+    .fb-msg--staff .fb-msg__body{background:linear-gradient(140deg,color-mix(in srgb,var(--violet) 16%,var(--card)),var(--card));border:1px solid var(--accent-border);border-bottom-right-radius:4px}
+    @media (max-width:640px){.fb-msg{max-width:94%}}
+  </style>
+
+  <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:18px">
+    <div style="flex:1;min-width:240px">
+      <a href="{% if is_admin_view %}{% url 'admin_feedback_queue' %}{% else %}{% url 'feedback_inbox' %}{% endif %}"
+         style="font-size:12px;font-weight:600;color:var(--muted);text-decoration:none">
+        ← {% if is_admin_view %}Feedback inbox{% else %}Your feedback{% endif %}
+      </a>
+      <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px;font-weight:800;margin:6px 0 0;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+        <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-bulb"></use></svg>
+        Conversation #{{ thread.pk }}
+        {% if thread.status == 'open' %}
+          <span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--accent-soft-bg);border:1px solid var(--accent-border);color:var(--accent-text)">waiting on the team</span>
+        {% elif thread.status == 'answered' %}
+          <span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--success-bg);border:1px solid var(--success-border);color:var(--success-text)">answered</span>
+        {% else %}
+          <span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--surface-subtle);border:1px solid var(--line);color:var(--muted)">closed</span>
+        {% endif %}
+      </h1>
+      {% if is_admin_view %}
+      <p style="font-size:12.5px;color:var(--muted);margin:6px 0 0">
+        From <a href="{% url 'profile_view' thread.user.username %}" style="color:var(--accent-text);font-weight:600;text-decoration:none">@{{ thread.user.username }}</a>
+        {% if thread.user.email %}· {{ thread.user.email }}{% endif %}
+        · started {{ thread.created_at|timesince }} ago
+      </p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:14px">
+    {% for m in thread_messages %}
+    <div class="fb-msg {% if m.from_staff %}fb-msg--staff{% else %}fb-msg--user{% endif %}">
+      <div class="fb-msg__meta">
+        {% if m.from_staff %}
+          <span style="display:inline-flex;align-items:center;gap:5px;font-weight:700;color:var(--accent-text)">
+            <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> The team{% if m.sender_id != thread.user_id %} · @{{ m.sender.username }}{% endif %}
+          </span>
+        {% else %}
+          <span style="font-weight:700">@{{ m.sender.username }}</span>
+        {% endif %}
+        <span>·</span>
+        <span>{{ m.created_at|timesince }} ago</span>
+      </div>
+      <div class="fb-msg__body">{{ m.body }}</div>
+    </div>
+    {% empty %}
+    <div style="background:var(--card);border:1px dashed var(--line);border-radius:14px;padding:20px;text-align:center;color:var(--muted);font-size:13px">
+      Nothing here yet — the first message starts the conversation.
+    </div>
+    {% endfor %}
+  </div>
+
+  {% if is_admin_view %}
+  {# ── Superadmin side: reply, close, reopen ── #}
+  <form method="post" style="margin-top:20px">
+    {% csrf_token %}
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow)">
+      <label for="fb-reply-body" style="font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px">
+        <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-mail"></use></svg> Reply to @{{ thread.user.username }}
+      </label>
+      <p style="font-size:11.5px;color:var(--muted);margin:4px 0 10px">
+        It lands back in this conversation and in their inbox — they will see it under
+        "Your conversations" and from the glowing button.
+      </p>
+      <textarea id="fb-reply-body" name="body" rows="3" maxlength="4000"
+        style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;font:14px/1.55 inherit;resize:vertical"></textarea>
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap">
+        <div style="display:flex;gap:8px">
+          {% if thread.status == 'closed' %}
+          <button type="submit" name="action" value="reopen" class="btn-ghost" style="padding:8px 12px;font-size:12px">Reopen</button>
+          {% else %}
+          <button type="submit" name="action" value="close" class="btn-ghost" style="padding:8px 12px;font-size:12px">Close conversation</button>
+          {% endif %}
+        </div>
+        <button type="submit" name="action" value="reply" class="btn-violet">Send reply</button>
+      </div>
+    </div>
+  </form>
+  {% elif thread.status == 'closed' %}
+  <div style="margin-top:20px;background:var(--surface-subtle);border:1px solid var(--line);border-radius:14px;padding:14px;font-size:13px;color:var(--muted)">
+    This conversation is closed. If the answer raised something new,
+    <a href="{% url 'feedback_inbox' %}" style="color:var(--accent-text);font-weight:600">start a new one</a>.
+  </div>
+  {% else %}
+  {# ── Builder side: keep the conversation going ── #}
+  <form method="post" style="margin-top:20px">
+    {% csrf_token %}
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow)">
+      <label for="fb-reply-body" style="font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px">
+        <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-chat"></use></svg> Add to the conversation
+      </label>
+      <p style="font-size:11.5px;color:var(--muted);margin:4px 0 10px">
+        Follow-ups reopen it and ping the superadmin's inbox again.
+      </p>
+      <textarea id="fb-reply-body" name="body" rows="3" maxlength="4000"
+        style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;font:14px/1.55 inherit;resize:vertical"></textarea>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px">
+        <button type="submit" class="btn-violet">Send</button>
+      </div>
+    </div>
+  </form>
+  {% endif %}
+</div>
+{% endblock %}

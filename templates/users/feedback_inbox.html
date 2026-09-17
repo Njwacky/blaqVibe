@@ -1,0 +1,77 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Feedback — BlaqVibes{% endblock %}
+{% block content %}
+{% comment %}
+The feedback page: the temporary fast path to a human while BlaqVibes is
+under construction. Reaches here from the glowing floating button on
+every page (users/feedback.py owns the backend). A conversation, not a
+mailbox — the superadmin replies into the same thread, so this page also
+shows the running conversations and where each one stands.
+{% endcomment %}
+<div class="page" style="max-width:760px;margin:0 auto;padding:24px 20px 96px">
+  <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+    <div style="flex:1;min-width:240px">
+      <p style="font:700 11px/1 JetBrains Mono,monospace;letter-spacing:.14em;color:var(--violet);text-transform:uppercase;margin:0 0 8px">BlaqVibes is under construction</p>
+      <h1 style="font-family:Space Grotesk,sans-serif;font-size:26px;font-weight:800;margin:0;display:flex;align-items:center;gap:10px">
+        <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-bulb"></use></svg> Feedback
+      </h1>
+      <p style="color:var(--muted);font-size:13px;line-height:1.6;margin:8px 0 0">
+        The fastest way to a human on this site. A superadmin reads every message and
+        replies <b>right here, in the conversation</b> — not to a mailbox, not to a
+        ticket. The glowing bulb button on every page is this page.
+      </p>
+    </div>
+  </div>
+
+  <form method="post" style="margin-top:20px">
+    {% csrf_token %}
+    <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow)">
+      <label for="new-feedback-body" style="font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px">
+        <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-pencil"></use></svg> Say what's on your mind
+      </label>
+      <p style="font-size:11.5px;color:var(--muted);margin:4px 0 10px;line-height:1.5">
+        A bug, a rough edge, an idea, or "this is great". The more specific, the more it helps —
+        which page, what you expected, what happened.
+      </p>
+      <textarea id="new-feedback-body" name="body" rows="4" maxlength="4000" required
+        style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;font:14px/1.55 inherit;resize:vertical"></textarea>
+      <div style="display:flex;justify-content:flex-end;margin-top:10px">
+        <button type="submit" class="btn-violet">Send feedback</button>
+      </div>
+    </div>
+  </form>
+
+  {% if rows %}
+  <h2 style="font-size:14px;font-weight:800;margin:28px 0 10px;display:flex;align-items:center;gap:8px">
+    <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-chat"></use></svg> Your conversations
+    <span style="font-weight:600;color:var(--muted);font-size:12px">— replies land here too</span>
+  </h2>
+  <div style="display:flex;flex-direction:column;gap:8px">
+    {% for t, m in rows %}
+    <a href="{% url 'feedback_conversation' t.pk %}"
+       style="display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 14px;text-decoration:none;color:inherit;transition:border-color .15s">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:13px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          Conversation #{{ t.pk }}
+          {% if t.status == 'open' %}
+            <span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--accent-soft-bg);border:1px solid var(--accent-border);color:var(--accent-text)">waiting on the team</span>
+          {% elif t.status == 'answered' %}
+            <span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--success-bg);border:1px solid var(--success-border);color:var(--success-text)">answered</span>
+          {% else %}
+            <span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--surface-subtle);border:1px solid var(--line);color:var(--muted)">closed</span>
+          {% endif %}
+        </div>
+        {% if m %}
+        <div style="font-size:12.5px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+          <span style="color:var(--text);font-weight:600">{% if m.from_staff %}The team{% else %}You{% endif %}:</span> {{ m.body|truncatechars:120 }}
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">{{ m.created_at|timesince }} ago</div>
+        {% endif %}
+      </div>
+      <span aria-hidden="true" style="color:var(--muted);font-size:16px">→</span>
+    </a>
+    {% endfor %}
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
