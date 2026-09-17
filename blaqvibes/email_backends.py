@@ -33,6 +33,51 @@ logger = logging.getLogger(__name__)
 
 BREVO_DEFAULT_URL = "https://api.brevo.com/v3/smtp/email"
 
+# Greppable marker for ops. On a PaaS log stream every email failure used to be
+# one ERROR line indistinguishable from a 500 traceback, so "Brevo never works"
+# had no answer. Filtering logs on this string finds every rejected send.
+BREVO_FAILURE_MARKER = "BREVO_SEND_FAILED"
+
+
+class BrevoSendError(RuntimeError):
+    """Brevo accepted the HTTP request but refused to deliver the email.
+
+    Carries the status code and the parsed error body so callers can tell
+    "bad API key" (401) from "sender not verified" (400) apart instead of
+    collapsing both into a silent no-op.
+    """
+
+    def __init__(self, status_code, body, code=None, message=None):
+        self.status_code = status_code
+        self.body = body
+        self.code = code
+        self.message = message or body
+        super().__init__(f"Brevo rejected the email ({status_code}): {self.message}")
+
+
+def _parse_brevo_error(resp):
+    """Turn a non-2xx Brevo response into a BrevoSendError."""
+    code = None
+    message = None
+    try:
+        data = resp.json()
+        if isinstance(data, dict):
+            code = data.get("code")
+            message = data.get("message")
+    except Exception:
+        pass
+    return BrevoSendError(resp.status_code, resp.text[:1000], code=code, message=message)
+
+
+def mask_api_key(key):
+    """xkeysib-abc123…def — enough to confirm which key is loaded, safe to log."""
+    if not key:
+        return "(empty)"
+    key = str(key)
+    if len(key) <= 12:
+        return key[:3] + "…"
+    return f"{key[:8]}…{key[-4:]} (len={len(key)})"
+
 
 class BrevoEmailBackend(BaseEmailBackend):
     """
@@ -52,7 +97,12 @@ class BrevoEmailBackend(BaseEmailBackend):
         self.api_key = getattr(settings, "BREVO_API_KEY", "") or ""
         self.api_url = getattr(settings, "BREVO_API_URL", BREVO_DEFAULT_URL) or BREVO_DEFAULT_URL
         self.sender_name = getattr(settings, "BREVO_SENDER_NAME", "BlaqVibes") or "BlaqVibes"
-        self.timeout = getattr(settings, "BREVO_TIMEOUT", 10)
+        # BREVO_TIMEOUT=0 would hand requests a zero timeout and fail every send
+        # instantly, which looks exactly like "Brevo is broken". Clamp it.
+        try:
+            self.timeout = max(1, int(getattr(settings, "BREVO_TIMEOUT", 10) or 10))
+        except (TypeError, ValueError):
+            self.timeout = 10
 
     def send_messages(self, email_messages):
         if not email_messages:
@@ -60,7 +110,7 @@ class BrevoEmailBackend(BaseEmailBackend):
 
         if not self.api_key:
             msg = "BREVO_API_KEY not configured — cannot send email via Brevo"
-            logger.error(msg)
+            logger.error("%s no_api_key — %s", BREVO_FAILURE_MARKER, msg)
             if not self.fail_silently:
                 raise ValueError(msg)
             return 0
@@ -70,7 +120,10 @@ class BrevoEmailBackend(BaseEmailBackend):
             try:
                 payload = self._build_payload(message)
                 if not payload.get("to"):
-                    logger.warning("Brevo skip: no valid recipient in message %r", message.subject)
+                    logger.warning(
+                        "%s no_recipient — subject=%r (message.to=%r is empty or unparseable)",
+                        BREVO_FAILURE_MARKER, message.subject, getattr(message, "to", None),
+                    )
                     continue
 
                 resp = requests.post(
@@ -93,17 +146,40 @@ class BrevoEmailBackend(BaseEmailBackend):
                         resp.json().get("messageId") if resp.content else "-",
                     )
                 else:
+                    err = _parse_brevo_error(resp)
+                    # Include the hint for the two mistakes that cause ~all of
+                    # "Brevo never works": an unverified sender and a bad key.
                     logger.error(
-                        "Brevo send failed: status=%s body=%s subject=%r to=%r",
-                        resp.status_code,
-                        resp.text[:1000],
+                        "%s status=%s code=%s sender=%r to=%r subject=%r — %s",
+                        BREVO_FAILURE_MARKER,
+                        err.status_code,
+                        err.code,
+                        payload.get("sender", {}).get("email"),
+                        [t.get("email") for t in payload.get("to", [])],
                         message.subject,
-                        payload.get("to"),
+                        err.message,
                     )
+                    if err.status_code in (400, 401):
+                        logger.error(
+                            "%s hint — 400 usually means DEFAULT_FROM_EMAIL (%r) is not a "
+                            "verified sender in Brevo (Settings → Senders, Domains & IPs); "
+                            "401 means BREVO_API_KEY is wrong, expired, or the transactional "
+                            "platform is not activated on the account.",
+                            BREVO_FAILURE_MARKER,
+                            payload.get("sender", {}).get("email"),
+                        )
                     if not self.fail_silently:
-                        resp.raise_for_status()
+                        raise err
+            except BrevoSendError:
+                raise
             except Exception as exc:
-                logger.exception("Brevo send exception for %r: %s", getattr(message, "subject", ""), exc)
+                logger.error(
+                    "%s transport — %s: %s (subject=%r url=%s)",
+                    BREVO_FAILURE_MARKER,
+                    type(exc).__name__, exc,
+                    getattr(message, "subject", ""),
+                    self.api_url,
+                )
                 if not self.fail_silently:
                     raise
         return sent

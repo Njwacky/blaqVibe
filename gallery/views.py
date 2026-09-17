@@ -88,10 +88,11 @@ def signup(request):
         if form.is_valid():
             user = form.save()
             login(request, user, backend='django.contrib.auth.backends.ModelBackend')
+            email_queued = False
             try:
                 from users.views import send_verify_email
                 if user.email:
-                    send_verify_email(request, user)
+                    email_queued = bool(send_verify_email(request, user))
             except Exception:
                 logger.exception('verify email send failed')
             # Admin must get notified when someone wants approval / new user joins
@@ -100,7 +101,17 @@ def signup(request):
                 notify_admins_new_user(user)
             except Exception:
                 logger.exception('admin new user notify failed %s', user.username)
-            messages.success(request, "Welcome to BlaqVibes — we sent a confirmation link to your email.")
+            # Claiming "we sent a confirmation link" when Brevo refused it is the
+            # failure that turns a broken mail config into an unanswerable
+            # support thread. Tell the truth and point at the resend screen.
+            if email_queued:
+                messages.success(request, "Welcome to BlaqVibes — we sent a confirmation link to your email.")
+            else:
+                messages.warning(
+                    request,
+                    "Welcome to BlaqVibes. We could not send the confirmation email yet — "
+                    "open Settings → Email and resend it once your mailbox is set.",
+                )
             return redirect(next_url or 'feed')
     else:
         form = SignUpForm()
