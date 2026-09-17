@@ -277,3 +277,75 @@ class OtherPublicWriteGatesTests(TestCase):
         note.refresh_from_db()
         self.assertEqual(note.title, 'New activity on BlaqVibes')
         self.assertEqual(note.body, '')
+
+class MaskedEvasionTests(TestCase):
+    """Masking is not a loophole.
+
+    The module's own rule is "masking ('f***') still *is* the word", so the
+    matcher has to resolve the ways people type around a list: stars inside a
+    word, a whole masked tail, underscores, and the deleted letter the stars
+    stood in for.
+    """
+
+    def test_masked_words_are_still_the_word(self):
+        for text in (
+            'f*ck this', 'f**k', 'f***', 'sh*t', 'sh**', 'b*tch', 'b**ch',
+            'f_ck', 'c*nt', 'f*ggot', 'n*gger', 'n****', 'a**hole', 'you a**hole',
+        ):
+            self.assertTrue(contains_profanity(text), text)
+
+    def test_masking_an_innocent_word_is_not_abuse(self):
+        for text in (
+            'this is cl*ss work',
+            'st*ff happens',
+            'great *stuff* right here',
+            'grade A*B was fine',
+            'was *that* you?',
+            'a*b*c routing',
+            'D*** was here',          # a redacted name is not "dick"
+            '5★ review',
+            'bass guitar, grass is green',
+        ):
+            self.assertFalse(contains_profanity(text), text)
+
+    def test_known_boundary_is_deliberate_not_an_accident(self):
+        """Three-plus letters erased in the middle do not resolve.
+
+        'n****r' leaves 'nr' — too little evidence for a 30-day account hold.
+        Leet spellings outside the list ('f@ck' → 'fack') are the same story.
+        Both are pinned here so a future reader can see the limit is chosen,
+        and can extend the word list deliberately if the product wants it.
+        """
+        self.assertFalse(contains_profanity('n****r'))
+        self.assertFalse(contains_profanity('f@ck'))
+
+
+class ScanVerdictTests(TestCase):
+    """The gate's answer has three states, and they are not interchangeable."""
+
+    def test_clean_blocked_and_empty(self):
+        from gallery.profanity import scan_public_text
+        self.assertEqual(scan_public_text(''), 'clean')
+        self.assertEqual(scan_public_text(None), 'clean')
+        self.assertEqual(scan_public_text('   '), 'clean')
+        self.assertEqual(scan_public_text('Does this work with class-based views?'), 'clean')
+        self.assertEqual(scan_public_text('what a load of sh1t'), 'blocked')
+
+    def test_a_matcher_failure_is_unavailable_not_blocked(self):
+        """Fail closed on publishing, but never blame the author for our bug."""
+        from unittest.mock import patch
+        from gallery.profanity import PublicLanguageError, scan_public_text, validate_public_text
+
+        with patch('gallery.profanity._fold_with_masks', side_effect=RuntimeError('boom')):
+            self.assertEqual(scan_public_text('an ordinary sentence'), 'unavailable')
+            # The boolean contract is unchanged: unavailable still means "do not publish".
+            self.assertTrue(contains_profanity('an ordinary sentence'))
+            with self.assertRaises(PublicLanguageError) as ctx:
+                validate_public_text('an ordinary sentence')
+            self.assertEqual(ctx.exception.code, 'unavailable')
+
+    def test_a_blocked_verdict_carries_the_blocked_code(self):
+        from gallery.profanity import PublicLanguageError, validate_public_text
+        with self.assertRaises(PublicLanguageError) as ctx:
+            validate_public_text('you are an asshole')
+        self.assertEqual(ctx.exception.code, 'blocked')

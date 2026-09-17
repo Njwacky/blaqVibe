@@ -209,7 +209,11 @@ def quarantine_user(user, *, reason='other', detail='', days=None, imposed_by=No
     the existing row is extended by `days` and its detail records why, so the
     person's page shows ONE end date instead of three overlapping ones.
     """
-    days = int(days or quarantine_days())
+    try:
+        days = int(days or quarantine_days())
+    except (TypeError, ValueError):
+        days = quarantine_days()
+    days = max(1, min(365, days))
     now = timezone.now()
     live = (
         UserQuarantine.objects
@@ -352,7 +356,11 @@ def extend_quarantine(quarantine, *, actor=None, days=None, note=''):
     """Add time to a live hold (staff decision on a bad-faith appeal)."""
     if not quarantine or not quarantine.is_active():
         return quarantine
-    days = int(days or quarantine_days())
+    try:
+        days = int(days or quarantine_days())
+    except (TypeError, ValueError):
+        days = quarantine_days()
+    days = max(1, min(365, days))
     quarantine.ends_at = quarantine.ends_at + timedelta(days=days)
     quarantine.days = days
     if note:
@@ -386,22 +394,35 @@ def sweep_expired(*, notify=True, limit=200) -> int:
 # Profanity hook — ONE call site shape for every view that refuses text
 # ---------------------------------------------------------------------------
 
-def form_has_language_violation(form) -> bool:
-    """True when a form's errors include the public-language refusal.
+def form_language_verdict(form) -> str:
+    """'blocked' | 'unavailable' | '' — what the language gate said about a form.
 
-    `form.errors.as_data()` keeps the original ValidationError objects, so we
-    match the exception TYPE (gallery.profanity.PublicLanguageError) instead of
-    string-matching the human message.
+    `form.errors.as_data()` keeps the original ValidationError objects, so the
+    verdict rides on the exception TYPE and its `code`
+    (gallery.profanity.PublicLanguageError) instead of a string match on the
+    human message:
+      * 'blocked'     — the words are abusive: a rule breach, recorded.
+      * 'unavailable' — the matcher failed. The text is still refused (fail
+                        closed) but the author is not blamed for our bug.
     """
     from gallery.profanity import PublicLanguageError
+    verdict = ''
     try:
         for errors in form.errors.as_data().values():
             for error in errors:
                 if isinstance(error, PublicLanguageError):
-                    return True
+                    code = getattr(error, 'code', '') or 'blocked'
+                    if code == 'unavailable':
+                        verdict = 'unavailable' if verdict != 'blocked' else verdict
+                    else:
+                        return 'blocked'
     except Exception:
-        logger.exception('form_has_language_violation failed')
-    return False
+        logger.exception('form_language_verdict failed')
+    return verdict
+
+def form_has_language_violation(form) -> bool:
+    """True when a form was refused for public language (either verdict)."""
+    return bool(form_language_verdict(form))
 
 def _blocked_field_names(form) -> list[str]:
     from gallery.profanity import PublicLanguageError
@@ -437,8 +458,22 @@ def note_blocked_language(request, *, surface, form=None, text=None, project=Non
     user = getattr(request, 'user', None)
     if user is None or not getattr(user, 'is_authenticated', False):
         return None
-    if form is not None and not form_has_language_violation(form):
-        return None
+    if form is not None:
+        verdict = form_language_verdict(form)
+        if not verdict:
+            return None
+        if verdict == 'unavailable':
+            # Our matcher failed, not their words. Nothing is posted either
+            # way, but no violation is recorded and no hold is applied.
+            try:
+                messages.warning(
+                    request,
+                    'We could not check that text just now, so it was not posted — '
+                    'nothing was recorded against your account. Please try again.',
+                )
+            except Exception:
+                pass
+            return None
     evidence = text if text is not None else (_blocked_text(form) if form is not None else '')
     if not (evidence or '').strip() and not detail:
         return None
@@ -464,13 +499,19 @@ def note_blocked_language(request, *, surface, form=None, text=None, project=Non
         if report.get('quarantined') and report.get('quarantine'):
             messages.error(request, quarantine_block_message(report['quarantine']))
         else:
-            messages.warning(
-                request,
-                'That text breaks the public rules and was not posted. '
-                f'One more within {VIOLATION_WINDOW_DAYS} days quarantines the account.'
-                if report.get('threshold', 1) > report.get('strikes', 0)
-                else 'That text breaks the public rules and was not posted.',
-            )
+            # Under a raised threshold: say how many are left, in one sentence.
+            # (An operator who sets QUARANTINE_STRIKES=2 turns this into a real
+            # warning system instead of a silent first strike.)
+            remaining = max(0, int(report.get('threshold', 1)) - int(report.get('strikes', 0)))
+            if remaining:
+                messages.warning(
+                    request,
+                    'That text breaks the public rules and was not posted. '
+                    f'{remaining} more within {VIOLATION_WINDOW_DAYS} days quarantines '
+                    f'the account for {quarantine_days()} days.',
+                )
+            else:
+                messages.warning(request, 'That text breaks the public rules and was not posted.')
     except Exception:
         pass
     return report
@@ -753,6 +794,14 @@ def _fan_out_staff_appeal(appeal):
         logger.exception('could not import admin notification fan-out')
         return
     url = '/moderation/appeals/'
+    excerpt = appeal.message
+    try:
+        from gallery.profanity import contains_profanity
+        if contains_profanity(excerpt):
+            excerpt = ('(this appeal uses language we do not put in email — '
+                       'read it verbatim on the appeals page)')
+    except Exception:
+        pass
     try:
         notify_admins_for_approval(
             kind='appeal',
@@ -768,6 +817,7 @@ def _fan_out_staff_appeal(appeal):
             email_html_template='emails/admin_appeal.html',
             context={
                 'appeal': appeal,
+                'appeal_message_email': excerpt,
                 'quarantine': appeal.quarantine,
                 'target': appeal.user,
                 'appeals_url': url,

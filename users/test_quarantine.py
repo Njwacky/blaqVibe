@@ -12,7 +12,6 @@ What these tests protect:
 """
 from datetime import timedelta
 
-from django.contrib.auth.models import User
 from django.core import mail
 from django.test import TestCase, override_settings
 from django.utils import timezone
@@ -201,6 +200,25 @@ class QuarantineFlowTests(TestCase):
             self.assertTrue(report['quarantined'])
             self.assertIsNotNone(active_quarantine(self.offender))
 
+    def test_warning_message_says_how_many_are_left(self):
+        """The in-line warning has to be a sentence a person can act on.
+
+        It used to be a ternary that rendered the same string either way, so a
+        raised threshold gave no countdown at all. Pinned through the view, not
+        just the model, because that is where the person reads it.
+        """
+        with override_settings(QUARANTINE_STRIKES=2):
+            self.client.login(username='offender', password='pass12345')
+            response = self.client.post(
+                f'/app/{self.project.slug}/comment/',
+                {'body': OBSCENE},
+                follow=True,
+            )
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode()
+        self.assertIn('breaks the public rules', body)
+        self.assertIn('1 more within 90 days quarantines the account for 30 days', body)
+
     # -- 3. appeals -------------------------------------------------------
     def test_person_can_appeal_and_staff_see_it(self):
         quarantine_user(self.offender, reason='offensive_language', detail='test hold')
@@ -332,6 +350,25 @@ class QuarantineFlowTests(TestCase):
         notice = Notification.objects.filter(user=self.offender, kind='account_quarantine').first()
         self.assertIn('lifted', notice.title.lower())
 
+    # -- 4b. our bug is never their punishment ---------------------------
+    def test_a_matcher_crash_refuses_the_text_but_never_quarantines(self):
+        """If the language engine itself fails, the post is still refused (fail
+        closed) but the author is NOT recorded and NOT held — a bug on our side
+        must not cost somebody 30 days."""
+        from unittest.mock import patch
+        self.client.login(username='offender', password='pass12345')
+        with patch('gallery.profanity._fold_with_masks', side_effect=RuntimeError('boom')):
+            response = self.client.post(
+                f'/app/{self.project.slug}/comment/',
+                {'body': 'A perfectly ordinary comment about Django views.'},
+            )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Comment.objects.count(), 0)          # never published
+        self.assertEqual(RuleViolation.objects.count(), 0)    # never blamed
+        self.assertFalse(is_quarantined(self.offender))
+        page = self.client.get('/quarantine/')
+        self.assertContains(page, 'No quarantine on this account')
+
     # -- 5. the notice is visible everywhere it needs to be ---------------
     def test_banner_shows_on_every_page_for_a_held_account(self):
         quarantine_user(self.offender, reason='offensive_language', detail='test hold')
@@ -357,6 +394,92 @@ class QuarantineFlowTests(TestCase):
         page = self.client.get('/moderation/queue/')
         self.assertEqual(page.status_code, 200)
         self.assertContains(page, 'Account quarantine')
+
+    # -- 6. the gate covers every public write path -----------------------
+    def test_obfuscated_abuse_still_quarantines(self):
+        """The matcher already handles f.u.c.k / sh1t / fuuuck — prove the
+        quarantine hook rides that engine, not a naive substring check."""
+        self.client.login(username='offender', password='pass12345')
+        for text in ('what a load of sh1t', 'f.u.c.k this setup', 'you are an a$$hole'):
+            self.client.post(f'/app/{self.project.slug}/comment/', {'body': text})
+        self.assertEqual(Comment.objects.count(), 0)
+        violations = RuleViolation.objects.filter(user=self.offender)
+        self.assertGreaterEqual(violations.count(), 1)
+        self.assertTrue(is_quarantined(self.offender))
+
+    def test_skill_with_offensive_words_is_refused_and_recorded(self):
+        """Skills are public text — they get the same gate as comments."""
+        from gallery.skill_models import Skill
+        self.client.login(username='offender', password='pass12345')
+        response = self.client.post('/skills/new/', {
+            'title': 'fucking great workflow',
+            'summary': 'A repeatable path from idea to a working page.',
+            'problem': 'You keep getting stuck before the first page works.',
+            'workflow': 'Create the app, wire a URL, render a template, then test.',
+            'tools': 'Python, Django',
+            'difficulty': 'beginner',
+            'expected_output': 'A working page with a real URL.',
+            'tags': 'django',
+        })
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(Skill.objects.count(), 0)
+        violation = RuleViolation.objects.filter(user=self.offender, surface='skill').first()
+        self.assertIsNotNone(violation)
+        self.assertTrue(is_quarantined(self.offender))
+
+    def test_clean_skill_still_publishes(self):
+        from gallery.skill_models import Skill
+        self.client.login(username='offender', password='pass12345')
+        self.client.post('/skills/new/', {
+            'title': 'Django first page',
+            'summary': 'A repeatable path from idea to a working page.',
+            'problem': 'You keep getting stuck before the first page works.',
+            'workflow': 'Create the app, wire a URL, render a template, then test.',
+            'tools': 'Python, Django',
+            'difficulty': 'beginner',
+            'expected_output': 'A working page with a real URL.',
+            'tags': 'django',
+        })
+        self.assertEqual(Skill.objects.count(), 1)
+        self.assertEqual(RuleViolation.objects.count(), 0)
+
+    def test_profile_with_a_slur_in_a_link_is_refused_and_recorded(self):
+        self.client.login(username='offender', password='pass12345')
+        self.client.post('/settings/profile/', {
+            'bio': 'Builder in Durban',
+            'location': 'Durban, ZA',
+            'github': 'offender',
+            'twitter': '',
+            'website': 'https://example.com/fuck-you',
+            'canvas_url': '',
+        })
+        self.assertEqual(
+            RuleViolation.objects.filter(user=self.offender, surface='profile').count(), 1
+        )
+        self.assertFalse(
+            self.offender.profile.__class__.objects.get(user=self.offender).website
+        )
+
+    def test_hold_length_is_clamped(self):
+        quarantine = quarantine_user(self.offender, reason='other', detail='crafted POST', days=9999)
+        self.assertLessEqual(quarantine.days, 365)
+        self.assertLessEqual(quarantine.days_left(), 366)
+
+    def test_appeal_profanity_is_on_the_staff_page_but_not_in_the_email(self):
+        quarantine_user(self.offender, reason='offensive_language', detail='test hold')
+        self.client.login(username='offender', password='pass12345')
+        self.client.post('/quarantine/', {
+            'message': 'This is fucking ridiculous, I did nothing wrong at all.',
+        })
+        appeal = QuarantineAppeal.objects.get()
+        for message in mail.outbox:
+            self.assertNotIn('fucking', (message.body or '').lower())
+            self.assertNotIn('fucking', (message.subject or '').lower())
+        self.client.logout()
+        self.client.login(username='mod', password='pass12345')
+        page = self.client.get('/moderation/appeals/')
+        # Staff judge the real words, so the page keeps them verbatim.
+        self.assertContains(page, 'fucking ridiculous')
 
     # -- 5. staff-only pages ---------------------------------------------
     def test_appeals_queue_is_staff_only(self):

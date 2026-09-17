@@ -13,7 +13,7 @@
 <tr><td style="padding:16px 32px 0 32px;">
 <div style="background:#1a1a28;border-radius:10px;padding:16px;">
 <p style="margin:0;color:#ccc;font-size:13px;font-weight:600;">They said</p>
-<p style="margin:8px 0 0 0;color:#ddd;font-size:14px;line-height:1.6;white-space:pre-wrap;">{{ appeal.message }}</p>
+<p style="margin:8px 0 0 0;color:#ddd;font-size:14px;line-height:1.6;white-space:pre-wrap;">{{ appeal_message_email|default:appeal.message }}</p>
 </div>
 </td></tr>
 <tr><td style="padding:24px 32px 0 32px;text-align:center;">

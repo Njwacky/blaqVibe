@@ -5,7 +5,7 @@ Quarantine: {{ quarantine.reason_label }} — held until {{ quarantine.ends_at }
 Violations on record: {{ quarantine.strike_count }}
 
 Their words:
-"{{ appeal.message }}"
+"{{ appeal_message_email|default:appeal.message }}"
 
 Decide on the appeals queue — accept (lift the quarantine), deny (the hold stands), or deny and add another 30 days. The person is notified with your note either way, so say why.
 

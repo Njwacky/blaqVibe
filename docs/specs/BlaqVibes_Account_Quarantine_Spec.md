@@ -49,7 +49,20 @@ person posts text
   person can understand. Staff can extend deliberately.
 * Evidence (`RuleViolation.evidence`) is staff-only and is **never copied into
   notifications or emails** — nobody needs the slur in their inbox, and a
-  regression test pins that.
+  regression test pins that. An appeal's own words are shown verbatim on the
+  appeals page (staff read the real thing) but are replaced by a placeholder in
+  the staff email.
+* The language gate answers in three states (`gallery.profanity.scan_public_text`):
+  `clean`, `blocked` (the words are abusive — recorded, and the author is told)
+  and `unavailable` (the matcher itself failed). Both non-clean states refuse
+  the text, so nothing unread ever publishes; only `blocked` may count against
+  the author, so a bug in our matcher can never quarantine anybody.
+* Obfuscation is the same rule as the plain word: leet (`sh1t`), spaced letters
+  (`f u c k`), homoglyphs (`fuсk`) and masking (`f**k`, `sh**`, `a**hole`,
+  `n****`) all resolve. Masking is token-local, so a masked innocent word
+  (`cl*ss`, `grade A*B`) stays clean. The one chosen limit: three or more
+  letters erased *inside* a word (`n****r`) is not enough evidence to hold
+  somebody — pinned by a test so it stays a decision, not an accident.
 * Every staff decision writes an `AdminLog` row (`quarantine_user`,
   `quarantine_lifted`, `quarantine_extended`, `quarantine_appeal`).
 
@@ -74,11 +87,20 @@ person posts text
 2. If the view can refuse text for language, call
    `note_blocked_language(request, surface='…', form=…, text=…, project=…)`
    exactly where the refusal happens. That is the ONE hook: it records, tells
-   the person, holds the account, and notifies staff.
+   the person, holds the account, and notifies staff. A form path must raise
+   `PublicLanguageError` (via `validate_public_text`) so the hook can read the
+   verdict; a raw-string path passes `text=` and that text is treated as
+   `blocked`.
+3. Public text that is not a form field (a skill, a changelog, a profile URL)
+   still needs step 2 — the rule is about public text, not about forms.
 
 ## Tests
 
-`users/test_quarantine.py` — 25 tests covering the breach→notice→hold→appeal→
+`users/test_quarantine.py` — 32 tests covering the breach→notice→hold→appeal→
 decision path, read-vs-post enforcement, clock expiry, no-stacking, dedupe,
-the raised-threshold warning, staff-applied holds, staff-only access, the
-banner, the notice page and the dashboard counts.
+the raised-threshold warning and its countdown, staff-applied holds, staff-only
+access, the banner, the notice page, the dashboard counts, obfuscated abuse,
+the skill and profile-URL gates, the 1..365-day clamp, and the rule that an
+appeal's profanity reaches staff eyes but never staff inboxes.
+`gallery/test_profanity.py` — 30 tests for the matcher itself, including the
+masking cases and the three-state verdict.

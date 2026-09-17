@@ -63,8 +63,13 @@ class ProfileForm(forms.ModelForm):
 
     def clean_canvas_url(self):
         # URLField already validates http(s) shape; trimming here keeps the
-        # profile chip neat and avoids persisting accidental whitespace.
-        return (self.cleaned_data.get('canvas_url') or '').strip()
+        # profile chip neat and avoids persisting accidental whitespace. The
+        # public-language rule still applies to the path: a profile link is
+        # public text, and "/fuck-you" is a slur with an href.
+        return validate_public_text((self.cleaned_data.get('canvas_url') or '').strip())
+
+    def clean_website(self):
+        return validate_public_text((self.cleaned_data.get('website') or '').strip())
 
     def clean_avatar(self):
         f = self.cleaned_data.get('avatar')

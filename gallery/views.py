@@ -1286,12 +1286,23 @@ def edit_vibe(request, slug):
             p = form.save(commit=False)
             # Versioning: if new ZIP, save old as AppVersion
             if new_zip and project.zip_file:
-                from .profanity import validate_public_text
+                from .profanity import PublicLanguageError, validate_public_text
                 from .prompt_sanitize import sanitize_prompt
                 try:
                     changelog = validate_public_text(
                         sanitize_prompt(request.POST.get('changelog', 'Update'))[:280]
                     ) or 'Update'
+                except PublicLanguageError:
+                    # The changelog is PUBLIC (it renders on the vibe), so a
+                    # refusal is recorded and the author is told — the old
+                    # catch-all silently swapped in 'Update' and nobody knew.
+                    from users.quarantine import note_blocked_language
+                    note_blocked_language(
+                        request, surface='project', project=project,
+                        text=request.POST.get('changelog', ''),
+                        detail='Text refused by the public-language gate in a version changelog.',
+                    )
+                    changelog = 'Update'
                 except Exception:
                     changelog = 'Update'
                 AppVersion.objects.create(project=project, zip_file=project.zip_file, version=f"1.{project.versions.count()+1}.0", changelog=changelog)
