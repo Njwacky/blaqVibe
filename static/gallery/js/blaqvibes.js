@@ -25,6 +25,7 @@ function copyText(t){
       const icon = theme === 'light' ? 'bv-ico-moon' : 'bv-ico-sun';
       btn.innerHTML = '<svg class="bv-icon" aria-hidden="true"><use href="#' + icon + '"></use></svg>';
       btn.setAttribute('aria-label', theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme');
+      btn.title = btn.getAttribute('aria-label');
     }
     const themeMeta = document.getElementById('theme-color-meta');
     if(themeMeta){
@@ -70,6 +71,18 @@ function copyText(t){
     if(logout){ e.preventDefault(); const f=document.getElementById('logout-form'); if(f) f.submit(); return; }
     const dismiss = e.target.closest('.js-dismiss');
     if(dismiss){ dismiss.parentElement.remove(); }
+  });
+  /* The account menu is a popover (floating on desktop), so Escape must
+     dismiss it and hand focus back to the @name button — click-outside only
+     covers pointer users. */
+  document.addEventListener('keydown', function(e){
+    if(e.key !== 'Escape') return;
+    const menu = document.getElementById('nav-menu');
+    if(menu && menu.classList.contains('open')){
+      menu.classList.remove('open');
+      const btn = document.getElementById('nav-user-btn');
+      if(btn){ btn.setAttribute('aria-expanded','false'); btn.focus(); }
+    }
   });
 })();
 
