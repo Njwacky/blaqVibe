@@ -13,6 +13,9 @@ rule and the status→href mapping live on ProfileLink, so testing the model
 (plus a thin end-to-end pass through edit_profile and profile_view) means
 the admin inline or any future editor inherits the same guarantees.
 """
+from pathlib import Path
+
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.test import TestCase, override_settings
 from django.urls import reverse
@@ -284,3 +287,35 @@ class ProfileShowsLinksWithStatusLightsTests(TestCase):
     def test_no_links_no_section_rows(self):
         html = self.client.get(self.url).content.decode()
         self.assertNotIn('link-dot', html)
+
+
+@override_settings(RATELIMIT_ENABLE=False)
+class EditProfileShipsNoDevNotesTests(TestCase):
+    """A note meant for the next developer must never become text a visitor reads.
+
+    Django's ``{# #}`` is single-line only: a multi-line one is not a comment,
+    so the browser gets it verbatim. The editor page is checked as served, and
+    every template file is checked for the mistake itself.
+    """
+
+    def test_edit_profile_renders_no_literal_template_markup(self):
+        User.objects.create_user('notetaker', password='pass12345', email='n@test.com')
+        self.client.login(username='notetaker', password='pass12345')
+        html = self.client.get(reverse('edit_profile')).content.decode()
+        for markup in ('{#', '#}', '{%', '{{'):
+            self.assertNotIn(markup, html)
+
+    def test_no_template_file_carries_a_multi_line_hash_comment(self):
+        offenders = []
+        for path in Path(settings.BASE_DIR, 'templates').rglob('*.html'):
+            for number, line in enumerate(path.read_text(encoding='utf-8').splitlines(), 1):
+                index = 0
+                while True:
+                    index = line.find('{#', index)
+                    if index == -1:
+                        break
+                    if '#}' not in line[index:]:
+                        offenders.append(f'{path.relative_to(settings.BASE_DIR)}:{number}')
+                        break
+                    index += 2
+        self.assertEqual(offenders, [])

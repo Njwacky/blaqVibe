@@ -1,8 +1,3 @@
-{# One "your websites" row in the Edit Profile editor.
-   Rendered once per existing/new formset form, and once inside the
-   inert <template> with __prefix__ placeholders for the JS "Add a
-   website" button — identical markup either way, so a row cloned in the
-   browser validates exactly like a row the server rendered. #}
 <div class="link-row" data-link-row>
   <div class="link-row-main">
     <div class="link-cell">
@@ -19,7 +14,6 @@
     </div>
     <button type="button" class="link-remove" data-link-remove title="Remove this link" aria-label="Remove this link">✕</button>
   </div>
-  {# Shown only when the status is Moved — the row must say where it went. #}
   <div class="link-cell link-cell--moved" data-link-moved-to-wrap {% if f.instance.status != 'moved' %}hidden{% endif %}>
     <label class="field-label" for="{{ f.moved_to.id_for_label }}">New address (where the site lives now)</label>
     {{ f.moved_to }}

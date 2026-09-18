@@ -4,7 +4,7 @@
 {% block content %}
 <div style="max-width:640px;margin:0 auto;padding:20px">
   <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">Edit Profile — @{{ user.username }}</h1>
-  <p style="color:var(--muted);font-size:13px">All fields sanitized backend (bleach), avatar validated (7MB, image/*). No secrets in JS.</p>
+  <p style="color:var(--muted);font-size:13px">What visitors see on your profile. Everything here is checked before it goes public — avatar up to 7MB.</p>
   <form method="post" enctype="multipart/form-data" class="card" style="margin-top:16px;display:grid;gap:12px;padding:16px">
     {% csrf_token %}
     {% if form.errors %}<div style="background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger-text);padding:10px;border-radius:10px;font-size:13px">{{ form.errors }}</div>{% endif %}
@@ -27,12 +27,6 @@
       {{ form.avatar }}
     </div>
 
-    {# ── YOUR WEBSITES — a row, not a field. As many as you want (12 max,
-          which is more than any honest builder needs), each with a display
-          name, a URL and a status light visitors see BEFORE they click:
-          ● green live · ● orange under maintenance · ● grey inactive ·
-          ⇗ moved (the chip points at the new address). Saved together with
-          the profile fields — either the whole page saves or nothing does. ── #}
     <div style="border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--surface-subtle,var(--bg))" id="website-links-card">
       <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
         <h2 style="font-size:14px;font-weight:700;margin:0">Your websites</h2>
@@ -46,8 +40,6 @@
         <button type="button" id="add-link-btn" class="btn-ghost">+ Add a website</button>
         <span style="font-size:11px;color:var(--muted)">Up to {{ link_formset.max_num }} links. Removed rows disappear on save.</span>
       </div>
-      {# Inert template: the browser never renders or submits it; the JS clones
-         it and swaps __prefix__ for the next free index. #}
       <template id="link-empty-template">{% include 'users/includes/link_row.html' with f=link_formset.empty_form %}</template>
       <div id="link-form-management" style="display:none">{{ link_formset.management_form }}</div>
     </div>
