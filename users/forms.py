@@ -16,6 +16,7 @@ from .models import (
     NAME_COLOR_LABELS,
     FooterContact,
     Profile,
+    ProfileLink,
     SiteSettings,
 )
 from .footer_contacts import normalize_value
@@ -80,6 +81,105 @@ class ProfileForm(forms.ModelForm):
             if content_type and not content_type.startswith('image/'):
                 raise forms.ValidationError("Only images")
         return f
+
+
+class ProfileLinkForm(forms.ModelForm):
+    """One row of the "your websites" editor on Edit Profile.
+
+    A link is a display name + URL + a status the builder controls:
+    Active (green dot), Under maintenance (orange), Inactive (grey) or
+    Moved — which re-points the chip at `moved_to` so the profile never
+    advertises a dead address. The same sanitising rules as every other
+    public surface apply: labels pass the public-language gate, URLs must
+    be real http(s) URLs (URLField refuses `javascript:` and friends).
+    """
+
+    class Meta:
+        model = ProfileLink
+        fields = ['label', 'url', 'status', 'moved_to']
+        labels = {
+            'label': 'Display name',
+            'url': 'URL',
+            'status': 'Status',
+            'moved_to': 'New address',
+        }
+        widgets = {
+            'label': forms.TextInput(attrs={
+                'placeholder': 'Portfolio, Blog, SaaS…',
+                'maxlength': 60,
+                'class': 'field-input link-input-label',
+            }),
+            'url': forms.URLInput(attrs={
+                'placeholder': 'https://your.site',
+                'class': 'field-input link-input-url',
+            }),
+            'status': forms.Select(attrs={
+                'class': 'field-input link-select-status',
+                'data-link-status': '1',
+            }),
+            'moved_to': forms.URLInput(attrs={
+                'placeholder': 'https://new-home.example',
+                'class': 'field-input link-input-moved-to',
+                'data-link-moved-to': '1',
+            }),
+        }
+
+    def clean_label(self):
+        label = bleach.clean(self.cleaned_data.get('label', ''), tags=[], strip=True)[:60].strip()
+        if not label:
+            # Empty rows are how the formset renders new slots — the row is
+            # simply not saved. An explicitly saved empty name, though, is a
+            # chip with no words on it; refuse it with a readable message.
+            raise forms.ValidationError('Give the link a display name.')
+        return validate_public_text(label)
+
+    def clean_url(self):
+        url = (self.cleaned_data.get('url') or '').strip()
+        if not url:
+            # An empty URL on a row that has a label would save a chip that
+            # goes nowhere — refuse; rows left entirely blank just don't save.
+            raise forms.ValidationError('Give the link a URL.')
+        return validate_public_text(url)
+
+    def clean_moved_to(self):
+        return validate_public_text((self.cleaned_data.get('moved_to') or '').strip())
+    # The moved-rules (a moved row needs a new address, different from the
+    # old URL) live in ProfileLink.clean() — one home for them, enforced in
+    # the formset via _post_clean AND in the admin, instead of duplicated
+    # (and double-reported) here.
+
+
+class BaseProfileLinkFormSet(forms.BaseModelFormSet):
+    """Model formset that stamps every new row with the owning profile.
+
+    A plain (non-inline) model formset does not know the parent FK, so
+    save_new would try to write a ProfileLink with no profile — NOT NULL.
+    The view passes `profile=` and every saved row lands on that profile,
+    whatever the POST tried to claim.
+    """
+
+    def __init__(self, *args, profile=None, **kwargs):
+        self.profile = profile
+        super().__init__(*args, **kwargs)
+
+    def save_new(self, form, commit=True):
+        obj = super().save_new(form, commit=False)
+        obj.profile = self.profile
+        if commit:
+            obj.save()
+        return obj
+
+
+ProfileLinkFormSet = modelformset_factory(
+    ProfileLink,
+    form=ProfileLinkForm,
+    formset=BaseProfileLinkFormSet,
+    extra=0,
+    can_delete=True,
+    max_num=ProfileLink.MAX_LINKS,
+    validate_max=True,
+)
+
 
 class FooterContactForm(forms.ModelForm):
     """One row of the footer contact editor: a kind, and the value for it.

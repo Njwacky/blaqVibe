@@ -28,7 +28,9 @@ Downstream of proof: **capabilities** derived from published work, **discovery**
 
 The primary navigation is **Projects · Discover · Skills · Challenges · Build**, and nothing else. Everything that is a utility — Saved, Inbox, Battle, Launch guides, Nolo, Trades, Sales, Settings, Admin — lives in the account menu, because the first thing anyone should see is what people are building.
 
-- **Projects** (`/`) — the feed of what builders published.
+- **Projects** (`/`) — the feed of what builders published. Its rails (the
+  trending strip and the Today loop) never repeat a card the grid already
+  shows: on a young catalog that used to list the same uploads twice.
 - **Discover** (`/discover/`) — what is happening: most remixed ideas, fastest-growing remix families, top remixers, builders gaining momentum.
 - **Skills** (`/skills/`) — Builder Skills: learn how other builders solve problems, with published projects as proof.
 - **Challenges** (`/challenges/`) — a concrete reason to build today.
@@ -178,6 +180,8 @@ Do not run this command automatically on every request. It is opt-in and does no
 
 The older `seed_demo` command remains a local development fixture for the existing starter catalogue. Use `seed_demo_content` for the production-safe showcase content described here.
 
+In dev posture, `seed_demo` also makes the operator account the **showcase profile**: the superadmin starts with a ledgered **100★ wallet**, and the flagship starter vibe (`SaaS Launch Hero Pro`, 100★ received) is theirs — which puts the profile at **Gold rank** with the gold avatar frame. It shows new builders what a complete profile looks like: proof of work, rank, wallet and website links. Forced (credential-free) seeds keep the catalog blaq-owned and wallets empty.
+
 The demo seed is intentionally blocked on public/production-style hosts. **Demo passwords are never documented in this repository**; use the environment variables and local provisioning commands described below.
 
 ## Admin provisioning
@@ -249,7 +253,29 @@ render `mailto:`, `tel:`, `wa.me`, the network named by the type, or a validated
 `http(s)` URL: a pasted `javascript:` URL is rejected on save, and is ignored
 even if a row bypasses the form.
 
+## Profile website links are rows, with status lights
+
+A builder is rarely one URL, so the profile carries a list of **website links**,
+each with a display name, a URL and a status the owner controls from
+`/settings/profile/` ("Your websites" — add as many as you like, up to 12):
+
+| Status | Visitors see | The chip points at |
+| --- | --- | --- |
+| **Active** | green dot | the URL |
+| **Under maintenance** | orange dot | the URL (with a warning in the tooltip) |
+| **Inactive** | grey dot, not clickable, name struck through | — (announced, not linked) |
+| **Moved** | violet ⇗ | the **new** address (`moved_to`) |
+
+This app is for developers who never publish anything: sites rot, move and go
+dark, and the status light lets a visitor know what they will find *before*
+they click. A moved row must state its new address (refused otherwise, and
+`moved_to` is wiped the moment the status leaves `moved`, so a stale redirect
+can never fire later). The rows save together with the profile fields — either
+the whole edit saves or nothing does. Labels pass the same public-language gate
+as every other public surface, and URLs must be real http(s) URLs.
+
 ## Tests and CI
+
 
 Run the Django suite locally with:
 

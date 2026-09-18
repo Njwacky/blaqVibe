@@ -491,6 +491,122 @@ class Profile(models.Model):
         """Theme classes: size, fx, rainbow, and the people-style flourish."""
         return self._composed_name_style()['classes']
 
+
+class ProfileLink(models.Model):
+    """One of a builder's own websites — a row, not a field.
+
+    5 Whys: why rows instead of the old single `Profile.website` field?
+    1. Why change it? One URLField could only ever hold one site. Builders
+       ship a portfolio, a blog, a SaaS, a lab — the profile must show all
+       of them, each with its own display name.
+    2. Why a status on the row? This app is for developers who never publish
+       anything: sites rot, move and go dark. A small traffic-light icon
+       (green = live, orange = under maintenance, grey = inactive) tells the
+       visitor what they will find BEFORE they click.
+    3. Why a `moved_to` column? When a site moves, the old address dies but
+       the audience does not. Marking the row `moved` re-points the chip at
+       the new address so the profile never advertises a dead link.
+    4. Why a position? The order of someone's links is a judgement call —
+       portfolio first, then blog — not alphabetical luck.
+    5. Why max 12? A profile is an identity card, not a link farm. 12 rows
+       is more than any honest builder needs and keeps the page (and bots)
+       honest. Enforced in the formset (validate_max) and clean() here.
+    """
+
+    STATUS_ACTIVE = 'active'
+    STATUS_MAINTENANCE = 'maintenance'
+    STATUS_INACTIVE = 'inactive'
+    STATUS_MOVED = 'moved'
+    STATUS_CHOICES = [
+        (STATUS_ACTIVE, 'Active'),
+        (STATUS_MAINTENANCE, 'Under maintenance'),
+        (STATUS_INACTIVE, 'Inactive'),
+        (STATUS_MOVED, 'Moved'),
+    ]
+    MAX_LINKS = 12
+
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='links')
+    label = models.CharField(max_length=60, help_text='Display name — e.g. Portfolio, Blog, Side project')
+    url = models.URLField(max_length=300)
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
+    moved_to = models.URLField(max_length=300, blank=True, help_text='Only for Moved — where the site lives now')
+    position = models.PositiveIntegerField(default=0, help_text='Lower shows first')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['position', 'id']
+        constraints = [
+            models.CheckConstraint(
+                check=~models.Q(label=''),
+                name='profilelink_label_nonempty',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.label} → {self.url} ({self.status})'
+
+    def clean(self):
+        # A "moved" row that does not say where it moved to would render a
+        # chip that lies twice (dead URL, no destination). Enforced here —
+        # not in the form — so admin and any future writer inherit it, and
+        # ModelForm surfaces it once through _post_clean.
+        if self.status == self.STATUS_MOVED and not (self.moved_to or '').strip():
+            raise ValidationError({'moved_to': 'A moved link needs its new address.'})
+        if self.status == self.STATUS_MOVED and (self.moved_to or '').strip() == (self.url or '').strip():
+            # "Moved" pointing at itself is not a move — the visitor clicks
+            # the chip and lands on the same dead page.
+            raise ValidationError({'moved_to': 'The new address must differ from the old URL.'})
+        # A status that is NOT moved must not keep a stale moved_to around —
+        # otherwise a later flip to active would silently redirect visitors.
+        if self.status != self.STATUS_MOVED:
+            self.moved_to = ''
+
+    def save(self, *args, **kwargs):
+        self.full_clean(exclude=['profile'])  # backstop: no writer can bypass clean()
+        super().save(*args, **kwargs)
+
+    # ── Read-side helpers the templates use ──
+    @property
+    def is_moved(self) -> bool:
+        return self.status == self.STATUS_MOVED
+
+    @property
+    def is_clickable(self) -> bool:
+        """Inactive sites are announced, not linked — the icon is grey."""
+        return self.status != self.STATUS_INACTIVE
+
+    @property
+    def href(self) -> str:
+        """Where the chip actually points: moved rows point at the new home."""
+        if self.is_moved and self.moved_to:
+            return self.moved_to
+        return self.url
+
+    @property
+    def dot_class(self) -> str:
+        """CSS modifier for the small status icon on the profile chip."""
+        return {
+            self.STATUS_ACTIVE: 'link-dot--active',
+            self.STATUS_MAINTENANCE: 'link-dot--maintenance',
+            self.STATUS_INACTIVE: 'link-dot--inactive',
+            self.STATUS_MOVED: 'link-dot--moved',
+        }.get(self.status, 'link-dot--inactive')
+
+    @property
+    def status_label(self) -> str:
+        return dict(self.STATUS_CHOICES).get(self.status, 'Inactive')
+
+    @property
+    def chip_class(self) -> str:
+        return {
+            self.STATUS_ACTIVE: 'profile-link--active',
+            self.STATUS_MAINTENANCE: 'profile-link--maintenance',
+            self.STATUS_INACTIVE: 'profile-link--inactive',
+            self.STATUS_MOVED: 'profile-link--moved',
+        }.get(self.status, 'profile-link--inactive')
+
+
 class SiteSettings(models.Model):
     """Singleton global settings managed through authenticated operator pages."""
     maintenance = models.BooleanField(default=False)

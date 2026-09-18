@@ -273,17 +273,24 @@ def _categories():
         cats[slug] = cat
     return cats
 
-def _seed_snippets(owner, cats):
+def _seed_snippets(owner, cats, superowner=None):
     created = 0
     for item in SNIPPETS:
         path = HTML_DIR / item['file']
         if not path.exists():
             continue
         html = _body_html(path)
+        # The flagship lands on the superadmin in dev posture: their profile
+        # is the showcase ("what it looks like to have it all"), and rank /
+        # stars-received count stars on published vibes — the operator
+        # account needs its own flagged vibe, not just a fat wallet.
+        as_flagship = superowner is not None and item['slug'] == FLAGSHIP_SLUG
+        this_owner = superowner if as_flagship else owner
+        this_stars = FLAGSHIP_STARS if as_flagship else item['stars']
         project, was_created = AppProject.objects.get_or_create(
             slug=item['slug'],
             defaults={
-                'owner': owner,
+                'owner': this_owner,
                 'title': item['title'],
                 'category': cats[item['cat']],
                 'short_description': item['short'],
@@ -293,7 +300,7 @@ def _seed_snippets(owner, cats):
                 'css_code': '/* Tailwind via CDN inside the sandboxed preview iframe. */',
                 'status': 'published',
                 'file_count': 1,
-                'stars': item['stars'],
+                'stars': this_stars,
                 'clones': item['clones'],
                 'language_stats': {'HTML': 80, 'CSS': 20},
             },
@@ -415,16 +422,56 @@ def _ensure_demo_staff():
     "admin login never works" ticket). Reached ONLY in dev posture
     (`seed_mode() == 'dev'`) — a known-password admin must never exist on a
     public host, not even with SEED_DEMO=1.
+
+    The superadmin starts with a full 100★ wallet: the account exists to
+    show what a complete BlaqVibes profile looks like, and the ledgered
+    grant (see _ensure_user) keeps sum(StarEvent) == stars_balance.
     """
     _ensure_user('blaq', DEMO_PASSWORD, stars=20, role='admin')
     _ensure_user('thando', MODERATOR_PASSWORD, stars=12, role='moderator')
-    _ensure_user('nolo.ai', DEMO_PASSWORD, stars=42, role='superadmin')
+    _ensure_user('nolo.ai', DEMO_PASSWORD, stars=100, role='superadmin')
     try:
         from users.provision import repair_createsuperuser_admin
         repair_createsuperuser_admin()
     except Exception:
         import logging
         logging.getLogger(__name__).exception('repair createsuperuser admin failed')
+
+
+# The superadmin's showcase vibe — the one flagged demo app that makes the
+# operator profile read "has it all": Gold rank (50★+ received), a ★100
+# wallet, proof of work. Stars received drive rank, so the showcase needs
+# its own published vibe, not a wallet top-up nobody's profile renders.
+FLAGSHIP_SLUG = 'saas-launch-hero-pro'
+FLAGSHIP_STARS = 100
+
+
+def _give_superadmin_the_flagship(superowner):
+    """Point the flagship demo vibe at the superadmin. Idempotent repair.
+
+    Fresh dev databases get the flagship created directly for the
+    superadmin (see _seed_snippets); databases seeded before this change
+    hold the flagship as blaq's — this re-flags it, tops the stars up to
+    FLAGSHIP_STARS and makes sure it is published. Safe to run on every
+    seed: when nothing is off, nothing is written.
+    """
+    try:
+        project = AppProject.objects.get(slug=FLAGSHIP_SLUG)
+    except AppProject.DoesNotExist:
+        return False
+    updates = []
+    if project.owner_id != superowner.pk:
+        project.owner = superowner
+        updates.append('owner')
+    if project.stars != FLAGSHIP_STARS:
+        project.stars = FLAGSHIP_STARS
+        updates.append('stars')
+    if project.status != 'published':
+        project.status = 'published'
+        updates.append('status')
+    if updates:
+        project.save(update_fields=updates)
+    return True
 
 def seed_mode():
     """'dev' | 'forced' | None — who may receive known-password fixtures.
@@ -462,10 +509,22 @@ def seed_demo():
     except Exception:
         import logging
         logging.getLogger(__name__).exception('env superadmin provision failed')
+    # Dev only: hand the flagship vibe to the superadmin so their profile is
+    # the showcase (Gold rank, ★100 received). Forced mode has no
+    # known-password operator account, so the catalog stays blaq-owned.
+    superowner = None
+    if dev:
+        from users.models import Profile
+        super_profile = (
+            Profile.objects.filter(role='superadmin').select_related('user').first()
+        )
+        superowner = super_profile.user if super_profile else None
     cats = _categories()
-    created = _seed_snippets(owner, cats)
+    created = _seed_snippets(owner, cats, superowner=superowner)
     created += _seed_zip_app(owner, cats)
     created += _seed_repo_zip_apps(owner, cats)
+    if superowner is not None:
+        _give_superadmin_the_flagship(superowner)
     # Label and score the demo catalog too. Why? A fresh install would
     # otherwise show every demo vibe as kind='other' with appeal 0, which
     # looks exactly like the discovery feature being broken. Heuristic only:
