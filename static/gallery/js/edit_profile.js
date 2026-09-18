@@ -74,3 +74,75 @@
     if (el) el.addEventListener('change', matchPersona);
   });
 })();
+
+/* ── "Your websites" editor (ProfileLink rows).
+   Why a cloned Django empty_form instead of hand-built HTML? A row cloned
+   from the server's own markup validates exactly like a row the server
+   rendered — no JS mirror of the widget tree to drift out of sync.
+   The <template> is inert: the browser never renders or submits it. ── */
+(function () {
+  const rowsBox = document.getElementById('link-rows');
+  const addBtn = document.getElementById('add-link-btn');
+  const tpl = document.getElementById('link-empty-template');
+  const mgmt = document.getElementById('link-form-management');
+  if (!rowsBox || !addBtn || !tpl || !mgmt) return;
+
+  const TOTAL = mgmt.querySelector('[name$="-TOTAL_FORMS"]');
+  const MAX = mgmt.querySelector('[name$="-MAX_NUM_FORMS"]');
+
+  // The "New address" box only exists when the status is Moved — a row
+  // that says "moved" without saying where is a chip that lies twice.
+  const syncMoved = (row) => {
+    const sel = row.querySelector('[data-link-status]');
+    const wrap = row.querySelector('[data-link-moved-to-wrap]');
+    if (sel && wrap) wrap.hidden = sel.value !== 'moved';
+  };
+
+  const wire = (row) => {
+    const sel = row.querySelector('[data-link-status]');
+    if (sel) sel.addEventListener('change', () => syncMoved(row));
+    const rm = row.querySelector('[data-link-remove]');
+    if (rm) {
+      rm.addEventListener('click', () => {
+        // Saved row → tick its hidden DELETE and hide it (the formset does
+        // the deleting on save). Unsaved row → blank + lift it out of the
+        // DOM; a blank extra form is ignored by Django's formset, and
+        // TOTAL_FORMS must NOT shrink or the indexes after it would shift.
+        const del = row.querySelector('input[name$="-DELETE"]');
+        if (del) {
+          del.checked = true;
+          row.style.display = 'none';
+        } else {
+          row.querySelectorAll('input[type="text"], input[type="url"]').forEach((i) => (i.value = ''));
+          row.querySelectorAll('select').forEach((s) => (s.value = s.options[0].value));
+          row.remove();
+        }
+        addBtn.disabled = false;
+      });
+    }
+    syncMoved(row);
+  };
+
+  rowsBox.querySelectorAll('[data-link-row]').forEach(wire);
+
+  addBtn.addEventListener('click', () => {
+    const count = parseInt(TOTAL.value, 10) || 0;
+    const max = parseInt(MAX && MAX.value, 10) || 12;
+    if (count >= max) {
+      addBtn.disabled = true;
+      return;
+    }
+    // Clone the inert empty_form and swap __prefix__ for the next index —
+    // names AND ids, so labels keep working on the fresh row.
+    const holder = document.createElement('div');
+    holder.innerHTML = tpl.innerHTML.split('__prefix__').join(String(count));
+    const row = holder.firstElementChild;
+    if (!row) return;
+    rowsBox.appendChild(row);
+    TOTAL.value = String(count + 1);
+    if (count + 1 >= max) addBtn.disabled = true;
+    wire(row);
+    const firstInput = row.querySelector('input[type="text"]');
+    if (firstInput) firstInput.focus();
+  });
+})();

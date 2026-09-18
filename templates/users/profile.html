@@ -123,7 +123,23 @@
           ><span aria-hidden="true">↗</span
           ><span>{{ profile.website|slice:":28" }}</span></a
         >
-        {% endif %} {% if profile.github %}
+        {% endif %}{% for link in profile.links.all %}{% if link.is_clickable %}
+        <a
+          class="profile-social-chip profile-link-chip {{ link.chip_class }}"
+          href="{{ link.href }}"
+          target="_blank"
+          rel="noopener nofollow"
+          title="{% if link.is_moved %}{{ link.label }} has moved — now at {{ link.moved_to }}{% elif link.status == 'maintenance' %}{{ link.label }} — under maintenance, back soon{% else %}{{ link.label }} — live: {{ link.url }}{% endif %}"
+          >{% if link.is_moved %}<span class="link-moved-glyph" aria-hidden="true">⇗</span>{% else %}<span class="link-dot {{ link.dot_class }}" aria-hidden="true"></span>{% endif %}<span>{{ link.label }}</span></a
+        >
+        {% else %}
+        <span
+          class="profile-social-chip profile-link-chip {{ link.chip_class }}"
+          title="{{ link.label }} — inactive right now"
+          ><span class="link-dot {{ link.dot_class }}" aria-hidden="true"></span
+          ><span>{{ link.label }}</span></span
+        >
+        {% endif %}{% endfor %} {% if profile.github %}
         <a
           class="profile-social-chip"
           href="https://github.com/{{ profile.github }}"

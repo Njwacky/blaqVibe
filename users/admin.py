@@ -6,21 +6,49 @@ from .models import (
     FeedbackThread,
     FooterContact,
     Profile,
+    ProfileLink,
     QuarantineAppeal,
     RuleViolation,
     StarEvent,
     UserQuarantine,
 )
 
+class ProfileLinkInline(admin.TabularInline):
+    """A builder's website rows, editable straight from their Profile page.
+
+    The same ProfileLink.clean() gates run here as on the public editor —
+    a moved row without a new address cannot be saved from either place.
+    """
+
+    model = ProfileLink
+    extra = 0
+    max_num = ProfileLink.MAX_LINKS
+    fields = ('label', 'url', 'status', 'moved_to', 'position')
+
 @admin.register(Profile)
 class ProfileAdmin(admin.ModelAdmin):
     list_display = ('user', 'role', 'stars_balance', 'is_pro', 'email_verified', 'created_at')
     list_filter = ('role', 'is_pro', 'email_verified')
     search_fields = ('user__username', 'user__email', 'website', 'github', 'twitter', 'canvas_url')
+    inlines = [ProfileLinkInline]
     # The wallet is moved by ledgered code paths only. Editing the integer
     # here would desync it from StarEvent — use a StarEvent('admin_adjust')
     # via the ledger instead.
     readonly_fields = ('stars_balance',)
+
+@admin.register(ProfileLink)
+class ProfileLinkAdmin(admin.ModelAdmin):
+    """Every member website row, with its status light — for moderation.
+
+    Green/amber/grey/⇗ lives on the row, so an operator can answer "is this
+    member's site up?" without leaving the admin.
+    """
+
+    list_display = ('label', 'profile', 'url', 'status', 'moved_to', 'position')
+    list_filter = ('status',)
+    search_fields = ('label', 'url', 'moved_to', 'profile__user__username')
+    autocomplete_fields = ('profile',)
+
 
 @admin.register(StarEvent)
 class StarEventAdmin(admin.ModelAdmin):

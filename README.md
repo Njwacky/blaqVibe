@@ -249,7 +249,29 @@ render `mailto:`, `tel:`, `wa.me`, the network named by the type, or a validated
 `http(s)` URL: a pasted `javascript:` URL is rejected on save, and is ignored
 even if a row bypasses the form.
 
+## Profile website links are rows, with status lights
+
+A builder is rarely one URL, so the profile carries a list of **website links**,
+each with a display name, a URL and a status the owner controls from
+`/settings/profile/` ("Your websites" — add as many as you like, up to 12):
+
+| Status | Visitors see | The chip points at |
+| --- | --- | --- |
+| **Active** | green dot | the URL |
+| **Under maintenance** | orange dot | the URL (with a warning in the tooltip) |
+| **Inactive** | grey dot, not clickable, name struck through | — (announced, not linked) |
+| **Moved** | violet ⇗ | the **new** address (`moved_to`) |
+
+This app is for developers who never publish anything: sites rot, move and go
+dark, and the status light lets a visitor know what they will find *before*
+they click. A moved row must state its new address (refused otherwise, and
+`moved_to` is wiped the moment the status leaves `moved`, so a stale redirect
+can never fire later). The rows save together with the profile fields — either
+the whole edit saves or nothing does. Labels pass the same public-language gate
+as every other public surface, and URLs must be real http(s) URLs.
+
 ## Tests and CI
+
 
 Run the Django suite locally with:
 

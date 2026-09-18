@@ -25,7 +25,14 @@ from .models import (
     name_style_preview_maps,
 )
 from .decorators import not_quarantined
-from .forms import ChangeEmailForm, NameStyleForm, ProfileForm, RenameForm, TipForm
+from .forms import (
+    ChangeEmailForm,
+    NameStyleForm,
+    ProfileForm,
+    ProfileLinkFormSet,
+    RenameForm,
+    TipForm,
+)
 from .security import revoke_user_sessions
 from .social import social_connection_context
 from .rename import (
@@ -263,18 +270,32 @@ def proof_cv_view(request, username):
 @login_required
 def edit_profile(request):
     profile, _ = Profile.objects.get_or_create(user=request.user)
+    # The "your websites" rows are edited on the same page as the profile
+    # fields and saved together: either both forms are valid (save both)
+    # or neither saves (re-render with both errors). Two independent saves
+    # would let a bad link row eat the bio edit or the reverse.
     if request.method == 'POST':
         form = ProfileForm(request.POST, request.FILES, instance=profile)
-        if form.is_valid():
+        link_formset = ProfileLinkFormSet(
+            request.POST, queryset=profile.links.all(), prefix='links', profile=profile,
+        )
+        form_valid = form.is_valid()
+        links_valid = link_formset.is_valid()
+        if form_valid and links_valid:
             form.save()
+            link_formset.save()
             messages.success(request, "✓ Profile updated — no sensitive info leaked, all backend sanitized.")
             return redirect('profile_view', username=request.user.username)
         # A refused bio/name is a rule breach like any other: recorded, and
         # the author is told what it means (30-day hold + how to appeal).
         from .quarantine import note_blocked_language
-        note_blocked_language(request, surface='profile', form=form)
+        if not form_valid:
+            note_blocked_language(request, surface='profile', form=form)
     else:
         form = ProfileForm(instance=profile)
+        link_formset = ProfileLinkFormSet(
+            queryset=profile.links.all(), prefix='links', profile=profile,
+        )
     # Identity panel (moved here from Settings — "my profile" is where a
     # member edits their name): the rename card and the name-style picker.
     # Everything the PUBG-rule panels need to explain themselves;
@@ -293,6 +314,7 @@ def edit_profile(request):
     # data, not code: no secrets, no user input, and json_script escapes it.
     return render(request, 'users/edit_profile.html', {
         'form': form,
+        'link_formset': link_formset,
         'profile': profile,
         'style_form': style_form,
         'name_style_maps': name_style_preview_maps(),

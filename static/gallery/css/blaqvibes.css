@@ -1123,3 +1123,37 @@ html { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 3
 @media (prefers-reduced-motion:reduce){
   .bv-fab{animation:none;box-shadow:0 0 22px rgba(124,58,237,.75),0 10px 30px rgba(0,0,0,.35)}
 }
+
+/* ── Profile website links (ProfileLink) — status lights visitors read
+   BEFORE they click: green live, orange under maintenance, grey inactive,
+   ⇗ moved (chip points at the new address). Traffic-light colours are
+   fixed (not theme vars) because red/amber/green is the one palette that
+   must mean the same thing in both themes. ── */
+.link-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  display: inline-block; flex-shrink: 0;
+}
+.link-dot--active { background: #22c55e; box-shadow: 0 0 6px rgba(34,197,94,.65); }
+.link-dot--maintenance { background: #f59e0b; box-shadow: 0 0 6px rgba(245,158,11,.55); }
+.link-dot--inactive { background: #9a9aaf; }
+.link-moved-glyph { color: var(--violet); font-weight: 800; font-size: 12px; line-height: 1; flex-shrink: 0; }
+a.profile-link-chip--maintenance { border-color: color-mix(in srgb, #f59e0b 45%, var(--line)); }
+.profile-link-chip--inactive { opacity: .62; }
+.profile-link-chip--inactive span:last-child { text-decoration: line-through; text-decoration-thickness: 1px; }
+
+/* ── Edit Profile — the "Your websites" rows ── */
+.link-row { border: 1px solid var(--line); border-radius: 10px; padding: 10px; background: var(--card); }
+.link-row-main { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(180px, 1.6fr) minmax(130px, .9fr) auto; gap: 8px; align-items: start; }
+.link-cell--moved { grid-column: 1 / -1; margin-top: 8px; }
+.link-remove {
+  margin-top: 21px; width: 30px; height: 30px; flex-shrink: 0;
+  border: 1px solid var(--line); border-radius: 8px; background: transparent;
+  color: var(--muted); cursor: pointer; font-size: 13px; line-height: 1;
+}
+.link-remove:hover { border-color: var(--danger-border, #B91C1C); color: var(--danger-text, #FECACA); background: var(--danger-bg, rgba(185,28,28,.12)); }
+.link-row-errors { margin-top: 6px; font-size: 12px; color: var(--danger-text); }
+@media (max-width: 640px) {
+  .link-row-main { grid-template-columns: 1fr 1fr; }
+  .link-cell--status { grid-column: 1; }
+  .link-remove { margin-top: 0; }
+}
