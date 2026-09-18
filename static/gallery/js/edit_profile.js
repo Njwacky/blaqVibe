@@ -1,8 +1,5 @@
-/* Edit Profile — live name-style preview.
-   The maps come from the SERVER whitelists via json_script
-   (#name-style-maps), so the preview can never show a style the renderer
-   would refuse. 5 Whys: why preview with the real maps? A preview that lies
-   (hand-written JS mirrors) sells a 20★ style that saves differently. */
+/* Edit Profile — live name-style preview, driven by the server's own style
+   maps (#name-style-maps) so the preview always matches what saves. */
 (function () {
   const mapsEl = document.getElementById('name-style-maps');
   const preview = document.getElementById('name-style-preview');
@@ -75,11 +72,8 @@
   });
 })();
 
-/* ── "Your websites" editor (ProfileLink rows).
-   Why a cloned Django empty_form instead of hand-built HTML? A row cloned
-   from the server's own markup validates exactly like a row the server
-   rendered — no JS mirror of the widget tree to drift out of sync.
-   The <template> is inert: the browser never renders or submits it. ── */
+/* "Your websites" editor — new rows are cloned from the server-rendered
+   empty form, so they validate exactly like the existing rows. */
 (function () {
   const rowsBox = document.getElementById('link-rows');
   const addBtn = document.getElementById('add-link-btn');
@@ -90,8 +84,7 @@
   const TOTAL = mgmt.querySelector('[name$="-TOTAL_FORMS"]');
   const MAX = mgmt.querySelector('[name$="-MAX_NUM_FORMS"]');
 
-  // The "New address" box only exists when the status is Moved — a row
-  // that says "moved" without saying where is a chip that lies twice.
+  // The "New address" box only appears when the status is Moved.
   const syncMoved = (row) => {
     const sel = row.querySelector('[data-link-status]');
     const wrap = row.querySelector('[data-link-moved-to-wrap]');
@@ -104,10 +97,8 @@
     const rm = row.querySelector('[data-link-remove]');
     if (rm) {
       rm.addEventListener('click', () => {
-        // Saved row → tick its hidden DELETE and hide it (the formset does
-        // the deleting on save). Unsaved row → blank + lift it out of the
-        // DOM; a blank extra form is ignored by Django's formset, and
-        // TOTAL_FORMS must NOT shrink or the indexes after it would shift.
+        // Saved row: tick its hidden DELETE. New row: blank it and drop it
+        // from the DOM. TOTAL_FORMS must not shrink or the indexes shift.
         const del = row.querySelector('input[name$="-DELETE"]');
         if (del) {
           del.checked = true;
@@ -132,8 +123,7 @@
       addBtn.disabled = true;
       return;
     }
-    // Clone the inert empty_form and swap __prefix__ for the next index —
-    // names AND ids, so labels keep working on the fresh row.
+    // Swap __prefix__ for the next free index (names and ids).
     const holder = document.createElement('div');
     holder.innerHTML = tpl.innerHTML.split('__prefix__').join(String(count));
     const row = holder.firstElementChild;
