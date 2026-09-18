@@ -12,7 +12,14 @@ def today_loop(context):
     if not user or not user.is_authenticated:
         return {'today_enabled': False}
 
-    cache_key = f'blaqvibes:today:v4:{user.pk}'
+    # The loop renders above the feed grid, so a vibe already on the grid
+    # must never appear here too — on a small catalog that used to list the
+    # same uploads twice ("why is every app on this page two times?").
+    # Pages without a grid (the tag is feed-only today) keep the old shape.
+    page = context.get('page')
+    grid_ids = {p.id for p in getattr(page, 'object_list', None) or []}
+
+    cache_key = f'blaqvibes:today:v5:{user.pk}'
     cached = cache.get(cache_key)
     if cached is not None:
         return cached
@@ -35,12 +42,16 @@ def today_loop(context):
     try:
         from gallery.models import AppProject, Notification
 
-        data['my_next_vibe'] = (
+        my_next = (
             AppProject.objects.filter(owner=user, status='published')
             .only('id', 'title', 'slug', 'stars', 'updated_at')
             .order_by('-updated_at')
             .first()
         )
+        # "Your latest" is a nudge, not a second card: when the grid below
+        # already shows that vibe, keep the page free of the repeat.
+        if my_next is not None and my_next.id not in grid_ids:
+            data['my_next_vibe'] = my_next
 
         data['unread_notifications'] = Notification.objects.filter(
             user=user, is_read=False
@@ -56,35 +67,43 @@ def today_loop(context):
         )
         if followed_ids:
             from gallery.models import AppProject
-            data['following_vibes'] = list(
+            followed_qs = (
                 AppProject.objects.filter(
                     owner_id__in=followed_ids, status='published'
                 )
                 .select_related('owner')
                 .only('id', 'title', 'slug', 'stars', 'created_at', 'owner__username')
-                .order_by('-created_at')[:3]
+                .order_by('-created_at')
             )
+            if grid_ids:
+                followed_qs = followed_qs.exclude(id__in=grid_ids)
+            data['following_vibes'] = list(followed_qs[:3])
     except Exception:
         pass
 
     try:
         from gallery.models import AppProject
-        data['discovery_vibes'] = list(
+        discovery_qs = (
             AppProject.objects.filter(status='published')
             .exclude(owner=user)
             .select_related('owner')
             .only('id', 'title', 'slug', 'stars', 'created_at', 'owner__username')
-            .order_by('-created_at')[:5]
+            .order_by('-created_at')
         )
+        if grid_ids:
+            discovery_qs = discovery_qs.exclude(id__in=grid_ids)
+        data['discovery_vibes'] = list(discovery_qs[:5])
         data['next_remix'] = data['discovery_vibes'][0] if data['discovery_vibes'] else None
-        data['next_review'] = (
+        next_review_qs = (
             AppProject.objects.filter(status='published', review_count=0)
             .exclude(owner=user)
             .select_related('owner')
             .only('id', 'title', 'slug', 'stars', 'created_at', 'owner__username')
             .order_by('-created_at')
-            .first()
         )
+        if grid_ids:
+            next_review_qs = next_review_qs.exclude(id__in=grid_ids)
+        data['next_review'] = next_review_qs.first()
     except Exception:
         pass
 

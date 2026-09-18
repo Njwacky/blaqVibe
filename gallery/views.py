@@ -256,8 +256,12 @@ def feed(request):
                 from . import trending
                 from .daily import today_challenge
                 exclude_owner = request.user if request.user.is_authenticated else None
+                # The rail deduplicates against the grid below it: a vibe on
+                # this page must not appear in the rail too — on a small
+                # catalog that used to list every app twice.
+                grid_ids = [p.id for p in page.object_list]
                 ctx['trending'], ctx['trending_is_hot'] = trending.trending_vibes(
-                    limit=6, exclude_owner=exclude_owner)
+                    limit=6, exclude_owner=exclude_owner, exclude_ids=grid_ids)
                 ctx['rising_creators'] = trending.rising_creators(
                     limit=4, exclude_user=request.user if request.user.is_authenticated else None)
                 ctx['recent_remixes'] = trending.recent_remixes(limit=4)

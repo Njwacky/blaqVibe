@@ -28,7 +28,9 @@ Downstream of proof: **capabilities** derived from published work, **discovery**
 
 The primary navigation is **Projects · Discover · Skills · Challenges · Build**, and nothing else. Everything that is a utility — Saved, Inbox, Battle, Launch guides, Nolo, Trades, Sales, Settings, Admin — lives in the account menu, because the first thing anyone should see is what people are building.
 
-- **Projects** (`/`) — the feed of what builders published.
+- **Projects** (`/`) — the feed of what builders published. Its rails (the
+  trending strip and the Today loop) never repeat a card the grid already
+  shows: on a young catalog that used to list the same uploads twice.
 - **Discover** (`/discover/`) — what is happening: most remixed ideas, fastest-growing remix families, top remixers, builders gaining momentum.
 - **Skills** (`/skills/`) — Builder Skills: learn how other builders solve problems, with published projects as proof.
 - **Challenges** (`/challenges/`) — a concrete reason to build today.
@@ -177,6 +179,8 @@ python manage.py migrate && python manage.py seed_demo_content && gunicorn blaqv
 Do not run this command automatically on every request. It is opt-in and does not add a public seed URL. To remove showcase content, review the stable `demo_` usernames, `demo-` project slugs, `demo-` skill slugs and challenge tags in the database, then delete only those records through an authenticated admin/database maintenance procedure; the command itself never deletes anything.
 
 The older `seed_demo` command remains a local development fixture for the existing starter catalogue. Use `seed_demo_content` for the production-safe showcase content described here.
+
+In dev posture, `seed_demo` also makes the operator account the **showcase profile**: the superadmin starts with a ledgered **100★ wallet**, and the flagship starter vibe (`SaaS Launch Hero Pro`, 100★ received) is theirs — which puts the profile at **Gold rank** with the gold avatar frame. It shows new builders what a complete profile looks like: proof of work, rank, wallet and website links. Forced (credential-free) seeds keep the catalog blaq-owned and wallets empty.
 
 The demo seed is intentionally blocked on public/production-style hosts. **Demo passwords are never documented in this repository**; use the environment variables and local provisioning commands described below.
 
