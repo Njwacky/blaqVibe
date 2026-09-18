@@ -74,12 +74,18 @@ class ZipUploadNotificationTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 302)
+        # The ZIP fan-out moved to the unified approval notification
+        # (admin_notifications.notify_admins_pending_project): every
+        # moderator-bearing staff member gets kind='approval' with the
+        # 'Pending approval:' title, linking to the moderation queue.
+        # The old kind='upload' / 'New ZIP upload:' pair only fires in the
+        # in-app fallback when the fan-out itself raises.
         for staff in (self.mod, self.admin, self.superadmin):
             self.assertTrue(
-                Notification.objects.filter(user=staff, kind='upload', title='New ZIP upload: Queued ZIP').exists(),
+                Notification.objects.filter(user=staff, kind='approval', title='Pending approval: Queued ZIP').exists(),
                 f'{staff.username} should be notified about the ZIP upload.',
             )
-        self.assertFalse(Notification.objects.filter(user=self.viewer, kind='upload').exists())
+        self.assertFalse(Notification.objects.filter(user=self.viewer, kind='approval').exists())
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
 class ReportCreationTests(TestCase):

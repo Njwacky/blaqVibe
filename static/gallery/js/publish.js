@@ -96,4 +96,11 @@ if (form) {
     xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
     xhr.send(new FormData(form));
   });
+  // A back/forward-cache restore can bring this page back with the submit
+  // button still locked from the previous attempt ("Publishing…"). Unlock it:
+  // the server now de-dupes the resubmit by token, so trying again is safe.
+  window.addEventListener('pageshow', function () {
+    const btn = form.querySelector('.pub-submit');
+    if (btn) { btn.disabled = false; btn.textContent = 'Publish project'; }
+  });
 }

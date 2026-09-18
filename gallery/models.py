@@ -105,6 +105,14 @@ class AppProject(models.Model):
     thumbnail = models.ImageField(upload_to='thumbnails/', blank=True, null=True)
     file_tree = models.JSONField(default=dict, blank=True)
     file_count = models.PositiveIntegerField(default=0)
+    # Idempotency key for the ONE publish path. The form carries a fresh
+    # token per render; a repeat POST of the same body (double-tap, XHR
+    # retry after a lost response, back-button resubmit) resolves to the
+    # project this token already created instead of a second feed row.
+    publish_token = models.CharField(
+        max_length=64, blank=True, default='', db_index=True,
+        help_text='Submission id of the publish request that created this row.',
+    )
     language_stats = models.JSONField(default=dict, blank=True)  # {'Python':68,'JavaScript':22}
     star_cost = models.PositiveIntegerField(
         default=0,
