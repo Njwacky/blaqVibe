@@ -13,7 +13,9 @@
         <div>
           <div style="font-size:20px;font-weight:800">Nolo Chat</div>
           <div style="font-size:13px;color:var(--muted);margin-top:4px">Ask questions about apps, templates, new releases, or compare vibes in one place.
-            {% if nolo_backend == 'claude' %}Answers come from Claude (ANTHROPIC_API_KEY).
+            {% if nolo_backend == 'openrouter' %}Answers come from OpenRouter (OPENROUTER_API_KEY).
+            {% elif nolo_backend == 'openai' %}Answers come from OpenAI (OPENAI_API_KEY).
+            {% elif nolo_backend == 'claude' %}Answers come from Claude (ANTHROPIC_API_KEY).
             {% elif nolo_backend == 'gemini' %}Answers come from Gemini.
             {% elif nolo_backend == 'groq' %}Answers come from Groq.
             {% else %}No AI key is set — this is a short built-in helper, not a live Claude/Gemini model.{% endif %}

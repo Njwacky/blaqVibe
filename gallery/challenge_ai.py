@@ -45,8 +45,19 @@ def is_duplicate(new_title, past_titles, cutoff=0.7):
     except Exception:
         return False
 
+def _collect_candidates(txt, past_titles, candidates, n):
+    """Parse a JSON array of challenge ideas out of model text into `candidates`."""
+    m = re.search(r'\[.*\]', txt or '', re.DOTALL)
+    if not m:
+        return
+    data = json.loads(m.group(0))
+    for item in data[:n]:
+        title = item.get('title','').strip()
+        if title and not is_duplicate(title, past_titles + [c['title'] for c in candidates]):
+            candidates.append({"title": title, "description": item.get('description','')[:200], "bounty_stars": 10, "tag": item.get('tag', f"challenge-week-{len(past_titles)+len(candidates)+13}")})
+
 def generate_challenge_candidates(past_titles, n=3):
-    """Try Gemini, then Groq, then fallback list — backend only, crush silently."""
+    """Try OpenRouter/OpenAI, then Gemini, then Groq, then fallback list — backend only, crush silently."""
     candidates = []
     prompt_base = f"""You are BlaqVibes challenge maker for Durban vibe coders.
 Past challenges (do NOT repeat, must be different): {past_titles}
@@ -60,6 +71,18 @@ Generate {n} NEW challenges. Each must be:
 Return ONLY JSON array: [{{"title":"...", "description":"...", "bounty_stars":10, "tag":"challenge-week-13"}}]
 Make them different from past and from each other.
 """
+    # 1. First preference: OpenRouter / OpenAI
+    from .ai_providers import openai_compatible_text, preferred_backend
+    preferred = preferred_backend()
+    if preferred:
+        try:
+            txt = openai_compatible_text(prompt_base, max_output_tokens=600, temperature=0.7)
+            _collect_candidates(txt, past_titles, candidates, n)
+            if len(candidates) >= n:
+                return candidates[:n]
+        except Exception as e:
+            logger.warning(f"{preferred} challenge gen failed: {e}")
+
     # Try Gemini
     gemini_key = _env("GEMINI_API_KEY")
     if gemini_key:
