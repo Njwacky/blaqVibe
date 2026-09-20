@@ -2,14 +2,19 @@
 
 Nolo chat has no database access of its own. The only dynamic context it
 receives is built here, and it is deliberately the same information the
-public chat page already shows to a logged-out visitor: recent *published*
-vibes (title, public URL, category) and the category list.
+public chat page already shows to a logged-out visitor: the published-vibe
+count (so "how many vibes are published?" gets the real number), the recent
+*published* vibes (title, public URL, category) and the category list.
 
 Never add to this module anything a logged-out visitor cannot see on the
 site — no owners' emails, no pending/quarantined/removed projects, no
 balances, trades, sales or notifications. `test_nolo_scope.py` pins that.
 """
 import logging
+
+from datetime import timedelta
+
+from django.utils import timezone
 
 logger = logging.getLogger(__name__)
 
@@ -38,13 +43,19 @@ def public_chat_context(limit=8, max_chars=900):
     """Compact, public-only context for a Nolo chat turn ('' on any error).
 
     Only ``status='published'`` projects are ever listed — the same filter
-    the chat page uses for its "latest vibes" strip.
+    the chat page uses for its "latest vibes" strip. The stats line comes
+    first so a data question ("how many vibes are published?") keeps its
+    answer even when truncation cuts the tail.
     """
     try:
         from .models import AppProject, Category
+        published = AppProject.objects.filter(status='published')
+        total_published = published.count()
+        week_ago = timezone.now() - timedelta(days=7)
+        fresh_published = published.filter(created_at__gte=week_ago).count()
+        stats = f'Published vibes: {total_published} total, {fresh_published} in the last 7 days.'
         recent = (
-            AppProject.objects.filter(status='published')
-            .select_related('category')
+            published.select_related('category')
             .order_by('-created_at')[: max(1, int(limit))]
         )
         lines = []
@@ -61,7 +72,7 @@ def public_chat_context(limit=8, max_chars=900):
         logger.warning('nolo public context unavailable: %s', exc)
         return ''
 
-    parts = []
+    parts = [stats]
     if lines:
         parts.append('Latest published vibes:\n' + '\n'.join(lines))
     if categories:
