@@ -1,6 +1,10 @@
 from django.urls import path
 from . import views, admin_views, quarantine_views, feedback as feedback_views
+from . import welcome_views
 urlpatterns = [
+    # First-time welcome overlay (users/welcome.py). One write endpoint:
+    # `/welcome/seen` records that the account has answered the overlay.
+    path('welcome/seen', welcome_views.welcome_seen, name='welcome_seen'),
     path('u/<str:username>/proof/', views.proof_cv_view, name='proof_cv'),
     path('u/<str:username>/', views.profile_view, name='profile_view'),
     path('settings/', views.settings_view, name='settings'),
