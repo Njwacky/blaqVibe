@@ -4,6 +4,7 @@ import { execFile } from 'child_process';
 import { readdir, readFile, stat } from 'fs/promises';
 import { join, relative, resolve } from 'path';
 import { promisify } from 'util';
+import { guardPath, isProtectedPath, workspaceRoot } from './guard.js';
 
 const execFileAsync = promisify(execFile);
 const MAX_RESULTS = 100;
@@ -37,11 +38,17 @@ async function grepWithRipgrep(pattern: string, path: string, fileGlob?: string,
     throw new Error(err.stderr?.toString().trim() || err.message);
   }
   const matches: Match[] = [];
+  const skipped = new Set<string>();
   for (const line of stdout.split('\n')) {
     if (!line) continue;
     const m = line.match(/^(.*?):(\d+):(.*)$/);
     if (!m) continue;
-    matches.push({ file: relative(process.cwd(), m[1]) || m[1], line: Number(m[2]), content: m[3].trimEnd() });
+    if (skipped.has(m[1])) continue;
+    if (isProtectedPath(m[1])) {
+      skipped.add(m[1]);
+      continue;
+    }
+    matches.push({ file: relative(workspaceRoot(), resolve(m[1])) || m[1], line: Number(m[2]), content: m[3].trimEnd() });
     if (matches.length >= MAX_RESULTS + 1) break;
   }
   return matches;
@@ -73,7 +80,7 @@ async function grepWithNode(pattern: string, path: string, fileGlob?: string, ig
     const lines = text.split('\n');
     for (let i = 0; i < lines.length && matches.length <= MAX_RESULTS; i++) {
       if (re.test(lines[i])) {
-        matches.push({ file: relative(process.cwd(), file) || file, line: i + 1, content: lines[i].slice(0, 400).trimEnd() });
+        matches.push({ file: relative(workspaceRoot(), file) || file, line: i + 1, content: lines[i].slice(0, 400).trimEnd() });
       }
     }
   }
@@ -89,6 +96,7 @@ async function grepWithNode(pattern: string, path: string, fileGlob?: string, ig
     for (const entry of entries) {
       if (matches.length > MAX_RESULTS) return;
       const full = join(dir, entry.name);
+      if (isProtectedPath(full)) continue;
       if (entry.isDirectory()) {
         if (!SKIP_DIRS.has(entry.name)) await walk(full);
       } else if (entry.isFile()) {
@@ -105,15 +113,17 @@ async function grepWithNode(pattern: string, path: string, fileGlob?: string, ig
 
 export const grepTool = tool({
   name: 'grep',
-  description: 'Search file contents with a regular expression. Uses ripgrep when available. Returns up to 100 matches as file:line:content.',
+  description: 'Search file contents inside the BlaqVibes workspace with a regular expression. Uses ripgrep when available. Returns up to 100 matches as file:line:content; protected files are skipped.',
   inputSchema: z.object({
     pattern: z.string().describe('Regex pattern to search for'),
-    path: z.string().optional().describe('Directory or file to search (default: working directory)'),
+    path: z.string().optional().describe('Directory or file to search, relative to the workspace root (default: the root)'),
     glob: z.string().optional().describe('File filter, e.g. "*.py" or "templates/**/*.html"'),
     ignoreCase: z.boolean().optional().describe('Case-insensitive search'),
   }),
   execute: async ({ pattern, path, glob: fileGlob, ignoreCase }) => {
-    const abs = resolve(path ?? process.cwd());
+    const check = guardPath(path ?? '.', 'read');
+    if (!check.ok) return { error: check.error };
+    const abs = check.abs;
     try {
       const matches = (await hasRipgrep())
         ? await grepWithRipgrep(pattern, abs, fileGlob, ignoreCase)

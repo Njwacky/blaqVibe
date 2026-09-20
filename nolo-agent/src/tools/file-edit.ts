@@ -1,7 +1,7 @@
 import { tool } from '@openrouter/agent/tool';
 import { z } from 'zod';
 import { readFile, writeFile } from 'fs/promises';
-import { resolve } from 'path';
+import { guardPath } from './guard.js';
 import { writeNeedsApproval } from './policy.js';
 
 const CONTEXT_LINES = 3;
@@ -56,7 +56,7 @@ export const fileEditTool = tool({
   description:
     'Apply one or more exact search-and-replace edits to a file. Each old_text must appear exactly once in the file (include enough surrounding lines to make it unique). Returns a unified diff of what changed.',
   inputSchema: z.object({
-    path: z.string().describe('Path to the file (absolute, or relative to the working directory)'),
+    path: z.string().describe('Path to the file, relative to the workspace root'),
     edits: z
       .array(
         z.object({
@@ -67,9 +67,11 @@ export const fileEditTool = tool({
       .min(1)
       .describe('Edits applied in order'),
   }),
-  requireApproval: ({ path }) => writeNeedsApproval(path),
+  requireApproval: ({ path }) => guardPath(path, 'write').ok && writeNeedsApproval(path),
   execute: async ({ path, edits }) => {
-    const abs = resolve(path);
+    const check = guardPath(path, 'write');
+    if (!check.ok) return { error: check.error };
+    const abs = check.abs;
     let content: string;
     try {
       content = await readFile(abs, 'utf-8');
@@ -105,7 +107,7 @@ export const fileEditTool = tool({
       edited: true,
       path: abs,
       edits: edits.length,
-      diff: [`--- a/${path}`, `+++ b/${path}`, ...hunks].join('\n'),
+      diff: [`--- a/${check.rel}`, `+++ b/${check.rel}`, ...hunks].join('\n'),
     };
   },
 });

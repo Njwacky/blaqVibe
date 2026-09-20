@@ -1,6 +1,7 @@
 import { tool } from '@openrouter/agent/tool';
 import { z } from 'zod';
 import { spawn } from 'child_process';
+import { checkShellCommand, scrubEnv, workspaceRoot } from './guard.js';
 import { shellNeedsApproval } from './policy.js';
 
 const DEFAULT_TIMEOUT_S = 120;
@@ -26,10 +27,12 @@ export function runShell(command: string, timeoutSeconds = DEFAULT_TIMEOUT_S, si
   return new Promise<{ output: string; exitCode: number | null; timedOut: boolean; truncated: boolean }>((resolvePromise) => {
     const shell = process.env.SHELL || '/bin/bash';
     // detached → own process group, so a timeout can kill the whole tree.
+    // The child gets a scrubbed environment: PATH and runtime plumbing, but no
+    // API keys, SECRET_KEY or DATABASE_URL — see guard.ts.
     const child = spawn(shell, ['-c', command], {
-      cwd: process.cwd(),
+      cwd: workspaceRoot(),
       detached: process.platform !== 'win32',
-      env: { ...process.env, TERM: 'dumb', NO_COLOR: '1' },
+      env: scrubEnv(),
       stdio: ['ignore', 'pipe', 'pipe'],
     });
 
@@ -78,13 +81,16 @@ export function runShell(command: string, timeoutSeconds = DEFAULT_TIMEOUT_S, si
 export const shellTool = tool({
   name: 'shell',
   description:
-    'Execute a shell command in the working directory and return its combined stdout/stderr and exit code. Long output is truncated to the last 2000 lines. Prefer glob/grep/file_read for exploring files.',
+    'Execute a shell command in the BlaqVibes workspace root and return its combined stdout/stderr and exit code. Long output is truncated to the last 2000 lines. Prefer glob/grep/file_read for exploring files. The command runs with a scrubbed environment (no API keys or database URL) and is refused if it opens a database, dumps the environment, reads stored credentials, uses sudo, or touches a protected/outside path.',
   inputSchema: z.object({
     command: z.string().describe('Shell command to execute'),
     timeout: z.number().optional().describe(`Timeout in seconds (default ${DEFAULT_TIMEOUT_S})`),
   }),
-  requireApproval: ({ command }) => shellNeedsApproval(command),
+  // A refused command never reaches the approval prompt: the answer is already no.
+  requireApproval: ({ command }) => checkShellCommand(command) === null && shellNeedsApproval(command),
   execute: async ({ command, timeout }, ctx) => {
+    const refused = checkShellCommand(command);
+    if (refused) return { error: refused, blocked: true };
     const result = await runShell(command, timeout ?? DEFAULT_TIMEOUT_S, ctx?.signal);
     return {
       output: result.output,

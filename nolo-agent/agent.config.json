@@ -10,5 +10,11 @@
     "toolDisplay": "grouped",
     "reasoning": false,
     "loader": { "text": "Nolo is working", "style": "spinner" }
+  },
+  "workspace": {
+    "protectedPaths": [],
+    "allowPaths": [],
+    "passEnv": [],
+    "blockedShell": []
   }
 }

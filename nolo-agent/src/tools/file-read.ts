@@ -1,7 +1,8 @@
 import { tool } from '@openrouter/agent/tool';
 import { z } from 'zod';
 import { readFile } from 'fs/promises';
-import { extname, resolve } from 'path';
+import { extname } from 'path';
+import { guardPath } from './guard.js';
 
 const DEFAULT_LINE_LIMIT = 2000;
 const MAX_LINE_CHARS = 2000;
@@ -17,14 +18,16 @@ const IMAGE_MIME: Record<string, string> = {
 export const fileReadTool = tool({
   name: 'file_read',
   description:
-    'Read the contents of a file. Output is capped at 2000 lines by default (use offset/limit to paginate) and any line longer than 2000 characters is truncated. When the response is truncated, the hint field tells you how to continue. Image files are returned as base64.',
+    'Read the contents of a file inside the BlaqVibes workspace. Output is capped at 2000 lines by default (use offset/limit to paginate) and any line longer than 2000 characters is truncated. When the response is truncated, the hint field tells you how to continue. Image files are returned as base64. Protected files (.env, keys, databases, media/, .git/) are refused — read .env.example for configuration.',
   inputSchema: z.object({
-    path: z.string().describe('Path to the file (absolute, or relative to the working directory)'),
+    path: z.string().describe('Path to the file, relative to the workspace root (absolute paths inside the workspace are fine too)'),
     offset: z.number().optional().describe('Start reading from this line (1-indexed)'),
     limit: z.number().optional().describe(`Maximum lines to return (default ${DEFAULT_LINE_LIMIT})`),
   }),
   execute: async ({ path, offset, limit }) => {
-    const abs = resolve(path);
+    const check = guardPath(path, 'read');
+    if (!check.ok) return { error: check.error };
+    const abs = check.abs;
     try {
       const mime = IMAGE_MIME[extname(abs).toLowerCase()];
       if (mime) {

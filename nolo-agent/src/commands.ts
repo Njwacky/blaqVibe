@@ -4,6 +4,7 @@ import type { AgentConfig, ApprovalPolicy } from './config.js';
 import type { ChatMessage } from './agent.js';
 import type { ApprovalGate } from './approval.js';
 import { approvalState } from './tools/policy.js';
+import { checkShellCommand, guardPath, protectedSummary, workspaceRoot } from './tools/guard.js';
 
 const DIM = '\x1b[2m';
 const RESET = '\x1b[0m';
@@ -145,6 +146,29 @@ registerCommand({
       .join('\n\n---\n\n');
     writeFileSync(file, md, 'utf-8');
     console.log(`  ${GREEN}✓${RESET} ${DIM}Exported to ${file}${RESET}`);
+  },
+});
+
+registerCommand({
+  name: '/workspace',
+  description: 'Show the workspace boundary, or test a path/command: /workspace <path> | /workspace ! <command>',
+  execute: async (args, _ctx) => {
+    const probe = args.trim();
+    if (!probe) {
+      console.log(`  ${DIM}root${RESET}       ${workspaceRoot()}`);
+      console.log(`  ${DIM}rules${RESET}      paths must stay inside the root; shell runs with a scrubbed env; tool output is redacted`);
+      console.log(`  ${DIM}protected${RESET}  ${protectedSummary().join('  ')}`);
+      console.log(`  ${DIM}shell refuses${RESET} sudo · database clients · manage.py shell/dbshell/dumpdata · env dumps · credential helpers · outside/protected paths`);
+      console.log(`  ${DIM}usage: /workspace gallery/views.py   ·   /workspace ! cat .env${RESET}`);
+      return;
+    }
+    if (probe.startsWith('!')) {
+      const reason = checkShellCommand(probe.slice(1).trim());
+      console.log(reason ? `  ${YELLOW}✗ ${reason}${RESET}` : `  ${GREEN}✓${RESET} ${DIM}allowed (approval policy still applies)${RESET}`);
+      return;
+    }
+    const read = guardPath(probe, 'read');
+    console.log(read.ok ? `  ${GREEN}✓${RESET} ${DIM}readable →${RESET} ${read.rel}` : `  ${YELLOW}✗ ${read.error}${RESET}`);
   },
 });
 

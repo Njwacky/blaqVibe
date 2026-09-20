@@ -4,7 +4,7 @@
   "description": "Nolo — the BlaqVibes terminal coding agent, powered by OpenRouter",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
+    "test": "node --import tsx --test test/*.test.ts",
     "start": "tsx src/cli.ts --cwd ..",
     "dev": "tsx watch src/cli.ts --cwd ..",
     "here": "tsx src/cli.ts",

@@ -2,6 +2,7 @@ import { createInterface } from 'readline';
 import { existsSync, readFileSync, statSync } from 'fs';
 import { join, resolve } from 'path';
 import { loadConfig, PACKAGE_DIR, type AgentConfig } from './config.js';
+import { configureGuard } from './tools/guard.js';
 import { runAgentWithRetry, type AgentEvent, type ChatMessage } from './agent.js';
 import { TuiRenderer } from './renderer.js';
 import { Loader } from './loader.js';
@@ -116,6 +117,8 @@ async function main() {
     console.error(`${YELLOW}${err.message}${RESET}`);
     process.exit(1);
   }
+  // The workspace boundary is the directory Nolo was started in (after --cwd).
+  configureGuard(process.cwd(), config.workspace);
 
   const oneShot = typeof args.prompt === 'string' && args.prompt.trim().length > 0;
   const BG_INPUT = !oneShot && config.display.inputStyle === 'block' ? await detectBg() : '';
@@ -135,6 +138,7 @@ async function main() {
       console.log(`\n${line}`);
       console.log(`  ${BOLD}Nolo${RESET}  ${DIM}v${packageVersion()}${RESET}`);
       console.log(`  ${DIM}model${RESET}  ${CYAN}${config.model}${RESET}`);
+      console.log(`  ${DIM}guard${RESET}  ${DIM}workspace only · secrets protected${RESET}`);
       if (config.slashCommands) console.log(`  ${DIM}/help for commands${RESET}`);
       console.log(`${line}\n`);
     }

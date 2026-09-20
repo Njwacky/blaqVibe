@@ -26,6 +26,7 @@ export function printBanner(info: BannerInfo): void {
   console.log(`  ${DIM}model   ${RESET}${CYAN}${info.model}${RESET}`);
   console.log(`  ${DIM}cwd     ${RESET}${info.cwd}`);
   console.log(`  ${DIM}approve ${RESET}${info.approvalPolicy}`);
-  if (info.slashCommands) console.log(`  ${DIM}type /help for commands, "exit" to quit${RESET}`);
+  console.log(`  ${DIM}guard   ${RESET}${DIM}workspace only · .env/keys/db/media/.git protected · shell env scrubbed · secrets redacted${RESET}`);
+  if (info.slashCommands) console.log(`  ${DIM}type /help for commands, /workspace for the boundary, "exit" to quit${RESET}`);
   console.log();
 }
