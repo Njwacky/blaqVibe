@@ -1157,3 +1157,250 @@ a.profile-link-chip--maintenance { border-color: color-mix(in srgb, #f59e0b 45%,
   .link-cell--status { grid-column: 1; }
   .link-remove { margin-top: 0; }
 }
+
+/* ── First-time welcome overlay (users/welcome.py + base.html) ──
+   Full-screen modal answering What / What do I do / Why care, in 3+1 steps.
+   Theme-aware via the existing :root variables, so light mode gets light
+   chip surfaces and the gradient text stays readable. The backdrop never
+   scrolls the page behind it (position:fixed), and prefers-reduced-motion
+   drops the CSS transitions. */
+.welcome-overlay,
+.welcome-backdrop {
+  position: fixed;
+  inset: 0;
+}
+.welcome-backdrop {
+  background: color-mix(in srgb, var(--bg) 88%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  z-index: 950;
+}
+.welcome-overlay {
+  z-index: 960;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  overflow-y: auto;
+  /* The dim backdrop behind it is the real "outside the panel" surface. The
+     overlay container itself must be click-transparent so the backdrop can
+     receive pointer events; only the panel reinstates them. */
+  pointer-events: none;
+}
+.welcome-panel {
+  position: relative;
+  width: min(720px, 100%);
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  padding: 36px 32px 24px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.5);
+  text-align: center;
+  pointer-events: auto;
+}
+.welcome-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2.2px;
+  color: var(--gold);
+}
+.welcome-h {
+  font-family: "Space Grotesk", Inter, sans-serif;
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1.08;
+  margin: 12px 0 12px;
+}
+.welcome-p {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.6;
+  max-width: 620px;
+  margin: 0 auto;
+}
+.welcome-p b { color: var(--text); }
+.welcome-p em {
+  color: var(--accent-text);
+  font-style: normal;
+  font-weight: 700;
+}
+.welcome-visual {
+  margin: 22px auto 0;
+  background: var(--input);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 26px 18px;
+  max-width: 620px;
+}
+/* The "IDEA → ... → PEOPLE SEE" pipeline diagram. */
+.welcome-flow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.welcome-node {
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-weight: 700;
+  font-size: 12px;
+}
+.welcome-node--brand {
+  background: linear-gradient(135deg, #7c3aed, #ec4899);
+  color: #fff;
+  border: none;
+  box-shadow: 0 8px 24px color-mix(in srgb, #7c3aed 40%, transparent);
+}
+.welcome-arrow {
+  color: var(--muted);
+  font-size: 16px;
+  font-weight: 700;
+}
+/* "3 screenshots in each screen": compact framed mock panels proving each
+   claim. They fade/slide in via the panel's animation. */
+.welcome-shots {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  text-align: left;
+}
+.welcome-shot {
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+.welcome-shot-img {
+  height: 62px;
+  display: grid;
+  place-items: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: #fff;
+  position: relative;
+  padding: 0 8px;
+  text-align: center;
+}
+.welcome-shot-cap {
+  padding: 8px 9px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.welcome-shot-sub {
+  padding: 0 9px 9px;
+  font-size: 11px;
+  color: var(--muted);
+  line-height: 1.4;
+}
+/* Miniature "screenshot" fills — pure CSS, no image network calls. */
+.wv-fill-feed {
+  background:
+    radial-gradient(120px 70px at 14% 18%, #7c3aed85, transparent),
+    linear-gradient(180deg, #171a22 0%, #101220 100%);
+}
+.wv-fill-trust {
+  background:
+    radial-gradient(120px 70px at 84% 12%, #f59e0b5c, transparent),
+    linear-gradient(180deg, #1a1a30 0%, #0d0f1c 100%);
+}
+.wv-fill-remix {
+  background:
+    radial-gradient(120px 60px at 70% 80%, #ec48996e, transparent),
+    linear-gradient(180deg, #191a28 0%, #131018 100%);
+}
+.wv-fill-connect {
+  background:
+    radial-gradient(120px 60px at 20% 80%, #22d3ee59, transparent),
+    linear-gradient(180deg, #141b22 0%, #0f1016 100%);
+}
+.wv-fill-opp {
+  background:
+    radial-gradient(150px 70px at 80% 20%, #7c3aed80, transparent),
+    radial-gradient(120px 70px at 15% 80%, #f59e0b4d, transparent),
+    linear-gradient(180deg, #151220 0%, #0d0e16 100%);
+}
+.wv-fill-step {
+  background:
+    radial-gradient(140px 70px at 80% 0%, #7c3aed6b, transparent),
+    linear-gradient(180deg, #14151f 0%, #0f0f17 100%);
+}
+/* 2-col "screenshots" for step 2; 3-col everywhere else. */
+.welcome-panel[data-step="2"] .welcome-shots { grid-template-columns: repeat(2, 1fr); }
+@keyframes bv-we-fade {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.welcome-panel { animation: bv-we-fade 0.35s ease; }
+.welcome-steps {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  margin: 22px 0 18px;
+}
+.welcome-dot {
+  width: 28px;
+  height: 4px;
+  border-radius: 100px;
+  background: var(--line);
+}
+.welcome-dot--on { background: var(--violet); }
+.welcome-cta {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.welcome-skip {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 12.5px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  padding: 6px 10px;
+}
+.welcome-skip:hover { color: var(--text); }
+.welcome-manifesto {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-soft-bg) 70%, var(--card)), var(--card));
+  border: 1px solid var(--accent-border);
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-top: 4px;
+}
+.welcome-manifesto--gold { border-color: var(--gold); }
+.welcome-manifesto-title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.6px;
+  color: var(--muted);
+}
+.welcome-manifesto-line {
+  font-family: "Space Grotesk", Inter, sans-serif;
+  font-size: 19px;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-top: 8px;
+}
+.welcome-manifesto-sub {
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+  max-width: 540px;
+  margin: 8px auto 0;
+}
+@media (max-width: 560px) {
+  .welcome-panel { padding: 26px 18px 20px; }
+  .welcome-h { font-size: 24px; }
+  .welcome-p { font-size: 14px; }
+  .welcome-panel[data-step="2"] .welcome-shots,
+  .welcome-shots { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .welcome-panel { animation: none; }
+  .welcome-backdrop { backdrop-filter: none; -webkit-backdrop-filter: none; }
+}

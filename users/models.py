@@ -396,6 +396,12 @@ class Profile(models.Model):
     # It is high-entropy (token_urlsafe) and compared with compare_digest, so a
     # fast hash suffices — bcrypt's strength is against low-entropy secrets.
     git_token_hash = models.CharField(max_length=64, blank=True)
+    # First-time welcome overlay (users/welcome.py). False for every existing
+    # account (migrated in 0029 so nobody is ambushed by onboarding they never
+    # got); flipped True the first time a user closes it. The client-side
+    # `blaq-welcome-seen` flag means the server only asks while the answer is
+    # genuinely unknown — the overlay can never nag a person who skipped it.
+    overlay_seen = models.BooleanField(default=False, help_text='True once the first-time welcome overlay has been completed or skipped')
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
         constraints = [
