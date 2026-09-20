@@ -289,10 +289,12 @@
   .clipboard__copy { margin-left: 0; }
   .download-card form,
   #reviews form,
+  #reviews .review-form-row,
   #comments form {
     flex-wrap: wrap !important;
   }
-  #reviews form input { flex: 1 1 100%; min-width: 0; }
+  #reviews form select { width: 100%; }
+  #reviews form input[name="text"] { flex: 1 1 100%; min-width: 0; width: 100%; }
   #reviews form button { width: 100%; }
   #comments form textarea { min-width: 0; }
   form[action*="report"] { flex-wrap: wrap !important; }
