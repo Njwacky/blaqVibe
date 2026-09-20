@@ -161,6 +161,14 @@ class PublicContextTests(TestCase):
         self.assertNotIn('private-owner@example.com', ctx)
         self.assertNotIn('ctxowner', ctx)
 
+    def test_context_reports_public_platform_stats(self):
+        """'How many vibes are published?' needs a real number in context."""
+        from gallery.nolo_context import public_chat_context
+        ctx = public_chat_context()
+        self.assertIn('Published vibes: 1 total', ctx)
+        self.assertIn('in the last 7 days', ctx)
+        self.assertTrue(ctx.startswith('Published vibes:'), 'stats must come first so truncation cannot cut them')
+
     def test_context_is_capped(self):
         from gallery.nolo_context import public_chat_context
         for i in range(30):
@@ -191,3 +199,44 @@ class PublicContextTests(TestCase):
         body = response.json()
         self.assertEqual(body['source'], 'heuristic')
         self.assertIn('Nolo from BlaqVibes', body['reply'])
+
+
+@override_settings(RATELIMIT_ENABLE=False, SEED_DEMO=False, MEDIA_ROOT='/tmp/blaqvibes-tests', **NO_KEYS)
+class OfflineCountTests(TestCase):
+    """No API key, real answers: data questions count the database live.
+
+    A count is not a model skill — it is a number BlaqVibes already knows,
+    so the offline helper answers it instead of replying with canned text.
+    """
+
+    def setUp(self):
+        self.cat = make_category()
+        self.owner = make_user('countowner')
+        for i in range(3):
+            make_project(self.owner, self.cat, title=f'Counted Vibe {i}', status='published')
+        make_project(self.owner, self.cat, title='Hidden Pending Vibe', status='pending')
+
+    def test_how_many_vibes_gets_the_real_count(self):
+        from gallery.nolo_ai import get_nolo_ai_answer
+        reply, source = get_nolo_ai_answer('How many vibes have been published?')
+        self.assertEqual(source, 'heuristic')
+        self.assertIn('Hello', reply)
+        self.assertIn('3 vibes published', reply)
+        self.assertNotIn('4', reply)  # pending vibes never leak into the count
+
+    def test_off_topic_question_still_stays_in_blaqvibes_voice(self):
+        from gallery.nolo_ai import get_nolo_ai_answer
+        reply, source = get_nolo_ai_answer('Write me a poem about the ocean')
+        self.assertEqual(source, 'heuristic')
+        self.assertIn('Nolo from BlaqVibes', reply)
+        self.assertIn('only help with BlaqVibes', reply)
+
+    def test_chat_api_answers_the_count_question_without_a_key(self):
+        response = self.client.post(
+            '/nolo/chat/send/',
+            data=json.dumps({'prompt': 'how many vibes are published'}),
+            content_type='application/json',
+        )
+        body = response.json()
+        self.assertEqual(body['source'], 'heuristic')
+        self.assertIn('3 vibes published', body['reply'])
