@@ -34,7 +34,14 @@ def _int_setting(name, default):
         return default
 
 def configured_ai_backend() -> str:
-    """Which live model we will try first. heuristic = no API key."""
+    """Which live model we will try first. heuristic = no API key.
+
+    Order: openrouter/openai (first preference) → claude → gemini → groq.
+    """
+    from .ai_providers import preferred_backend
+    preferred = preferred_backend()
+    if preferred:
+        return preferred
     if _env('ANTHROPIC_API_KEY'):
         return 'claude'
     if _env('GEMINI_API_KEY'):
@@ -54,7 +61,8 @@ def get_nolo_ai_answer(prompt, *, system_text=None, budget_chars=None, preserve_
 
     Every backend gets the same token-economy plan: stable system instructions
     first, then the compressed/capped dynamic user payload. `source` is
-    claude|gemini|groq|heuristic. No API key → no fake live model.
+    openrouter|openai|claude|gemini|groq|heuristic. No API key → no fake live
+    model.
     """
     from .ai_safety import redact_for_ai
     sys_text = system_text or _system_prompt()
@@ -68,6 +76,24 @@ def get_nolo_ai_answer(prompt, *, system_text=None, budget_chars=None, preserve_
     )
     prompt_text = plan['text']
 
+    # 1. First preference: OpenRouter (or a plain OpenAI key). One adapter,
+    #    labelled by whichever is configured.
+    from .ai_providers import openai_compatible_text, preferred_backend
+    preferred = preferred_backend()
+    if preferred:
+        try:
+            text = redact_for_ai(
+                openai_compatible_text(
+                    prompt_text,
+                    temperature=0.4,
+                    max_output_tokens=_max_output_tokens(240),
+                    system=plan['system'],
+                )
+            )
+            if text:
+                return _maybe_meta(text, preferred, plan, return_meta)
+        except Exception as e:
+            logger.warning('%s chat failed: %s', preferred, e)
     claude_key = _env('ANTHROPIC_API_KEY')
     if claude_key:
         try:
@@ -195,4 +221,4 @@ def _heuristic_fallback(prompt):
         return 'Look for published vibes with a tech stack that matches your needs. React and Vue templates are usually tagged with those frameworks, while plain HTML/CSS/JS apps are best for quick remixing.'
     if 'compare' in prompt or 'easy' in prompt or 'fork' in prompt:
         return 'Use the Nolo compare tool on an app page to compare features, file count, and tech stack. The easiest vibes to fork are the ones with few files and a clear README.'
-    return 'Ask about preview files, stars trades, new apps, or which vibe is easiest to fork. This built-in helper is not a live Claude/Gemini model — set ANTHROPIC_API_KEY, GEMINI_API_KEY, or GROQ_API_KEY to use one.'
+    return 'Ask about preview files, stars trades, new apps, or which vibe is easiest to fork. This built-in helper is not a live Claude/Gemini model — set OPENROUTER_API_KEY, OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, or GROQ_API_KEY to use one.'

@@ -641,6 +641,7 @@ class FiveWhysHolesTests(TestCase):
         blaq.profile.refresh_from_db()
         self.assertEqual(blaq.profile.stars_balance, 3)
 
+    @override_settings(OPENROUTER_API_KEY='', OPENAI_API_KEY='', ANTHROPIC_API_KEY='', GEMINI_API_KEY='', GROQ_API_KEY='')
     def test_nolo_without_key_is_honest_helper(self):
         from gallery.nolo_ai import configured_ai_backend, get_nolo_ai_answer
         self.assertEqual(configured_ai_backend(), 'heuristic')
@@ -2319,10 +2320,12 @@ class ClassifyTests(TestCase):
 
     def test_no_api_key_means_no_llm_call_and_still_a_kind(self):
         from gallery.classify import llm_classify, classify_project
-        with override_settings(ANTHROPIC_API_KEY='', GEMINI_API_KEY='', GROQ_API_KEY=''):
+        with override_settings(OPENROUTER_API_KEY='', OPENAI_API_KEY='', ANTHROPIC_API_KEY='',
+                               GEMINI_API_KEY='', GROQ_API_KEY=''):
             import os
             saved = {k: os.environ.pop(k, None) for k in
-                     ('ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'GROQ_API_KEY')}
+                     ('OPENROUTER_API_KEY', 'OPENAI_API_KEY', 'OPENAI_KEY', 'openai_key',
+                      'ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'GROQ_API_KEY')}
             try:
                 self.assertIsNone(llm_classify(make_project(self.owner, self.cat)))
                 project = make_project(self.owner, self.cat, title='Some thing')

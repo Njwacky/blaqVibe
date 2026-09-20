@@ -369,6 +369,38 @@ KIND_LLM_CONFIDENCE_FLOOR = float(os.getenv('KIND_LLM_CONFIDENCE_FLOOR', '0.55')
 
 # Nolo providers are read once at startup so web and Celery processes use the
 # same deployment configuration. Keys never appear in templates or responses.
+#
+# Preference order everywhere an LLM is consulted (Nolo chat, Nolo fix, kind
+# classification, AI README, Nolo review, challenge drafts):
+#   1. OpenRouter  (OPENROUTER_API_KEY — one key, any model; see gallery/ai_providers.py)
+#   2. OpenAI      (OPENAI_API_KEY)
+#   3. Claude      (ANTHROPIC_API_KEY)
+#   4. Gemini      (GEMINI_API_KEY)
+#   5. Groq        (GROQ_API_KEY)
+#   6. built-in heuristic (no key → no fake "live" model)
+#
+# The production key was added on Render under the name `openai_key`, so the
+# OpenAI-style names are accepted as aliases. An OpenRouter key stored under an
+# OpenAI name (they start with `sk-or-`) is routed to OpenRouter automatically.
+def _first_env(*names):
+    for name in names:
+        value = (os.getenv(name) or '').strip()
+        if value:
+            return value
+    return ''
+
+
+_openai_style_key = _first_env('OPENAI_API_KEY', 'OPENAI_KEY', 'openai_key')
+_openai_base_url = os.getenv('OPENAI_BASE_URL', '').strip()
+_openai_key_is_openrouter = _openai_style_key.startswith('sk-or-') or 'openrouter.ai' in _openai_base_url
+
+OPENROUTER_API_KEY = _first_env('OPENROUTER_API_KEY', 'openrouter_key') or (
+    _openai_style_key if _openai_key_is_openrouter else ''
+)
+OPENROUTER_MODEL = os.getenv('OPENROUTER_MODEL', 'openai/gpt-4o-mini').strip()
+OPENAI_API_KEY = '' if _openai_key_is_openrouter else _openai_style_key
+OPENAI_MODEL = os.getenv('OPENAI_MODEL', 'gpt-4o-mini').strip()
+OPENAI_BASE_URL = '' if _openai_key_is_openrouter else _openai_base_url
 GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '').strip()
 GEMINI_MODEL = os.getenv('GEMINI_MODEL', 'gemini-2.5-flash').strip()
 GROQ_API_KEY = os.getenv('GROQ_API_KEY', '').strip()

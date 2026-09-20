@@ -9,7 +9,7 @@ def _env(name):
         value = os.getenv(name, '')
     return (value or '').strip()
 
-# Heuristic fallback: with no OPENAI_API_KEY in dev there's still value, and it
+# Heuristic fallback: with no AI key in dev there's still value, and it
 # degrades silently.
 
 def heuristic_review(project):
@@ -52,54 +52,55 @@ def heuristic_review(project):
         logger.exception(f"heuristic_review crush: {e}")
         return {"score": 5, "fixes": [], "pros": [], "source": "heuristic"}
 
+def _review_prompt(project):
+    return f"Review this vibe for BlaqVibes. Title: {project.title}\nTech: {project.tech_stack}\nFiles: {project.file_count}\nLanguages: {project.language_stats}\nREADME:\n{project.readme[:2000]}\n\nReturn ONLY JSON: {{\"score\": 0-10, \"fixes\": [3 strings], \"pros\": [3 strings]}}"
+
+def _parse_review(txt, heuristic, source):
+    """Model text → review dict, or None when there is no JSON object in it."""
+    m = re.search(r'\{.*\}', txt or '', re.DOTALL)
+    if not m:
+        return None
+    data = json.loads(m.group(0))
+    return {"score": int(data.get("score", heuristic["score"])), "fixes": data.get("fixes", heuristic["fixes"])[:3], "pros": data.get("pros", heuristic["pros"])[:3], "source": source}
+
 def nolo_review(project):
-    """Try Gemini (free) first, then Groq (free, fastest), then OpenAI, then heuristic — crush silently, backend only."""
+    """Try OpenRouter/OpenAI first, then Gemini (free), then Groq (free, fastest), then heuristic — crush silently, backend only."""
     try:
         heuristic = heuristic_review(project)
-        # 1. Try Gemini free first
+        prompt = _review_prompt(project)
+        # 1. First preference: OpenRouter / OpenAI
+        from .ai_providers import openai_compatible_text, preferred_backend
+        preferred = preferred_backend()
+        if preferred:
+            try:
+                review = _parse_review(openai_compatible_text(prompt, max_output_tokens=400, temperature=0.2), heuristic, preferred)
+                if review:
+                    return review
+            except Exception as e:
+                logger.warning(f"{preferred} review failed, try Gemini/Groq/heuristic: {e}")
+        # 2. Try Gemini free
         gemini_key = _env("GEMINI_API_KEY")
         if gemini_key:
             try:
                 import google.generativeai as genai
                 genai.configure(api_key=gemini_key)
                 model = genai.GenerativeModel("gemini-1.5-flash")
-                prompt = f"Review this vibe for BlaqVibes. Title: {project.title}\nTech: {project.tech_stack}\nFiles: {project.file_count}\nLanguages: {project.language_stats}\nREADME:\n{project.readme[:2000]}\n\nReturn ONLY JSON: {{\"score\": 0-10, \"fixes\": [3 strings], \"pros\": [3 strings]}}"
                 resp = model.generate_content(prompt, generation_config={"temperature":0.2, "max_output_tokens":400})
-                txt = getattr(resp, 'text', '') or ""
-                m = re.search(r'\{.*\}', txt, re.DOTALL)
-                if m:
-                    data = json.loads(m.group(0))
-                    return {"score": int(data.get("score", heuristic["score"])), "fixes": data.get("fixes", heuristic["fixes"])[:3], "pros": data.get("pros", heuristic["pros"])[:3], "source": "gemini"}
+                review = _parse_review(getattr(resp, 'text', '') or "", heuristic, "gemini")
+                if review:
+                    return review
             except Exception as e:
-                logger.warning(f"Gemini review failed, try Groq/OpenAI/heuristic: {e}")
-        # 2. Try Groq (free, fastest) — placeholder, wire when you add GROQ_API_KEY
+                logger.warning(f"Gemini review failed, try Groq/heuristic: {e}")
+        # 3. Try Groq (free, fastest)
         groq_key = _env("GROQ_API_KEY")
         if groq_key:
             try:
                 from .ai_providers import groq_text
-                prompt = f"Review this vibe for BlaqVibes. Title: {project.title}\nTech: {project.tech_stack}\nFiles: {project.file_count}\nLanguages: {project.language_stats}\nREADME:\n{project.readme[:2000]}\n\nReturn ONLY JSON: {{\"score\": 0-10, \"fixes\": [3 strings], \"pros\": [3 strings]}}"
-                txt = groq_text(prompt, max_output_tokens=400, temperature=0.2)
-                m = re.search(r'\{.*\}', txt, re.DOTALL)
-                if m:
-                    data = json.loads(m.group(0))
-                    return {"score": int(data.get("score", heuristic["score"])), "fixes": data.get("fixes", heuristic["fixes"])[:3], "pros": data.get("pros", heuristic["pros"])[:3], "source": "groq"}
+                review = _parse_review(groq_text(prompt, max_output_tokens=400, temperature=0.2), heuristic, "groq")
+                if review:
+                    return review
             except Exception as e:
-                logger.warning(f"Groq review failed, try OpenAI/heuristic: {e}")
-        # 3. Try OpenAI
-        api_key = os.getenv("OPENAI_API_KEY", "")
-        if api_key:
-            try:
-                import openai
-                openai.api_key = api_key
-                prompt = f"Review this vibe for BlaqVibes. Title: {project.title}\nTech: {project.tech_stack}\nFiles: {project.file_count}\nLanguages: {project.language_stats}\nREADME:\n{project.readme[:2000]}\n\nReturn JSON: {{\"score\": 0-10, \"fixes\": [3 strings], \"pros\": [3 strings]}}"
-                resp = openai.ChatCompletion.create(model="gpt-4o-mini", messages=[{"role":"user","content":prompt}], max_tokens=300, temperature=0.2)
-                txt = resp.choices[0].message.content
-                m = re.search(r'\{.*\}', txt, re.DOTALL)
-                if m:
-                    data = json.loads(m.group(0))
-                    return {"score": int(data.get("score", heuristic["score"])), "fixes": data.get("fixes", heuristic["fixes"])[:3], "pros": data.get("pros", heuristic["pros"])[:3], "source": "openai"}
-            except Exception as e:
-                logger.warning(f"OpenAI review failed, fallback heuristic: {e}")
+                logger.warning(f"Groq review failed, fallback heuristic: {e}")
         return heuristic
     except Exception as e:
         logger.exception(f"nolo_review crush: {e}")

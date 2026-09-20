@@ -37,7 +37,10 @@ def _env(name):
 
 def llm_available():
     """True when some provider key is configured."""
-    return bool(_env('ANTHROPIC_API_KEY') or _env('GEMINI_API_KEY') or _env('GROQ_API_KEY'))
+    from .ai_providers import preferred_backend
+    return bool(
+        preferred_backend() or _env('ANTHROPIC_API_KEY') or _env('GEMINI_API_KEY') or _env('GROQ_API_KEY')
+    )
 
 def needs_llm(heuristic):
     """Only ambiguous rows are worth a call."""
@@ -183,7 +186,19 @@ def _call_groq(prompt):
     from .ai_providers import groq_text
     return _parse_llm_json(groq_text(prompt, temperature=0.1, max_output_tokens=200))
 
-_PROVIDERS = (('claude', _call_claude), ('gemini', _call_gemini), ('groq', _call_groq))
+def _call_preferred(prompt):
+    """OpenRouter or OpenAI — whichever key is configured (first preference)."""
+    from .ai_providers import openai_compatible_text
+    return _parse_llm_json(openai_compatible_text(prompt, temperature=0.1, max_output_tokens=200))
+
+def _providers():
+    """Provider chain in preference order, resolved at call time. The first
+    entry is labelled with the live first-preference backend ('openrouter' or
+    'openai') so the stored `kind_source` says which model actually answered."""
+    from .ai_providers import preferred_backend
+    preferred = preferred_backend()
+    head = [(preferred, _call_preferred)] if preferred else []
+    return head + [('claude', _call_claude), ('gemini', _call_gemini), ('groq', _call_groq)]
 
 def llm_classify(project):
     """One LLM opinion, or None. Never raises."""
@@ -193,7 +208,7 @@ def llm_classify(project):
         logger.info('kind LLM budget exhausted this minute — heuristic only')
         return None
     prompt = _build_prompt(project)
-    for name, fn in _PROVIDERS:
+    for name, fn in _providers():
         try:
             out = fn(prompt)
         except Exception as e:

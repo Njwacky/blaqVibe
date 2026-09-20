@@ -1,0 +1,27 @@
+{
+  "name": "nolo-agent",
+  "version": "0.1.0",
+  "description": "Nolo — the BlaqVibes terminal coding agent, powered by OpenRouter",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "tsx src/cli.ts --cwd ..",
+    "dev": "tsx watch src/cli.ts --cwd ..",
+    "here": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "dependencies": {
+    "@openrouter/agent": "^0.11.0",
+    "glob": "^13.0.6",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
