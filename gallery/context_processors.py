@@ -105,12 +105,23 @@ def extras(request):
     except Exception:
         footer_contacts = None
     if footer_contacts is None:
-        footer_contacts = [
-            {'kind': 'email', 'icon': '✉️', 'label': 'admin@blaqvibes.co.za',
-             'href': 'mailto:admin@blaqvibes.co.za', 'external': False},
-            {'kind': 'github', 'icon': '🐙', 'label': 'GitHub @Njwacky',
-             'href': 'https://github.com/Njwacky', 'external': True},
-        ]
+        # The fallback list is built through contact_as_dict on purpose: the
+        # hand-written dicts it replaced had already drifted (a value key the
+        # real rows carry was missing, an icon emoji the templates stopped
+        # reading). Rendering the fallback the same way as real rows keeps the
+        # two shapes identical forever. If even the module is unimportable the
+        # Contact column degrades to "Ask Nolo" rather than breaking the page.
+        try:
+            from types import SimpleNamespace
+            from users.footer_contacts import contact_as_dict
+            footer_contacts = [
+                contact_as_dict(SimpleNamespace(
+                    kind='email', value='admin@blaqvibes.co.za', label='')),
+                contact_as_dict(SimpleNamespace(
+                    kind='github', value='Njwacky', label='')),
+            ]
+        except Exception:
+            footer_contacts = []
     return {
         'unread_notifications': unread,
         'attention': attention,

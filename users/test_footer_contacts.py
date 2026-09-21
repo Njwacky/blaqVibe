@@ -136,6 +136,71 @@ class FooterContactsAdminTests(TestCase):
         self.assertFalse(FooterContact.objects.exists())
         self.assertFalse(AdminLog.objects.filter(action='update_footer_contacts').exists())
 
+    def test_a_bare_host_paste_normalises_like_a_full_url(self):
+        # Operators paste profile links the way they copy them — often without
+        # the https://. A bare x.com/us used to be stored as a literal handle,
+        # and every page linked the doubled-up https://x.com/x.com/us.
+        self.client.force_login(self.admin)
+        response = self._post_rows(new_rows=[
+            {'kind': 'twitter', 'value': 'x.com/blaqvibes'},
+            {'kind': 'github', 'value': 'www.github.com/Njwacky', 'position': 10},
+        ])
+        self.assertRedirects(response, self.url)
+        twitter = FooterContact.objects.get(kind='twitter')
+        github = FooterContact.objects.get(kind='github')
+        self.assertEqual(twitter.value, 'blaqvibes')
+        self.assertEqual(twitter.href, 'https://x.com/blaqvibes')
+        self.assertEqual(github.value, 'Njwacky')
+        self.assertEqual(github.href, 'https://github.com/Njwacky')
+        footer = self._footer()
+        self.assertIn('href="https://x.com/blaqvibes"', footer)
+        self.assertIn('href="https://github.com/Njwacky"', footer)
+
+    def test_a_bare_foreign_host_is_rejected_the_way_a_full_url_is(self):
+        # The host check must not depend on the operator typing the scheme.
+        self.client.force_login(self.admin)
+        response = self._post_rows(new_rows=[
+            {'kind': 'twitter', 'value': 'facebook.com/blaqvibes'},
+        ])
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'That link is not X (Twitter).')
+        self.assertFalse(FooterContact.objects.exists())
+
+    def test_github_repo_handles_keep_both_segments(self):
+        self.client.force_login(self.admin)
+        response = self._post_rows(new_rows=[
+            {'kind': 'github', 'value': 'github.com/Njwacky/blaqVibe'},
+        ])
+        self.assertRedirects(response, self.url)
+        contact = FooterContact.objects.get(kind='github')
+        self.assertEqual(contact.value, 'Njwacky/blaqVibe')
+        self.assertEqual(contact.href, 'https://github.com/Njwacky/blaqVibe')
+        footer = self._footer()
+        self.assertIn('href="https://github.com/Njwacky/blaqVibe"', footer)
+        self.assertIn('GitHub @Njwacky/blaqVibe', footer)
+
+    def test_a_dotted_instagram_handle_is_still_a_handle(self):
+        # The bare-host detection must not eat handles that carry a dot.
+        self.client.force_login(self.admin)
+        response = self._post_rows(new_rows=[
+            {'kind': 'instagram', 'value': '@blaq.vibes'},
+        ])
+        self.assertRedirects(response, self.url)
+        contact = FooterContact.objects.get(kind='instagram')
+        self.assertEqual(contact.value, 'blaq.vibes')
+        self.assertEqual(contact.href, 'https://instagram.com/blaq.vibes')
+
+    def test_a_url_with_a_space_is_rejected(self):
+        # A raw space ships a broken link into every page's footer — a space
+        # that belongs in a URL arrives as %20, never as a keystroke.
+        self.client.force_login(self.admin)
+        response = self._post_rows(new_rows=[
+            {'kind': 'website', 'value': 'https://status blaqvibes.co.za'},
+        ])
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Use a complete http:// or https:// URL.')
+        self.assertFalse(FooterContact.objects.exists())
+
     def test_javascript_url_is_rejected_and_nothing_is_saved(self):
         self.client.force_login(self.admin)
         response = self._post_rows(new_rows=[

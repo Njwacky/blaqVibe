@@ -89,8 +89,17 @@
 
   function refreshCounter() {
     if (!counter) return;
-    var kept = rows.querySelectorAll('[data-contact-row]').length;
-    counter.textContent = kept + ' row' + (kept === 1 ? '' : 's') + ' · ' + maxContacts + ' methods max';
+    // Count what a save would keep: rows marked for removal are leaving, so
+    // they should not argue with the "12 methods max" the server enforces.
+    var kept = 0;
+    var marked = 0;
+    rows.querySelectorAll('[data-contact-row]').forEach(function (row) {
+      var remove = row.querySelector('input[name$="-DELETE"]');
+      if (remove && remove.checked) { marked += 1; } else { kept += 1; }
+    });
+    counter.textContent = kept + (kept === 1 ? ' method' : ' methods')
+      + (marked ? ' · ' + marked + ' marked for removal' : '')
+      + ' · ' + maxContacts + ' max';
     if (addBtn) addBtn.disabled = kept >= maxContacts;
   }
 
@@ -118,8 +127,12 @@
     if (select) select.addEventListener('change', function () { applyKind(row); });
     var remove = row.querySelector('input[name$="-DELETE"]');
     if (remove) {
+      // A row re-rendered with Remove ticked (a validation error sent the form
+      // back) must look removed on arrival, not only once the box is toggled.
+      row.classList.toggle('footer-contact-row--removed', remove.checked);
       remove.addEventListener('change', function () {
         row.classList.toggle('footer-contact-row--removed', remove.checked);
+        refreshCounter();
       });
     }
     applyKind(row);
