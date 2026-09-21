@@ -266,6 +266,47 @@ class FeedbackBadgeTests(TestCase):
         self.assertEqual(on.status_code, 200)
         self.assertContains(self.client.get('/'), 'id="bv-fab"')
 
+    @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests-feedback')
+    def test_feedback_fab_tip_has_ok_dismiss_button_and_can_be_dismissed(self):
+        user = _make('tip_user')
+        self.client.force_login(user)
+        resp = self.client.get('/')
+        self.assertContains(resp, 'id="bv-fab"')
+        self.assertContains(resp, 'id="bv-fab-tip"')
+        self.assertContains(resp, 'id="bv-fab-tip-dismiss"')
+        self.assertContains(resp, '>OK</button>')
+        self.assertContains(resp, 'aria-describedby="bv-fab-tip"')
+
+        # Dismiss via toggle_setting endpoint
+        dismiss = self.client.post(
+            reverse('toggle_setting'),
+            {'key': 'feedback_fab_tip_dismissed', 'value': 'true'},
+        )
+        self.assertEqual(dismiss.status_code, 200)
+        user.profile.refresh_from_db()
+        self.assertTrue(user.profile.feedback_fab_tip_dismissed)
+
+        # After dismissal, FAB icon remains, but tip message is gone
+        resp_after = self.client.get('/')
+        self.assertContains(resp_after, 'id="bv-fab"')
+        self.assertNotContains(resp_after, 'id="bv-fab-tip"')
+        self.assertNotContains(resp_after, 'aria-describedby="bv-fab-tip"')
+
+    @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests-feedback')
+    def test_feedback_fab_tip_dismissed_via_cookie(self):
+        user = _make('cookie_user')
+        self.client.force_login(user)
+        self.client.cookies['blaq_fab_tip_dismissed'] = '1'
+        resp = self.client.get('/')
+        self.assertContains(resp, 'id="bv-fab"')
+        self.assertNotContains(resp, 'id="bv-fab-tip"')
+        self.assertNotContains(resp, 'aria-describedby="bv-fab-tip"')
+
+    def test_feedback_fab_tip_not_shown_for_anonymous_user(self):
+        resp = self.client.get('/')
+        self.assertContains(resp, 'id="bv-fab"')
+        self.assertNotContains(resp, 'id="bv-fab-tip"')
+
     def test_superadmin_sees_unread_count(self):
         builder = _make('builder')
         sa = _make('boss', role='superadmin')

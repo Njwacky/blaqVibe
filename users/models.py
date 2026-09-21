@@ -406,6 +406,10 @@ class Profile(models.Model):
     # turn it off in Settings without losing the Feedback link in their account
     # menu, so the human channel remains reachable when they want it back.
     show_feedback_fab = models.BooleanField(default=True, help_text='Show the floating feedback shortcut')
+    feedback_fab_tip_dismissed = models.BooleanField(
+        default=False,
+        help_text='True once the user has dismissed the feedback floating action button tip'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
         constraints = [

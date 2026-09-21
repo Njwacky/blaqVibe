@@ -69,6 +69,39 @@ function copyText(t){
     }
     const logout = e.target.closest('.js-logout');
     if(logout){ e.preventDefault(); const f=document.getElementById('logout-form'); if(f) f.submit(); return; }
+    const fabTipDismiss = e.target.closest('#bv-fab-tip-dismiss, .js-dismiss-fab-tip');
+    if(fabTipDismiss){
+      e.preventDefault();
+      const tip = document.getElementById('bv-fab-tip') || fabTipDismiss.closest('.bv-fab-tip');
+      if(tip){
+        tip.classList.add('bv-fab-tip--dismissing');
+        setTimeout(() => { try { tip.remove(); } catch(err){} }, 160);
+      }
+      document.documentElement.setAttribute('data-fab-tip-dismissed', 'true');
+      const fab = document.getElementById('bv-fab');
+      if(fab) fab.removeAttribute('aria-describedby');
+      try { localStorage.setItem('blaq-fab-tip-dismissed', '1'); } catch(err){}
+      try { document.cookie = 'blaq_fab_tip_dismissed=1;path=/;max-age=31536000;SameSite=Lax'; } catch(err){}
+      const dismissUrl = tip ? tip.dataset.dismissUrl : null;
+      const csrf = tip ? tip.dataset.csrf : null;
+      if(dismissUrl){
+        try {
+          const body = new URLSearchParams();
+          body.append('key', 'feedback_fab_tip_dismissed');
+          body.append('value', 'true');
+          fetch(dismissUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+              'X-Requested-With': 'XMLHttpRequest',
+              ...(csrf ? {'X-CSRFToken': csrf} : {})
+            },
+            body: body.toString()
+          }).catch(function(){});
+        } catch(err){}
+      }
+      return;
+    }
     const dismiss = e.target.closest('.js-dismiss');
     if(dismiss){ dismiss.parentElement.remove(); }
   });
@@ -77,6 +110,11 @@ function copyText(t){
      covers pointer users. */
   document.addEventListener('keydown', function(e){
     if(e.key !== 'Escape') return;
+    const tip = document.getElementById('bv-fab-tip');
+    if(tip && (tip.contains(document.activeElement) || document.activeElement === document.getElementById('bv-fab'))){
+      const okBtn = document.getElementById('bv-fab-tip-dismiss');
+      if(okBtn){ okBtn.click(); return; }
+    }
     const menu = document.getElementById('nav-menu');
     if(menu && menu.classList.contains('open')){
       menu.classList.remove('open');
