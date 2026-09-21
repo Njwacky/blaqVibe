@@ -489,6 +489,13 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
 /* Vertical navbar — on desktop the nav is a fixed full-height sidebar on
    the left; below 900px it is a sticky in-flow top bar (see below). */
 @media (min-width: 901px) {
+  /* One motion language for the whole collapse: the rail slides, the canvas
+     reflows and the edge tab glides on the SAME curve, so opening and closing
+     reads as a single gesture instead of three racing timers. 280ms with the
+     standard ease-out-in curve: fast enough to feel instant, long enough that
+     the eye tracks where the rail went. --nav-t is the delay handle for the
+     visibility chain below. */
+  :root { --nav-t: 280ms; --nav-ease: cubic-bezier(.4, 0, .2, 1); }
   .nav {
     position: fixed;
     top: 0;
@@ -507,17 +514,22 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
        pinned at the top and only the link list scrolls (see .nav-links,
        which owns the scroll region). overflow stays visible: clipping here
        would cut off the fixed account popover (see .nav-menu below). */
+    /* visibility is chained to the slide: an off-canvas panel that is only
+       hidden by transform stays in the tab order and the accessibility tree,
+       so keyboard users would tab into an invisible rail. The collapsed rule
+       below flips visibility the moment the slide finishes (delay = --nav-t);
+       on the way back in it flips visible immediately (delay 0 here). */
+    transition: width var(--nav-t) var(--nav-ease), transform var(--nav-t) var(--nav-ease), visibility 0s linear 0s;
   }
   body {
     padding-left: var(--nav-offset);
-    transition: padding-left .2s ease;
+    transition: padding-left var(--nav-t) var(--nav-ease);
   }
-  .nav {
-    transition: width .2s ease, transform .2s ease;
+  :root[data-nav-collapsed="true"] .nav {
+    transform: translateX(-100%);
+    visibility: hidden;
+    transition: width var(--nav-t) var(--nav-ease), transform var(--nav-t) var(--nav-ease), visibility 0s linear var(--nav-t);
   }
-  :root[data-nav-collapsed="true"] .nav { transform: translateX(-100%); }
-  /* Keep the full 36px expand button visible when the sidebar is hidden. */
-  :root[data-nav-collapsed="true"] .nav-resizer { left: 12px; }
   .nav-resizer {
     display: block;
     position: fixed;
@@ -528,7 +540,7 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
     width: 12px;
     cursor: ew-resize;
     touch-action: none;
-    transition: left .2s ease;
+    transition: left var(--nav-t) var(--nav-ease);
   }
   .nav-resizer::before {
     content: "";
@@ -548,6 +560,40 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
     background: var(--violet);
   }
   .nav-resizer:focus-visible { outline: none; }
+  /* Collapsed: the resizer stops being a full-height edge and becomes JUST
+     the re-open tab, vertically centred on the left edge of the screen.
+     THE BUG THIS FIXES: the collapsed strip used to keep `top:0; bottom:0;
+     width:12px` — an invisible 12px×100vh hit target floating over the page
+     at z-index 70. It swallowed every click and hover along the left edge of
+     the content, and a stray press on it force-reopened the rail straight
+     into a resize drag. Now the hit area is exactly what you see: the tab.
+     pointer-events:none on the box + auto on the button is what makes the
+     invisible area truly inert; the zero-height box keeps the button centred
+     without any geometry of its own. */
+  :root[data-nav-collapsed="true"] .nav-resizer {
+    top: 50%;
+    bottom: auto;
+    left: 12px;
+    width: 36px;
+    height: 0;
+    cursor: default;
+    touch-action: auto;
+    pointer-events: none;
+    overflow: visible;
+  }
+  /* No rail edge to mark while the rail is hidden — drop the hairline. */
+  :root[data-nav-collapsed="true"] .nav-resizer::before { content: none; }
+  :root[data-nav-collapsed="true"] .nav-collapse-btn { pointer-events: auto; }
+  /* Expanding, the collapsed attribute is gone the instant the gesture
+     starts — so for --nav-t the full-height strip exists again, sweeping from
+     the left edge back to the rail's border. Without this guard it is
+     hittable during the flight: a click landing in that band became a phantom
+     drag instead of reaching the page. JS marks the flight with
+     data-nav-animating; the strip (and the tab riding it) stays inert until
+     the edge docks. The collapsed rule above ties this on specificity, so
+     this must come later in the file to win while both attributes are set. */
+  :root[data-nav-animating="true"] .nav-resizer,
+  :root[data-nav-animating="true"] .nav-resizer .nav-collapse-btn { pointer-events: none; }
   .nav-collapse-btn {
     position: absolute;
     top: 50%;
@@ -560,13 +606,28 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
     border: 1px solid var(--line);
     border-radius: 9px;
     background: var(--card);
-    color: var(--text);
+    color: var(--muted);
     box-shadow: var(--shadow);
-    font: 800 12px/1 JetBrains Mono, monospace;
     cursor: pointer;
+    transition: border-color .18s ease, color .18s ease, background .18s ease, box-shadow .18s ease;
   }
-  .nav-collapse-btn:hover,
-  .nav-collapse-btn:focus-visible { border-color: var(--violet); outline: 2px solid transparent; }
+  .nav-collapse-btn .bv-icon { width: 16px; height: 16px; flex: 0 0 16px; opacity: 1; }
+  /* The state icon swap is pure CSS (both chevrons live in the markup), so it
+     tracks the attribute exactly — even pre-JS, where head-theme.js has
+     already restored the collapsed attribute before first paint. */
+  .nav-collapse-ico-when-closed { display: none; }
+  :root[data-nav-collapsed="true"] .nav-collapse-ico-when-open { display: none; }
+  :root[data-nav-collapsed="true"] .nav-collapse-ico-when-closed { display: block; }
+  .nav-collapse-btn:hover { border-color: var(--violet); color: var(--text); }
+  .nav-collapse-btn:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; border-color: var(--violet); }
+  /* Collapsed, the tab is the ONLY way back to the rail — it floats over
+     arbitrary content, so it earns the accent treatment: violet ring and glow
+     make it findable at a glance without shouting. */
+  :root[data-nav-collapsed="true"] .nav-collapse-btn {
+    border-color: var(--accent-border);
+    color: var(--accent-text);
+    box-shadow: 0 6px 20px color-mix(in srgb, var(--violet) 30%, transparent);
+  }
   :root[data-nav-resizing="true"] body,
   :root[data-nav-resizing="true"] .nav,
   :root[data-nav-resizing="true"] .nav-resizer { transition: none; }
@@ -1022,6 +1083,14 @@ html { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 3
   .btn-violet:hover, .btn-white:hover, .btnV:hover, .btnW:hover,
   a.card:hover { transform: none; }
   a.card:hover .card-thumb { transform: none; }
+  /* The rail collapse/expand snaps instantly instead of sliding. body only
+     ever transitions padding-left and .nav only the rail slide, so killing
+     the whole property here is safe on every breakpoint. The compound
+     :root[data-nav-collapsed] selector is required: the desktop collapsed
+     rule redeclares .nav's transition at higher specificity (0,3,0), so a
+     bare .nav here would lose to it and the slide would still run. */
+  body, .nav, .nav-resizer, .nav-collapse-btn,
+  :root[data-nav-collapsed="true"] .nav { transition: none; }
 }
 
 /* --- Mobile show/hide + stacked layouts ----------------------------------

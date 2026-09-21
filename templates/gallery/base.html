@@ -15,7 +15,7 @@
 <meta property="og:image" content="{% block og_image %}{% if request.is_secure %}https{% else %}http{% endif %}://{{ request.get_host }}/static/branding/blaqvibes-icon.png{% endblock %}">
 <link rel="preload" href="{% static 'gallery/css/fonts.css' %}?v=fonts-20260830" as="style">
 <link rel="stylesheet" href="{% static 'gallery/css/fonts.css' %}?v=fonts-20260830">
-<link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=navfix-20260917">
+<link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=sidebar-polish-20260917c">
 <link rel="stylesheet" href="{% static 'gallery/css/cards.css' %}?v=mobile-20260906b">
 <link rel="stylesheet" href="{% static 'gallery/css/premium.css' %}?v=product-system-20260909">
 <link rel="stylesheet" href="{% static 'gallery/css/footer.css' %}?v=footer-contacts-20260910">
@@ -25,7 +25,7 @@ tokens have to exist everywhere they are drawn.{% endcomment %}
 <link rel="stylesheet" href="{% static 'gallery/css/attention.css' %}?v=attention-20260917">
 <script src="{% static 'gallery/js/head-theme.js' %}?v=ext-20260827"></script>
 <script src="{% static 'gallery/js/alpine.min.js' %}?v=alpine-3.16.3" defer></script>
-<script src="{% static 'gallery/js/blaqvibes.js' %}?v=navfix2-20260917" defer></script>
+<script src="{% static 'gallery/js/blaqvibes.js' %}?v=sidebar-polish-20260917c" defer></script>
 <script src="{% static 'gallery/js/attention.js' %}?v=attention-20260917" defer></script>
 {% block head %}{% endblock %}
 </head>
@@ -34,6 +34,8 @@ tokens have to exist everywhere they are drawn.{% endcomment %}
   <symbol id="bv-ico-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M4 12H2m20 0h-2M5 5l1.4 1.4M17.6 17.6 19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></symbol>
   <symbol id="bv-ico-moon" viewBox="0 0 24 24"><path d="M20 14.5A7.8 7.8 0 0 1 9.5 4 8 8 0 1 0 20 14.5Z"/></symbol>
   <symbol id="bv-ico-menu" viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h16"/></symbol>
+  <symbol id="bv-ico-rail-close" viewBox="0 0 24 24"><path d="m14.5 7-5 5 5 5"/><path d="m19.5 7-5 5 5 5"/></symbol>
+  <symbol id="bv-ico-rail-open" viewBox="0 0 24 24"><path d="m9.5 7 5 5-5 5"/><path d="m4.5 7 5 5-5 5"/></symbol>
   <symbol id="bv-ico-launch" viewBox="0 0 24 24"><path d="M7 17 17 7M9 7h8v8"/><path d="M6 7H5a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-1"/></symbol>
   <symbol id="bv-ico-profile" viewBox="0 0 24 24"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z"/><path d="M4 21a8 8 0 0 1 16 0"/></symbol>
   <symbol id="bv-ico-inbox" viewBox="0 0 24 24"><path d="M4 5h16l-1.5 14h-13L4 5Z"/><path d="M4.6 13h4.2l1.4 2h3.6l1.4-2h4.2"/><path d="M12 4v6m0 0-2-2m2 2 2-2"/></symbol>
@@ -165,8 +167,11 @@ literal text — the regression guard in gallery/test_engagement.py pins that.
     {% endif %}
   </div>
 </nav>
+{% comment %}Rail edge: drag to resize, click the tab to collapse/expand. The
+tab carries both chevrons; CSS shows the one matching the rail's state, so the
+icon never depends on JS running first.{% endcomment %}
 <div id="nav-resizer" class="nav-resizer" role="separator" aria-label="Resize sidebar" aria-orientation="vertical" aria-valuemin="180" aria-valuemax="380" aria-valuenow="230" tabindex="0">
-  <button type="button" id="nav-collapse" class="nav-collapse-btn" aria-label="Collapse sidebar" aria-expanded="true">&lt;&lt;</button>
+  <button type="button" id="nav-collapse" class="nav-collapse-btn" aria-label="Collapse sidebar" aria-expanded="true" title="Collapse sidebar"><svg class="bv-icon nav-collapse-ico-when-open" aria-hidden="true"><use href="#bv-ico-rail-close"></use></svg><svg class="bv-icon nav-collapse-ico-when-closed" aria-hidden="true"><use href="#bv-ico-rail-open"></use></svg></button>
 </div>
 {% if user.is_authenticated and not user.profile.email_verified and request.resolver_match.url_name != 'edit_email' %}
 <div style="max-width:1100px;margin:12px auto 0;padding:0 20px">

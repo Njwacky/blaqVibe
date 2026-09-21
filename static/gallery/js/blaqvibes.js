@@ -113,12 +113,36 @@ function copyText(t){
     if(save){ try{ localStorage.setItem(WIDTH_KEY, String(next)); }catch(e){} }
   }
   function collapsed(){ return root.getAttribute('data-nav-collapsed') === 'true'; }
+  /* Expanding, the collapsed attribute is gone the instant the gesture starts,
+     so for the --nav-t flight the full-height edge strip exists again,
+     sweeping from the left edge to the rail's border. data-nav-animating
+     keeps that strip (and the tab riding it) inert until it docks — a click
+     landing in the band mid-flight must reach the page, not start a drag.
+     Cleared on the resizer's 'left' transitionend; the 400ms fallback covers
+     reduced motion (no transitionend fires) and interrupted flights. */
+  let animTimer = null;
+  function keepStripInertWhileItDocks(){
+    root.setAttribute('data-nav-animating', 'true');
+    clearTimeout(animTimer);
+    const done = function(ev){
+      if(ev && ev.propertyName && ev.propertyName !== 'left') return;
+      root.removeAttribute('data-nav-animating');
+      rail.removeEventListener('transitionend', done);
+      clearTimeout(animTimer);
+    };
+    rail.addEventListener('transitionend', done);
+    animTimer = setTimeout(done, 400);
+  }
   function setCollapsed(value){
     if(value) root.setAttribute('data-nav-collapsed', 'true');
     else root.removeAttribute('data-nav-collapsed');
-    button.textContent = value ? '>>' : '<<';
-    button.setAttribute('aria-label', value ? 'Expand sidebar' : 'Collapse sidebar');
+    /* The chevron swap itself is CSS (:root[data-nav-collapsed] picks which
+       use-element renders), so JS only has to keep the announced state true. */
+    const label = value ? 'Expand sidebar' : 'Collapse sidebar';
+    button.setAttribute('aria-label', label);
     button.setAttribute('aria-expanded', value ? 'false' : 'true');
+    button.title = label;
+    if(!value) keepStripInertWhileItDocks();
     try{ localStorage.setItem(COLLAPSED_KEY, value ? '1' : '0'); }catch(e){}
   }
 
