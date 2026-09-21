@@ -20,6 +20,10 @@ def extras(request):
     # wait in the queue, and the badge in the nav keeps that count visible
     # on every page — the glowing button promised a human would read it.
     feedback_unread = 0
+    # The shortcut is intentionally visible by default. Authenticated people
+    # can hide it in Settings; the Feedback link in the account menu remains
+    # available so turning it back on never requires a hidden URL.
+    feedback_fab_visible = True
     user = getattr(request, 'user', None)
     if user is not None and user.is_authenticated:
         try:
@@ -43,6 +47,10 @@ def extras(request):
                 quarantine_appeal_open = open_appeal(quarantine) is not None
         except Exception:
             quarantine_active = False
+        try:
+            feedback_fab_visible = bool(getattr(user.profile, 'show_feedback_fab', True))
+        except Exception:
+            feedback_fab_visible = True
         # One count only for staff, so the nav badge is free to show. Reads
         # an indexed row set; never performed on a public cache-key path.
         try:
@@ -128,6 +136,7 @@ def extras(request):
         'open_reports': open_reports,
         'open_appeals': open_appeals,
         'feedback_unread': feedback_unread,
+        'feedback_fab_visible': feedback_fab_visible,
         'quarantine_active': quarantine_active,
         'quarantine_ends_at': quarantine_ends_at,
         'quarantine_reason': quarantine_reason,

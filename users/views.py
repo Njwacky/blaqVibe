@@ -722,7 +722,7 @@ def toggle_setting(request):
         key = request.POST.get('key')
         value = request.POST.get('value') == 'true'
         # User toggles
-        user_keys = ['auto_language','nolo_enabled','auto_thumbnail','allow_trading','email_on_trade','email_on_review','show_language','allow_forks','allow_prs','allow_comments','allow_reviews',
+        user_keys = ['auto_language','nolo_enabled','auto_thumbnail','allow_trading','email_on_trade','email_on_review','show_language','allow_forks','allow_prs','allow_comments','allow_reviews','show_feedback_fab',
                      'notify_on_star','notify_on_fork','notify_on_follow','notify_on_comment','notify_on_trade','notify_on_milestone']
         if key in user_keys:
             profile,_ = Profile.objects.get_or_create(user=request.user)

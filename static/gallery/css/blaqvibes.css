@@ -1105,6 +1105,9 @@ html { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 3
    is the bar's min-height, so no-JS still sits under the bar).
    z 94: above the nav (50) and mobile sticky actions (90), below the
    publish chooser (95) and the transient toast/PWA banners (999). */
+.bv-fab-tip{position:fixed;z-index:93;right:84px;bottom:31px;max-width:230px;padding:8px 11px;border:1px solid var(--accent-border);border-radius:10px;background:var(--card);box-shadow:0 8px 24px rgba(0,0,0,.24);color:var(--muted);font-size:11px;line-height:1.35;text-align:right}
+.bv-fab-tip::after{content:"";position:absolute;right:-9px;top:50%;width:0;height:0;transform:translateY(-50%);border-top:7px solid transparent;border-bottom:7px solid transparent;border-left:9px solid var(--card)}
+.bv-fab-tip a{color:var(--accent-text);font-weight:800;text-decoration:underline;text-underline-offset:2px}
 .bv-fab{position:fixed;z-index:94;right:20px;bottom:20px;width:54px;height:54px;border-radius:50%;display:grid;place-items:center;text-decoration:none;color:#fff;background:linear-gradient(140deg,#a78bfa 0%,#7c3aed 60%);border:1px solid rgba(196,181,253,.55);box-shadow:0 0 16px rgba(124,58,237,.55),0 10px 30px rgba(0,0,0,.35);animation:bv-fab-glow 2.4s ease-in-out infinite;transition:transform .15s ease;will-change:box-shadow}
 .bv-fab:hover{transform:scale(1.08)}
 .bv-fab:active{transform:scale(.96)}
@@ -1117,6 +1120,7 @@ html { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 3
 @media (max-width:900px){
   /* Mobile: on TOP, near the day toggle button (it sits in the sticky
      top bar's right cluster) — just under the bar, not over it. */
+  .bv-fab-tip{top:calc(var(--bv-nav-h, 64px) + 14px);bottom:auto;right:68px;max-width:min(230px,calc(100vw - 128px));padding:7px 9px;text-align:right}
   .bv-fab{top:calc(var(--bv-nav-h, 64px) + 10px);bottom:auto;right:12px;width:48px;height:48px}
   .bv-fab .bv-icon{width:22px;height:22px;flex-basis:22px}
 }

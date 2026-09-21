@@ -154,7 +154,15 @@ class FeedbackMessageInline(admin.TabularInline):
     model = FeedbackMessage
     extra = 0
     can_delete = False
-    readonly_fields = ('sender', 'from_staff', 'body', 'created_at')
+    # Do not render ImageField.url in Django admin: a staff member who is not
+    # an authorized superadmin must not receive a direct media URL. The app's
+    # feedback conversation endpoint performs the role/owner check.
+    fields = ('sender', 'from_staff', 'body', 'attachment_status', 'created_at')
+    readonly_fields = fields
+
+    @admin.display(description='Attachment')
+    def attachment_status(self, obj):
+        return 'Screenshot attached — open the feedback conversation to view it securely.' if obj and obj.attachment else '—'
 
     def has_add_permission(self, request, obj=None):
         return False

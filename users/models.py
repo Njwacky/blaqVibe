@@ -402,6 +402,10 @@ class Profile(models.Model):
     # `blaq-welcome-seen` flag means the server only asks while the answer is
     # genuinely unknown — the overlay can never nag a person who skipped it.
     overlay_seen = models.BooleanField(default=False, help_text='True once the first-time welcome overlay has been completed or skipped')
+    # The floating feedback shortcut is on for everyone by default. People can
+    # turn it off in Settings without losing the Feedback link in their account
+    # menu, so the human channel remains reachable when they want it back.
+    show_feedback_fab = models.BooleanField(default=True, help_text='Show the floating feedback shortcut')
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
         constraints = [
@@ -1167,7 +1171,12 @@ class FeedbackMessage(models.Model):
     # not change if the sender's role changes later — a demoted admin's
     # old reply is still a team reply.
     from_staff = models.BooleanField(default=False)
+    # A builder can attach a screenshot to make a visual bug reproducible.
+    # The feedback view validates the bytes with Pillow and serves it only to
+    # the thread owner or a superadmin; it is never rendered as a public media
+    # URL.
     body = models.TextField(max_length=4000)
+    attachment = models.ImageField(upload_to='feedback/%Y/%m/', blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

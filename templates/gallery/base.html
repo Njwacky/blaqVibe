@@ -15,7 +15,7 @@
 <meta property="og:image" content="{% block og_image %}{% if request.is_secure %}https{% else %}http{% endif %}://{{ request.get_host }}/static/branding/blaqvibes-icon.png{% endblock %}">
 <link rel="preload" href="{% static 'gallery/css/fonts.css' %}?v=fonts-20260830" as="style">
 <link rel="stylesheet" href="{% static 'gallery/css/fonts.css' %}?v=fonts-20260830">
-<link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=fab-20260917">
+<link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=fab-tip-20260921">
 <link rel="stylesheet" href="{% static 'gallery/css/cards.css' %}?v=mobile-20260906b">
 <link rel="stylesheet" href="{% static 'gallery/css/premium.css' %}?v=product-system-20260909">
 <link rel="stylesheet" href="{% static 'gallery/css/footer.css' %}?v=footer-polish-20260921">
@@ -295,16 +295,25 @@ literal text — the regression guard in gallery/test_engagement.py pins that.
 </footer>
 {% comment %}Feedback floating button — the temporary fast path to a human
 while BlaqVibes is under construction (users/feedback.py owns the backend).
-It must be impossible to miss, so it GLOWS: a breathing violet pulse,
-paused under prefers-reduced-motion. Desktop parks it bottom-right; on
-mobile it floats just under the sticky top bar, next to the theme (day/
-night) toggle, because the bottom edge belongs to the sticky action bar.
+It is visible by default, so it GLOWS: a breathing violet pulse, paused
+under prefers-reduced-motion. Authenticated users can switch it off in
+Settings; the Feedback account-menu link remains. Desktop parks it
+bottom-right; on mobile it floats just under the sticky top bar, next to the
+theme (day/night) toggle, because the bottom edge belongs to the sticky action bar.
 Layer 94: above the nav (50) and mobile sticky actions (90), below the
 publish chooser (95) and the transient toast/PWA banners (999).{% endcomment %}
-<a href="{% url 'feedback_inbox' %}" class="bv-fab" id="bv-fab"
+{% if feedback_fab_visible %}
+{% if user.is_authenticated %}
+<div class="bv-fab-tip" id="bv-fab-tip" role="note">
+  You can switch me off anytime in <a href="{% url 'settings' %}">Settings</a>.
+</div>
+{% endif %}
+<a href="{% url 'feedback_inbox' %}" class="bv-fab" id="bv-fab"{% if user.is_authenticated %}
+   aria-describedby="bv-fab-tip"{% endif %}
    aria-label="Give feedback — a superadmin reads every one{% if user.is_authenticated %}; replies come back here{% endif %}">
   <svg class="bv-icon" aria-hidden="true"><use href="#bv-ico-bulb"></use></svg>
 </a>
+{% endif %}
 <div id="toast" class="toast">✓ Copied!</div>
 {% if pwa_enabled %}
 <div id="pwa-install-banner" style="display:none;position:fixed;bottom:20px;background:var(--card);border:1px solid var(--accent-border);border-radius:16px;padding:14px 16px;max-width:380px;width:calc(100% - 32px);box-shadow:0 12px 40px rgba(0,0,0,.5);z-index:999;align-items:center;gap:12px">
