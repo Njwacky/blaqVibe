@@ -1105,9 +1105,16 @@ html { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 3
    is the bar's min-height, so no-JS still sits under the bar).
    z 94: above the nav (50) and mobile sticky actions (90), below the
    publish chooser (95) and the transient toast/PWA banners (999). */
-.bv-fab-tip{position:fixed;z-index:93;right:84px;bottom:31px;max-width:230px;padding:8px 11px;border:1px solid var(--accent-border);border-radius:10px;background:var(--card);box-shadow:0 8px 24px rgba(0,0,0,.24);color:var(--muted);font-size:11px;line-height:1.35;text-align:right}
+.bv-fab-tip{position:fixed;z-index:93;right:84px;bottom:24px;max-width:240px;padding:9px 12px;border:1px solid var(--accent-border);border-radius:10px;background:var(--card);box-shadow:0 8px 24px rgba(0,0,0,.24);color:var(--muted);font-size:11px;line-height:1.35;text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:6px;transition:opacity .15s ease,transform .15s ease}
+.bv-fab-tip--dismissing{opacity:0;transform:scale(.95);pointer-events:none}
 .bv-fab-tip::after{content:"";position:absolute;right:-9px;top:50%;width:0;height:0;transform:translateY(-50%);border-top:7px solid transparent;border-bottom:7px solid transparent;border-left:9px solid var(--card)}
 .bv-fab-tip a{color:var(--accent-text);font-weight:800;text-decoration:underline;text-underline-offset:2px}
+.bv-fab-tip__text{font-size:11px;line-height:1.35;color:var(--muted)}
+.bv-fab-tip__ok{background:var(--violet);color:#fff;border:none;border-radius:6px;padding:3px 10px;font-size:11px;font-weight:700;font-family:inherit;cursor:pointer;line-height:1.3;box-shadow:0 2px 6px rgba(124,58,237,.3);transition:transform .12s ease,opacity .12s ease,filter .12s ease}
+.bv-fab-tip__ok:hover{filter:brightness(1.12);transform:scale(1.04)}
+.bv-fab-tip__ok:active{transform:scale(.96)}
+.bv-fab-tip__ok:focus-visible{outline:2px solid var(--violet);outline-offset:2px}
+[data-fab-tip-dismissed="true"] .bv-fab-tip{display:none !important}
 .bv-fab{position:fixed;z-index:94;right:20px;bottom:20px;width:54px;height:54px;border-radius:50%;display:grid;place-items:center;text-decoration:none;color:#fff;background:linear-gradient(140deg,#a78bfa 0%,#7c3aed 60%);border:1px solid rgba(196,181,253,.55);box-shadow:0 0 16px rgba(124,58,237,.55),0 10px 30px rgba(0,0,0,.35);animation:bv-fab-glow 2.4s ease-in-out infinite;transition:transform .15s ease;will-change:box-shadow}
 .bv-fab:hover{transform:scale(1.08)}
 .bv-fab:active{transform:scale(.96)}
@@ -1120,12 +1127,13 @@ html { scrollbar-width: thin; scrollbar-color: color-mix(in srgb, var(--muted) 3
 @media (max-width:900px){
   /* Mobile: on TOP, near the day toggle button (it sits in the sticky
      top bar's right cluster) — just under the bar, not over it. */
-  .bv-fab-tip{top:calc(var(--bv-nav-h, 64px) + 14px);bottom:auto;right:68px;max-width:min(230px,calc(100vw - 128px));padding:7px 9px;text-align:right}
+  .bv-fab-tip{top:calc(var(--bv-nav-h, 64px) + 8px);bottom:auto;right:68px;max-width:min(230px,calc(100vw - 128px));padding:7px 10px;text-align:right}
   .bv-fab{top:calc(var(--bv-nav-h, 64px) + 10px);bottom:auto;right:12px;width:48px;height:48px}
   .bv-fab .bv-icon{width:22px;height:22px;flex-basis:22px}
 }
 @media (prefers-reduced-motion:reduce){
   .bv-fab{animation:none;box-shadow:0 0 22px rgba(124,58,237,.75),0 10px 30px rgba(0,0,0,.35)}
+  .bv-fab-tip, .bv-fab-tip__ok{transition:none}
 }
 
 /* ── Profile website links (ProfileLink) — status lights visitors read

@@ -24,6 +24,12 @@ def extras(request):
     # can hide it in Settings; the Feedback link in the account menu remains
     # available so turning it back on never requires a hidden URL.
     feedback_fab_visible = True
+    feedback_fab_tip_visible = True
+    try:
+        if request.COOKIES.get('blaq_fab_tip_dismissed') == '1':
+            feedback_fab_tip_visible = False
+    except Exception:
+        pass
     user = getattr(request, 'user', None)
     if user is not None and user.is_authenticated:
         try:
@@ -51,6 +57,11 @@ def extras(request):
             feedback_fab_visible = bool(getattr(user.profile, 'show_feedback_fab', True))
         except Exception:
             feedback_fab_visible = True
+        try:
+            if getattr(user.profile, 'feedback_fab_tip_dismissed', False):
+                feedback_fab_tip_visible = False
+        except Exception:
+            pass
         # One count only for staff, so the nav badge is free to show. Reads
         # an indexed row set; never performed on a public cache-key path.
         try:
@@ -137,6 +148,7 @@ def extras(request):
         'open_appeals': open_appeals,
         'feedback_unread': feedback_unread,
         'feedback_fab_visible': feedback_fab_visible,
+        'feedback_fab_tip_visible': feedback_fab_tip_visible,
         'quarantine_active': quarantine_active,
         'quarantine_ends_at': quarantine_ends_at,
         'quarantine_reason': quarantine_reason,

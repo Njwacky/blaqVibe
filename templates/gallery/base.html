@@ -15,7 +15,7 @@
 <meta property="og:image" content="{% block og_image %}{% if request.is_secure %}https{% else %}http{% endif %}://{{ request.get_host }}/static/branding/blaqvibes-icon.png{% endblock %}">
 <link rel="preload" href="{% static 'gallery/css/fonts.css' %}?v=fonts-20260830" as="style">
 <link rel="stylesheet" href="{% static 'gallery/css/fonts.css' %}?v=fonts-20260830">
-<link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=fab-tip-20260921">
+<link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=fab-tip-dismiss-20260921">
 <link rel="stylesheet" href="{% static 'gallery/css/cards.css' %}?v=mobile-20260906b">
 <link rel="stylesheet" href="{% static 'gallery/css/premium.css' %}?v=product-system-20260909">
 <link rel="stylesheet" href="{% static 'gallery/css/footer.css' %}?v=footer-polish-20260921">
@@ -23,9 +23,9 @@
 rides every page and the inbox is reachable from every page, so the colour
 tokens have to exist everywhere they are drawn.{% endcomment %}
 <link rel="stylesheet" href="{% static 'gallery/css/attention.css' %}?v=attention-20260917">
-<script src="{% static 'gallery/js/head-theme.js' %}?v=ext-20260827"></script>
+<script src="{% static 'gallery/js/head-theme.js' %}?v=fab-tip-dismiss-20260921"></script>
 <script src="{% static 'gallery/js/alpine.min.js' %}?v=alpine-3.16.3" defer></script>
-<script src="{% static 'gallery/js/blaqvibes.js' %}?v=navfix2-20260917" defer></script>
+<script src="{% static 'gallery/js/blaqvibes.js' %}?v=fab-tip-dismiss-20260921" defer></script>
 <script src="{% static 'gallery/js/attention.js' %}?v=attention-20260917" defer></script>
 {% block head %}{% endblock %}
 </head>
@@ -303,12 +303,15 @@ theme (day/night) toggle, because the bottom edge belongs to the sticky action b
 Layer 94: above the nav (50) and mobile sticky actions (90), below the
 publish chooser (95) and the transient toast/PWA banners (999).{% endcomment %}
 {% if feedback_fab_visible %}
-{% if user.is_authenticated %}
-<div class="bv-fab-tip" id="bv-fab-tip" role="note">
-  You can switch me off anytime in <a href="{% url 'settings' %}">Settings</a>.
+{% if user.is_authenticated and feedback_fab_tip_visible %}
+<div class="bv-fab-tip" id="bv-fab-tip" role="note"
+     data-dismiss-url="{% url 'toggle_setting' %}"
+     data-csrf="{{ csrf_token }}">
+  <div class="bv-fab-tip__text">You can switch me off anytime in <a href="{% url 'settings' %}">Settings</a>.</div>
+  <button type="button" class="bv-fab-tip__ok js-dismiss-fab-tip" id="bv-fab-tip-dismiss" aria-label="Dismiss feedback message">OK</button>
 </div>
 {% endif %}
-<a href="{% url 'feedback_inbox' %}" class="bv-fab" id="bv-fab"{% if user.is_authenticated %}
+<a href="{% url 'feedback_inbox' %}" class="bv-fab" id="bv-fab"{% if user.is_authenticated and feedback_fab_tip_visible %}
    aria-describedby="bv-fab-tip"{% endif %}
    aria-label="Give feedback — a superadmin reads every one{% if user.is_authenticated %}; replies come back here{% endif %}">
   <svg class="bv-icon" aria-hidden="true"><use href="#bv-ico-bulb"></use></svg>
