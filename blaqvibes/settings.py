@@ -705,6 +705,10 @@ STATICFILES_DIRS = [BASE_DIR / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
+# Feedback screenshots are capped at 7MB in users/feedback.py. Leave room for
+# multipart overhead so Django does not reject a valid screenshot before the
+# view can run its byte/format/pixel validation.
+DATA_UPLOAD_MAX_MEMORY_SIZE = 9 * 1024 * 1024
 
 # ------------------------------------------------------------------
 # Email — Brevo (transactional API) is the production path for

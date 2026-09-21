@@ -5,6 +5,9 @@ ADMIN ALERT — Feedback
 @{{ username }} wrote:
 
 {{ snippet }}
+{% if has_attachment %}
+A screenshot is attached. Open the conversation to view it securely.
+{% endif %}
 
 Reply from the superadmin inbox:
 {{ site_url }}{{ url }}

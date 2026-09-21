@@ -1,5 +1,7 @@
 {% extends 'gallery/base.html' %}
+{% load static %}
 {% block title %}Feedback — BlaqVibes{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'gallery/css/feedback.css' %}?v=screenshot-20260921">{% endblock %}
 {% block content %}
 {% comment %}
 The feedback page: the temporary fast path to a human while BlaqVibes is
@@ -20,21 +22,40 @@ shows the running conversations and where each one stands.
         replies <b>right here, in the conversation</b> — not to a mailbox, not to a
         ticket. The glowing bulb button on every page is this page.
       </p>
+      <div class="feedback-fab-preference" data-feedback-fab-setting data-url="{% url 'toggle_setting' %}" data-csrf="{{ csrf_token }}">
+        <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-bulb"></use></svg>
+        <span>{% if feedback_fab_visible %}Floating feedback button is on by default.{% else %}Floating feedback button is off.{% endif %}</span>
+        <label class="switch" title="Toggle floating feedback button">
+          <input type="checkbox" class="js-feedback-fab-toggle" data-key="show_feedback_fab" {% if feedback_fab_visible %}checked{% endif %}>
+          <span class="slider"></span>
+        </label>
+        <a href="{% url 'settings' %}">Manage in Settings</a>
+      </div>
     </div>
   </div>
 
-  <form method="post" style="margin-top:20px">
+  <form method="post" enctype="multipart/form-data" style="margin-top:20px">
     {% csrf_token %}
     <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow)">
       <label for="new-feedback-body" style="font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px">
         <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-pencil"></use></svg> Say what's on your mind
       </label>
       <p style="font-size:11.5px;color:var(--muted);margin:4px 0 10px;line-height:1.5">
-        A bug, a rough edge, an idea, or "this is great". The more specific, the more it helps —
-        which page, what you expected, what happened.
+        A bug, a rough edge, an idea, or "this is great". Tell us which page,
+        what you expected, and what happened — or attach a screenshot of the error.
       </p>
-      <textarea id="new-feedback-body" name="body" rows="4" maxlength="4000" required
+      <textarea id="new-feedback-body" name="body" rows="4" maxlength="4000"
+        placeholder="What happened?"
         style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;font:14px/1.55 inherit;resize:vertical"></textarea>
+      <div class="feedback-attachment" data-feedback-attachment>
+        <label class="feedback-attachment__pick" for="new-feedback-attachment">
+          <svg class="bv-icon" aria-hidden="true"><use href="#bv-ico-upload"></use></svg>
+          <span>Attach screenshot</span>
+        </label>
+        <input id="new-feedback-attachment" class="feedback-attachment__input js-feedback-attachment" type="file" name="attachment" accept="image/png,image/jpeg,image/webp">
+        <span class="feedback-attachment__name" data-feedback-file-name>No picture selected · PNG, JPG or WebP up to 7MB</span>
+      </div>
+      <div class="feedback-attachment__preview" data-feedback-preview hidden></div>
       <div style="display:flex;justify-content:flex-end;margin-top:10px">
         <button type="submit" class="btn-violet">Send feedback</button>
       </div>
@@ -74,4 +95,5 @@ shows the running conversations and where each one stands.
   </div>
   {% endif %}
 </div>
+<script src="{% static 'gallery/js/feedback.js' %}?v=screenshot-20260921" defer></script>
 {% endblock %}

@@ -154,7 +154,7 @@ class FeedbackMessageInline(admin.TabularInline):
     model = FeedbackMessage
     extra = 0
     can_delete = False
-    readonly_fields = ('sender', 'from_staff', 'body', 'created_at')
+    readonly_fields = ('sender', 'from_staff', 'body', 'attachment', 'created_at')
 
     def has_add_permission(self, request, obj=None):
         return False

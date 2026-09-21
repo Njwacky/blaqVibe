@@ -40,6 +40,7 @@ urlpatterns = [
     # is the superadmin's inbox (queue + reply).
     path('feedback/', feedback_views.feedback_inbox, name='feedback_inbox'),
     path('feedback/<int:pk>/', feedback_views.feedback_conversation, name='feedback_conversation'),
+    path('feedback/<int:thread_pk>/message/<int:message_pk>/attachment/', feedback_views.feedback_attachment, name='feedback_attachment'),
     path('admin/feedback/', feedback_views.admin_feedback_queue, name='admin_feedback_queue'),
     path('admin/feedback/<int:pk>/', feedback_views.admin_feedback_conversation, name='admin_feedback_conversation'),
 ]

@@ -1,5 +1,7 @@
 {% extends 'gallery/base.html' %}
+{% load static %}
 {% block title %}Conversation #{{ thread.pk }} — Feedback{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'gallery/css/feedback.css' %}?v=screenshot-20260921">{% endblock %}
 {% block content %}
 {% comment %}
 The conversation itself. One template serves both sides:
@@ -63,6 +65,14 @@ one-way form: the superadmin "must be able to reply to a person".
         <span>{{ m.created_at|timesince }} ago</span>
       </div>
       <div class="fb-msg__body">{{ m.body }}</div>
+      {% if m.attachment %}
+      <figure class="feedback-screenshot">
+        <a href="{% url 'feedback_attachment' thread.pk m.pk %}" target="_blank" rel="noopener" aria-label="Open attached screenshot">
+          <img src="{% url 'feedback_attachment' thread.pk m.pk %}" alt="Screenshot attached to feedback message" loading="lazy">
+        </a>
+        <figcaption>Screenshot · open full size</figcaption>
+      </figure>
+      {% endif %}
     </div>
     {% empty %}
     <div style="background:var(--card);border:1px dashed var(--line);border-radius:14px;padding:20px;text-align:center;color:var(--muted);font-size:13px">
@@ -73,18 +83,27 @@ one-way form: the superadmin "must be able to reply to a person".
 
   {% if is_admin_view %}
   {# ── Superadmin side: reply, close, reopen ── #}
-  <form method="post" style="margin-top:20px">
+  <form method="post" enctype="multipart/form-data" style="margin-top:20px">
     {% csrf_token %}
     <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow)">
-      <label for="fb-reply-body" style="font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px">
+      <label for="fb-reply-body-admin" style="font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px">
         <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-mail"></use></svg> Reply to @{{ thread.user.username }}
       </label>
       <p style="font-size:11.5px;color:var(--muted);margin:4px 0 10px">
         It lands back in this conversation and in their inbox — they will see it under
         "Your conversations" and from the glowing button.
       </p>
-      <textarea id="fb-reply-body" name="body" rows="3" maxlength="4000"
+      <textarea id="fb-reply-body-admin" name="body" rows="3" maxlength="4000"
         style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;font:14px/1.55 inherit;resize:vertical"></textarea>
+      <div class="feedback-attachment" data-feedback-attachment>
+        <label class="feedback-attachment__pick" for="fb-feedback-attachment-admin">
+          <svg class="bv-icon" aria-hidden="true"><use href="#bv-ico-upload"></use></svg>
+          <span>Attach screenshot</span>
+        </label>
+        <input id="fb-feedback-attachment-admin" class="feedback-attachment__input js-feedback-attachment" type="file" name="attachment" accept="image/png,image/jpeg,image/webp">
+        <span class="feedback-attachment__name" data-feedback-file-name>No picture selected · PNG, JPG or WebP up to 7MB</span>
+      </div>
+      <div class="feedback-attachment__preview" data-feedback-preview hidden></div>
       <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap">
         <div style="display:flex;gap:8px">
           {% if thread.status == 'closed' %}
@@ -104,17 +123,26 @@ one-way form: the superadmin "must be able to reply to a person".
   </div>
   {% else %}
   {# ── Builder side: keep the conversation going ── #}
-  <form method="post" style="margin-top:20px">
+  <form method="post" enctype="multipart/form-data" style="margin-top:20px">
     {% csrf_token %}
     <div style="background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:var(--shadow)">
-      <label for="fb-reply-body" style="font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px">
+      <label for="fb-reply-body-user" style="font-weight:700;font-size:13px;display:flex;align-items:center;gap:8px">
         <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-chat"></use></svg> Add to the conversation
       </label>
       <p style="font-size:11.5px;color:var(--muted);margin:4px 0 10px">
         Follow-ups reopen it and ping the superadmin's inbox again.
       </p>
-      <textarea id="fb-reply-body" name="body" rows="3" maxlength="4000"
+      <textarea id="fb-reply-body-user" name="body" rows="3" maxlength="4000"
         style="width:100%;box-sizing:border-box;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px;font:14px/1.55 inherit;resize:vertical"></textarea>
+      <div class="feedback-attachment" data-feedback-attachment>
+        <label class="feedback-attachment__pick" for="fb-feedback-attachment-user">
+          <svg class="bv-icon" aria-hidden="true"><use href="#bv-ico-upload"></use></svg>
+          <span>Attach screenshot</span>
+        </label>
+        <input id="fb-feedback-attachment-user" class="feedback-attachment__input js-feedback-attachment" type="file" name="attachment" accept="image/png,image/jpeg,image/webp">
+        <span class="feedback-attachment__name" data-feedback-file-name>No picture selected · PNG, JPG or WebP up to 7MB</span>
+      </div>
+      <div class="feedback-attachment__preview" data-feedback-preview hidden></div>
       <div style="display:flex;justify-content:flex-end;margin-top:10px">
         <button type="submit" class="btn-violet">Send</button>
       </div>
@@ -122,4 +150,5 @@ one-way form: the superadmin "must be able to reply to a person".
   </form>
   {% endif %}
 </div>
+<script src="{% static 'gallery/js/feedback.js' %}?v=screenshot-20260921" defer></script>
 {% endblock %}

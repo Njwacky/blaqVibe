@@ -11,9 +11,14 @@ Covers the contract the feature promises:
   read for staff; close/reopen works
 - a closed conversation stops the user from posting
 """
+from io import BytesIO
+
+from PIL import Image
+
 from django.contrib.auth import get_user_model
 from django.core import mail
-from django.test import TestCase
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from django.utils import timezone
 
@@ -40,17 +45,48 @@ def _thread(owner, body='please help', from_user=True):
     return t
 
 
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests-feedback')
 class FeedbackUserSideTests(TestCase):
     def setUp(self):
         self.user = _make('builder')
         self.other = _make('other')
         self.client.force_login(self.user)
 
+    def _png_upload(self, name='error.png'):
+        buf = BytesIO()
+        Image.new('RGB', (12, 8), (124, 58, 237)).save(buf, format='PNG')
+        return SimpleUploadedFile(name, buf.getvalue(), content_type='image/png')
+
     def test_anonymous_redirected_to_login(self):
         self.client.logout()
         resp = self.client.get(reverse('feedback_inbox'))
         self.assertEqual(resp.status_code, 302)
         self.assertIn('login', resp.url)
+
+    def test_feedback_accepts_a_screenshot_and_serves_it_only_to_owner(self):
+        resp = self.client.post(
+            reverse('feedback_inbox'),
+            {'body': 'The error appears after tapping Publish.', 'attachment': self._png_upload()},
+        )
+        self.assertEqual(resp.status_code, 302)
+        message = FeedbackMessage.objects.get(thread__user=self.user)
+        self.assertTrue(message.attachment.name.startswith('feedback/'))
+
+        image = self.client.get(reverse('feedback_attachment', args=(message.thread_id, message.pk)))
+        self.assertEqual(image.status_code, 200)
+        self.assertEqual(image['Content-Type'], 'image/png')
+        self.assertEqual(image['Content-Disposition'], 'inline; filename="feedback-screenshot.png"')
+
+        self.client.force_login(self.other)
+        self.assertEqual(
+            self.client.get(reverse('feedback_attachment', args=(message.thread_id, message.pk))).status_code,
+            404,
+        )
+
+    def test_screenshot_alone_starts_a_readable_message(self):
+        self.client.post(reverse('feedback_inbox'), {'attachment': self._png_upload('only.png')})
+        message = FeedbackMessage.objects.get(thread__user=self.user)
+        self.assertEqual(message.body, 'Screenshot attached.')
 
     def test_empty_body_creates_nothing(self):
         resp = self.client.post(reverse('feedback_inbox'), {'body': '   '})
@@ -207,6 +243,28 @@ class FeedbackAdminSideTests(TestCase):
 class FeedbackBadgeTests(TestCase):
     """The nav badge (gallery.context_processors) counts unread threads for
     superadmins only — the glowing button promised a human would read it."""
+
+    @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests-feedback')
+    def test_feedback_fab_is_on_by_default_and_can_be_hidden(self):
+        user = _make('builder')
+        self.client.force_login(user)
+        self.assertContains(self.client.get('/'), 'id="bv-fab"')
+
+        off = self.client.post(
+            reverse('toggle_setting'),
+            {'key': 'show_feedback_fab', 'value': 'false'},
+        )
+        self.assertEqual(off.status_code, 200)
+        user.profile.refresh_from_db()
+        self.assertFalse(user.profile.show_feedback_fab)
+        self.assertNotContains(self.client.get('/'), 'id="bv-fab"')
+
+        on = self.client.post(
+            reverse('toggle_setting'),
+            {'key': 'show_feedback_fab', 'value': 'true'},
+        )
+        self.assertEqual(on.status_code, 200)
+        self.assertContains(self.client.get('/'), 'id="bv-fab"')
 
     def test_superadmin_sees_unread_count(self):
         builder = _make('builder')
