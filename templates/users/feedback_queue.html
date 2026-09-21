@@ -1,5 +1,7 @@
 {% extends 'gallery/base.html' %}
+{% load static %}
 {% block title %}Feedback inbox — BlaqVibes{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'gallery/css/feedback.css' %}?v=screenshot-20260921">{% endblock %}
 {% block content %}
 {% comment %}
 The superadmin's feedback inbox — the working end of the glowing floating
@@ -46,6 +48,11 @@ into the person's thread. Only role 'superadmin' may see this page.
         <div style="font-size:12.5px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
           <span style="color:var(--text);font-weight:600">{% if m.from_staff %}You{% else %}Them{% endif %}:</span> {{ m.body|truncatechars:130 }}
         </div>
+        {% if m.attachment %}
+        <span class="feedback-queue-attachment" aria-label="Screenshot attached">
+          <svg class="bv-icon" aria-hidden="true"><use href="#bv-ico-upload"></use></svg> Screenshot attached
+        </span>
+        {% endif %}
         <div style="font-size:11px;color:var(--muted);margin-top:2px">{{ m.created_at|timesince }} ago</div>
         {% endif %}
       </div>
