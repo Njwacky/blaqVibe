@@ -1,0 +1,72 @@
+{% extends 'gallery/base.html' %}
+{% load static %}
+{% block title %}Feedback inbox — BlaqVibes{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'gallery/css/feedback.css' %}?v=screenshot-20260921">{% endblock %}
+{% block content %}
+{% comment %}
+The superadmin's feedback inbox — the working end of the glowing floating
+button. Unread first (a user message newer than the last read, or never
+read), then most recent. Every row is a conversation: open it to reply
+into the person's thread. Only role 'superadmin' may see this page.
+{% endcomment %}
+<div class="page" style="max-width:760px;margin:0 auto;padding:24px 20px 96px">
+  <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+    <div style="flex:1;min-width:240px">
+      <p style="font:700 11px/1 JetBrains Mono,monospace;letter-spacing:.14em;color:var(--violet);text-transform:uppercase;margin:0 0 8px">Superadmin only · the other end of the glowing button</p>
+      <h1 style="font-family:Space Grotesk,sans-serif;font-size:26px;font-weight:800;margin:0;display:flex;align-items:center;gap:10px">
+        <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-bulb"></use></svg> Feedback inbox
+      </h1>
+      <p style="color:var(--muted);font-size:13px;line-height:1.6;margin:8px 0 0">
+        Every message from the glowing feedback button on the public site. Unread first.
+        Open a conversation and reply — it lands back in their thread <b>and</b> their
+        inbox, so the person who raised it sees the answer without hunting.
+      </p>
+    </div>
+    {% if unread_count %}
+    <span style="flex:0 0 auto;font-size:12px;font-weight:800;padding:8px 14px;border-radius:99px;background:var(--accent-soft-bg);border:1px solid var(--accent-border);color:var(--accent-text)">
+      {{ unread_count }} waiting on you
+    </span>
+    {% endif %}
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:8px;margin-top:20px">
+    {% for t, m in rows %}
+    <a href="{% url 'admin_feedback_conversation' t.pk %}"
+       style="display:flex;align-items:center;gap:12px;background:var(--card);border:1px solid {% if t.staff_unread %}var(--accent-border){% else %}var(--line){% endif %};border-radius:14px;padding:12px 14px;text-decoration:none;color:inherit;{% if t.staff_unread %}box-shadow:0 0 0 1px var(--accent-border);{% endif %}">
+      <span aria-hidden="true" style="flex:0 0 auto;width:9px;height:9px;border-radius:50%;background:{% if t.staff_unread %}var(--violet){% else %}var(--line){% endif %};{% if t.staff_unread %}box-shadow:0 0 8px var(--violet);{% endif %}"></span>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:13px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          @{{ t.user.username }}
+          <span style="font-weight:600;color:var(--muted);font-size:11px">· conversation #{{ t.pk }}</span>
+          {% if t.status == 'closed' %}
+            <span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--surface-subtle);border:1px solid var(--line);color:var(--muted)">closed</span>
+          {% elif t.status == 'answered' %}
+            <span style="font-size:10.5px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--success-bg);border:1px solid var(--success-border);color:var(--success-text)">answered</span>
+          {% endif %}
+        </div>
+        {% if m %}
+        <div style="font-size:12.5px;color:var(--muted);margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+          <span style="color:var(--text);font-weight:600">{% if m.from_staff %}You{% else %}Them{% endif %}:</span> {{ m.body|truncatechars:130 }}
+        </div>
+        {% if m.attachment %}
+        <span class="feedback-queue-attachment" aria-label="Screenshot attached">
+          <svg class="bv-icon" aria-hidden="true"><use href="#bv-ico-upload"></use></svg> Screenshot attached
+        </span>
+        {% endif %}
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">{{ m.created_at|timesince }} ago</div>
+        {% endif %}
+      </div>
+      <span aria-hidden="true" style="color:var(--muted);font-size:16px">→</span>
+    </a>
+    {% empty %}
+    <div style="background:var(--card);border:1px dashed var(--line);border-radius:14px;padding:28px;text-align:center;color:var(--muted);font-size:13px">
+      <div style="display:flex;justify-content:center;margin-bottom:10px;color:var(--violet)">
+        <svg class="bv-glyph" style="width:30px;height:30px" aria-hidden="true"><use href="#bv-ico-bulb"></use></svg>
+      </div>
+      Nothing waiting. When the glowing button produces a message, it lands here —
+      in your inbox and by email.
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

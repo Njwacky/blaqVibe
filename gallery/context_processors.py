@@ -16,6 +16,20 @@ def extras(request):
     quarantine_ends_at = None
     quarantine_reason = ''
     quarantine_appeal_open = False
+    # The superadmin's feedback channel (users/feedback.py): unread threads
+    # wait in the queue, and the badge in the nav keeps that count visible
+    # on every page — the glowing button promised a human would read it.
+    feedback_unread = 0
+    # The shortcut is intentionally visible by default. Authenticated people
+    # can hide it in Settings; the Feedback link in the account menu remains
+    # available so turning it back on never requires a hidden URL.
+    feedback_fab_visible = True
+    feedback_fab_tip_visible = True
+    try:
+        if request.COOKIES.get('blaq_fab_tip_dismissed') == '1':
+            feedback_fab_tip_visible = False
+    except Exception:
+        pass
     user = getattr(request, 'user', None)
     if user is not None and user.is_authenticated:
         try:
@@ -39,6 +53,15 @@ def extras(request):
                 quarantine_appeal_open = open_appeal(quarantine) is not None
         except Exception:
             quarantine_active = False
+        try:
+            feedback_fab_visible = bool(getattr(user.profile, 'show_feedback_fab', True))
+        except Exception:
+            feedback_fab_visible = True
+        try:
+            if getattr(user.profile, 'feedback_fab_tip_dismissed', False):
+                feedback_fab_tip_visible = False
+        except Exception:
+            pass
         # One count only for staff, so the nav badge is free to show. Reads
         # an indexed row set; never performed on a public cache-key path.
         try:
@@ -50,6 +73,17 @@ def extras(request):
         except Exception:
             open_reports = 0
             open_appeals = 0
+        try:
+            if user.profile.is_superadmin():
+                from django.db.models import F, Q
+                from users.models import FeedbackThread
+                feedback_unread = FeedbackThread.objects.filter(
+                    Q(last_user_message_at__isnull=False)
+                    & (Q(admin_last_read_at__isnull=True)
+                       | Q(last_user_message_at__gt=F('admin_last_read_at'))),
+                ).count()
+        except Exception:
+            feedback_unread = 0
     social_providers = []
     try:
         from users.social import configured_social_providers
@@ -90,17 +124,31 @@ def extras(request):
     except Exception:
         footer_contacts = None
     if footer_contacts is None:
-        footer_contacts = [
-            {'kind': 'email', 'icon': '✉️', 'label': 'admin@blaqvibes.co.za',
-             'href': 'mailto:admin@blaqvibes.co.za', 'external': False},
-            {'kind': 'github', 'icon': '🐙', 'label': 'GitHub @Njwacky',
-             'href': 'https://github.com/Njwacky', 'external': True},
-        ]
+        # The fallback list is built through contact_as_dict on purpose: the
+        # hand-written dicts it replaced had already drifted (a value key the
+        # real rows carry was missing, an icon emoji the templates stopped
+        # reading). Rendering the fallback the same way as real rows keeps the
+        # two shapes identical forever. If even the module is unimportable the
+        # Contact column degrades to "Ask Nolo" rather than breaking the page.
+        try:
+            from types import SimpleNamespace
+            from users.footer_contacts import contact_as_dict
+            footer_contacts = [
+                contact_as_dict(SimpleNamespace(
+                    kind='email', value='admin@blaqvibes.co.za', label='')),
+                contact_as_dict(SimpleNamespace(
+                    kind='github', value='Njwacky', label='')),
+            ]
+        except Exception:
+            footer_contacts = []
     return {
         'unread_notifications': unread,
         'attention': attention,
         'open_reports': open_reports,
         'open_appeals': open_appeals,
+        'feedback_unread': feedback_unread,
+        'feedback_fab_visible': feedback_fab_visible,
+        'feedback_fab_tip_visible': feedback_fab_tip_visible,
         'quarantine_active': quarantine_active,
         'quarantine_ends_at': quarantine_ends_at,
         'quarantine_reason': quarantine_reason,

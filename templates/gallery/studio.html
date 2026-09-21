@@ -98,6 +98,7 @@
 
       <form method="post" action="{% if starter %}{% url 'studio' starter.slug %}{% else %}{% url 'studio_blank' %}{% endif %}" id="studio-form" novalidate>
         {% csrf_token %}
+        {{ form.publish_token }}
         {% if form.errors %}<div class="studio-errors">{{ form.errors }}</div>{% endif %}
 
         <label class="studio-field-label" for="id_title">Title*</label>
@@ -149,5 +150,5 @@
      data-csrf="{{ csrf_token }}"
      data-can-preview="{% if can_preview %}true{% else %}false{% endif %}"
      data-draft-key="{{ starter.slug|default:'blank' }}"></div>
-<script src="{% static 'gallery/js/studio.js' %}?v={{ starters_version }}-sep-files-20260904"></script>
+<script src="{% static 'gallery/js/studio.js' %}?v={{ starters_version }}-idem-20260918"></script>
 {% endblock %}

@@ -1,4 +1,6 @@
 from django import forms
+import uuid
+
 from .models import AppProject, Category
 from .validators import validate_zip
 from .prompt_sanitize import sanitize_prompt
@@ -68,7 +70,7 @@ class AppUploadForm(forms.ModelForm):
             'tech_stack': forms.TextInput(attrs={'placeholder':'Django, React, Tailwind'}),
             'ai_generated': forms.CheckboxInput(attrs={'aria-describedby':'ai-origin-help'}),
             'ai_tool': forms.TextInput(attrs={'placeholder':'e.g. Claude, Gemini, ChatGPT'}),
-            'ai_prompt': forms.Textarea(attrs={'rows':3, 'placeholder':'If AI helped create it, briefly share the prompt or workflow...'}),
+            'ai_prompt': forms.Textarea(attrs={'rows':12, 'class':'field-prompt-lg', 'placeholder':'If AI helped create it, share the full prompt or workflow here — what you asked for, what you changed, what you checked...'}),
             'html_code': forms.Textarea(attrs={'rows':6, 'placeholder':'<div>Snippet HTML (for snippet only)</div>'}),
             'star_cost': forms.NumberInput(attrs={'min':0,'max':5, 'placeholder':'0=free, 2=Bronze'}),
         }
@@ -271,6 +273,19 @@ class QuickPublishForm(forms.ModelForm):
     star_cost = forms.IntegerField(required=False, min_value=0, max_value=5)
     price_zar = forms.IntegerField(required=False, min_value=0, max_value=9999)
     ai_generated = forms.BooleanField(required=False)
+    # Idempotency key: one fresh value per form render, posted back with the
+    # submission. A repeat POST of the same body (double-tap on a slow
+    # connection, XHR retry after a lost response) resolves to the project
+    # the FIRST submit created — never a second feed row. Not in Meta.fields:
+    # the view assigns it to the project, ModelForm.save() never touches it.
+    publish_token = forms.CharField(required=False, max_length=64, widget=forms.HiddenInput)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Every unbound render carries a fresh token; a bound (POST) form
+        # keeps whatever the browser sent back.
+        if not self.is_bound and not self.initial.get('publish_token'):
+            self.initial['publish_token'] = uuid.uuid4().hex
 
     class Meta:
         model = AppProject

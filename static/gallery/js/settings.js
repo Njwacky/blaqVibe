@@ -23,6 +23,11 @@
             try {
               toast((value ? 'Enabled ' : 'Disabled ') + key);
             } catch (e) {}
+            if (key === 'show_feedback_fab') {
+              // The FAB is server-gated on the next render. Reload so an
+              // enable shows it immediately and a disable removes it now.
+              window.setTimeout(() => window.location.reload(), 250);
+            }
           } else {
             el.checked = !value;
             try {

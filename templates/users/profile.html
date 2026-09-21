@@ -8,17 +8,30 @@
       background: var(--card);
       border: 1px solid var(--line);
       border-radius: 16px;
-      padding: 20px;
-      display: flex;
-      gap: 16px;
-      align-items: center;
-      flex-wrap: wrap;
+      padding: 24px 20px 20px;
     "
   >
-    {% include 'users/_avatar.html' with u=profile_user size=72 radius='16px' font_size=22 frame=rank.name|lower %}
-    <div style="flex: 1; min-width: 0">
+    {# ── THE AVATAR LEADS THE PAGE — big, centered, rank ring on top. ── #}
+    <div
+      style="
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 10px;
+      "
+    >
+      <div style="line-height: 0">
+        {% include 'users/_avatar.html' with u=profile_user size=112 radius='50%' font_size=42 frame=rank.name|lower %}
+      </div>
       <div
-        style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap"
+        style="
+          display: flex;
+          gap: 8px;
+          align-items: center;
+          flex-wrap: wrap;
+          justify-content: center;
+        "
       >
         {% include 'users/_styled_name.html' with u=profile_user p=profile %} <span style='font-size:10px;letter-spacing:.08em;background:var(--accent-soft-bg);color:var(--accent-text);border:1px solid var(--accent-border);padding:3px 8px;border-radius:100px;font-weight:800'>BUILDER</span>{% if profile_user.is_staff %}<span
           style="
@@ -58,23 +71,24 @@
             border: 1px solid var(--line);
             padding: 4px 8px;
             border-radius: 8px;
+            color: var(--muted);
           "
           >{{ profile.location }}</span
         >{% endif %}
       </div>
-      <div style="font-size: 13px; color: var(--text); margin: 6px 0">
+      <div style="font-size: 13px; color: var(--text); margin: 2px 0 0; max-width: 640px; line-height: 1.55">
         {% if profile_user.username|slice:":5" == "demo_" %}<span class="badge badge--accent" style="font-size:10px;margin-right:6px">BLAQVIBES DEMO</span>{% endif %}{{ profile.bio|default:"No bio yet — what do you build?" }}
       </div>
       {% if demonstrated %}
-      <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap" aria-label="Demonstrated from published Builds">
+      <div style="margin-top:4px;display:flex;gap:6px;flex-wrap:wrap;justify-content:center" aria-label="Demonstrated from published Builds">
         {% for skill in demonstrated|slice:":8" %}
         <a href="{% url 'capability_search' %}?q={{ skill.name|urlencode }}" title="{{ skill.count }} published Build{{ skill.count|pluralize }} — find others who proved this" style="font-size:11px;background:var(--input);border:1px solid var(--line);border-radius:999px;padding:3px 9px;text-decoration:none;color:inherit">{{ skill.name }} · {{ skill.count }}</a>
         {% endfor %}
       </div>
-      <div style="font-size:11px;color:var(--muted);margin-top:6px">AI-era stage: <b>{{ maturity.label }}</b> — {{ maturity.blurb }} (from work, not a test.) · <a href="{% url 'capability_search' %}" style="color:var(--link)">Search by capability →</a></div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">AI-era stage: <b>{{ maturity.label }}</b> — {{ maturity.blurb }} (from work, not a test.) · <a href="{% url 'capability_search' %}" style="color:var(--link)">Search by capability →</a></div>
       {% endif %}
       {% if progress %}
-      <div style="margin-top:8px;max-width:420px">
+      <div style="margin-top:4px;max-width:420px;width:100%">
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--muted)">
           <span>Level {{ progress.index }} · {{ progress.name }}</span>
           <span>{% if progress.next %}{{ progress.to_next }} XP to {{ progress.next_name }}{% else %}Max level{% endif %}</span>
@@ -90,7 +104,7 @@
           <div style="height:100%;width:{{ progress.progress }}%;background:var(--violet)"></div>
         </div>
         {% if progress.badges %}
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;justify-content:center">
           {% for b in progress.badges %}
           <span title="{{ b.label }} — {{ b.desc }}" style="font-size:11px;background:var(--input);border:1px solid var(--line);border-radius:999px;padding:3px 9px">{{ b.icon }} {{ b.label }}</span>
           {% endfor %}
@@ -98,7 +112,7 @@
         {% endif %}
       </div>
       {% endif %}
-      <div class="profile-socials" aria-label="Profile links and signals">
+      <div class="profile-socials" aria-label="Profile links and signals" style="display:flex;gap:6px;flex-wrap:wrap;justify-content:center">
         {% if profile.website %}
         <a
           class="profile-social-chip profile-social-chip--accent"
@@ -109,7 +123,23 @@
           ><span aria-hidden="true">↗</span
           ><span>{{ profile.website|slice:":28" }}</span></a
         >
-        {% endif %} {% if profile.github %}
+        {% endif %}{% for link in profile.links.all %}{% if link.is_clickable %}
+        <a
+          class="profile-social-chip profile-link-chip {{ link.chip_class }}"
+          href="{{ link.href }}"
+          target="_blank"
+          rel="noopener nofollow"
+          title="{% if link.is_moved %}{{ link.label }} has moved — now at {{ link.moved_to }}{% elif link.status == 'maintenance' %}{{ link.label }} — under maintenance, back soon{% else %}{{ link.label }} — live: {{ link.url }}{% endif %}"
+          >{% if link.is_moved %}<span class="link-moved-glyph" aria-hidden="true">⇗</span>{% else %}<span class="link-dot {{ link.dot_class }}" aria-hidden="true"></span>{% endif %}<span>{{ link.label }}</span></a
+        >
+        {% else %}
+        <span
+          class="profile-social-chip profile-link-chip {{ link.chip_class }}"
+          title="{{ link.label }} — inactive right now"
+          ><span class="link-dot {{ link.dot_class }}" aria-hidden="true"></span
+          ><span>{{ link.label }}</span></span
+        >
+        {% endif %}{% endfor %} {% if profile.github %}
         <a
           class="profile-social-chip"
           href="https://github.com/{{ profile.github }}"
@@ -147,8 +177,20 @@
         >
       </div>
     </div>
+
+    {# ── THE NUMBERS — under the avatar, one centered row ── #}
     <div
-      style="display: flex; gap: 16px; text-align: center; align-items: center; flex-wrap: wrap"
+      style="
+        display: flex;
+        gap: 26px;
+        justify-content: center;
+        text-align: center;
+        align-items: flex-start;
+        flex-wrap: wrap;
+        margin-top: 18px;
+        padding-top: 14px;
+        border-top: 1px solid var(--line);
+      "
     >
       <div>
         <div style="font-weight: 800; font-size: 18px">
@@ -202,12 +244,16 @@
         </div>
       </div>
     </div>
+
+    {# ── ACTIONS — one centered row under the numbers ── #}
     <div
       style="
         display: flex;
-        flex-direction: column;
-        gap: 6px;
-        align-items: stretch;
+        gap: 10px;
+        justify-content: center;
+        align-items: center;
+        flex-wrap: wrap;
+        margin-top: 16px;
       "
     >
       <a href="{% url 'proof_cv' profile_user.username %}" class="btn-ghost">Proof of work</a>
@@ -242,7 +288,7 @@
     </div>
   </div>
 
- {% if recent_tips %}
+{% if recent_tips %}
   <div
     style="
       margin-top: 12px;

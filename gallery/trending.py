@@ -46,8 +46,14 @@ def trending_scores(days=WINDOW_DAYS, limit=30):
         logger.exception('trending_scores failed')
         return {}
 
-def trending_vibes(days=WINDOW_DAYS, limit=6, exclude_owner=None):
-    """Published vibes ordered by this week's activity — newest ties first."""
+def trending_vibes(days=WINDOW_DAYS, limit=6, exclude_owner=None, exclude_ids=()):
+    """Published vibes ordered by this week's activity — newest ties first.
+
+    `exclude_ids` carries the project ids already visible in the caller's
+    main grid. The rail must never repeat a card the page shows — on a small
+    catalog it otherwise renders the same six vibes twice (rail + grid),
+    which reads as a bug ("why is every app listed two times?").
+    """
     scores = trending_scores(days=days, limit=max(30, limit * 5))
     if not scores:
         # Nothing moved this week: fall back to the freshest vibes rather
@@ -55,10 +61,14 @@ def trending_vibes(days=WINDOW_DAYS, limit=6, exclude_owner=None):
         qs = AppProject.objects.filter(status='published')
         if exclude_owner:
             qs = qs.exclude(owner=exclude_owner)
+        if exclude_ids:
+            qs = qs.exclude(id__in=list(exclude_ids))
         return list(qs.select_related('owner', 'owner__profile').order_by('-created_at')[:limit]), False
     qs = AppProject.objects.filter(status='published', id__in=list(scores.keys()))
     if exclude_owner:
         qs = qs.exclude(owner=exclude_owner)
+    if exclude_ids:
+        qs = qs.exclude(id__in=list(exclude_ids))
     vibes = list(qs.select_related('owner', 'owner__profile'))
     vibes.sort(key=lambda p: (-scores.get(p.id, 0), -p.id))
     return vibes[:limit], True

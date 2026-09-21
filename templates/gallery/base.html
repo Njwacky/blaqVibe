@@ -15,17 +15,17 @@
 <meta property="og:image" content="{% block og_image %}{% if request.is_secure %}https{% else %}http{% endif %}://{{ request.get_host }}/static/branding/blaqvibes-icon.png{% endblock %}">
 <link rel="preload" href="{% static 'gallery/css/fonts.css' %}?v=fonts-20260830" as="style">
 <link rel="stylesheet" href="{% static 'gallery/css/fonts.css' %}?v=fonts-20260830">
-<link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=navfix-20260917">
+<link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=fab-tip-dismiss-20260921">
 <link rel="stylesheet" href="{% static 'gallery/css/cards.css' %}?v=mobile-20260906b">
 <link rel="stylesheet" href="{% static 'gallery/css/premium.css' %}?v=product-system-20260909">
-<link rel="stylesheet" href="{% static 'gallery/css/footer.css' %}?v=footer-contacts-20260910">
+<link rel="stylesheet" href="{% static 'gallery/css/footer.css' %}?v=footer-polish-20260921">
 {% comment %}Attention + severity stripes. Site-wide, not page-scoped: the banner
 rides every page and the inbox is reachable from every page, so the colour
 tokens have to exist everywhere they are drawn.{% endcomment %}
 <link rel="stylesheet" href="{% static 'gallery/css/attention.css' %}?v=attention-20260917">
-<script src="{% static 'gallery/js/head-theme.js' %}?v=ext-20260827"></script>
+<script src="{% static 'gallery/js/head-theme.js' %}?v=fab-tip-dismiss-20260921"></script>
 <script src="{% static 'gallery/js/alpine.min.js' %}?v=alpine-3.16.3" defer></script>
-<script src="{% static 'gallery/js/blaqvibes.js' %}?v=navfix2-20260917" defer></script>
+<script src="{% static 'gallery/js/blaqvibes.js' %}?v=fab-tip-dismiss-20260921" defer></script>
 <script src="{% static 'gallery/js/attention.js' %}?v=attention-20260917" defer></script>
 {% block head %}{% endblock %}
 </head>
@@ -151,9 +151,10 @@ literal text — the regression guard in gallery/test_engagement.py pins that.
           <a role="menuitem" href="{% url 'trading_history' %}">Trades</a>
           <a role="menuitem" href="{% url 'sales_dashboard' %}"><svg class="bv-icon"><use href="#bv-ico-sales"></use></svg> Sales</a>
           <a role="menuitem" href="{% url 'settings' %}"><svg class="bv-icon"><use href="#bv-ico-settings"></use></svg> Settings</a>
+          <a role="menuitem" href="{% url 'feedback_inbox' %}"><svg class="bv-icon"><use href="#bv-ico-bulb"></use></svg> Feedback</a>
           {% if user.profile.is_moderator %}<div class="nav-menu-sep"></div><a role="menuitem" href="{% url 'moderation_queue' %}"><svg class="bv-icon"><use href="#bv-ico-shield"></use></svg> Moderation queue</a><a role="menuitem" href="{% url 'reports_queue' %}"><svg class="bv-icon"><use href="#bv-ico-report"></use></svg> Reports{% if open_reports %} <span class="nav-badge">{{ open_reports }}</span>{% endif %}</a><a role="menuitem" href="{% url 'appeals_queue' %}"><svg class="bv-icon"><use href="#bv-ico-id"></use></svg> Account quarantine{% if open_appeals %} <span class="nav-badge">{{ open_appeals }}</span>{% endif %}</a>{% endif %}
           {% if user.profile.is_admin %}<a role="menuitem" href="{% url 'admin_dashboard' %}"><svg class="bv-icon"><use href="#bv-ico-admin"></use></svg> Admin</a>{% endif %}
-          {% if user.profile.is_superadmin %}<a role="menuitem" href="{% url 'manage_roles' %}"><svg class="bv-icon"><use href="#bv-ico-id"></use></svg> Manage roles</a>{% endif %}
+          {% if user.profile.is_superadmin %}<a role="menuitem" href="{% url 'admin_feedback_queue' %}"><svg class="bv-icon"><use href="#bv-ico-bulb"></use></svg> Feedback inbox{% if feedback_unread %} <span class="nav-badge">{{ feedback_unread }}</span>{% endif %}</a><a role="menuitem" href="{% url 'manage_roles' %}"><svg class="bv-icon"><use href="#bv-ico-id"></use></svg> Manage roles</a>{% endif %}
           <div class="nav-menu-sep"></div>
           <a role="menuitem" href="#" class="js-logout"><svg class="bv-icon"><use href="#bv-ico-logout"></use></svg> Logout</a>
         </div>
@@ -200,6 +201,7 @@ literal text — the regression guard in gallery/test_engagement.py pins that.
   {% endfor %}
 </div>
 {% endif %}
+{% if user.is_authenticated and not user.profile.overlay_seen %}{% include 'gallery/includes/welcome_overlay.html' %}{% endif %}
 <main id="main">{% block content %}{% endblock %}</main>
 <footer class="site-footer" aria-label="BlaqVibes footer">
   <div class="site-footer__inner">
@@ -291,6 +293,30 @@ literal text — the regression guard in gallery/test_engagement.py pins that.
     {% if show_preview_hosting_notice %}<span>Previews are not production hosting.</span>{% endif %}
   </div>
 </footer>
+{% comment %}Feedback floating button — the temporary fast path to a human
+while BlaqVibes is under construction (users/feedback.py owns the backend).
+It is visible by default, so it GLOWS: a breathing violet pulse, paused
+under prefers-reduced-motion. Authenticated users can switch it off in
+Settings; the Feedback account-menu link remains. Desktop parks it
+bottom-right; on mobile it floats just under the sticky top bar, next to the
+theme (day/night) toggle, because the bottom edge belongs to the sticky action bar.
+Layer 94: above the nav (50) and mobile sticky actions (90), below the
+publish chooser (95) and the transient toast/PWA banners (999).{% endcomment %}
+{% if feedback_fab_visible %}
+{% if user.is_authenticated and feedback_fab_tip_visible %}
+<div class="bv-fab-tip" id="bv-fab-tip" role="note"
+     data-dismiss-url="{% url 'toggle_setting' %}"
+     data-csrf="{{ csrf_token }}">
+  <div class="bv-fab-tip__text">You can switch me off anytime in <a href="{% url 'settings' %}">Settings</a>.</div>
+  <button type="button" class="bv-fab-tip__ok js-dismiss-fab-tip" id="bv-fab-tip-dismiss" aria-label="Dismiss feedback message">OK</button>
+</div>
+{% endif %}
+<a href="{% url 'feedback_inbox' %}" class="bv-fab" id="bv-fab"{% if user.is_authenticated and feedback_fab_tip_visible %}
+   aria-describedby="bv-fab-tip"{% endif %}
+   aria-label="Give feedback — a superadmin reads every one{% if user.is_authenticated %}; replies come back here{% endif %}">
+  <svg class="bv-icon" aria-hidden="true"><use href="#bv-ico-bulb"></use></svg>
+</a>
+{% endif %}
 <div id="toast" class="toast">✓ Copied!</div>
 {% if pwa_enabled %}
 <div id="pwa-install-banner" style="display:none;position:fixed;bottom:20px;background:var(--card);border:1px solid var(--accent-border);border-radius:16px;padding:14px 16px;max-width:380px;width:calc(100% - 32px);box-shadow:0 12px 40px rgba(0,0,0,.5);z-index:999;align-items:center;gap:12px">
@@ -397,5 +423,15 @@ skip link (100) and transient toast/PWA banners (999).{% endcomment %}
 })();
 </script>
 {% block scripts %}{% endblock %}
+{% if user.is_authenticated and not user.profile.overlay_seen %}<script nonce="{{ request.csp_nonce|default:'' }}">(function(){var d=document,el=d.getElementById('welcome-overlay');if(!el)return;var total=4,step=0;
+function postSeen(){var u=el.getAttribute('data-seen-url');if(!u)return;var nv=new FormData(),c=el.getAttribute('data-csrf');if(c)nv.set('csrfmiddlewaretoken',c);fetch(u,{method:'POST',body:nv,headers:{'X-Requested-With':'XMLHttpRequest'}}).catch(function(){})}
+function show(i){step=Math.max(0,Math.min(total-1,i));var ps=el.querySelectorAll('.welcome-step');for(var j=0;j<ps.length;j++){ps[j].style.display=(j===step)?'block':'none'}el.setAttribute('data-step',String(step));var ds=el.querySelectorAll('.welcome-dot');for(var k=0;k<ds.length;k++){ds[k].classList.toggle('welcome-dot--on',k===step)}var n=el.querySelector('.welcome-next');if(n){n.textContent=(step===total-1)?'Explore BlaqVibes →':'Next →'}}
+function open(){el.style.display='block';var bd=d.querySelector('.welcome-backdrop');if(bd)bd.style.display='block';el.setAttribute('aria-hidden','false');show(0)}
+function close(){el.style.display='none';var bd=d.querySelector('.welcome-backdrop');if(bd)bd.style.display='none';el.setAttribute('aria-hidden','true');postSeen();try{localStorage.setItem('blaq-welcome-seen','1')}catch(e){}}
+function next(){if(step===total-1){close();return}show(step+1)}
+d.addEventListener('click',function(e){var t=e.target;while(t&&t!==d){var cls=t.getAttribute&&(t.getAttribute('class')||'');if(cls.indexOf('welcome-next')>-1){next();return}if(cls.indexOf('welcome-skip')>-1){close();return}if(cls.indexOf('welcome-backdrop')>-1){return}t=t.parentNode}});
+d.addEventListener('keydown',function(e){if(el.style.display!=='block')return;if(e.key==='Escape'){close()}else if(e.key==='ArrowRight'){next()}else if(e.key==='ArrowLeft'){show(step-1)}});
+var known=null;try{known=localStorage.getItem('blaq-welcome-seen')}catch(e){}
+if(el.getAttribute('data-force')==='1'){open()}else if(known!=='1'){open()}})();</script>{% endif %}
 </body>
 </html>

@@ -1340,3 +1340,416 @@
   .launch-sources { scroll-margin-top: 20px; }
   .launch-guide-aside { top: 20px; }
 }
+
+/* ───────────────────────────────────────────────────────────────────────────
+   Mobile refresh — the phone is a route finder, not a shrunken desktop.
+   The desktop launch pages can stay spacious and illustrative; on a narrow
+   screen the useful unit is a short decision, a compact route row, or one
+   step at a time. This block intentionally changes the rhythm rather than
+   only reducing type sizes.
+   ─────────────────────────────────────────────────────────────────────────── */
+@media (max-width: 800px) {
+  .launch-shell {
+    width: min(100% - 24px, 640px);
+    padding-top: 14px;
+    padding-bottom: 56px;
+  }
+
+  /* Hub: replace the large decorative panel with a short, useful orientation
+     strip. The three stages remain visible instead of disappearing with the
+     orbit artwork. */
+  .launch-hero {
+    display: block;
+    padding: 18px 2px 8px;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    box-shadow: none;
+  }
+  .launch-hero::before,
+  .launch-hero::after { display: none; }
+  .launch-hero h1 {
+    margin-top: 13px;
+    font-size: clamp(38px, 11vw, 52px);
+    letter-spacing: -.075em;
+  }
+  .launch-hero__copy > p {
+    max-width: 560px;
+    margin-top: 13px;
+    font-size: 14px;
+    line-height: 1.58;
+  }
+  .launch-hero__cta {
+    display: flex;
+    align-items: stretch;
+    gap: 13px;
+    margin-top: 18px;
+  }
+  .launch-hero__go {
+    justify-content: center;
+    min-height: 46px;
+    border-radius: 13px;
+    background: var(--text);
+    color: var(--bg);
+    text-align: center;
+  }
+  [data-theme="light"] .launch-hero__go { background: var(--text); color: var(--bg); }
+  .launch-hero__stats {
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    padding-top: 12px;
+    border-top: 1px solid var(--line);
+    font-size: 10px;
+  }
+  .launch-hero__stats li {
+    min-width: 0;
+    white-space: normal;
+    line-height: 1.25;
+    text-align: center;
+  }
+  .launch-hero__pad {
+    display: block;
+    margin-top: 14px;
+    padding: 10px;
+    border: 1px solid var(--line);
+    border-radius: 15px;
+    background: color-mix(in srgb, var(--card) 78%, var(--launch-accent));
+  }
+  .launch-orbit { display: none; }
+  .launch-hero__flow {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0;
+    width: 100%;
+  }
+  .launch-hero__flow li {
+    min-height: 52px;
+    padding: 7px 9px;
+    border: 0;
+    border-right: 1px solid var(--line);
+    border-radius: 0;
+    background: transparent;
+    font-size: 10px;
+  }
+  .launch-hero__flow li:last-child { border-right: 0; }
+  .launch-hero__flow b { width: 20px; height: 20px; border-radius: 7px; }
+
+  .launch-card {
+    margin-top: 14px;
+    padding: 16px;
+    border-radius: 18px;
+    box-shadow: none;
+  }
+  .launch-card__head { gap: 10px; }
+  .launch-step-tag { padding: 6px 8px; font-size: 8px; }
+  .launch-card__head h2 { font-size: 22px; letter-spacing: -.04em; }
+  .launch-card__head p { margin-top: 5px; font-size: 12px; line-height: 1.5; }
+
+  /* The build choices become a scan-friendly two-column tray. Notes are
+     useful on desktop but make a thumb-sized choice feel like a paragraph. */
+  .launch-artifact-groups { gap: 17px; margin-top: 18px; }
+  .launch-artifact-group > .launch-overline { margin-bottom: 8px; }
+  .launch-artifacts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin-top: 0;
+  }
+  .launch-artifact {
+    align-items: center;
+    gap: 8px;
+    min-height: 64px;
+    padding: 10px;
+    border-radius: 13px;
+  }
+  .launch-artifact__icon {
+    width: 34px;
+    height: 34px;
+    flex-basis: 34px;
+    border-radius: 10px;
+  }
+  .launch-artifact__copy b { font-size: 12px; line-height: 1.25; }
+  .launch-artifact__copy small,
+  .launch-artifact__count { display: none; }
+  .launch-artifact__check { top: -6px; right: -6px; width: 18px; height: 18px; font-size: 9px; }
+  .launch-picker__clear {
+    min-height: 34px;
+    margin-top: 12px;
+    padding: 7px 10px;
+    border: 1px solid var(--line);
+    border-radius: 9px;
+  }
+
+  .launch-chooser {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 14px;
+    padding: 16px;
+    border-radius: 18px;
+  }
+  .launch-chooser__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+  .launch-chooser__grid a { min-height: 72px; padding: 10px; border-radius: 12px; }
+  .launch-chooser__grid b { font-size: 11px; line-height: 1.25; }
+  .launch-chooser__grid span { font-size: 10px; line-height: 1.35; }
+
+  .launch-board { padding-top: 16px; }
+  .launch-filters {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    margin: 15px -16px 0;
+    padding: 0 16px 4px;
+    scrollbar-width: none;
+  }
+  .launch-filters::-webkit-scrollbar { display: none; }
+  .launch-filters a { flex: 0 0 auto; padding: 8px 12px; font-size: 11px; }
+  .launch-route-hint { margin-top: 12px; padding: 9px 10px; font-size: 11px; }
+  .launch-routes {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    margin-top: 14px;
+  }
+  .launch-route { border-radius: 14px; }
+  .launch-route > a {
+    display: grid;
+    grid-template-columns: 38px minmax(0, 1fr) auto;
+    grid-template-rows: auto auto;
+    column-gap: 10px;
+    min-height: 0;
+    padding: 12px 12px 12px 15px;
+  }
+  .launch-route::before { inset: 9px auto 9px 0; width: 2px; }
+  .launch-route__icon {
+    grid-column: 1;
+    grid-row: 1;
+    width: 38px;
+    height: 38px;
+    border-radius: 11px;
+  }
+  .launch-route__copy {
+    grid-column: 2 / 4;
+    grid-row: 1;
+    margin-top: 0;
+    min-width: 0;
+  }
+  .launch-route__copy b { margin-top: 3px; font-size: 15px; }
+  .launch-route__copy small {
+    margin-top: 4px;
+    font-size: 11px;
+    line-height: 1.4;
+    -webkit-line-clamp: 2;
+  }
+  .launch-route__meta {
+    grid-column: 2 / 4;
+    grid-row: 2;
+    gap: 5px;
+    margin-top: 10px;
+    padding-top: 8px;
+  }
+  .launch-route__meta em { padding: 4px 8px; font-size: 9px; }
+  .launch-route__arrow { font-size: 14px; }
+  .launch-route__badge { top: 9px; right: 9px; width: 20px; height: 20px; }
+  .launch-board__hint { margin-top: 13px; font-size: 11px; }
+
+  .launch-compare { margin-top: 44px; }
+  .launch-compare__groups { margin-top: 16px; }
+  .launch-compare-group summary { padding: 13px 14px; }
+  .launch-compare-table-wrap { padding: 0 14px 8px; overflow: visible; }
+  .launch-compare-table,
+  .launch-compare-table tbody { display: block; }
+  .launch-compare-table thead { display: none; }
+  .launch-compare-table tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 5px 10px;
+    padding: 13px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .launch-compare-table tr:last-child { border-bottom: 0; }
+  .launch-compare-table td { display: block; padding: 0; border: 0; font-size: 10px; }
+  .launch-compare-table td:first-child { grid-column: 1; grid-row: 1; min-width: 0; }
+  .launch-compare-table td:nth-child(2) { grid-column: 2; grid-row: 1; text-align: right; }
+  .launch-compare-table td:nth-child(3) { grid-column: 2; grid-row: 2; text-align: right; }
+  .launch-compare-table td:nth-child(4) { grid-column: 1; grid-row: 2; min-width: 0; padding-top: 1px; }
+  .launch-compare-table td:nth-child(5) { grid-column: 2; grid-row: 3; justify-self: end; }
+  .launch-compare-table td:nth-child(2)::before { content: "Cost · "; color: var(--muted); font-weight: 500; }
+  .launch-compare-table td:nth-child(3)::before { content: "Pace · "; color: var(--muted); font-weight: 500; }
+  .launch-compare-table td:nth-child(4)::before { content: "Best for · "; color: var(--muted); }
+  .launch-compare-platform { min-width: 0; gap: 8px; }
+  .launch-compare-platform > span:first-child { width: 28px; height: 28px; flex: 0 0 28px; }
+  .launch-compare-platform b { font-size: 11px; }
+  .launch-compare-platform small { font-size: 9px; }
+  .launch-compare-best { overflow-wrap: anywhere; }
+
+  .launch-boundary-strip {
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 14px;
+    padding: 13px;
+    border-radius: 15px;
+  }
+  .launch-boundary-strip__icon { width: 32px; height: 32px; flex-basis: 32px; }
+  .launch-boundary-strip p { font-size: 11px; line-height: 1.55; }
+  .launch-boundary-strip ul { gap: 5px 12px; margin-left: 42px; }
+  .launch-boundary-strip li { font-size: 10px; }
+  .launch-rules { gap: 8px; margin-top: 38px; }
+  .launch-rules__card { gap: 10px; padding: 13px; border-radius: 14px; }
+  .launch-rules__card > span { width: 32px; height: 32px; flex-basis: 32px; }
+  .launch-rules__card b { font-size: 12px; }
+  .launch-rules__card p { font-size: 11px; line-height: 1.5; }
+
+  /* Guide: establish a clear quick-read band, then keep navigation available
+     while the reader works through a long checklist. */
+  .launch-guide-shell { padding-top: 12px; }
+  .launch-breadcrumb { gap: 7px; font-size: 11px; }
+  .launch-guide-hero {
+    display: block;
+    padding: 22px 0 18px;
+  }
+  .launch-guide-hero__main h1 {
+    max-width: 560px;
+    margin-top: 13px;
+    font-size: clamp(38px, 11vw, 52px);
+    line-height: .98;
+  }
+  .launch-guide-hero__main > p { margin-top: 13px; font-size: 14px; line-height: 1.58; }
+  .launch-good-for {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 7px;
+    margin: 16px -1px 0;
+    padding-bottom: 3px;
+    scrollbar-width: none;
+  }
+  .launch-good-for::-webkit-scrollbar { display: none; }
+  .launch-good-for > span { flex: 0 0 auto; }
+  .launch-good-for b { flex: 0 0 auto; padding: 6px 9px; font-size: 10px; white-space: nowrap; }
+  .launch-guide-hero__facts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    max-width: none;
+    margin-top: 19px;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  .launch-guide-hero__facts > div {
+    display: block;
+    min-width: 0;
+    padding: 11px 10px;
+    border-right: 1px solid var(--line);
+    border-bottom: 0;
+  }
+  .launch-guide-hero__facts > div:last-child { border-right: 0; }
+  .launch-guide-hero__facts span { display: block; font-size: 8px; }
+  .launch-guide-hero__facts strong { display: block; margin-top: 5px; font-size: 10px; line-height: 1.35; overflow-wrap: anywhere; }
+  .launch-truth-note { gap: 10px; padding: 13px; border-radius: 14px; }
+  .launch-truth-note > span { width: 23px; height: 23px; flex-basis: 23px; }
+  .launch-truth-note b { font-size: 12px; }
+  .launch-truth-note p { font-size: 11px; line-height: 1.5; }
+  .launch-toc-mobile {
+    position: sticky;
+    top: var(--bv-nav-h, 112px);
+    z-index: 20;
+    display: flex;
+    gap: 6px;
+    margin: 14px -2px 0;
+    padding: 8px 2px;
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    background: color-mix(in srgb, var(--bg) 92%, transparent);
+    backdrop-filter: blur(12px);
+  }
+  .launch-toc-mobile a { padding: 7px 10px; font-size: 10px; }
+
+  .launch-guide-layout { display: block; margin-top: 27px; }
+  .launch-preflight,
+  .launch-final-check,
+  .launch-sources { padding: 16px; border-radius: 18px; box-shadow: none; }
+  .launch-block-heading { gap: 10px; }
+  .launch-section-number { width: 36px; height: 36px; flex-basis: 36px; border-radius: 11px; }
+  .launch-block-heading h2 { font-size: 22px; letter-spacing: -.04em; }
+  .launch-check-list { grid-template-columns: 1fr; gap: 9px; margin-top: 17px; }
+  .launch-check-list li { gap: 8px; font-size: 12px; line-height: 1.5; }
+
+  .launch-steps { margin-top: 43px; }
+  .launch-steps > ol { margin-top: 16px; }
+  .launch-step {
+    display: block;
+    margin-bottom: 9px;
+    border: 1px solid var(--line);
+    border-radius: 16px;
+    background: color-mix(in srgb, var(--card) 86%, var(--launch-accent));
+    overflow: hidden;
+  }
+  .launch-step:last-child { margin-bottom: 0; }
+  .launch-step__rail {
+    display: flex;
+    justify-content: flex-start;
+    padding: 13px 15px 0;
+  }
+  .launch-step__rail::after { display: none; }
+  .launch-step__rail span { width: 34px; height: 25px; border-radius: 8px; }
+  .launch-step__body { padding: 8px 15px 16px; }
+  .launch-step__body h3 { font-size: 18px; line-height: 1.15; }
+  .launch-step__body > p { margin-top: 8px; font-size: 12.5px; line-height: 1.62; }
+  .launch-risk-flag { padding: 3px 7px; font-size: 8px; }
+  .launch-commands { gap: 8px; margin-top: 14px; }
+  .launch-command { border-radius: 11px; }
+  .launch-command__label { flex-wrap: wrap; padding: 7px 9px; font-size: 8px; }
+  .launch-command__label em { width: 100%; margin-left: 21px; text-align: left; }
+  .launch-command__code { gap: 8px; padding: 9px; }
+  .launch-command__code code { font-size: 11px; }
+  .launch-command__code button { padding: 7px 8px; font-size: 9px; }
+  .launch-step__checks { margin-top: 13px; padding: 8px 0 8px 10px; }
+  .launch-step__checks li { font-size: 11px; }
+
+  .launch-final-check { margin-top: 25px; }
+  .launch-progress { margin-top: 17px; }
+  .launch-final-check__items { grid-template-columns: 1fr; gap: 7px; margin-top: 14px; }
+  .launch-final-check__items label { padding: 10px; }
+  .launch-final-check__items b { font-size: 11px; }
+  .launch-local-note { margin-top: 12px; font-size: 10px; }
+  .launch-safety { margin-top: 43px; }
+  .launch-safety__grid { grid-template-columns: 1fr; gap: 8px; margin-top: 15px; }
+  .launch-safety__grid div { gap: 9px; padding: 11px; border-radius: 12px; }
+  .launch-safety__grid p { font-size: 11px; line-height: 1.5; }
+  .launch-sources { margin-top: 43px; }
+  .launch-sources > p { margin-top: 13px; font-size: 11px; line-height: 1.55; }
+  .launch-sources ul { margin-top: 13px; }
+  .launch-sources li a { padding: 10px 11px; font-size: 11px; }
+
+  /* Do not discard the framework reference on a phone. It becomes the final
+     collapsible reference after the main guide instead of vanishing in the
+     desktop-only sidebar. */
+  .launch-guide-aside {
+    position: static;
+    display: grid;
+    gap: 10px;
+    margin-top: 28px;
+  }
+  .launch-guide-aside .launch-toc { display: none; }
+  .launch-aside-note { padding: 12px; border-radius: 13px; }
+  .launch-aside-note p { font-size: 10px; line-height: 1.5; }
+  .launch-framework-ref { padding: 14px; border-radius: 16px; }
+  .launch-framework-ref__intro { font-size: 10px; line-height: 1.5; }
+
+  .launch-related { margin-top: 48px; padding-top: 25px; }
+  .launch-related__grid { grid-template-columns: 1fr; gap: 8px; margin-top: 14px; }
+  .launch-related__grid > a { padding: 11px; border-radius: 13px; }
+}
+
+@media (max-width: 380px) {
+  .launch-shell { width: calc(100% - 20px); }
+  .launch-hero h1,
+  .launch-guide-hero__main h1 { font-size: 37px; }
+  .launch-card { padding: 14px; }
+  .launch-artifact { padding: 9px 8px; }
+  .launch-artifact__copy b { font-size: 11px; }
+  .launch-chooser__grid b { font-size: 10px; }
+  .launch-route > a { padding-left: 13px; }
+  .launch-guide-hero__facts > div { padding-inline: 8px; }
+  .launch-guide-hero__facts strong { font-size: 9px; }
+  .launch-step__body { padding-inline: 13px; }
+}

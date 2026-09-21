@@ -10,9 +10,20 @@ def _env(name):
     return (value or '').strip()
 
 def generate_ai_readme(project):
-    """Backend only, crush silently, no JS. Uses Gemini/Groq if keys, else heuristic template."""
+    """Backend only, crush silently, no JS. Uses OpenRouter/OpenAI, then Gemini/Groq if keys, else heuristic template."""
     try:
         heuristic = f"# {project.title}\n{project.short_description}\n\n## What is this?\nThis vibe has {project.file_count} files. Tech: {project.tech_stack or '—'}.\n\n## How to Run\n```bash\npip install -r requirements.txt\npython manage.py runserver\n```\n\n## Features\n- {', '.join(list(project.language_stats.keys())[:3]) if project.language_stats else 'See file tree'}\n"
+        # 1. First preference: OpenRouter / OpenAI
+        from .ai_providers import openai_compatible_text, preferred_backend
+        preferred = preferred_backend()
+        if preferred:
+            try:
+                prompt = f"Write a markdown README for BlaqVibes vibe. Title: {project.title}\nTech: {project.tech_stack}\nFiles: {list(project.file_tree.keys())[:10] if project.file_tree else []}\nLanguages: {project.language_stats}\nShort: {project.short_description}\n\nReturn ONLY markdown README with # Title, ## What is this?, ## Tech Stack, ## How to Run (code block), ## Features."
+                txt = openai_compatible_text(prompt, max_output_tokens=600, temperature=0.3)
+                if txt and "# " in txt:
+                    return txt.strip()[:5000]
+            except Exception as e:
+                logger.warning(f"{preferred} readme failed: {e}")
         # Try Gemini
         gemini_key = _env("GEMINI_API_KEY")
         if gemini_key:

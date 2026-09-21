@@ -70,7 +70,9 @@ class ContactKind:
 
     key: str
     label: str          # what the operator picks in the dropdown
-    icon: str           # emoji shown next to the public link
+    # Legacy emoji per kind — public templates draw the kind-keyed SVG glyph
+    # in gallery/_contact_icon.html; this stays for the dict the views cache.
+    icon: str
     flavour: str        # how the value becomes a link
     short: str = ''     # short name used to build a default display label
     placeholder: str = ''
@@ -233,9 +235,9 @@ def _normalize_phone(value: str) -> str:
 
 def _normalize_handle(value: str, meta: ContactKind) -> str:
     handle = value.lstrip('@').strip()
-    looks_like_url = '//' in handle or handle.lower().startswith(('http:', 'https:'))
-    if looks_like_url:
-        parsed = urlparse(handle if '//' in handle else 'https://' + handle)
+    if _looks_like_url(handle, meta):
+        address = handle if '//' in handle else 'https://' + handle
+        parsed = urlparse(address)
         host = (parsed.netloc or '').lower().removeprefix('www.')
         # A pasted URL from another site is a mistake, not a redirect: turning
         # facebook.com/me into x.com/me would put the wrong link on every page.
@@ -250,9 +252,37 @@ def _normalize_handle(value: str, meta: ContactKind) -> str:
     return handle
 
 
+def _looks_like_url(value: str, meta: ContactKind) -> bool:
+    """Decide whether a pasted handle is really a URL — scheme or not.
+
+    Operators paste profile links the way they copy them, often without the
+    ``https://`` (``x.com/blaqvibes``, ``www.github.com/Njwacky``). Without a
+    scheme to parse, those used to sail through as literal handles, and every
+    page ended up linking a doubled-up ``https://x.com/x.com/blaqvibes`` — and
+    a foreign host pasted that way skipped the host check entirely.
+
+    A real handle never looks like a host: X and Instagram handles carry no
+    slash, and a GitHub org/repo pair has no dot before its slash, so a dotted
+    first segment followed by a path is always a bare URL.
+    """
+    lowered = value.lower()
+    if '//' in value or lowered.startswith(('http:', 'https:', 'www.')):
+        return True
+    first = lowered.split('/', 1)[0].removeprefix('www.')
+    # The kind's own site, possibly bare: x.com, m.twitter.com/me.
+    if any(first == host or first.endswith('.' + host) for host in meta.hosts):
+        return True
+    head, sep, _rest = lowered.partition('/')
+    return bool(sep) and '.' in head
+
+
 def _normalize_url(value: str) -> str:
     parsed = urlparse(value)
     if parsed.scheme not in ('http', 'https') or not parsed.netloc:
+        raise ValidationError(_URL_ERROR)
+    if any(char.isspace() for char in value):
+        # A raw space breaks the link in the footer — a space that belongs in
+        # a URL arrives as %20, never as a keystroke.
         raise ValidationError(_URL_ERROR)
     return value
 
@@ -296,7 +326,8 @@ def display_label(kind: str, value: str, label: str = '') -> str:
     if meta.flavour == FLAVOUR_WHATSAPP:
         return f'{meta.short} {value}'
     if meta.flavour == FLAVOUR_HANDLE:
-        return f'{meta.short} @{value.split("/")[0]}'
+        # A repo handle keeps its path: GitHub @Njwacky/blaqVibe, not @Njwacky.
+        return f'{meta.short} @{value}'
     return _short_url(value)
 
 

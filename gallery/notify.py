@@ -82,6 +82,8 @@ CATEGORY_OF_KIND = {
     'star': 'social',
     'fork': 'social',
     'challenge': 'social',
+    # A human answered (or is answering) you — feedback conversations.
+    'feedback': 'social',
     # system — informational
     'published': 'system',
     'upload': 'system',

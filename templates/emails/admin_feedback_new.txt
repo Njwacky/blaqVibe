@@ -1,0 +1,19 @@
+ADMIN ALERT — Feedback
+
+{{ title }}
+
+@{{ username }} wrote:
+
+{{ snippet }}
+{% if has_attachment %}
+A screenshot is attached. Open the conversation to view it securely.
+{% endif %}
+
+Reply from the superadmin inbox:
+{{ site_url }}{{ url }}
+
+This is a conversation, not a ticket — your reply lands back in the
+builder's thread and in their inbox.
+
+— BlaqVibes Admin Alerts
+Sent to the superadmin inbox.

@@ -301,17 +301,40 @@
     });
   }
 
-  // On submit, copy the live editors into the hidden fields the form sends.
+  // On submit, copy the live editors into the hidden fields the form sends,
+  // then lock the button: the drawer posts a real ZIP-less form over a normal
+  // navigation, so a second tap would be a second POST and — before the
+  // server-side idempotency token — a second, identical feed row.
   var form = document.getElementById('studio-form');
   if (form) {
-    form.addEventListener('submit', function () {
+    form.addEventListener('submit', function (e) {
+      // The drawer renders with novalidate, so required checks are ours.
+      // Block the submit (and the button lock) while a needed field is empty.
+      var missing = null;
+      ['id_title', 'id_short_description'].forEach(function (id) {
+        var el = document.getElementById(id);
+        if (el && !el.value.trim() && !missing) missing = el;
+      });
+      if (missing) {
+        e.preventDefault();
+        missing.focus();
+        return;
+      }
       var h = document.getElementById('submit-html');
       var c = document.getElementById('submit-css');
       var j = document.getElementById('submit-js');
       if (h) h.value = ed.html ? ed.html.value : '';
       if (c) c.value = ed.css ? ed.css.value : '';
       if (j) j.value = ed.js ? ed.js.value : '';
-      try { sessionStorage.removeItem(draftKey); } catch (e) {}
+      try { sessionStorage.removeItem(draftKey); } catch (e2) {}
+      var btn = form.querySelector('button.studio-publish-btn');
+      if (btn) { btn.disabled = true; btn.textContent = 'Publishing…'; }
+    });
+    // Back/forward cache can restore the form with the button still locked
+    // from the previous submit — unlock it or the drawer looks dead.
+    window.addEventListener('pageshow', function () {
+      var btn = form.querySelector('button.studio-publish-btn');
+      if (btn) { btn.disabled = false; btn.textContent = 'Publish vibe →'; }
     });
   }
 

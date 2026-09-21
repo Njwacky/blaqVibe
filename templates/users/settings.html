@@ -61,6 +61,24 @@
   </div>
 
   <h2 style="margin-top: 16px; font-size: 14px; font-weight: 700">
+    Feedback shortcut
+  </h2>
+  <div style="margin-top: 8px; display: flex; flex-direction: column; gap: 4px">
+    <div style="background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; align-items: center; gap: 12px">
+      <div style="flex: 1">
+        <div style="font-weight: 700; font-size: 13px">Show the floating feedback button</div>
+      </div>
+      <label class="switch">
+        <input type="checkbox" data-key="show_feedback_fab" {% if profile.show_feedback_fab %}checked{% endif %} />
+        <span class="slider"></span>
+      </label>
+    </div>
+    <div style="background: var(--surface-subtle); border: 1px solid var(--line); border-radius: 10px; padding: 10px; margin-left: 12px">
+      <div style="font-size: 11px; color: var(--muted)">On by default. Turn it off if it gets in the way; Feedback stays available in your account menu and Settings.</div>
+    </div>
+  </div>
+
+  <h2 style="margin-top: 16px; font-size: 14px; font-weight: 700">
     Your Vibes — 1 tap, no form
   </h2>
   <div
@@ -855,5 +873,5 @@
 </div>
 
 <link rel="stylesheet" href="{% static 'gallery/css/settings.css' %}?v=mobile-20260906">
-<script src="{% static 'gallery/js/settings.js' %}?v=ext-20260827" defer></script>
+<script src="{% static 'gallery/js/settings.js' %}?v=feedback-fab-20260921" defer></script>
 {% endblock %}

@@ -4,14 +4,14 @@
 {% block content %}
 <div style="max-width:640px;margin:0 auto;padding:20px">
   <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px">Edit Profile — @{{ user.username }}</h1>
-  <p style="color:var(--muted);font-size:13px">All fields sanitized backend (bleach), avatar validated (7MB, image/*). No secrets in JS.</p>
+  <p style="color:var(--muted);font-size:13px">What visitors see on your profile. Everything here is checked before it goes public — avatar up to 7MB.</p>
   <form method="post" enctype="multipart/form-data" class="card" style="margin-top:16px;display:grid;gap:12px;padding:16px">
     {% csrf_token %}
     {% if form.errors %}<div style="background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger-text);padding:10px;border-radius:10px;font-size:13px">{{ form.errors }}</div>{% endif %}
     <div><label class="field-label">Bio (280 max)</label>{{ form.bio }}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div><label class="field-label">Location</label>{{ form.location }}</div>
-      <div><label class="field-label">Website</label>{{ form.website }}</div>
+      <div><label class="field-label">Main website</label>{{ form.website }}<div style="font-size:11px;color:var(--muted);margin-top:4px">Your main home on the web. Add more sites below — each gets its own name and status light.</div></div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
       <div><label class="field-label">GitHub username</label>{{ form.github }}</div>
@@ -26,6 +26,24 @@
       </div>
       {{ form.avatar }}
     </div>
+
+    <div style="border:1px solid var(--line);border-radius:12px;padding:14px;background:var(--surface-subtle,var(--bg))" id="website-links-card">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+        <h2 style="font-size:14px;font-weight:700;margin:0">Your websites</h2>
+        <span style="font-size:11px;color:var(--muted)">● live&nbsp;&nbsp;● maintenance&nbsp;&nbsp;● inactive&nbsp;&nbsp;⇗ moved</span>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin:6px 0 10px">Portfolio, blog, side project — add as many as you like. Visitors see the status light before they click, and a moved site points at its new address.</p>
+      <div id="link-rows" style="display:grid;gap:10px">
+        {% for sub in link_formset.forms %}{% include 'users/includes/link_row.html' with f=sub %}{% endfor %}
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-top:10px;flex-wrap:wrap">
+        <button type="button" id="add-link-btn" class="btn-ghost">+ Add a website</button>
+        <span style="font-size:11px;color:var(--muted)">Up to {{ link_formset.max_num }} links. Removed rows disappear on save.</span>
+      </div>
+      <template id="link-empty-template">{% include 'users/includes/link_row.html' with f=link_formset.empty_form %}</template>
+      <div id="link-form-management" style="display:none">{{ link_formset.management_form }}</div>
+    </div>
+
     <div style="display:flex;gap:8px;justify-content:flex-end"><a href="{% url 'profile_view' user.username %}" class="btn-ghost">Cancel</a><button class="btn-violet">Save Profile</button></div>
   </form>
 
@@ -113,5 +131,5 @@
   </div>
 </div>
 <link rel="stylesheet" href="/static/gallery/css/forms.css?v=theme-colors-20260815">
-<script src="{% static 'gallery/js/edit_profile.js' %}?v=ext-20260827" defer></script>
+<script src="{% static 'gallery/js/edit_profile.js' %}?v=links-20260918" defer></script>
 {% endblock %}

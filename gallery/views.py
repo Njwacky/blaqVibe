@@ -256,8 +256,12 @@ def feed(request):
                 from . import trending
                 from .daily import today_challenge
                 exclude_owner = request.user if request.user.is_authenticated else None
+                # The rail deduplicates against the grid below it: a vibe on
+                # this page must not appear in the rail too — on a small
+                # catalog that used to list every app twice.
+                grid_ids = [p.id for p in page.object_list]
                 ctx['trending'], ctx['trending_is_hot'] = trending.trending_vibes(
-                    limit=6, exclude_owner=exclude_owner)
+                    limit=6, exclude_owner=exclude_owner, exclude_ids=grid_ids)
                 ctx['rising_creators'] = trending.rising_creators(
                     limit=4, exclude_user=request.user if request.user.is_authenticated else None)
                 ctx['recent_remixes'] = trending.recent_remixes(limit=4)
@@ -777,9 +781,51 @@ def publish(request):
     if request.method == 'POST':
         form = QuickPublishForm(request.POST, request.FILES)
         if form.is_valid():
+            # ── Idempotent publish: one submission, one feed row ──
+            # A double-tap on a slow connection (100MB ZIPs on mobile data
+            # are exactly where this happens), an XHR retry after a lost
+            # response, or a back-button resubmit used to create a second,
+            # identical project — the "double in feed" bug. The form carries
+            # a per-render token; the second POST of the same body resolves
+            # to the project the first one created.
+            token = (form.cleaned_data.get('publish_token') or '').strip()[:64]
+            if token:
+                if not all(c.isalnum() or c == '-' for c in token):
+                    token = ''  # never store a malformed id
+                else:
+                    existing = (AppProject.objects
+                                .filter(owner=request.user, publish_token=token)
+                                .only('slug', 'title').first())
+                    if existing:
+                        messages.info(
+                            request,
+                            f"“{existing.title}” was already published from this submission — "
+                            f"we opened your vibe instead of creating a second copy.",
+                        )
+                        return redirect('publish_success', slug=existing.slug)
+            else:
+                # No token (JS off or a very old cached page): fall back to a
+                # narrow same-author/same-title window so a plain double POST
+                # still cannot duplicate. Two minutes is far too short to
+                # catch a deliberate re-publish, and exactly long enough to
+                # catch a double-tap.
+                from datetime import timedelta
+                twin = (AppProject.objects
+                        .filter(owner=request.user,
+                                title=(form.cleaned_data.get('title') or '').strip(),
+                                created_at__gte=timezone.now() - timedelta(seconds=120))
+                        .only('slug', 'title').first())
+                if twin:
+                    messages.info(
+                        request,
+                        f"“{twin.title}” was published moments ago — we opened it "
+                        f"instead of creating a second copy.",
+                    )
+                    return redirect('publish_success', slug=twin.slug)
             project = form.save(commit=False)
             project.owner = request.user
             project.status = 'pending'  # Always pending first — must go through queue
+            project.publish_token = token
             if not getattr(request.user.profile, 'allow_trading', True):
                 project.star_cost = 0
             project.save()

@@ -63,3 +63,15 @@ input[type="checkbox"] { width: auto; }
   background: rgba(255,255,255,0.06);
   outline: none;
 }
+
+/* --- The prompt field gets room to breathe --- */
+/* "AI workflow note" (edit page): a prompt is prose, not a tweet. 12 rows,
+   monospace so prompt formatting survives copy/paste, and vertically
+   resizable so every author can grow it further. */
+.field-prompt-lg {
+  min-height: 240px;
+  font-family: JetBrains Mono, ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 12.5px;
+  line-height: 1.6;
+  resize: vertical;
+}

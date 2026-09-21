@@ -396,6 +396,20 @@ class Profile(models.Model):
     # It is high-entropy (token_urlsafe) and compared with compare_digest, so a
     # fast hash suffices — bcrypt's strength is against low-entropy secrets.
     git_token_hash = models.CharField(max_length=64, blank=True)
+    # First-time welcome overlay (users/welcome.py). False for every existing
+    # account (migrated in 0029 so nobody is ambushed by onboarding they never
+    # got); flipped True the first time a user closes it. The client-side
+    # `blaq-welcome-seen` flag means the server only asks while the answer is
+    # genuinely unknown — the overlay can never nag a person who skipped it.
+    overlay_seen = models.BooleanField(default=False, help_text='True once the first-time welcome overlay has been completed or skipped')
+    # The floating feedback shortcut is on for everyone by default. People can
+    # turn it off in Settings without losing the Feedback link in their account
+    # menu, so the human channel remains reachable when they want it back.
+    show_feedback_fab = models.BooleanField(default=True, help_text='Show the floating feedback shortcut')
+    feedback_fab_tip_dismissed = models.BooleanField(
+        default=False,
+        help_text='True once the user has dismissed the feedback floating action button tip'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
         constraints = [
@@ -490,6 +504,122 @@ class Profile(models.Model):
     def name_style_classes(self) -> str:
         """Theme classes: size, fx, rainbow, and the people-style flourish."""
         return self._composed_name_style()['classes']
+
+
+class ProfileLink(models.Model):
+    """One of a builder's own websites — a row, not a field.
+
+    5 Whys: why rows instead of the old single `Profile.website` field?
+    1. Why change it? One URLField could only ever hold one site. Builders
+       ship a portfolio, a blog, a SaaS, a lab — the profile must show all
+       of them, each with its own display name.
+    2. Why a status on the row? This app is for developers who never publish
+       anything: sites rot, move and go dark. A small traffic-light icon
+       (green = live, orange = under maintenance, grey = inactive) tells the
+       visitor what they will find BEFORE they click.
+    3. Why a `moved_to` column? When a site moves, the old address dies but
+       the audience does not. Marking the row `moved` re-points the chip at
+       the new address so the profile never advertises a dead link.
+    4. Why a position? The order of someone's links is a judgement call —
+       portfolio first, then blog — not alphabetical luck.
+    5. Why max 12? A profile is an identity card, not a link farm. 12 rows
+       is more than any honest builder needs and keeps the page (and bots)
+       honest. Enforced in the formset (validate_max) and clean() here.
+    """
+
+    STATUS_ACTIVE = 'active'
+    STATUS_MAINTENANCE = 'maintenance'
+    STATUS_INACTIVE = 'inactive'
+    STATUS_MOVED = 'moved'
+    STATUS_CHOICES = [
+        (STATUS_ACTIVE, 'Active'),
+        (STATUS_MAINTENANCE, 'Under maintenance'),
+        (STATUS_INACTIVE, 'Inactive'),
+        (STATUS_MOVED, 'Moved'),
+    ]
+    MAX_LINKS = 12
+
+    profile = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='links')
+    label = models.CharField(max_length=60, help_text='Display name — e.g. Portfolio, Blog, Side project')
+    url = models.URLField(max_length=300)
+    status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=STATUS_ACTIVE)
+    moved_to = models.URLField(max_length=300, blank=True, help_text='Only for Moved — where the site lives now')
+    position = models.PositiveIntegerField(default=0, help_text='Lower shows first')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['position', 'id']
+        constraints = [
+            models.CheckConstraint(
+                check=~models.Q(label=''),
+                name='profilelink_label_nonempty',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.label} → {self.url} ({self.status})'
+
+    def clean(self):
+        # A "moved" row that does not say where it moved to would render a
+        # chip that lies twice (dead URL, no destination). Enforced here —
+        # not in the form — so admin and any future writer inherit it, and
+        # ModelForm surfaces it once through _post_clean.
+        if self.status == self.STATUS_MOVED and not (self.moved_to or '').strip():
+            raise ValidationError({'moved_to': 'A moved link needs its new address.'})
+        if self.status == self.STATUS_MOVED and (self.moved_to or '').strip() == (self.url or '').strip():
+            # "Moved" pointing at itself is not a move — the visitor clicks
+            # the chip and lands on the same dead page.
+            raise ValidationError({'moved_to': 'The new address must differ from the old URL.'})
+        # A status that is NOT moved must not keep a stale moved_to around —
+        # otherwise a later flip to active would silently redirect visitors.
+        if self.status != self.STATUS_MOVED:
+            self.moved_to = ''
+
+    def save(self, *args, **kwargs):
+        self.full_clean(exclude=['profile'])  # backstop: no writer can bypass clean()
+        super().save(*args, **kwargs)
+
+    # ── Read-side helpers the templates use ──
+    @property
+    def is_moved(self) -> bool:
+        return self.status == self.STATUS_MOVED
+
+    @property
+    def is_clickable(self) -> bool:
+        """Inactive sites are announced, not linked — the icon is grey."""
+        return self.status != self.STATUS_INACTIVE
+
+    @property
+    def href(self) -> str:
+        """Where the chip actually points: moved rows point at the new home."""
+        if self.is_moved and self.moved_to:
+            return self.moved_to
+        return self.url
+
+    @property
+    def dot_class(self) -> str:
+        """CSS modifier for the small status icon on the profile chip."""
+        return {
+            self.STATUS_ACTIVE: 'link-dot--active',
+            self.STATUS_MAINTENANCE: 'link-dot--maintenance',
+            self.STATUS_INACTIVE: 'link-dot--inactive',
+            self.STATUS_MOVED: 'link-dot--moved',
+        }.get(self.status, 'link-dot--inactive')
+
+    @property
+    def status_label(self) -> str:
+        return dict(self.STATUS_CHOICES).get(self.status, 'Inactive')
+
+    @property
+    def chip_class(self) -> str:
+        return {
+            self.STATUS_ACTIVE: 'profile-link--active',
+            self.STATUS_MAINTENANCE: 'profile-link--maintenance',
+            self.STATUS_INACTIVE: 'profile-link--inactive',
+            self.STATUS_MOVED: 'profile-link--moved',
+        }.get(self.status, 'profile-link--inactive')
+
 
 class SiteSettings(models.Model):
     """Singleton global settings managed through authenticated operator pages."""
@@ -993,6 +1123,74 @@ class QuarantineAppeal(models.Model):
 
     def __str__(self):
         return f'@{self.user.username} appeal #{self.pk} ({self.status})'
+
+# --------------------------------------------------------------------
+# Feedback conversations — the temporary fast path to a human.
+#
+# The product is still under construction, so every page carries a
+# glowing floating button (the .bv-fab in the base template). It opens
+# /feedback/: a thread the user writes into, and a superadmin reads in
+# their inbox and REPLIES HERE — into the same thread — not to a
+# mailbox nobody checks. That is why this is two tables: a thread
+# (who is talking, and the read markers) and its messages (who said
+# what, in order).
+# --------------------------------------------------------------------
+class FeedbackThread(models.Model):
+    STATUS_CHOICES = [
+        ('open', 'Open — waiting on the team'),
+        ('answered', 'Answered'),
+        ('closed', 'Closed'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='feedback_threads')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='open', db_index=True)
+    # Newest message FROM THE USER. Drives both the staff-unread calc
+    # (admin_last_read_at < last_user_message_at) and queue ordering, so a
+    # staff reply can never push its own conversation back to the front.
+    last_user_message_at = models.DateTimeField(null=True, blank=True, db_index=True)
+    # When a superadmin last opened this conversation (the read marker).
+    admin_last_read_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-last_user_message_at', '-created_at']
+        indexes = [models.Index(fields=['status', 'last_user_message_at'])]
+
+    def __str__(self):
+        return f'Feedback #{self.pk} — @{self.user.username} ({self.status})'
+
+    def unread_for_staff(self):
+        """True while a user message is still waiting on the superadmin."""
+        if self.last_user_message_at is None:
+            return False
+        if self.admin_last_read_at is None:
+            return True
+        return self.last_user_message_at > self.admin_last_read_at
+
+
+class FeedbackMessage(models.Model):
+    thread = models.ForeignKey(FeedbackThread, on_delete=models.CASCADE, related_name='messages')
+    sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='feedback_messages')
+    # Stored at write time: "which side of the conversation is this" must
+    # not change if the sender's role changes later — a demoted admin's
+    # old reply is still a team reply.
+    from_staff = models.BooleanField(default=False)
+    # A builder can attach a screenshot to make a visual bug reproducible.
+    # The feedback view validates the bytes with Pillow and serves it only to
+    # the thread owner or a superadmin; it is never rendered as a public media
+    # URL.
+    body = models.TextField(max_length=4000)
+    attachment = models.ImageField(upload_to='feedback/%Y/%m/', blank=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['created_at', 'id']
+        indexes = [models.Index(fields=['thread', 'created_at'])]
+
+    def __str__(self):
+        who = 'team' if self.from_staff else f'@{self.sender.username}'
+        return f'{who}: {self.body[:40]}'
+
 
 @receiver(post_save, sender=User)
 def create_profile(sender, instance, created, **kwargs):

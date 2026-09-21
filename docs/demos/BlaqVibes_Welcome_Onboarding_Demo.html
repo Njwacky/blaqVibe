@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BlaqVibes — First-Time Welcome / Onboarding Screens</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@600;700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#07070A;--card:#121214;--line:#1F1F23;--muted:#9A9AAF;--text:#fff;
+  --input:#15151A;--gold:#F59E0B;--link:#A78BFA;--accent-text:#C4B5FD;
+  --accent-soft-bg:#21163A;--accent-border:#8B5CF6;--violet:#7C3AED;--on-accent:#fff;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:Inter,sans-serif;background:var(--bg);color:var(--text)}
+.toolbar{height:56px;display:flex;align-items:center;gap:12px;padding:0 18px;border-bottom:1px solid var(--line);background:var(--bg);position:sticky;top:0;z-index:50}
+.toolbar b{font-family:'Space Grotesk',sans-serif}
+.toolbar span.note{font-size:11px;color:var(--muted);margin-left:auto}
+.wrap{max-width:760px;margin:0 auto;padding:22px 16px 60px;display:grid;gap:22px}
+h1.demo{font-family:'Space Grotesk',sans-serif;font-size:22px;margin-bottom:4px}
+p.demo{color:var(--muted);font-size:13px;line-height:1.6;max-width:640px}
+.screen{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:30px 28px 22px;box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.screen-tag{display:inline-flex;align-items:center;gap:8px;font-size:11px;font-weight:800;letter-spacing:1.5px;color:var(--gold);margin-bottom:14px}
+.screen-tag::before{content:attr(data-n);display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--violet);color:#fff;letter-spacing:0;font-size:11px}
+.eyebrow{font-size:11px;font-weight:800;letter-spacing:2.2px;color:var(--gold)}
+.h{font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700;line-height:1.08;margin:12px 0}
+.p{color:var(--muted);font-size:15px;line-height:1.6;max-width:620px}
+.p b{color:var(--text)}
+.visual{margin:22px 0 0;background:var(--input);border:1px solid var(--line);border-radius:16px;padding:24px 18px}
+.flow{display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px}
+.node{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 14px;font-weight:700;font-size:12px}
+.node.brand{background:linear-gradient(135deg,#7c3aed,#ec4899);color:#fff;border:none;box-shadow:0 8px 24px rgba(124,58,237,.4)}
+.arrow{color:var(--muted);font-size:16px;font-weight:700}
+.shots{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;text-align:left}
+.shots.c2{grid-template-columns:repeat(2,1fr)}
+.shot{background:var(--bg);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.shot-img{height:64px;display:grid;place-items:center;font-size:11px;font-weight:700;color:#fff;padding:0 8px;text-align:center}
+.shot-cap{padding:8px 9px 0;font-size:12px;font-weight:600}
+.shot-sub{padding:2px 9px 9px;font-size:11px;color:var(--muted);line-height:1.4}
+.f-feed{background:radial-gradient(120px 70px at 14% 18%,#7c3aed85,transparent),linear-gradient(180deg,#171a22,#101220)}
+.f-trust{background:radial-gradient(120px 70px at 84% 12%,#f59e0b5c,transparent),linear-gradient(180deg,#1a1a30,#0d0f1c)}
+.f-remix{background:radial-gradient(120px 60px at 70% 80%,#ec48996e,transparent),linear-gradient(180deg,#191a28,#131018)}
+.f-connect{background:radial-gradient(120px 60px at 20% 80%,#22d3ee59,transparent),linear-gradient(180deg,#141b22,#0f1016)}
+.f-opp{background:radial-gradient(150px 70px at 80% 20%,#7c3aed80,transparent),radial-gradient(120px 70px at 15% 80%,#f59e0b4d,transparent),linear-gradient(180deg,#151220,#0d0e16)}
+.f-step{background:radial-gradient(140px 70px at 80% 0%,#7c3aed6b,transparent),linear-gradient(180deg,#14151f,#0f0f17)}
+.manifesto{background:linear-gradient(135deg,#241a44,var(--card));border:1px solid var(--accent-border);border-radius:14px;padding:18px 20px;margin-top:16px}
+.manifesto.gold{border-color:var(--gold)}
+.m-title{font-size:11px;font-weight:800;letter-spacing:1.6px;color:var(--muted)}
+.m-line{font-family:'Space Grotesk',sans-serif;font-size:19px;font-weight:700;line-height:1.2;margin-top:8px}
+.m-sub{font-size:13px;color:var(--muted);line-height:1.5;max-width:540px;margin-top:8px}
+.cta{display:flex;gap:10px;justify-content:center;margin-top:20px}
+.btnV{background:#7C3AED;color:#fff;border:none;padding:9px 16px;border-radius:10px;font-weight:700;font-size:13px;cursor:pointer}
+.btnG{border:1px solid var(--line);background:transparent;color:var(--text);padding:9px 16px;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer}
+.dots{display:flex;gap:6px;justify-content:center;margin-top:18px}
+.dot{width:28px;height:4px;border-radius:100px;background:var(--line)}
+.dot.on{background:var(--violet)}
+@media(max-width:640px){.shots,.shots.c2{grid-template-columns:1fr}.screen{padding:22px 16px 18px}}
+</style>
+</head>
+<body>
+<nav class="toolbar">
+  <b>BlaqVibes</b>
+  <span>Onboarding</span>
+  <span class="note">Full-screen modal · shown once after first sign-in · 3 screens + hand-off</span>
+</nav>
+<div class="wrap">
+  <div>
+    <h1 class="demo">First-Time Welcome / Onboarding</h1>
+    <p class="demo">Answers exactly three questions — <b style="color:#fff">What is BlaqVibes?</b> · <b style="color:#fff">What do I do here?</b> · <b style="color:#fff">Why should I care?</b> — in 3&nbsp;+&nbsp;1 screens. Each screen carries its own “screenshots” (miniature product panels). In the app this renders as a full-screen modal overlay, auto-opened once, never again.</p>
+  </div>
+
+  <!-- SCREEN 1 -->
+  <section class="screen">
+    <div class="screen-tag" data-n="1">SCREEN 1 — WHAT IS BLAQVIBES?</div>
+    <div class="eyebrow">BLAQVIBES</div>
+    <h2 class="h">Welcome to BlaqVibes</h2>
+    <p class="p">Before you start, here's how BlaqVibes works.</p>
+    <p class="p" style="margin-top:10px"><b>You built it. Now make it visible.</b><br>
+    Vibe coding makes it easier to turn an idea into software. But building something is only the beginning — BlaqVibes gives your work a place to be <b style="color:var(--accent-text)">seen, understood, trusted, improved,</b> and connected to opportunities.</p>
+    <div class="visual">
+      <div class="flow">
+        <span class="node">IDEA</span><span class="arrow">↓</span>
+        <span class="node">VIBE&nbsp;CODE</span><span class="arrow">↓</span>
+        <span class="node">BUILD</span><span class="arrow">↓</span>
+        <span class="node brand">BLAQVIBES</span><span class="arrow">↓</span>
+        <span class="node">PEOPLE SEE WHAT YOU CAN DO</span>
+      </div>
+      <div class="shots" style="margin-top:16px">
+        <div class="shot"><div class="shot-img f-feed">A feed of real, published builds</div><div class="shot-cap">Build proof, not noise</div><div class="shot-sub">Every project ships with files, stack &amp; history.</div></div>
+        <div class="shot"><div class="shot-img f-trust">Scanned, reviewed, verified</div><div class="shot-cap">Trust before it reaches the feed</div><div class="shot-sub">Work is checked before anyone sees it.</div></div>
+        <div class="shot"><div class="shot-img f-remix">Remix, fork, improve</div><div class="shot-cap">Lineage is credit</div><div class="shot-sub">Build on someone's idea — both are remembered.</div></div>
+      </div>
+    </div>
+    <div class="dots"><span class="dot on"></span><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>
+    <div class="cta"><button class="btnV">Next →</button><button class="btnG">Skip intro</button></div>
+  </section>
+
+  <!-- SCREEN 2 -->
+  <section class="screen">
+    <div class="screen-tag" data-n="2">SCREEN 2 — WHAT DO I DO HERE?</div>
+    <div class="eyebrow">HOW YOU BUILD A REPUTATION</div>
+    <h2 class="h">What do I do here?</h2>
+    <p class="p">BlaqVibes is a place to <b>show &amp; prove</b>. Ship your project, drop the evidence, and the work keeps working for you.</p>
+    <div class="visual">
+      <div class="shots c2">
+        <div class="shot"><div class="shot-img f-step">⬆ Upload a ZIP · snippet · repo</div><div class="shot-cap">1 · Ship</div><div class="shot-sub">Import a GitHub repo, paste a snippet, or upload a ZIP.</div></div>
+        <div class="shot"><div class="shot-img f-trust">Scan → Review → Nolo 10/10</div><div class="shot-cap">2 · Publish</div><div class="shot-sub">Moderation clears it, the feed surfaces it.</div></div>
+        <div class="shot"><div class="shot-img f-remix">⚔ Battle · ⑂ Remix · ★ Trade</div><div class="shot-cap">3 · Compete</div><div class="shot-sub">Battles, stars and remixes push you up the ranks.</div></div>
+        <div class="shot"><div class="shot-img f-feed">★ Stars → Bronze → Platinum</div><div class="shot-cap">4 · Earn</div><div class="shot-sub">Every trade, win and bounty climbs your reputation.</div></div>
+      </div>
+    </div>
+    <div class="dots"><span class="dot"></span><span class="dot on"></span><span class="dot"></span><span class="dot"></span></div>
+    <div class="cta"><button class="btnV">Next →</button><button class="btnG">Skip intro</button></div>
+  </section>
+
+  <!-- SCREEN 3 -->
+  <section class="screen">
+    <div class="screen-tag" data-n="3">SCREEN 3 — WHY SHOULD I CARE?</div>
+    <div class="eyebrow">THE WHOLE POINT</div>
+    <h2 class="h">Why should I care?</h2>
+    <div class="manifesto gold">
+      <div class="m-title">PRODUCT VISION</div>
+      <div class="m-line">MAKE ABILITY VISIBLE.<br>Your work is your proof.</div>
+    </div>
+    <div class="manifesto">
+      <div class="m-title">THE PROMISE</div>
+      <div class="m-sub"><b style="color:#fff">BlaqVibes</b> helps people turn what they build into proof of what they can do — and helps that proof create opportunities.</div>
+    </div>
+    <div class="visual">
+      <div class="shots">
+        <div class="shot"><div class="shot-img f-connect">Found through your stack</div><div class="shot-cap">Discoverability</div><div class="shot-sub">Capability search finds you by what you can actually do.</div></div>
+        <div class="shot"><div class="shot-img f-feed">A living portfolio</div><div class="shot-cap">Proof over claims</div><div class="shot-sub">Your work is portable evidence of ability.</div></div>
+        <div class="shot"><div class="shot-img f-opp">Work finds you</div><div class="shot-cap">Opportunities</div><div class="shot-sub">Evidence leads to the next, real opportunity.</div></div>
+      </div>
+    </div>
+    <div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot on"></span><span class="dot"></span></div>
+    <div class="cta"><button class="btnV">Next →</button><button class="btnG">Skip intro</button></div>
+  </section>
+
+  <!-- SCREEN 4 -->
+  <section class="screen">
+    <div class="screen-tag" data-n="4">SCREEN 4 — HAND-OFF</div>
+    <div class="eyebrow">YOU BUILT IT</div>
+    <h2 class="h">Now make it visible.</h2>
+    <p class="p">That's the loop — <b style="color:var(--accent-text)">BUILD → SHOW → REMIX → COMPETE → REPEAT.</b><br>Ready to see what people are building?</p>
+    <div class="manifesto">
+      <div class="m-title">BLAQVIBES</div>
+      <div class="m-line">MAKE ABILITY VISIBLE.</div>
+    </div>
+    <div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span class="dot on"></span></div>
+    <div class="cta"><button class="btnV">Explore BlaqVibes →</button></div>
+  </section>
+</div>
+</body>
+</html>

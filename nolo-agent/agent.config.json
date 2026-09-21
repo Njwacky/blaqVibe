@@ -1,0 +1,20 @@
+{
+  "model": "anthropic/claude-sonnet-4.5",
+  "maxSteps": 20,
+  "maxCost": 1.0,
+  "showBanner": true,
+  "approvalPolicy": "always",
+  "slashCommands": true,
+  "display": {
+    "inputStyle": "plain",
+    "toolDisplay": "grouped",
+    "reasoning": false,
+    "loader": { "text": "Nolo is working", "style": "spinner" }
+  },
+  "workspace": {
+    "protectedPaths": [],
+    "allowPaths": [],
+    "passEnv": [],
+    "blockedShell": []
+  }
+}

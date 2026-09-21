@@ -3,7 +3,10 @@ from pathlib import Path
 from django.conf import settings
 from django.http import FileResponse, Http404
 
-BLOCKED_PREFIXES = ('apps/zips/', 'apps/versions/')
+# Feedback screenshots are private conversation evidence, not public media.
+# The authenticated users/feedback_attachment view is the only intended read
+# path. Keep local DEBUG media serving from becoming an accidental bypass.
+BLOCKED_PREFIXES = ('apps/zips/', 'apps/versions/', 'feedback/')
 
 def serve_public_media(request, path):
     """Local MEDIA server that never streams paid ZIP bytes."""

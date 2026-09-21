@@ -21,6 +21,7 @@
 
   <form method="post" enctype="multipart/form-data" id="publish-form" class="pub-card">
     {% csrf_token %}
+    {{ form.publish_token }}
     {% if form.non_field_errors %}
     <div class="pub-error" role="alert">{% for e in form.non_field_errors %}{{ e }}{% endfor %}</div>
     {% endif %}
@@ -90,5 +91,5 @@
   <p class="pub-alt">Nothing to upload yet? <a href="{% url 'starter_gallery' %}">✦ Start in your browser instead</a></p>
   <p class="pub-alt pub-alt--quiet">This publishes a BlaqVibes listing with a safe preview — not a production host. <a href="{% url 'launch_hub' %}">Find the right launch path →</a></p>
 </div>
-<script src="{% static 'gallery/js/publish.js' %}?v=publish-first-20260911" defer></script>
+<script src="{% static 'gallery/js/publish.js' %}?v=publish-idem-20260918" defer></script>
 {% endblock %}

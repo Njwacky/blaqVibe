@@ -1,0 +1,25 @@
+<div class="link-row" data-link-row>
+  <div class="link-row-main">
+    <div class="link-cell">
+      <label class="field-label" for="{{ f.label.id_for_label }}">Display name</label>
+      {{ f.label }}
+    </div>
+    <div class="link-cell link-cell--url">
+      <label class="field-label" for="{{ f.url.id_for_label }}">URL</label>
+      {{ f.url }}
+    </div>
+    <div class="link-cell link-cell--status">
+      <label class="field-label" for="{{ f.status.id_for_label }}">Status</label>
+      {{ f.status }}
+    </div>
+    <button type="button" class="link-remove" data-link-remove title="Remove this link" aria-label="Remove this link">✕</button>
+  </div>
+  <div class="link-cell link-cell--moved" data-link-moved-to-wrap {% if f.instance.status != 'moved' %}hidden{% endif %}>
+    <label class="field-label" for="{{ f.moved_to.id_for_label }}">New address (where the site lives now)</label>
+    {{ f.moved_to }}
+  </div>
+  {% if f.errors %}
+  <div class="link-row-errors">{{ f.errors }}</div>
+  {% endif %}
+  <div style="display:none">{{ f.id }}{{ f.DELETE }}</div>
+</div>

@@ -1,6 +1,10 @@
 from django.urls import path
-from . import views, admin_views, quarantine_views
+from . import views, admin_views, quarantine_views, feedback as feedback_views
+from . import welcome_views
 urlpatterns = [
+    # First-time welcome overlay (users/welcome.py). One write endpoint:
+    # `/welcome/seen` records that the account has answered the overlay.
+    path('welcome/seen', welcome_views.welcome_seen, name='welcome_seen'),
     path('u/<str:username>/proof/', views.proof_cv_view, name='proof_cv'),
     path('u/<str:username>/', views.profile_view, name='profile_view'),
     path('settings/', views.settings_view, name='settings'),
@@ -31,4 +35,12 @@ urlpatterns = [
     # keep resolving instead of dying with NoReverseMatch after this change.
     path('admin/roles/<str:username>/set/', admin_views.manage_user_role, name='set_role'),
     path('admin/audit/', admin_views.audit_log, name='audit_log'),
+    # Feedback conversations — the temporary construction channel behind the
+    # glowing floating button. /feedback/ is the builder's side; /admin/feedback/
+    # is the superadmin's inbox (queue + reply).
+    path('feedback/', feedback_views.feedback_inbox, name='feedback_inbox'),
+    path('feedback/<int:pk>/', feedback_views.feedback_conversation, name='feedback_conversation'),
+    path('feedback/<int:thread_pk>/message/<int:message_pk>/attachment/', feedback_views.feedback_attachment, name='feedback_attachment'),
+    path('admin/feedback/', feedback_views.admin_feedback_queue, name='admin_feedback_queue'),
+    path('admin/feedback/<int:pk>/', feedback_views.admin_feedback_conversation, name='admin_feedback_conversation'),
 ]
