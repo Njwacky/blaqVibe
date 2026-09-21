@@ -238,15 +238,17 @@ The public footer's **Contact** column is maintained at `/admin/footer-contacts/
 | Column | What it is |
 | --- | --- |
 | **Type** | Email, Phone, WhatsApp, X (Twitter), GitHub, Instagram, LinkedIn, Telegram, Discord, YouTube, TikTok, Website or Other link |
-| **Address / number / handle** | The value for that type, normalised on save — `082 555 0100` → `+27825550100`, `https://twitter.com/blaqvibes` → the handle `blaqvibes` |
+| **Address / number / handle** | The value for that type, normalised on save — `082 555 0100` → `+27825550100`, `twitter.com/blaqvibes` → the handle `blaqvibes` (a profile URL works with or without the `https://`; one from another network is refused) |
 | **Display text** | Optional. What visitors read instead of the raw address, number or handle |
 | **Order** | Lower numbers show first |
 | **Show** | Untick to hide a method without deleting it |
 | **Remove** | Delete a method that is gone for good |
 
 Two support mailboxes, a WhatsApp line and an X account are four rows — no
-migration, no deploy, no template edit. Blank rows are ignored, and the list is
-cached for five minutes (dropped the moment a row changes).
+migration, no deploy, no template edit. Blank rows are ignored, and a saved
+change is live on the very next page load (the list is intentionally not
+cached: production runs several workers, and a moved support number must be
+true on all of them at once).
 
 The link is **built** from the value, never stored, so the footer can only ever
 render `mailto:`, `tel:`, `wa.me`, the network named by the type, or a validated
