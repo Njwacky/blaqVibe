@@ -201,6 +201,27 @@ def _proof_score(project) -> int:
 
 
 def search_capability(q: str, *, project_limit: int = 24, people_limit: int = 12):
+    # Cache per query 60s — capability search scans 200-300 rows each hit
+    try:
+        from django.core.cache import cache
+        q_norm = (q or '').strip().lower()[:80]
+        if q_norm and len(q_norm) >= 2:
+            cache_key = f"capability:search:{q_norm}:{project_limit}:{people_limit}:v1"
+            hit = cache.get(cache_key)
+            if hit is not None:
+                return hit
+    except Exception:
+        cache_key = None
+    _result = _search_capability_uncached(q, project_limit=project_limit, people_limit=people_limit)
+    try:
+        if cache_key and _result:
+            cache.set(cache_key, _result, 60)
+    except Exception:
+        pass
+    return _result
+
+
+def _search_capability_uncached(q: str, *, project_limit: int = 24, people_limit: int = 12):
     """Capability-driven discovery.
 
     Returns:
@@ -328,6 +349,23 @@ def search_capability(q: str, *, project_limit: int = 24, people_limit: int = 12
 
 
 def popular_capability_chips(limit: int = 10) -> list[str]:
+    try:
+        from django.core.cache import cache
+        ck = f"capability:chips:{limit}:v1"
+        hit = cache.get(ck)
+        if hit is not None:
+            return hit
+    except Exception:
+        ck = None
+    _result = _popular_chips_uncached(limit)
+    try:
+        if ck:
+            cache.set(ck, _result, 300)
+    except Exception:
+        pass
+    return _result
+
+def _popular_chips_uncached(limit: int = 10) -> list[str]:
     """Top tech tokens across published projects — for empty-state guidance."""
     counts: dict[str, int] = defaultdict(int)
     labels: dict[str, str] = {}

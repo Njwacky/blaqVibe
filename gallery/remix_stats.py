@@ -1,24 +1,9 @@
-"""Remix as a first-class data relationship (§3 / §18).
-
-Everything in this module is derived from one column — `AppProject.forked_from`
-— and one status filter. No score is invented, no ranking is editorial:
-
-* **Original projects** — published projects with no source project.
-* **Remixes** — published projects that have one.
-* **Remix depth** — how many generations a family reached.
-* **Most remixed** — families ranked by how many published remixes exist.
-* **Fastest-growing families** — remixes published inside a recent window.
-* **Top remixers** — builders who publish remixes of other people's work.
-
-Visibility rule everywhere: `status='published'`. An unpublished remix is
-invisible to strangers, so it can never leak through a leaderboard either.
-Every function is crush-safe (returns an empty/zero shape on failure): a
-discovery rail must never take the page down.
-"""
+"""Remix stats — cached for performance, same semantics as before."""
 import logging
 from datetime import timedelta
 
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.db.models import Count, F, Q
 from django.utils import timezone
 
@@ -27,19 +12,12 @@ from .models import AppProject
 logger = logging.getLogger(__name__)
 
 WINDOW_DAYS = 14
-MAX_WALK = 12  # cycle/again-and-again guard for lineage walks
-
+MAX_WALK = 12
 
 def _published():
     return AppProject.objects.filter(status='published')
 
-
 def root_id_of(project, cache=None):
-    """Id of the original at the top of this project's family.
-
-    `cache` (dict) lets a caller resolve a whole page of projects without
-    re-walking shared ancestors.
-    """
     if cache is not None and project.pk in cache:
         return cache[project.pk]
     node, walked, seen = project, 0, {project.pk}
@@ -55,9 +33,15 @@ def root_id_of(project, cache=None):
             cache[pk] = node.pk
     return node.pk
 
-
 def remix_totals():
-    """The headline counts for the Discover page — originals vs remixes."""
+    """Headline counts — cached 5 min."""
+    cache_key = "remix:totals:v2"
+    try:
+        hit = cache.get(cache_key)
+        if hit is not None:
+            return hit
+    except Exception:
+        pass
     try:
         published = _published()
         total = published.count()
@@ -68,40 +52,55 @@ def remix_totals():
             .select_related('forked_from__forked_from__forked_from')[:200]
         ):
             deepest = max(deepest, project.remix_generation)
-        return {
+        result = {
             'projects': total,
             'originals': total - remixes,
             'remixes': remixes,
             'deepest_generation': deepest,
             'remix_share': round((remixes / total) * 100) if total else 0,
         }
+        try:
+            cache.set(cache_key, result, 300)
+        except Exception:
+            pass
+        return result
     except Exception:
         logger.exception('remix_totals failed')
         return {'projects': 0, 'originals': 0, 'remixes': 0, 'deepest_generation': 0, 'remix_share': 0}
 
-
 def most_remixed(limit=6):
-    """Projects other builders actually built on, most remixed first."""
+    cache_key = f"remix:most:l{limit}:v2"
     try:
-        return list(
+        hit = cache.get(cache_key)
+        if hit is not None:
+            return hit
+    except Exception:
+        pass
+    try:
+        result = list(
             _published()
             .annotate(remix_count=Count('forks', filter=Q(forks__status='published')))
             .filter(remix_count__gt=0)
             .select_related('owner', 'owner__profile')
             .order_by('-remix_count', '-stars', '-created_at')[:limit]
         )
+        try:
+            cache.set(cache_key, result, 180)
+        except Exception:
+            pass
+        return result
     except Exception:
         logger.exception('most_remixed failed')
         return []
 
-
 def fastest_growing_families(limit=5, days=WINDOW_DAYS):
-    """Families that gained the most published remixes in the window.
-
-    A "family" is keyed by its original project, so a remix-of-a-remix
-    counts towards the idea it descends from — that is the unit a reader
-    cares about ("this idea is spreading"), not the intermediate node.
-    """
+    cache_key = f"remix:growing:l{limit}:d{days}:v2"
+    try:
+        hit = cache.get(cache_key)
+        if hit is not None:
+            return hit
+    except Exception:
+        pass
     try:
         since = timezone.now() - timedelta(days=days)
         recent = list(
@@ -111,9 +110,9 @@ def fastest_growing_families(limit=5, days=WINDOW_DAYS):
         )
         if not recent:
             return []
-        cache, growth, builders = {}, {}, {}
+        c, growth, builders = {}, {}, {}
         for project in recent:
-            root = root_id_of(project, cache)
+            root = root_id_of(project, c)
             growth[root] = growth.get(root, 0) + 1
             builders.setdefault(root, set()).add(project.owner_id)
         ordered = sorted(growth.items(), key=lambda kv: kv[1], reverse=True)[:limit]
@@ -126,25 +125,30 @@ def fastest_growing_families(limit=5, days=WINDOW_DAYS):
         for root_pk, gained in ordered:
             root = roots.get(root_pk)
             if root is None:
-                continue  # original was unpublished/removed — stay quiet
+                continue
             out.append({
                 'project': root,
                 'new_remixes': gained,
                 'builders': len(builders.get(root_pk, ())),
                 'days': days,
             })
+        try:
+            cache.set(cache_key, out, 180)
+        except Exception:
+            pass
         return out
     except Exception:
         logger.exception('fastest_growing_families failed')
         return []
 
-
 def top_remixers(limit=6, days=None):
-    """Builders who publish remixes of OTHER people's projects.
-
-    Remixing your own work is legitimate building, but it is not the
-    social act this rail is about, so it does not count here.
-    """
+    cache_key = f"remix:top_remixers:l{limit}:d{days}:v2"
+    try:
+        hit = cache.get(cache_key)
+        if hit is not None:
+            return hit
+    except Exception:
+        pass
     try:
         qs = _published().filter(forked_from__isnull=False).exclude(
             forked_from__owner_id=F('owner_id')
@@ -167,32 +171,49 @@ def top_remixers(limit=6, days=None):
             if user is not None:
                 user.remix_count = row['n']
                 out.append(user)
+        try:
+            cache.set(cache_key, out, 180)
+        except Exception:
+            pass
         return out
     except Exception:
         logger.exception('top_remixers failed')
         return []
 
-
 def fresh_remixes(limit=6):
-    """The newest published remixes — "@someone remixed X by @origin"."""
+    cache_key = f"remix:fresh:l{limit}:v2"
     try:
-        return list(
+        hit = cache.get(cache_key)
+        if hit is not None:
+            return hit
+    except Exception:
+        pass
+    try:
+        result = list(
             _published()
             .filter(forked_from__isnull=False)
             .select_related('owner', 'owner__profile', 'forked_from', 'forked_from__owner')
             .order_by('-created_at')[:limit]
         )
+        try:
+            cache.set(cache_key, result, 120)
+        except Exception:
+            pass
+        return result
     except Exception:
         logger.exception('fresh_remixes failed')
         return []
 
-
 def remixable_projects(user=None, limit=8):
-    """Good candidates to remix right now: published, downloadable, alive.
-
-    Excludes the visitor's own work — the Build page asks "what will you
-    build on?", and remixing yourself is not discovery.
-    """
+    # Per-user exclusion, so cache key includes user id if present
+    uid = getattr(user, 'pk', 0) if user and getattr(user, 'is_authenticated', False) else 0
+    cache_key = f"remix:remixable:u{uid}:l{limit}:v2"
+    try:
+        hit = cache.get(cache_key)
+        if hit is not None:
+            return hit
+    except Exception:
+        pass
     try:
         qs = (
             _published()
@@ -202,7 +223,12 @@ def remixable_projects(user=None, limit=8):
         )
         if user is not None and getattr(user, 'is_authenticated', False):
             qs = qs.exclude(owner=user)
-        return list(qs[:limit])
+        result = list(qs[:limit])
+        try:
+            cache.set(cache_key, result, 180)
+        except Exception:
+            pass
+        return result
     except Exception:
         logger.exception('remixable_projects failed')
         return []

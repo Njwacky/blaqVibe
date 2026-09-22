@@ -1,28 +1,21 @@
 def extras(request):
+    """
+    Context processor — runs on EVERY request, so it must be fast.
+    Heavy aggregations are cached (60-600s). User-specific counts use short cache
+    or remain uncached but are single indexed queries.
+    """
+    from django.core.cache import cache
+
     unread = 0
     open_reports = 0
     open_appeals = 0
-    # Attention cases (gallery/attention.py): a duplicate or a broken build the
-    # owner has not answered yet. It rides on EVERY page for the same reason the
-    # quarantine banner does — a deadline that only appears in the inbox is a
-    # deadline most people never meet. One indexed aggregate, signed-in users
-    # only, and it degrades to zeros on any error.
     attention = {'open': 0, 'critical': 0, 'awaiting_delete': 0, 'oldest_days': 0,
                  'next_deadline': None, 'due_reminder': False, 'reminder_seconds': 1800}
-    # Account quarantine (users/quarantine.py): a person under a hold needs to
-    # see that on every page, and staff need the appeal badge in the nav — both
-    # are cheap, indexed reads that only run for signed-in users.
     quarantine_active = False
     quarantine_ends_at = None
     quarantine_reason = ''
     quarantine_appeal_open = False
-    # The superadmin's feedback channel (users/feedback.py): unread threads
-    # wait in the queue, and the badge in the nav keeps that count visible
-    # on every page — the glowing button promised a human would read it.
     feedback_unread = 0
-    # The shortcut is intentionally visible by default. Authenticated people
-    # can hide it in Settings; the Feedback link in the account menu remains
-    # available so turning it back on never requires a hidden URL.
     feedback_fab_visible = True
     feedback_fab_tip_visible = True
     try:
@@ -30,19 +23,43 @@ def extras(request):
             feedback_fab_tip_visible = False
     except Exception:
         pass
+
     user = getattr(request, 'user', None)
     if user is not None and user.is_authenticated:
+        # Unread notifications — cache 30s per user to avoid COUNT on every page
         try:
-            unread = request.user.notifications.filter(is_read=False).count()
+            cache_key = f"ctx:unread:{user.pk}"
+            cached_unread = cache.get(cache_key)
+            if cached_unread is not None:
+                unread = cached_unread
+            else:
+                unread = request.user.notifications.filter(is_read=False).count()
+                try:
+                    cache.set(cache_key, unread, 30)
+                except Exception:
+                    pass
         except Exception:
             unread = 0
+
         try:
             from .attention import summary as attention_summary
-            attention = attention_summary(user)
+            # Attention summary is already a single aggregate, but cache 60s
+            cache_key = f"ctx:attention:{user.pk}"
+            cached_att = cache.get(cache_key)
+            if cached_att is not None:
+                attention = cached_att
+            else:
+                attention = attention_summary(user)
+                try:
+                    cache.set(cache_key, attention, 60)
+                except Exception:
+                    pass
         except Exception:
             attention = {'open': 0, 'critical': 0, 'awaiting_delete': 0,
                          'oldest_days': 0, 'next_deadline': None, 'due_reminder': False,
                          'reminder_seconds': 1800}
+
+        # Quarantine check — must be fresh, but cheap (indexed, single row)
         try:
             from users.quarantine import active_quarantine, open_appeal
             quarantine = active_quarantine(user)
@@ -53,6 +70,7 @@ def extras(request):
                 quarantine_appeal_open = open_appeal(quarantine) is not None
         except Exception:
             quarantine_active = False
+
         try:
             feedback_fab_visible = bool(getattr(user.profile, 'show_feedback_fab', True))
         except Exception:
@@ -62,75 +80,58 @@ def extras(request):
                 feedback_fab_tip_visible = False
         except Exception:
             pass
-        # One count only for staff, so the nav badge is free to show. Reads
-        # an indexed row set; never performed on a public cache-key path.
+
+        # Staff counts — cache 60s, not per-request COUNT
         try:
             if user.profile.is_moderator():
-                from .models import AppReport
-                from users.models import QuarantineAppeal
-                open_reports = AppReport.objects.filter(status='open').count()
-                open_appeals = QuarantineAppeal.objects.filter(status='open').count()
+                cache_key = "ctx:mod_counts"
+                cached = cache.get(cache_key)
+                if cached:
+                    open_reports, open_appeals = cached
+                else:
+                    from .models import AppReport
+                    from users.models import QuarantineAppeal
+                    open_reports = AppReport.objects.filter(status='open').count()
+                    open_appeals = QuarantineAppeal.objects.filter(status='open').count()
+                    try:
+                        cache.set(cache_key, (open_reports, open_appeals), 60)
+                    except Exception:
+                        pass
         except Exception:
             open_reports = 0
             open_appeals = 0
+
         try:
             if user.profile.is_superadmin():
-                from django.db.models import F, Q
-                from users.models import FeedbackThread
-                feedback_unread = FeedbackThread.objects.filter(
-                    Q(last_user_message_at__isnull=False)
-                    & (Q(admin_last_read_at__isnull=True)
-                       | Q(last_user_message_at__gt=F('admin_last_read_at'))),
-                ).count()
+                cache_key = "ctx:feedback_unread"
+                cached_fb = cache.get(cache_key)
+                if cached_fb is not None:
+                    feedback_unread = cached_fb
+                else:
+                    from django.db.models import F, Q
+                    from users.models import FeedbackThread
+                    feedback_unread = FeedbackThread.objects.filter(
+                        Q(last_user_message_at__isnull=False)
+                        & (Q(admin_last_read_at__isnull=True)
+                           | Q(last_user_message_at__gt=F('admin_last_read_at'))),
+                    ).count()
+                    try:
+                        cache.set(cache_key, feedback_unread, 60)
+                    except Exception:
+                        pass
         except Exception:
             feedback_unread = 0
-    social_providers = []
+
+    # Cached global values — same for all users, rarely change
     try:
-        from users.social import configured_social_providers
-        social_providers = configured_social_providers()
-    except Exception:
-        social_providers = []
-    paystack_enabled = False
-    try:
-        from gallery.payments import paystack_enabled as _ps
-        paystack_enabled = _ps()
-    except Exception:
-        paystack_enabled = False
-    nolo_backend = 'heuristic'
-    try:
-        from gallery.nolo_ai import configured_ai_backend
-        nolo_backend = configured_ai_backend()
-    except Exception:
-        nolo_backend = 'heuristic'
-    # Site-level values that every template needs. The public footer contacts
-    # are rows an operator maintains (add, reorder, hide) without changing
-    # templates or deploying. The fallback list covers a deployment that has
-    # not run its migration yet, so the footer is never empty by accident.
-    pwa_enabled = True
-    local_dev = False
-    preview = False
-    footer_contacts = None
-    try:
-        from django.conf import settings
-        local_dev = bool(getattr(settings, 'LOCAL_DEV', False) or getattr(settings, 'DEBUG', False))
-        preview = bool(getattr(settings, 'PREVIEW', False))
-        from users.models import SiteSettings
-        pwa_enabled = SiteSettings.get().pwa_enabled
-    except Exception:
-        pass
-    try:
-        from users.footer_contacts import public_footer_contacts
-        footer_contacts = public_footer_contacts()
-    except Exception:
-        footer_contacts = None
-    if footer_contacts is None:
-        # The fallback list is built through contact_as_dict on purpose: the
-        # hand-written dicts it replaced had already drifted (a value key the
-        # real rows carry was missing, an icon emoji the templates stopped
-        # reading). Rendering the fallback the same way as real rows keeps the
-        # two shapes identical forever. If even the module is unimportable the
-        # Contact column degrades to "Ask Nolo" rather than breaking the page.
-        try:
+        from .performance import (
+            get_cached_footer_contacts,
+            get_cached_social_providers,
+            get_cached_site_settings,
+        )
+        footer_contacts = get_cached_footer_contacts()
+        if not footer_contacts:
+            # Fallback if cache miss and module fails
             from types import SimpleNamespace
             from users.footer_contacts import contact_as_dict
             footer_contacts = [
@@ -139,8 +140,71 @@ def extras(request):
                 contact_as_dict(SimpleNamespace(
                     kind='github', value='Njwacky', label='')),
             ]
+    except Exception:
+        footer_contacts = []
+
+    try:
+        from .performance import get_cached_social_providers
+        social_providers = get_cached_social_providers()
+    except Exception:
+        social_providers = []
+        try:
+            from users.social import configured_social_providers
+            social_providers = configured_social_providers()
         except Exception:
-            footer_contacts = []
+            social_providers = []
+
+    paystack_enabled = False
+    try:
+        from gallery.payments import paystack_enabled as _ps
+        # Cache paystack check — it's env var read, but avoid repeated import overhead
+        cache_key = "ctx:paystack_enabled"
+        cached_ps = cache.get(cache_key)
+        if cached_ps is not None:
+            paystack_enabled = cached_ps
+        else:
+            paystack_enabled = _ps()
+            try:
+                cache.set(cache_key, paystack_enabled, 600)
+            except Exception:
+                pass
+    except Exception:
+        paystack_enabled = False
+
+    nolo_backend = 'heuristic'
+    try:
+        cache_key = "ctx:nolo_backend"
+        cached_nolo = cache.get(cache_key)
+        if cached_nolo is not None:
+            nolo_backend = cached_nolo
+        else:
+            from gallery.nolo_ai import configured_ai_backend
+            nolo_backend = configured_ai_backend()
+            try:
+                cache.set(cache_key, nolo_backend, 600)
+            except Exception:
+                pass
+    except Exception:
+        nolo_backend = 'heuristic'
+
+    pwa_enabled = True
+    local_dev = False
+    preview = False
+    try:
+        from django.conf import settings
+        local_dev = bool(getattr(settings, 'LOCAL_DEV', False) or getattr(settings, 'DEBUG', False))
+        preview = bool(getattr(settings, 'PREVIEW', False))
+        # SiteSettings cached
+        from .performance import get_cached_site_settings
+        site = get_cached_site_settings()
+        if site:
+            pwa_enabled = site.pwa_enabled
+        else:
+            from users.models import SiteSettings
+            pwa_enabled = SiteSettings.get().pwa_enabled
+    except Exception:
+        pass
+
     return {
         'unread_notifications': unread,
         'attention': attention,
@@ -159,7 +223,5 @@ def extras(request):
         'pwa_enabled': pwa_enabled,
         'footer_contacts': footer_contacts,
         'local_dev': local_dev,
-        # The hosting disclaimer is useful on local/Arena previews, but it is
-        # intentionally never rendered by a production configuration.
         'show_preview_hosting_notice': local_dev or preview,
     }

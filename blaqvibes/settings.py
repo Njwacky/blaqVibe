@@ -440,6 +440,8 @@ if AWS_ACCESS_KEY_ID:
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
+    # GZip compresses dynamic HTML/JSON — WhiteNoise already compresses static.
+    'django.middleware.gzip.GZipMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     # Before CsrfView so process_response runs *after* the CSRF cookie is set.
@@ -586,11 +588,16 @@ else:
 
 REDIS_URL = os.getenv('REDIS_URL', '')
 if REDIS_URL and (not LOCAL_DEV or os.getenv('USE_REDIS', '0') == '1'):
-    # Shared Redis-backed rate-limit cache so limits hold across gunicorn workers.
+    # Shared Redis-backed caches so limits + perf caches hold across gunicorn workers.
     RATELIMIT_CACHE = {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
         'LOCATION': REDIS_URL,
         'KEY_PREFIX': 'blaqvibes-ratelimit',
+    }
+    DEFAULT_CACHE = {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': REDIS_URL,
+        'KEY_PREFIX': 'blaqvibes-default',
     }
 else:
     # Dev fallback (single process) — per-worker cache is fine without Redis.
@@ -598,16 +605,52 @@ else:
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         'LOCATION': 'blaqvibes-ratelimit',
     }
-
-CACHES = {
-    'default': {
+    DEFAULT_CACHE = {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         'LOCATION': 'blaqvibes',
-    },
+    }
+
+CACHES = {
+    'default': DEFAULT_CACHE,
     'ratelimit': RATELIMIT_CACHE,
 }
 RATELIMIT_ENABLE = os.getenv('RATELIMIT_ENABLE', '1') == '1'
 RATELIMIT_USE_CACHE = 'ratelimit'
+
+# ----------------------------------------------------------------------
+# Performance: DB connection pooling + HTTP caching
+# ----------------------------------------------------------------------
+# Persistent DB connections cut TLS + auth overhead per request.
+# Supabase transaction pooler (6543) deliberately stays at 0 (see _db_from_url).
+# For session mode / direct connection, keep connections alive 5 minutes.
+# Env override: DJANGO_CONN_MAX_AGE=0 disables pooling (e.g. for transaction pooler).
+# ----------------------------------------------------------------------
+_conn_age_env = os.getenv('DJANGO_CONN_MAX_AGE', '').strip()
+if _conn_age_env != '':
+    try:
+        _conn_age = int(_conn_age_env)
+    except ValueError:
+        _conn_age = 300
+else:
+    _conn_age = 300
+
+# Apply to all DATABASES entries that didn't explicitly set CONN_MAX_AGE
+# (the Supabase pooler path already sets 0).
+try:
+    for _db_key in DATABASES:
+        if 'CONN_MAX_AGE' not in DATABASES[_db_key]:
+            DATABASES[_db_key]['CONN_MAX_AGE'] = _conn_age
+except Exception:
+    pass
+
+# Cache headers for anonymous users — feed is semi-dynamic but can be cached
+# 30s at CDN level. Django's cache middleware is NOT enabled globally to avoid
+# caching per-user pages; we set headers per-view instead.
+CACHE_MIDDLEWARE_SECONDS = int(os.getenv('CACHE_MIDDLEWARE_SECONDS', '0') or 0)
+
+# Thumbnail optimization
+BLAQVIBES_THUMBNAIL_MAX_SIZE = int(os.getenv('BLAQVIBES_THUMBNAIL_MAX_SIZE', '600'))
+BLAQVIBES_THUMBNAIL_QUALITY = int(os.getenv('BLAQVIBES_THUMBNAIL_QUALITY', '80'))
 
 AUTH_PASSWORD_VALIDATORS = [
     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
