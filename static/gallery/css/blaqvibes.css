@@ -1,7 +1,7 @@
 :root {
-  /* The desktop rail can be resized from 180–380px. --nav-offset becomes
+  /* The desktop rail can be resized from 200–360px. --nav-offset becomes
      zero while collapsed, without forgetting the user's chosen width. */
-  --nav-w: 230px;
+  --nav-w: 268px;
   --nav-offset: var(--nav-w);
   /* --bv-nav-h is the mobile TOP bar's rendered height (0 on desktop, where
      the nav is a left rail). JS measures .nav and writes the exact px value;
@@ -499,10 +499,15 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
     align-items: stretch;
     justify-content: flex-start;
     flex-wrap: nowrap;
-    gap: 14px;
-    padding: 18px 14px;
+    gap: 16px;
+    padding: 20px 16px !important;
     border-bottom: none;
     border-right: 1px solid var(--line);
+    background: var(--card) !important;
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+    box-shadow: 1px 0 0 var(--line);
+    z-index: 50;
     /* The sidebar itself must never scroll as a whole — the brand stays
        pinned at the top and only the link list scrolls (see .nav-links,
        which owns the scroll region). overflow stays visible: clipping here
@@ -510,25 +515,33 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
   }
   body {
     padding-left: var(--nav-offset);
-    transition: padding-left .2s ease;
+    transition: padding-left .18s ease;
   }
   .nav {
-    transition: width .2s ease, transform .2s ease;
+    transition: width .18s ease, transform .18s ease;
   }
   :root[data-nav-collapsed="true"] .nav { transform: translateX(-100%); }
-  /* Keep the full 36px expand button visible when the sidebar is hidden. */
-  :root[data-nav-collapsed="true"] .nav-resizer { left: 12px; }
+  /* When collapsed, show a slim 36px strip with the expand button centered.
+     The strip itself is non-interactive except for the button, so it never
+     blocks page buttons even when expanded to 36px. */
+  :root[data-nav-collapsed="true"] .nav-resizer { left: 0; width: 36px; pointer-events: none; }
+  :root[data-nav-collapsed="true"] .nav-resizer::before { left: 8px; pointer-events: none; }
+  :root[data-nav-collapsed="true"] .nav-collapse-btn { left: 50%; transform: translateX(-50%); top: 14px; }
   .nav-resizer {
     display: block;
     position: fixed;
-    z-index: 70;
+    z-index: 55;
     top: 0;
     bottom: 0;
-    left: calc(var(--nav-offset) - 6px);
-    width: 12px;
+    left: calc(var(--nav-offset) - 3px);
+    width: 6px;
     cursor: ew-resize;
     touch-action: none;
-    transition: left .2s ease;
+    transition: left .18s ease, width .18s ease;
+    background: transparent;
+    /* Only 3px overlaps content (6px total, centered on the edge), so it
+       never blocks top buttons. The thin line inside is the visual cue. */
+    pointer-events: auto;
   }
   .nav-resizer::before {
     content: "";
@@ -540,42 +553,49 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
     background: var(--line);
     transform: translateX(-50%);
     transition: width .15s ease, background .15s ease;
+    pointer-events: none;
   }
   .nav-resizer:hover::before,
   .nav-resizer:focus-visible::before,
   :root[data-nav-resizing="true"] .nav-resizer::before {
-    width: 3px;
+    width: 2px;
     background: var(--violet);
   }
   .nav-resizer:focus-visible { outline: none; }
+  /* Collapse button lives INSIDE the sidebar (top-right), not overlapping
+     page content. Negative offset from resizer puts it at nav's right edge. */
   .nav-collapse-btn {
     position: absolute;
-    top: 50%;
-    left: 50%;
-    width: 36px;
-    height: 30px;
-    transform: translate(-50%, -50%);
+    top: 14px;
+    left: -36px;
+    width: 28px;
+    height: 28px;
     display: grid;
     place-items: center;
     border: 1px solid var(--line);
-    border-radius: 9px;
+    border-radius: 8px;
     background: var(--card);
-    color: var(--text);
-    box-shadow: var(--shadow);
-    font: 800 12px/1 JetBrains Mono, monospace;
+    color: var(--muted);
+    box-shadow: 0 2px 8px rgba(0,0,0,.18);
+    font: 800 11px/1 JetBrains Mono, monospace;
     cursor: pointer;
+    pointer-events: auto;
+    transition: border-color .15s ease, color .15s ease, background .15s ease;
   }
   .nav-collapse-btn:hover,
-  .nav-collapse-btn:focus-visible { border-color: var(--violet); outline: 2px solid transparent; }
+  .nav-collapse-btn:focus-visible { border-color: var(--violet); color: var(--text); background: var(--input); outline: none; }
   :root[data-nav-resizing="true"] body,
   :root[data-nav-resizing="true"] .nav,
   :root[data-nav-resizing="true"] .nav-resizer { transition: none; }
   :root[data-nav-resizing="true"] body { cursor: ew-resize; user-select: none; }
+  :root[data-nav-resizing="true"] .nav-resizer { pointer-events: auto; }
   /* Brand and the theme/burger row stay fixed at the top of the rail. */
   .nav > .logo, .nav-actions { flex: none; }
-  .nav-actions { margin-left: 0; }
+  .nav > .logo { font-size: 19px; gap: 10px; }
+  .nav-actions { margin-left: 0; gap: 8px; }
+  .nav-actions .icon-btn { width: 32px; height: 32px; border-radius: 9px; }
   /* The burger is a mobile-only affordance; the rail is always expanded. */
-  .nav-burger { display: none; }
+  .nav-burger { display: none !important; }
   .nav-links {
     /* Own scroll region: a signed-in user with a long avatar menu can no
        longer push Logout past the bottom of the viewport unreachably. */
@@ -585,33 +605,29 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
     overscroll-behavior: contain;
     flex-direction: column;
     align-items: stretch;
-    gap: 6px;
+    gap: 8px;
     flex-wrap: nowrap;
-    /* Room for the scrollbar so it never sits on top of the labels. */
-    padding-right: 2px;
+    padding-right: 4px;
     scrollbar-width: thin;
   }
-  .nav-links > a { display: flex; align-items: center; gap: 8px; font-size: 14px; padding: 9px 10px; border-radius: 10px; }
-  .nav-links > a:hover { background: var(--line); }
+  .nav-links > a { display: flex; align-items: center; gap: 10px; font-size: 14px; font-weight: 500; padding: 10px 12px; border-radius: 10px; line-height: 1.2; }
+  .nav-links > a:hover { background: var(--line); color: var(--text); }
   .nav-links > a[aria-current="page"] {
-    background: color-mix(in srgb, var(--violet) 16%, transparent);
+    background: color-mix(in srgb, var(--violet) 14%, var(--card));
+    border: 1px solid color-mix(in srgb, var(--violet) 22%, var(--line));
+    color: var(--text);
+    font-weight: 700;
     box-shadow: inset 2px 0 0 var(--violet);
   }
-  .nav-links .btn-violet, .nav-links .btn-ghost, .nav-links .btn-white { justify-content: flex-start; }
-  .nav-user { width: 100%; }
-  .nav-user-btn { width: 100%; justify-content: flex-start; border-radius: 10px; padding: 6px 10px 6px 6px; }
+  .nav-links .btn-violet, .nav-links .btn-ghost, .nav-links .btn-white { justify-content: flex-start; width: 100%; }
+  .nav-links .btn-violet { padding: 10px 14px; font-weight: 800; }
+  .nav-user { width: 100%; margin-top: 4px; }
+  .nav-user-btn { width: 100%; justify-content: flex-start; border-radius: 10px; padding: 6px 10px 6px 6px; border-color: var(--line); }
+  .nav-user-btn:hover { border-color: var(--violet); }
   /* The username can grow to the rail width now there is no row to share. */
-  .nav-user-name { max-width: none; flex: 1; text-align: left; }
-  /* The account menu is a popover pinned above the rail's bottom edge —
-     no longer position:static. Inline, the rail's own scroll area cut the
-     menu off at the viewport bottom: from about "Sales" down, rows rendered
-     half-drawn and Logout could sit out of reach entirely (the rail does
-     scroll, but nothing tells you that). position:fixed escapes that scroll
-     container; .nav's backdrop-filter makes .nav the containing block, so
-     left/bottom resolve against the rail — and in a browser that skips that,
-     the rail is pinned at the viewport's top-left corner anyway, so the
-     viewport resolves to the same geometry. Either way the whole menu stays
-     on screen and scrolls internally when taller than the rail. */
+  .nav-user-name { max-width: none; flex: 1; text-align: left; font-size: 13px; }
+  .bv-icon { width: 18px; height: 18px; flex-basis: 18px; }
+  /* Account menu is a popover pinned above rail's bottom edge. */
   .nav-menu {
     position: fixed;
     top: auto;
@@ -620,12 +636,14 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
     right: auto;
     margin-top: 0;
     min-width: 0;
-    width: max(232px, calc(var(--nav-w) - 20px));
+    width: max(240px, calc(var(--nav-w) - 24px));
+    max-width: calc(var(--nav-w) - 8px);
     max-height: calc(100vh - 84px);
-    max-height: min(calc(100dvh - 84px), 760px);
+    max-height: min(calc(100dvh - 84px), 720px);
     overflow-y: auto;
     overscroll-behavior: contain;
     box-shadow: var(--shadow);
+    border-radius: 14px;
   }
   /* Desktop has a left rail, so --bv-nav-h is 0 and every sticky/anchor
      offset derived from it (filter bar, :target) resolves to a plain 12px —
