@@ -393,8 +393,9 @@ class Scenario6_PrivateUserData(TestCase):
         self.alice.profile.refresh_from_db()
         self.assertNotEqual(self.alice.profile.git_token_hash, token)
         self.assertEqual(len(self.alice.profile.git_token_hash), 64)
-        body = self.client.get('/settings/').content.decode()
-        self.assertNotIn(token, body)
+        for url in ('/settings/', '/settings/account/'):
+            body = self.client.get(url).content.decode()
+            self.assertNotIn(token, body, url)
 
     def test_api_never_exposes_the_scan_report(self):
         vibe = published_zip(make_project(self.alice, self.cat, title='Report Vibe'))

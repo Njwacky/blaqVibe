@@ -148,7 +148,7 @@ class AuthAndProTests(TestCase):
         self.client.login(username='done', password='pass12345')
         response = self.client.get('/accounts/verify/email/')
         self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, '/settings/')
+        self.assertEqual(response.url, '/settings/account/')
 
     def test_login_hides_social_when_unconfigured(self):
         response = self.client.get('/accounts/login/')
@@ -167,6 +167,7 @@ class AuthAndProTests(TestCase):
         self.client.login(username='goner', password='pass12345')
         response = self.client.post('/settings/delete-account/', {'confirm': 'wrong'})
         self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, '/settings/account/')
         self.assertTrue(User.objects.filter(username='goner').exists())
         response = self.client.post('/settings/delete-account/', {'confirm': 'goner'})
         self.assertFalse(User.objects.filter(username='goner').exists())
