@@ -6,11 +6,12 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import F, Q, Count, Prefetch, Sum
 from django.http import Http404, HttpResponse, JsonResponse, HttpResponseRedirect
-from django.core.paginator import Paginator
+from django.core.paginator import Paginator, EmptyPage
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from django_ratelimit.decorators import ratelimit
+import collections.abc
 import zipfile, os, json, logging
 
 from .models import AppProject, Category, Comment, Star, AppFile, ScanJob, AppReport, AppVersion, Review, Trade, PullRequest, ProjectCoOwner
@@ -64,19 +65,36 @@ from .repo_import import import_from_github
 logger = logging.getLogger(__name__)
 
 
-class CachedFeedPage:
-    """Small page object for cached anonymous feed pages.
+# The only sort values the feed understands (see search_projects). Anything
+# else is normalised away before it can reach a cache key.
+FEED_SORTS = frozenset({'newest', 'trending', 'stars', 'clones', 'foryou'})
+
+
+class CachedFeedPage(collections.abc.Sequence):
+    """Page object for cached anonymous feed pages.
 
     The normal Django Paginator asks COUNT(*) for the total and then derives
-    has_next from that count. For an already-cached page we only need to know
-    whether one more project exists, so the cache stores 13 IDs: 12 to render
-    plus one sentinel. This removes a COUNT(*) from the hot path.
+    has_next from that count. For an already-cached page we already know the
+    answer, so the cache stores the page's IDs plus the has_next flag the
+    Paginator computed when the entry was written. Replaying that avoids the
+    COUNT(*) on the hot path without re-deriving anything.
+
+    It subclasses Sequence so `{% for p in page %}` and `{% empty %}` behave
+    exactly like a Django Page — a plain object without __len__/__getitem__
+    makes the template `for` tag raise TypeError, which the view's outer
+    except would swallow into an empty grid.
     """
     def __init__(self, object_list, number, has_next):
         self.object_list = list(object_list)
         self.number = number
         self._has_next = bool(has_next)
         self.paginator = self
+
+    def __len__(self):
+        return len(self.object_list)
+
+    def __getitem__(self, index):
+        return self.object_list[index]
 
     @property
     def has_next(self):
@@ -92,12 +110,14 @@ class CachedFeedPage:
 
     def next_page_number(self):
         if not self.has_next:
-            raise Http404("No next page")
+            # Mirrors Django's Page: an invalid page request is a pagination
+            # error, not a missing resource.
+            raise EmptyPage("No next page")
         return self.number + 1
 
     def previous_page_number(self):
         if not self.has_previous:
-            raise Http404("No previous page")
+            raise EmptyPage("No previous page")
         return self.number - 1
 
     @property
@@ -180,6 +200,11 @@ def feed(request):
         # 'foryou' is the default only for people we actually have signal on.
         default_sort = 'foryou' if taste.has_enough_signal(request.user) else 'newest'
         sort = request.GET.get('sort', '') or default_sort
+        if sort not in FEED_SORTS:
+            # An unknown sort renders like 'newest' anyway (search_projects
+            # falls through), so normalising here changes nothing visible —
+            # it just stops every junk value from minting its own cache key.
+            sort = default_sort if default_sort in FEED_SORTS else 'newest'
         program_kind = coerce_program_kind_filter(request.GET.get('program'))
         runnable = request.GET.get('runnable', '')
         following = request.GET.get('following', '')
@@ -280,33 +305,39 @@ def feed(request):
         except Exception:
             categories = Category.objects.all().order_by('order')
 
-        # Optimized paginator: cache anonymous first pages' ids for 30s to avoid COUNT(*)
+        # Optimized paginator: cache anonymous early pages for 30s to avoid COUNT(*)
         from django.core.cache import cache
-        page_num = request.GET.get('page', '1')
+        # '' (a bare `?page=`) would build a second cache key holding the same
+        # page-1 rows, so normalise it before it can reach the key.
+        page_num = request.GET.get('page', '1') or '1'
         cache_key_page = None
-        cached_ids = None
+        cached_page = None
         if not request.user.is_authenticated and not any([q, cat, kind, program_kind, runnable, trust_filter, following, ai, tech]):
-            if page_num in ('1', '2', '3', '', None):
-                cache_key_page = f"feed:anon:page:{page_num}:sort:{sort}:v2"
+            if page_num in ('1', '2', '3'):
+                cache_key_page = f"feed:anon:page:{page_num}:sort:{sort}:v3"
                 try:
                     cached = cache.get(cache_key_page)
                     if cached and isinstance(cached, dict):
-                        cached_ids = cached.get('ids', [])
+                        cached_page = cached
                 except Exception:
-                    cached_ids = None
+                    cached_page = None
 
-        if cached_ids:
+        if cached_page and cached_page.get('ids'):
             try:
                 from django.db.models import Case, When
-                # The cache stores 13 IDs: the first 12 are the page and the
-                # 13th is a sentinel telling us there is another page. Do
-                # not pass this queryset through Paginator — that would issue
-                # the COUNT(*) we intentionally cached around.
-                has_next = len(cached_ids) > 12
-                page_ids = cached_ids[:12]
+                # The cache holds this page's own IDs plus the has_next flag
+                # the Paginator computed when the entry was written. Nothing
+                # here may be passed through Paginator — that would issue the
+                # COUNT(*) we cached to avoid.
+                page_ids = list(cached_page['ids'])[:12]
+                has_next = bool(cached_page.get('has_next'))
+                number = int(cached_page.get('number') or page_num or 1)
                 preserved = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(page_ids)])
-                projects_filtered = AppProject.objects.filter(pk__in=page_ids).select_related('owner','owner__profile','category').prefetch_related('tags').annotate(remix_count=Count('forks', filter=Q(forks__status='published'))).order_by(preserved)
-                page = CachedFeedPage(projects_filtered, int(page_num or 1), has_next)
+                # status='published' matters: the IDs were captured up to 30s
+                # ago, and a vibe quarantined, removed or unpublished in that
+                # window must not keep serving to anonymous visitors.
+                projects_filtered = AppProject.objects.filter(pk__in=page_ids, status='published').select_related('owner','owner__profile','category').prefetch_related('tags').annotate(remix_count=Count('forks', filter=Q(forks__status='published'))).order_by(preserved)
+                page = CachedFeedPage(projects_filtered, number, has_next)
             except Exception:
                 paginator = Paginator(projects, 12)
                 page = paginator.get_page(request.GET.get('page'))
@@ -315,10 +346,18 @@ def feed(request):
             page = paginator.get_page(request.GET.get('page'))
             if cache_key_page and not request.user.is_authenticated:
                 try:
-                    # Fetch one extra ID as a sentinel. This lets cache hits
-                    # avoid COUNT(*) while preserving an accurate Next link.
-                    ids = list(projects.values_list('id', flat=True)[:13])
-                    cache.set(cache_key_page, {'ids': ids}, 30)
+                    # `page` is already materialised and already knows whether
+                    # another page follows, so building the entry costs no
+                    # extra query at all. Deriving the IDs from the whole
+                    # queryset instead (`projects.values_list('id')[:13]`)
+                    # inherits the remix_count annotation and issues a second
+                    # LEFT JOIN + GROUP BY, and ignores the page offset so
+                    # pages 2 and 3 would cache page 1's rows.
+                    cache.set(cache_key_page, {
+                        'ids': [p.id for p in page.object_list],
+                        'has_next': bool(page.has_next()),
+                        'number': page.number,
+                    }, 30)
                 except Exception:
                     pass
         my_kinds = taste.top_kinds(request.user, limit=3) if request.user.is_authenticated else []
