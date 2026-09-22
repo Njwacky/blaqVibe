@@ -290,6 +290,58 @@ class AppProject(models.Model):
                         from .language import detect_languages_from_field
                         self.language_stats = detect_languages_from_field(self.zip_file)
                 except Exception: pass
+
+            # Thumbnail optimization: resize large images to max 600px, compress to 80% quality
+            # This cuts network transfer for feed grid (12 thumbs per page) drastically.
+            if self.thumbnail:
+                try:
+                    from django.conf import settings as _settings
+                    max_size = int(getattr(_settings, 'BLAQVIBES_THUMBNAIL_MAX_SIZE', 600))
+                    quality = int(getattr(_settings, 'BLAQVIBES_THUMBNAIL_QUALITY', 80))
+                    # Only process if file is new or changed — check via _state
+                    # We process in-memory before first save; after save we would need to reopen.
+                    # So we do it here, before super().save(), using PIL.
+                    from PIL import Image
+                    from io import BytesIO
+                    from django.core.files.base import ContentFile
+                    import os
+
+                    # Read the uploaded file
+                    self.thumbnail.open()
+                    img_data = self.thumbnail.read()
+                    # Reset file pointer for later save if we skip processing
+                    self.thumbnail.seek(0)
+
+                    # Quick size check — skip if already small (<150KB) and dimensions < max
+                    if len(img_data) > 50*1024:  # only optimize if >50KB
+                        img = Image.open(BytesIO(img_data))
+                        # Convert RGBA to RGB for JPEG if needed, but keep PNG for transparency?
+                        # We'll keep original format but resize.
+                        original_format = img.format or 'JPEG'
+                        # Resize if larger than max_size
+                        if img.width > max_size or img.height > max_size:
+                            img.thumbnail((max_size, max_size), Image.LANCZOS)
+                            # Save optimized
+                            buffer = BytesIO()
+                            # Preserve transparency for PNG, else JPEG
+                            if original_format.upper() in ('PNG',) and img.mode in ('RGBA', 'LA', 'P'):
+                                img.save(buffer, format='PNG', optimize=True)
+                            else:
+                                # Convert to RGB if needed for JPEG
+                                if img.mode in ('RGBA', 'LA', 'P'):
+                                    background = Image.new('RGB', img.size, (255, 255, 255))
+                                    if img.mode == 'P':
+                                        img = img.convert('RGBA')
+                                    background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+                                    img = background
+                                img.save(buffer, format='JPEG', quality=quality, optimize=True)
+                            buffer.seek(0)
+                            # Replace file content, keep same name
+                            fname = os.path.basename(self.thumbnail.name) or f"{self.slug}.jpg"
+                            self.thumbnail.save(fname, ContentFile(buffer.read()), save=False)
+                except Exception:
+                    import logging
+                    logging.getLogger(__name__).debug('thumbnail optimize failed %s', getattr(self, 'slug', '?'), exc_info=True)
         except Exception:
             import logging
             logging.getLogger(__name__).exception('AppProject.save pre-process failed')

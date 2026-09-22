@@ -2,7 +2,7 @@
 // receive layout fixes immediately while retaining an offline fallback.
 // No secrets in JS — no S3 keys, no scan_report.
 // Bump this whenever the app shell changes; activation removes older caches.
-const CACHE = 'blaqvibes-v8-footer';
+const CACHE = 'blaqvibes-v9-network-opt';
 // Account-specific pages — never cache (they contain per-user data).
 const PRIVATE_PREFIXES = [
   '/my-vibes/', '/inbox/', '/saved/', '/settings/', '/sales/',
@@ -11,13 +11,16 @@ const PRIVATE_PREFIXES = [
 // Keep these query strings in step with the ?v= tags in templates — a stale
 // entry warms the offline cache with a stylesheet the pages no longer ask for.
 const STATIC_ASSETS = [
-  '/static/gallery/css/blaqvibes.css?v=fab-20260917',
+  '/static/gallery/css/fonts.css?v=fonts-20260830',
+  '/static/gallery/css/blaqvibes.css?v=fab-tip-dismiss-20260921',
+  '/static/gallery/css/cards.css?v=mobile-20260906b',
+  '/static/gallery/css/premium.css?v=product-system-20260909',
   '/static/gallery/css/footer.css?v=footer-polish-20260921',
-  '/static/gallery/css/error.css?v=theme-20260815',
-  '/static/gallery/css/forms.css?v=theme-colors-20260815',
-  '/static/gallery/js/blaqvibes.js?v=navfix2-20260917',
-  '/static/gallery/js/detail.js?v=theme-colors-20260815',
-  '/static/gallery/js/profile.js?v=theme-colors-20260815',
+  '/static/gallery/css/attention.css?v=attention-20260917',
+  '/static/gallery/js/head-theme.js?v=fab-tip-dismiss-20260921',
+  '/static/gallery/js/blaqvibes.js?v=fab-tip-dismiss-20260921',
+  '/static/gallery/js/attention.js?v=attention-20260917',
+  '/static/gallery/js/alpine.min.js?v=alpine-3.16.3',
   '/static/branding/icon-192.png',
   '/static/branding/icon-512.png',
   '/static/branding/error-fork.png',
@@ -34,10 +37,22 @@ self.addEventListener('fetch', e => {
   const url = new URL(req.url);
   // Only handle same-origin GET
   if(req.method !== 'GET' || url.origin !== location.origin) return;
-  // Static -> network first. Django/WhiteNoise fingerprints production
-  // assets, but local and previously installed PWAs can request stable URLs.
-  // Cache-first kept an obsolete top navbar forever after the sidebar shipped.
+  // Static -> stale-while-revalidate for CSS/JS (instant, background update), network-first for images
   if(url.pathname.startsWith('/static/')){
+    // For CSS/JS: serve cache immediately, update in background — cuts TTFB
+    if(url.pathname.match(/\.(css|js)$/)){
+      e.respondWith((async () => {
+        const cache = await caches.open(CACHE);
+        const cached = await cache.match(req);
+        const fetchPromise = fetch(req).then(res => {
+          if(res.ok) cache.put(req, res.clone());
+          return res;
+        }).catch(()=>null);
+        return cached || (await fetchPromise) || (await caches.match('/static/branding/error-fork.png')) || Response.error();
+      })());
+      return;
+    }
+    // Images/fonts: network first
     e.respondWith((async () => {
       try {
         const res = await fetch(req);

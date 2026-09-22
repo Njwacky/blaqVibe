@@ -82,17 +82,29 @@ def discover(request):
         ctx['top_remixers'] = remix_stats.top_remixers(limit=6)
         ctx['rising_creators'] = trending.rising_creators(
             limit=4, exclude_user=exclude_owner)
-        ctx['new_projects'] = list(
-            AppProject.objects.filter(status='published')
-            .select_related('owner', 'owner__profile')
-            .annotate(remix_count=Count('forks', filter=Q(forks__status='published')))
-            .order_by('-created_at')[:6]
-        )
-        ctx['top_skills'] = list(
-            Skill.objects.filter(is_published=True)
-            .select_related('creator')
-            .order_by('-projects_created', '-uses')[:4]
-        )
+        # Cache new_projects for 60s — avoids ORDER BY created_at scan on every discover hit
+        from django.core.cache import cache as _cache
+        _new_key = 'discover:new_projects:v1'
+        _new = _cache.get(_new_key)
+        if _new is None:
+            _new = list(
+                AppProject.objects.filter(status='published')
+                .select_related('owner', 'owner__profile')
+                .annotate(remix_count=Count('forks', filter=Q(forks__status='published')))
+                .order_by('-created_at')[:6]
+            )
+            _cache.set(_new_key, _new, 60)
+        ctx['new_projects'] = _new
+        _skills_key = 'discover:top_skills:v1'
+        _skills = _cache.get(_skills_key)
+        if _skills is None:
+            _skills = list(
+                Skill.objects.filter(is_published=True)
+                .select_related('creator')
+                .order_by('-projects_created', '-uses')[:4]
+            )
+            _cache.set(_skills_key, _skills, 120)
+        ctx['top_skills'] = _skills
         ctx['activity'] = trending.activity_summary()
         ctx['daily'] = today_challenge()
     except Exception:

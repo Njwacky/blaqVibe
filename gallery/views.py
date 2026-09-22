@@ -197,13 +197,17 @@ def feed(request):
         # the setting can't be read, search stays on (default True) so a broken
         # DB row never silences the feed.
         try:
-            from users.models import SiteSettings
-            if not SiteSettings.get().search_enabled:
+            from .performance import get_cached_site_settings
+            from users.models import SiteSettings as _SS
+            _site = get_cached_site_settings()
+            if _site is None:
+                _site = _SS.get()
+            if not _site.search_enabled:
                 q = ''
         except Exception:
             pass
         projects = search_projects(projects, q, sort=sort, user=request.user)
-        if not projects.exists() and getattr(settings, 'SEED_DEMO', False):
+        if not projects[:1].exists() and getattr(settings, 'SEED_DEMO', False):
             try:
                 from .seed import seed_demo
                 seed_demo()
@@ -223,9 +227,49 @@ def feed(request):
                     projects = projects.filter(trust=trust_filter)
             except Exception:
                 logger.exception('auto seed_demo failed')
-        categories = Category.objects.all().order_by('order')
-        paginator = Paginator(projects, 12)
-        page = paginator.get_page(request.GET.get('page'))
+        # Cached categories — changes rarely, queried on every feed load
+        try:
+            from .performance import get_cached_categories
+            categories = get_cached_categories()
+            if not categories:
+                categories = Category.objects.all().order_by('order')
+        except Exception:
+            categories = Category.objects.all().order_by('order')
+
+        # Optimized paginator: cache anonymous first pages' ids for 30s to avoid COUNT(*)
+        from django.core.cache import cache
+        page_num = request.GET.get('page', '1')
+        cache_key_page = None
+        cached_ids = None
+        if not request.user.is_authenticated and not any([q, cat, kind, program_kind, runnable, trust_filter, following, ai, tech]):
+            if page_num in ('1', '2', '3', '', None):
+                cache_key_page = f"feed:anon:page:{page_num}:sort:{sort}:v2"
+                try:
+                    cached = cache.get(cache_key_page)
+                    if cached and isinstance(cached, dict):
+                        cached_ids = cached.get('ids', [])
+                except Exception:
+                    cached_ids = None
+
+        if cached_ids:
+            try:
+                from django.db.models import Case, When
+                preserved = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(cached_ids)])
+                projects_filtered = AppProject.objects.filter(pk__in=cached_ids).select_related('owner','owner__profile','category').prefetch_related('tags').annotate(remix_count=Count('forks', filter=Q(forks__status='published'))).order_by(preserved)
+                paginator = Paginator(projects_filtered, 12)
+                page = paginator.get_page(page_num)
+            except Exception:
+                paginator = Paginator(projects, 12)
+                page = paginator.get_page(request.GET.get('page'))
+        else:
+            paginator = Paginator(projects, 12)
+            page = paginator.get_page(request.GET.get('page'))
+            if cache_key_page and not request.user.is_authenticated:
+                try:
+                    ids = [p.id for p in page.object_list]
+                    cache.set(cache_key_page, {'ids': ids}, 30)
+                except Exception:
+                    pass
         my_kinds = taste.top_kinds(request.user, limit=3) if request.user.is_authenticated else []
         ctx = {
             'page': page,
@@ -277,7 +321,15 @@ def feed(request):
                     )
             except Exception:
                 logger.exception('feed rails failed')
-        return render(request, 'gallery/feed.html', ctx)
+        resp = render(request, 'gallery/feed.html', ctx)
+        # Cache-control for anon unfiltered first pages — CDN can cache 30s
+        try:
+            if not request.user.is_authenticated and ctx.get('unfiltered') and request.GET.get('page','1') in ('1','',None):
+                resp['Cache-Control'] = 'public, max-age=30, s-maxage=60'
+                resp['Vary'] = 'Cookie'
+        except Exception:
+            pass
+        return resp
     except Exception:
         logger.exception("feed crush silent")
         return render(request, 'gallery/feed.html', {'page': Paginator(AppProject.objects.none(), 12).get_page(1), 'categories': Category.objects.all(), 'q': '', 'cat': '', 'kind': '', 'sort': 'newest', 'program_kinds': PROGRAM_KINDS, 'program_kind': '', 'runnable': '', 'following': '', 'trust': '', 'personalized': False, 'my_kinds': []})

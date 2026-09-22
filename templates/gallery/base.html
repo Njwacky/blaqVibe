@@ -13,16 +13,21 @@
 <meta property="og:title" content="{% block og_title %}BlaqVibes{% endblock %}">
 <meta property="og:description" content="{% block og_desc %}BlaqVibes is where builders build: publish your project, show progress, remix ideas, compete and build reputation. Every project is scanned before it reaches the feed.{% endblock %}">
 <meta property="og:image" content="{% block og_image %}{% if request.is_secure %}https{% else %}http{% endif %}://{{ request.get_host }}/static/branding/blaqvibes-icon.png{% endblock %}">
+<link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
+<link rel="dns-prefetch" href="//fonts.googleapis.com">
 <link rel="preload" href="{% static 'gallery/css/fonts.css' %}?v=fonts-20260830" as="style">
 <link rel="stylesheet" href="{% static 'gallery/css/fonts.css' %}?v=fonts-20260830">
 <link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=fab-tip-dismiss-20260921">
-<link rel="stylesheet" href="{% static 'gallery/css/cards.css' %}?v=mobile-20260906b">
-<link rel="stylesheet" href="{% static 'gallery/css/premium.css' %}?v=product-system-20260909">
-<link rel="stylesheet" href="{% static 'gallery/css/footer.css' %}?v=footer-polish-20260921">
-{% comment %}Attention + severity stripes. Site-wide, not page-scoped: the banner
-rides every page and the inbox is reachable from every page, so the colour
-tokens have to exist everywhere they are drawn.{% endcomment %}
-<link rel="stylesheet" href="{% static 'gallery/css/attention.css' %}?v=attention-20260917">
+<link rel="preload" href="{% static 'gallery/css/cards.css' %}?v=mobile-20260906b" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="{% static 'gallery/css/cards.css' %}?v=mobile-20260906b"></noscript>
+<link rel="preload" href="{% static 'gallery/css/premium.css' %}?v=product-system-20260909" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="{% static 'gallery/css/premium.css' %}?v=product-system-20260909"></noscript>
+<link rel="preload" href="{% static 'gallery/css/footer.css' %}?v=footer-polish-20260921" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="{% static 'gallery/css/footer.css' %}?v=footer-polish-20260921"></noscript>
+<link rel="preload" href="{% static 'gallery/css/attention.css' %}?v=attention-20260917" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="{% static 'gallery/css/attention.css' %}?v=attention-20260917"></noscript>
+<style>.nav{min-height:64px}.vibe-grid{display:grid;gap:12px}</style>
+<link rel="preload" href="{% static 'gallery/js/alpine.min.js' %}?v=alpine-3.16.3" as="script">
 <script src="{% static 'gallery/js/head-theme.js' %}?v=fab-tip-dismiss-20260921"></script>
 <script src="{% static 'gallery/js/alpine.min.js' %}?v=alpine-3.16.3" defer></script>
 <script src="{% static 'gallery/js/blaqvibes.js' %}?v=fab-tip-dismiss-20260921" defer></script>
