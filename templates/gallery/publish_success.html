@@ -36,6 +36,25 @@
   <h1 class="ps-title">{{ project.title }}</h1>
   <p class="ps-sub">{{ project.short_description }}</p>
 
+  <section class="ps-first-win" aria-label="Your first BlaqVibes result">
+    <div>
+      <span class="ps-proof-kicker">YOUR BLAQVIBES</span>
+      <h2 style="margin:4px 0 3px;font-size:18px">You put a build on the platform.</h2>
+      <p style="margin:0;color:var(--muted);font-size:12px;line-height:1.45">
+        {% if scan_pending or quarantined %}
+        The project is received. The normal safety check is the only thing between this build and the public feed.
+        {% else %}
+        Your project is live. Now you can explore other builders and come back to strengthen this build whenever you want.
+        {% endif %}
+      </p>
+    </div>
+    <div class="ps-wallet" title="Current star balance">
+      <span style="font-size:18px">★</span>
+      <b>{{ wallet_stars }}</b>
+      <span>stars</span>
+    </div>
+  </section>
+
   <div class="ps-share">
     <a class="btn-violet" href="https://wa.me/?text={{ request.scheme }}%3A%2F%2F{{ request.get_host }}{{ project.get_absolute_url|urlencode }}%20{{ project.title|urlencode }}%20by%20%40{{ project.owner.username }}">Share to WhatsApp</a>
     <button type="button" class="btn-ghost js-copy" data-copy="{{ request.scheme }}://{{ request.get_host }}{{ project.get_absolute_url }}">Copy link</button>
@@ -66,10 +85,15 @@
       {% endfor %}
     </div>
     <a class="ps-maybe" href="{{ project.get_absolute_url }}">Maybe later — take me to my project →</a>
+    <a class="ps-maybe" href="{% url 'feed' %}">Explore other builds →</a>
   </section>
 
 </div>
 <script>
+// The first-win page deliberately has no polling loop. Pending ZIP uploads
+// already have the existing scan status page/notification path; keeping this
+// page static avoids turning a celebratory screen into another network request.
+//
 // Copy-link buttons on the success page (detail.js is not loaded here).
 (function () {
   var toastEl = document.getElementById('toast');
