@@ -818,6 +818,15 @@ def register_zip_project(project, logger_name='publish'):
 @ratelimit(key='user', rate='5/h', method='POST')
 @not_quarantined
 def publish(request):
+    # The action-first welcome hands a brand-new builder here. Marking the
+    # welcome answered server-side prevents the modal from immediately
+    # reappearing on the publish page when navigation cancels the client POST.
+    if request.GET.get('welcome') == '1':
+        try:
+            from users import welcome
+            welcome.mark_seen(request.user)
+        except Exception:
+            logger.exception('action-first welcome handoff failed user=%s', request.user.pk)
     from users.models import SiteSettings
     from gallery.models import Challenge
     from django.utils import timezone
