@@ -47,25 +47,26 @@ input:checked + .slider:before {
   margin-top: 14px;
   padding: 14px 16px;
   border-radius: 14px;
-  border: 1px solid var(--accent-border);
-  background: var(--accent-soft-bg);
+  border: 1px solid #fff;
+  background: #000;
   color: inherit;
   text-decoration: none;
 }
 .settings-jump:hover {
-  border-color: var(--violet, #7c3aed);
+  border-color: #fff;
 }
 .settings-jump:focus-visible {
-  outline: 2px solid var(--violet, #7c3aed);
+  outline: 2px solid #fff;
   outline-offset: 2px;
 }
 .settings-jump-mark {
   width: 36px;
   height: 36px;
-  border-radius: 10px;
+  border-radius: 50%;
   display: grid;
   place-items: center;
-  background: var(--violet, #7c3aed);
+  background: #000;
+  border: 1px solid #fff;
   color: #fff;
   font-size: 18px;
   flex-shrink: 0;
@@ -89,7 +90,7 @@ input:checked + .slider:before {
 .settings-jump-go {
   font-size: 12px;
   font-weight: 700;
-  color: var(--violet, #7c3aed);
+  color: #fff;
   flex-shrink: 0;
 }
 
