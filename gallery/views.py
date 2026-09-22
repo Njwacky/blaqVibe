@@ -1043,8 +1043,17 @@ def publish_success(request, slug):
     checks = project.proof_checks()
     ok_count = sum(1 for row in checks if row['ok'])
     level_key, level_title = proof_level(ok_count, len(checks))
+    # Keep the first-post page focused on the user's immediate state.
+    # We show the wallet balance, but do NOT mint stars for uploading here:
+    # stars are a social/economic signal and an upload-only reward would make
+    # empty or low-value uploads profitable to farm.
+    try:
+        wallet_stars = int(request.user.profile.stars_balance)
+    except (AttributeError, TypeError, ValueError):
+        wallet_stars = 0
     return render(request, 'gallery/publish_success.html', {
         'project': project,
+        'wallet_stars': wallet_stars,
         'checks': checks,
         'ok_count': ok_count,
         'pct': round(100 * ok_count / len(checks)) if checks else 0,
