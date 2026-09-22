@@ -132,9 +132,9 @@ function copyText(t){
   const button = document.getElementById('nav-collapse');
   if(!rail || !button) return;
 
-  const MIN = 180;
-  const MAX = 380;
-  const DEFAULT = 230;
+  const MIN = 200;
+  const MAX = 360;
+  const DEFAULT = 268;
   const WIDTH_KEY = 'blaq-nav-width';
   const COLLAPSED_KEY = 'blaq-nav-collapsed';
   let drag = null;
