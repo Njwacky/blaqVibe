@@ -716,11 +716,13 @@ def snippet_doc(request, slug):
     # and may carry its own inline blocks; our page chrome uses none.
     resp['Content-Security-Policy'] = (
         "sandbox allow-scripts; "
-        "default-src 'none'; script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com; "
-        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "default-src 'none'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://esm.sh; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://fonts.cdnfonts.com https://use.fontawesome.com; "
         "img-src data: https: http:; media-src data: https:; "
-        "font-src data: https://fonts.gstatic.com; "
-        "connect-src https://cdn.tailwindcss.com; object-src 'none'; base-uri 'none'; "
+        "font-src data: https:; "
+        "connect-src https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com; "
+        "object-src 'none'; base-uri 'none'; "
         "form-action 'none'; frame-ancestors 'self'"
     )
     resp['X-Frame-Options'] = 'SAMEORIGIN'
@@ -749,11 +751,13 @@ def run_static(request, slug):
     resp = HttpResponse(document, content_type='text/html; charset=utf-8')
     resp['Content-Security-Policy'] = (
         "sandbox allow-scripts; "
-        "default-src 'none'; script-src 'unsafe-inline' https://cdn.tailwindcss.com; "
-        "style-src 'unsafe-inline' https://fonts.googleapis.com; "
+        "default-src 'none'; "
+        "script-src 'unsafe-inline' https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://esm.sh; "
+        "style-src 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com https://fonts.cdnfonts.com https://use.fontawesome.com; "
         "img-src data: https: http:; media-src data: https:; "
-        "font-src data: https://fonts.gstatic.com; "
-        "connect-src https://cdn.tailwindcss.com; object-src 'none'; base-uri 'none'; "
+        "font-src data: https:; "
+        "connect-src https://cdn.tailwindcss.com https://cdn.jsdelivr.net https://unpkg.com https://cdnjs.cloudflare.com; "
+        "object-src 'none'; base-uri 'none'; "
         "form-action 'none'; frame-ancestors 'self'"
     )
     resp['X-Frame-Options'] = 'SAMEORIGIN'

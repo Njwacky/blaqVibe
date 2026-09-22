@@ -136,6 +136,26 @@ class AssembleDocumentTests(TestCase):
         self.assertIn('type="module"', doc)
         self.assertIn('export const a = 1;', doc)
 
+    def test_inlines_css_with_imports_and_asset_urls(self):
+        p = self._project_with_zip({
+            'index.html': '<html><head><link rel="preload stylesheet" href="main.css"></head><body>hello</body></html>',
+            'main.css': '@import url("theme.css");\nbody { background: url("bg.png"); }',
+            'theme.css': 'h1 { color: blue; }',
+            'bg.png': _PNG,
+        })
+        doc = assemble_runnable_document(p.zip_file, 'index.html')
+        self.assertIn('color: blue', doc)
+        self.assertIn('data:image/png;base64,', doc)
+        self.assertNotIn('@import', doc)
+
+    def test_tolerant_member_paths_and_casing(self):
+        p = self._project_with_zip({
+            'index.html': '<html><head><link rel="stylesheet " href="Style.CSS"></head><body>hello</body></html>',
+            'style.css': 'p { font-size: 14px; }',
+        })
+        doc = assemble_runnable_document(p.zip_file, 'index.html')
+        self.assertIn('font-size: 14px', doc)
+
 @override_settings(MEDIA_ROOT='/tmp/blaqvibes-runner-tests')
 class PreviewModeTests(TestCase):
     def setUp(self):
@@ -214,6 +234,9 @@ class RunStaticViewTests(TestCase):
         csp = resp['Content-Security-Policy']
         self.assertIn('sandbox allow-scripts', csp)
         self.assertIn("default-src 'none'", csp)
+        self.assertIn('cdn.jsdelivr.net', csp)
+        self.assertIn('cdnjs.cloudflare.com', csp)
+        self.assertIn('unpkg.com', csp)
 
     def test_document_dest_is_refused_even_with_token(self):
         # Opening the URL as a top-level document must never run user JS first-party.

@@ -88,12 +88,26 @@ def detect_static_runnable(paths):
         return False, ''
 
 def _read_member(zf, name):
-    """Read a ZIP member by name, tolerant of leading './'. Returns bytes|None."""
+    """Read a ZIP member by name, tolerant of leading './', backslashes, and casing. Returns bytes|None."""
     try:
-        names = set(zf.namelist())
+        namelist = zf.namelist()
+        names = set(namelist)
         for candidate in (name, './' + name, name.lstrip('./')):
             if candidate in names:
                 return zf.read(candidate)
+
+        # Windows backslash, leading slash, and case-insensitive fallback
+        normalized_target = name.replace('\\', '/').lstrip('./').lstrip('/')
+        norm_map = {}
+        for orig in namelist:
+            clean = orig.replace('\\', '/').lstrip('./').lstrip('/')
+            norm_map[clean] = orig
+            norm_map.setdefault(clean.lower(), orig)
+
+        if normalized_target in norm_map:
+            return zf.read(norm_map[normalized_target])
+        if normalized_target.lower() in norm_map:
+            return zf.read(norm_map[normalized_target.lower()])
     except Exception:
         pass
     return None
@@ -122,6 +136,58 @@ def _resolve(base_dir, ref):
     if joined.startswith('..') or joined.startswith('/'):
         return None
     return joined
+
+def _inline_css_imports(css, zf, css_dir, budget):
+    """Inline local @import rules inside CSS so stylesheets split across files work."""
+    import_pattern = re.compile(
+        r'@import\s+(?:url\(\s*["\']?(?P<url>[^"\'\)]+)["\']?\s*\)|["\'](?P<url2>[^"\']+)["\']);?',
+        re.IGNORECASE,
+    )
+    def repl_import(m):
+        href = m.group('url') or m.group('url2')
+        target = _resolve(css_dir, href)
+        if not target:
+            return m.group(0)
+        data = _read_member(zf, target)
+        if data is None or len(data) > MAX_INLINE_TEXT_BYTES:
+            return m.group(0)
+        try:
+            sub_css = data.decode('utf-8')
+        except UnicodeDecodeError:
+            return m.group(0)
+        if _over_budget(budget, len(sub_css)):
+            return m.group(0)
+        budget['total'] += len(sub_css)
+        budget['assets'] += 1
+        sub_dir = posixpath.dirname(target)
+        return _inline_css_imports(sub_css, zf, sub_dir, budget)
+    return import_pattern.sub(repl_import, css)
+
+def _inline_css_urls(css, zf, css_dir, budget):
+    """Convert local url(...) image refs inside CSS to data URIs."""
+    url_pattern = re.compile(
+        r'\burl\(\s*["\']?(?P<url>[^"\'\)\s]+)["\']?\s*\)',
+        re.IGNORECASE,
+    )
+    def repl_url(m):
+        ref = m.group('url')
+        target = _resolve(css_dir, ref)
+        if not target:
+            return m.group(0)
+        ext = _ext(target)
+        mime = _IMAGE_MIME.get(ext)
+        if not mime:
+            return m.group(0)
+        data = _read_member(zf, target)
+        if data is None or len(data) > MAX_INLINE_IMAGE_BYTES:
+            return m.group(0)
+        if _over_budget(budget, len(data) * 4 // 3):
+            return m.group(0)
+        budget['total'] += len(data) * 4 // 3
+        budget['assets'] += 1
+        b64 = base64.b64encode(data).decode('ascii')
+        return f'url("data:{mime};base64,{b64}")'
+    return url_pattern.sub(repl_url, css)
 
 def assemble_runnable_document(zip_field, entry):
     """Build ONE self-contained HTML string for the entry document.
@@ -162,11 +228,13 @@ def _over_budget(budget, extra):
 def _inline_stylesheets(html, zf, base_dir, budget):
     def repl(m):
         tag = m.group(0)
-        href = m.group('url')
+        href = m.group('url') or m.group('url_raw')
         target = _resolve(base_dir, href)
         if not target:
             return tag
         data = _read_member(zf, target)
+        if data is None and base_dir and href.startswith('/'):
+            data = _read_member(zf, posixpath.join(base_dir, href.lstrip('/')))
         if data is None or len(data) > MAX_INLINE_TEXT_BYTES:
             return tag
         try:
@@ -177,13 +245,16 @@ def _inline_stylesheets(html, zf, base_dir, budget):
             return tag
         budget['total'] += len(css)
         budget['assets'] += 1
+        css_dir = posixpath.dirname(target)
+        css = _inline_css_imports(css, zf, css_dir, budget)
+        css = _inline_css_urls(css, zf, css_dir, budget)
         # Neutralise a stray closing tag so the CSS cannot break out of <style>.
         css = css.replace('</style', '<\\/style')
         return f'<style data-inlined-from="{href}">\n{css}\n</style>'
 
-    # <link ... rel="stylesheet" ... href="...">  (attr order-independent)
+    # <link ... rel="stylesheet" ... href="..."> (attr order-independent, tolerant of whitespace & multiple rel tokens)
     pattern = re.compile(
-        r'<link\b(?=[^>]*\brel\s*=\s*["\']?stylesheet["\']?)[^>]*?\bhref\s*=\s*["\'](?P<url>[^"\']+)["\'][^>]*>',
+        r'<link\b(?=[^>]*\brel\s*=\s*["\']?[^"\'>]*\bstylesheet\b[^"\'>]*["\']?)[^>]*?\bhref\s*=\s*(?:["\'](?P<url>[^"\']+)["\']|(?P<url_raw>[^\s>]+))[^>]*>',
         re.IGNORECASE,
     )
     return pattern.sub(repl, html)
