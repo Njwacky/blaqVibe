@@ -1,116 +1,69 @@
 {% comment %}
-First-time welcome overlay — a full-screen modal shown once per account the
-first time a builder signs in, answering exactly three questions in 3+1 steps:
+Action-first first-time welcome.
 
-  1 · What is BlaqVibes?
-  2 · What do I do here?
-  3 · Why should I care?
-  then a closing CTA that hands over straight into the feed.
+5 Whys:
+1. Why change the old four-screen intro? New builders need to do something before
+   they understand a platform; a presentation delays the first useful action.
+2. Why make the first action an upload? BlaqVibes' core promise is that a build
+   becomes visible proof. The fastest way to demonstrate that promise is to let
+   the person put one real build into the product.
+3. Why keep the upload lightweight? Requiring the full proof form before the first
+   reward makes a new visitor feel like they are filling in paperwork.
+4. Why keep safety scanning? Removing friction must not remove the trust boundary.
+   We skip optional questions, never the security pipeline.
+5. Why offer Explore as the alternative? Some people need to see the community
+   before committing a project; exploration should be a valid first action, not
+   a dead-end.
 
-State machine (users/welcome.py + users/welcome_views.py):
-  · Profile.overlay_seen == True  -> the include renders nothing and the boot
-    script is not emitted (server truth; never again, any device).
-  · False -> rendered and auto-opened by the inline boot script in base.html,
-    UNLESS this browser's localStorage "blaq-welcome-seen" already answers
-    (recovers a lost POST without re-nagging). data-force is reserved for
-    tests/dev previews — no user path sets it.
-
-"screenshots" are pure-CSS miniatures (no image requests), so they render in
-light/dark theme and load with the page. The panel is marked up so the JS can
-drive Next/Previous/Close by class, dots by class, and steps hide/show by
-style — no inline handlers, which keeps the page's CSP happy.
+The modal is still account-scoped by Profile.overlay_seen. "Upload my first app"
+hands off to /publish/?welcome=1, where the server records that the intro was
+answered before rendering the upload form.
 {% endcomment %}
 <div class="welcome-backdrop" aria-hidden="true" style="display:none"></div>
 <div id="welcome-overlay" class="welcome-overlay" aria-hidden="true" role="dialog" aria-modal="true"
-     aria-label="Welcome to BlaqVibes" style="display:none"
+     aria-label="Start with BlaqVibes" style="display:none"
      data-force="0"
      data-seen-url="{% url 'welcome_seen' %}"
      data-csrf="{{ csrf_token }}">
   <div class="welcome-panel" data-step="0">
-
-    {# ─── Step 1 · What is BlaqVibes? ─── #}
     <section class="welcome-step">
       <div class="welcome-eyebrow">BLAQVIBES</div>
-      <h1 class="welcome-h">Welcome to BlaqVibes</h1>
-      <p class="welcome-p">Before you start, here's how BlaqVibes works.</p>
-      <p class="welcome-p"><b>You built it. Now make it visible.</b><br>
-      Vibe coding makes it easier to turn an idea into software. But building
-      something is only the beginning — BlaqVibes gives your work a place to be
-      <em>seen, understood, trusted, improved,</em> and connected to opportunities.</p>
-      <div class="welcome-visual" aria-hidden="true">
-        <div class="welcome-flow">
-          <span class="welcome-node">IDEA</span><span class="welcome-arrow">↓</span>
-          <span class="welcome-node">VIBE&nbsp;CODE</span><span class="welcome-arrow">↓</span>
-          <span class="welcome-node">BUILD</span><span class="welcome-arrow">↓</span>
-          <span class="welcome-node welcome-node--brand">BLAQVIBES</span><span class="welcome-arrow">↓</span>
-          <span class="welcome-node">PEOPLE SEE WHAT YOU CAN DO</span>
-        </div>
-        <div class="welcome-shots" style="margin-top:16px">
-          <div class="welcome-shot"><div class="welcome-shot-img wv-fill-feed">A feed of real, published builds</div><div class="welcome-shot-cap">Build proof, not noise</div><div class="welcome-shot-sub">Every project ships with files, stack &amp; history.</div></div>
-          <div class="welcome-shot"><div class="welcome-shot-img wv-fill-trust">Scanned, reviewed, verified</div><div class="welcome-shot-cap">Trust before it reaches the feed</div><div class="welcome-shot-sub">Work is checked before anyone sees it.</div></div>
-          <div class="welcome-shot"><div class="welcome-shot-img wv-fill-remix">Remix, fork, improve</div><div class="welcome-shot-cap">Lineage is credit</div><div class="welcome-shot-sub">Build on someone's idea — both are remembered.</div></div>
-        </div>
-      </div>
-    </section>
-
-    {# ─── Step 2 · What do I do here? ─── #}
-    <section class="welcome-step" style="display:none">
-      <div class="welcome-eyebrow">HOW YOU BUILD A REPUTATION</div>
-      <h2 class="welcome-h">What do I do here?</h2>
-      <p class="welcome-p">BlaqVibes is a place to <b>show &amp; prove</b>. Ship your
-      project, drop the evidence, and the work keeps working for you.</p>
-      <div class="welcome-visual" aria-hidden="true">
-        <div class="welcome-shots">
-          <div class="welcome-shot"><div class="welcome-shot-img wv-fill-step">⬆ Upload a ZIP · snippet · repo</div><div class="welcome-shot-cap">1 · Ship</div><div class="welcome-shot-sub">Import a GitHub repo, paste a snippet, or upload a ZIP.</div></div>
-          <div class="welcome-shot"><div class="welcome-shot-img wv-fill-trust">Scan → Review → Nolo 10/10</div><div class="welcome-shot-cap">2 · Publish</div><div class="welcome-shot-sub">Moderation clears it, the feed surfaces it.</div></div>
-          <div class="welcome-shot"><div class="welcome-shot-img wv-fill-remix">⚔ Battle · ⑂ Remix · ★ Trade</div><div class="welcome-shot-cap">3 · Compete</div><div class="welcome-shot-sub">Battles, stars and remixes push you up the ranks.</div></div>
-          <div class="welcome-shot"><div class="welcome-shot-img wv-fill-feed">★ Stars → Bronze → Platinum</div><div class="welcome-shot-cap">4 · Earn</div><div class="welcome-shot-sub">Every trade, win and bounty climbs your reputation.</div></div>
-        </div>
-      </div>
-    </section>
-
-    {# ─── Step 3 · Why should I care? ─── #}
-    <section class="welcome-step" style="display:none">
-      <div class="welcome-eyebrow">THE WHOLE POINT</div>
-      <h2 class="welcome-h">Why should I care?</h2>
+      <h1 class="welcome-h">Show us what you built.</h1>
+      <p class="welcome-p">
+        BlaqVibes turns your software into visible proof of what you can do.
+        Don't fill out a profile first. <b>Start with something you already built.</b>
+      </p>
       <div class="welcome-manifesto welcome-manifesto--gold">
-        <div class="welcome-manifesto-title">PRODUCT VISION</div>
-        <div class="welcome-manifesto-line">MAKE ABILITY VISIBLE.<br>Your work is your proof.</div>
+        <div class="welcome-manifesto-title">YOUR FIRST BUILD</div>
+        <div class="welcome-manifesto-line">UPLOAD → SEE IT → IMPROVE IT</div>
       </div>
-      <div class="welcome-manifesto" style="margin-top:12px">
-        <div class="welcome-manifesto-title">THE PROMISE</div>
-        <div class="welcome-manifesto-sub"><b style="color:var(--text)">BlaqVibes</b> helps people turn what they build into proof of what they can do — and helps that proof create opportunities.</div>
-      </div>
-      <div class="welcome-visual" aria-hidden="true">
-        <div class="welcome-shots">
-          <div class="welcome-shot"><div class="welcome-shot-img wv-fill-connect">Found through your stack</div><div class="welcome-shot-cap">Discoverability</div><div class="welcome-shot-sub">Capability search finds you by what you can actually do.</div></div>
-          <div class="welcome-shot"><div class="welcome-shot-img wv-fill-feed">A living portfolio</div><div class="welcome-shot-cap">Proof over claims</div><div class="welcome-shot-sub">Your work is portable evidence of ability.</div></div>
-          <div class="welcome-shot"><div class="welcome-shot-img wv-fill-opp">Work finds you</div><div class="welcome-shot-cap">Opportunities</div><div class="welcome-shot-sub">Evidence leads to the next, real opportunity.</div></div>
+      <div class="welcome-shots" style="margin-top:16px">
+        <div class="welcome-shot">
+          <div class="welcome-shot-img wv-fill-step">⬆ Your app</div>
+          <div class="welcome-shot-cap">1 · Put it here</div>
+          <div class="welcome-shot-sub">Drop a ZIP or paste a small snippet. We handle the technical checks.</div>
+        </div>
+        <div class="welcome-shot">
+          <div class="welcome-shot-img wv-fill-feed">★ Your Build in the feed</div>
+          <div class="welcome-shot-cap">2 · See the result</div>
+          <div class="welcome-shot-sub">Your project gets its own BlaqVibes page and can be discovered by other builders.</div>
+        </div>
+        <div class="welcome-shot">
+          <div class="welcome-shot-img wv-fill-remix">✦ Improve it later</div>
+          <div class="welcome-shot-cap">3 · Add the proof later</div>
+          <div class="welcome-shot-sub">Screenshots, stack, story and other proof can be added after the first win.</div>
         </div>
       </div>
-    </section>
-
-    {# ─── Step 4 · Hand-off ─── #}
-    <section class="welcome-step" style="display:none">
-      <div class="welcome-eyebrow">YOU BUILT IT</div>
-      <h2 class="welcome-h">Now make it visible.</h2>
-      <p class="welcome-p">That's the loop — <em>BUILD → SHOW → REMIX → COMPETE → REPEAT.</em>
-      Ready to see what people are building?</p>
-      <div class="welcome-manifesto">
-        <div class="welcome-manifesto-title">BLAQVIBES</div>
-        <div class="welcome-manifesto-line">MAKE ABILITY VISIBLE.</div>
+      <div class="welcome-cta" style="margin-top:18px">
+        <a href="{% url 'publish' %}?welcome=1" class="btn-violet welcome-start">
+          Upload my first app →
+        </a>
+        <button type="button" class="btn-ghost welcome-skip">Explore first</button>
       </div>
+      <p class="welcome-p" style="font-size:11px;margin-top:12px">
+        Your upload still goes through BlaqVibes' normal safety checks. We are
+        removing form friction, not the trust boundary.
+      </p>
     </section>
-
-    <div class="welcome-steps" aria-hidden="true">
-      <span class="welcome-dot welcome-dot--on"></span>
-      <span class="welcome-dot"></span>
-      <span class="welcome-dot"></span>
-      <span class="welcome-dot"></span>
-    </div>
-    <div class="welcome-cta">
-      <button type="button" class="btn-violet welcome-next">Next →</button>
-      <button type="button" class="btn-ghost welcome-skip">Skip intro</button>
-    </div>
   </div>
 </div>
