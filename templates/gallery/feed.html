@@ -75,7 +75,7 @@
 
   <div class="pager" style="margin-top:16px;display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap">
     {% if page.has_previous %}<a href="?page={{ page.previous_page_number }}&q={{ q }}&category={{ cat }}&sort={{ sort }}&trust={{ trust }}" class="btnG">← Prev</a>{% endif %}
-    <span style="padding:8px 12px;color:var(--muted);font-size:13px">Page {{ page.number }} of {{ page.paginator.num_pages }}</span>
+    <span style="padding:8px 12px;color:var(--muted);font-size:13px">Page {{ page.number }}{% if page.paginator.num_pages %} of {{ page.paginator.num_pages }}{% endif %}</span>
     {% if page.has_next %}<a href="?page={{ page.next_page_number }}&q={{ q }}&category={{ cat }}&sort={{ sort }}&trust={{ trust }}" class="btnG">Next →</a>{% endif %}
   </div>
 
