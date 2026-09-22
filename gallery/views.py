@@ -63,6 +63,50 @@ from .views_community import (
 from .repo_import import import_from_github
 logger = logging.getLogger(__name__)
 
+
+class CachedFeedPage:
+    """Small page object for cached anonymous feed pages.
+
+    The normal Django Paginator asks COUNT(*) for the total and then derives
+    has_next from that count. For an already-cached page we only need to know
+    whether one more project exists, so the cache stores 13 IDs: 12 to render
+    plus one sentinel. This removes a COUNT(*) from the hot path.
+    """
+    def __init__(self, object_list, number, has_next):
+        self.object_list = list(object_list)
+        self.number = number
+        self._has_next = bool(has_next)
+        self.paginator = self
+
+    @property
+    def has_next(self):
+        return self._has_next
+
+    @property
+    def has_previous(self):
+        return self.number > 1
+
+    @property
+    def has_other_pages(self):
+        return self.has_previous or self.has_next
+
+    def next_page_number(self):
+        if not self.has_next:
+            raise Http404("No next page")
+        return self.number + 1
+
+    def previous_page_number(self):
+        if not self.has_previous:
+            raise Http404("No previous page")
+        return self.number - 1
+
+    @property
+    def num_pages(self):
+        # Exact total pages would require COUNT(*). The feed UI only needs
+        # the total when it is available from the normal paginator.
+        return None
+
+
 def safe_internal_next(request, default=''):
     """Same-origin relative `next` URL, or default.
     """
@@ -254,10 +298,15 @@ def feed(request):
         if cached_ids:
             try:
                 from django.db.models import Case, When
-                preserved = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(cached_ids)])
-                projects_filtered = AppProject.objects.filter(pk__in=cached_ids).select_related('owner','owner__profile','category').prefetch_related('tags').annotate(remix_count=Count('forks', filter=Q(forks__status='published'))).order_by(preserved)
-                paginator = Paginator(projects_filtered, 12)
-                page = paginator.get_page(page_num)
+                # The cache stores 13 IDs: the first 12 are the page and the
+                # 13th is a sentinel telling us there is another page. Do
+                # not pass this queryset through Paginator — that would issue
+                # the COUNT(*) we intentionally cached around.
+                has_next = len(cached_ids) > 12
+                page_ids = cached_ids[:12]
+                preserved = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(page_ids)])
+                projects_filtered = AppProject.objects.filter(pk__in=page_ids).select_related('owner','owner__profile','category').prefetch_related('tags').annotate(remix_count=Count('forks', filter=Q(forks__status='published'))).order_by(preserved)
+                page = CachedFeedPage(projects_filtered, int(page_num or 1), has_next)
             except Exception:
                 paginator = Paginator(projects, 12)
                 page = paginator.get_page(request.GET.get('page'))
@@ -266,7 +315,9 @@ def feed(request):
             page = paginator.get_page(request.GET.get('page'))
             if cache_key_page and not request.user.is_authenticated:
                 try:
-                    ids = [p.id for p in page.object_list]
+                    # Fetch one extra ID as a sentinel. This lets cache hits
+                    # avoid COUNT(*) while preserving an accurate Next link.
+                    ids = list(projects.values_list('id', flat=True)[:13])
                     cache.set(cache_key_page, {'ids': ids}, 30)
                 except Exception:
                     pass
