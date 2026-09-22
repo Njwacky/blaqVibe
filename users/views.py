@@ -565,11 +565,10 @@ NOTIFICATION_PREF_ROWS = (
 def settings_view(request):
     profile, _ = Profile.objects.get_or_create(user=request.user)
     site = SiteSettings.get() if profile.is_superadmin() else None
-    # No identity panel here any more: username and name-style editing moved to
-    # Edit Profile (/settings/profile/), the page reached from the user's own
-    # profile, so Settings holds toggles/git/email/social only. The rename and
-    # style endpoints keep their /settings/... URLs for stability and redirect
-    # back to the profile editor.
+    # Preferences only. Password, logout, email, connected accounts, git
+    # token and delete live on Accounts & Security (/settings/account/) so
+    # this page stays the toggles. Username and name-style stay on Edit
+    # Profile; those endpoints keep their /settings/... URLs.
     notification_prefs = [
         {'key': key, 'label': label, 'help': help_text,
          'value': getattr(profile, key, True)}
@@ -579,6 +578,19 @@ def settings_view(request):
         'profile': profile,
         'site': site,
         'notification_prefs': notification_prefs,
+    })
+
+@login_required
+def account_security_view(request):
+    """Password, logout, email, connected accounts, git token, delete.
+
+    Reached from the Accounts & Security tab at the top of Settings — the
+    security cards used to sit under every toggle and pushed the page
+    off the first screen.
+    """
+    profile, _ = Profile.objects.get_or_create(user=request.user)
+    return render(request, 'users/account_security.html', {
+        'profile': profile,
         'security_events': SecurityEvent.objects.filter(user=request.user)[:8],
         **social_connection_context(request.user),
     })
@@ -595,7 +607,7 @@ def logout_other_devices(request):
         user=request.user, event='sessions_revoked', detail=f'{count} other session(s) by account owner'
     )
     messages.success(request, f'Signed out {count} other device(s).')
-    return redirect('settings')
+    return redirect('account_security')
 
 @not_quarantined
 @login_required
@@ -702,7 +714,7 @@ def regenerate_git_token(request):
     """
     if getattr(request, 'limited', False):
         messages.error(request, 'Rate limit: 5 git tokens per hour.')
-        return redirect('settings')
+        return redirect('account_security')
     try:
         token = request.user.profile.rotate_git_token()
         messages.success(
@@ -712,7 +724,7 @@ def regenerate_git_token(request):
         )
     except Exception:
         messages.error(request, 'Could not rotate the git token. Try again.')
-    return redirect('settings')
+    return redirect('account_security')
 
 @login_required
 @require_POST
@@ -756,7 +768,7 @@ def delete_account(request):
     confirm = (request.POST.get('confirm') or '').strip()
     if confirm != request.user.username:
         messages.error(request, "Type your username to confirm account deletion.")
-        return redirect('settings')
+        return redirect('account_security')
     from django.contrib.auth import logout
     from gallery.lifecycle import release_account_projects
     user = request.user
@@ -915,7 +927,7 @@ def edit_email(request):
     profile, _ = Profile.objects.get_or_create(user=request.user)
     if profile.email_verified:
         messages.info(request, 'Your email is already confirmed.')
-        return redirect('settings')
+        return redirect('account_security')
     if request.method == 'POST':
         if getattr(request, 'limited', False):
             messages.error(request, 'Rate limit: 5 confirmation emails per hour.')

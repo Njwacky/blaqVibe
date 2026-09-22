@@ -357,12 +357,12 @@ class SocialConnectionManagementTests(TestCase):
         SocialAccount.objects.create(
             user=self.user, provider='github', uid='1', extra_data={'login': 'builder'}
         )
-        response = self.client.get('/settings/')
+        response = self.client.get('/settings/account/')
         self.assertContains(response, 'Connected accounts')
         self.assertContains(response, 'GitHub')
 
     def test_settings_says_so_when_nothing_is_connected(self):
-        response = self.client.get('/settings/')
+        response = self.client.get('/settings/account/')
         self.assertContains(response, 'No accounts connected yet')
 
     def test_connections_page_renders_with_our_layout(self):
@@ -399,7 +399,7 @@ class SocialConnectionManagementTests(TestCase):
             user=self.user, provider='github', uid='1', extra_data={'login': 'builder'}
         )
         self.client.force_login(self.user)
-        response = self.client.get('/settings/')
+        response = self.client.get('/settings/account/')
         self.assertContains(response, 'only way into your account')
 
     def test_connecting_a_second_provider_keeps_one_account(self):

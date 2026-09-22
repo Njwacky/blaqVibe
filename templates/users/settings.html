@@ -13,6 +13,15 @@
     <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-settings"></use></svg> Settings
   </h1>
 
+  <a class="settings-jump" href="{% url 'account_security' %}">
+    <span class="settings-jump-mark" aria-hidden="true"><svg class="bv-glyph"><use href="#bv-ico-shield"></use></svg></span>
+    <span class="settings-jump-text">
+      <span class="settings-jump-title">Accounts &amp; Security</span>
+      <span class="settings-jump-sub">Password, log out, email, connected accounts, git token and delete account</span>
+    </span>
+    <span class="settings-jump-go">Open</span>
+  </a>
+
   <h2 style="margin-top: 16px; font-size: 14px; font-weight: 700">
     Notifications — what lands in your inbox
   </h2>
@@ -718,160 +727,8 @@
     </div>
   </div>
   {% endif %}
-
-  <div
-    id="git-token"
-    style="
-      margin-top: 28px;
-      padding: 16px;
-      border: 1px solid var(--line);
-      background: var(--card);
-      border-radius: 12px;
-    "
-  >
-    <h2 style="font-size: 14px; font-weight: 700"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-key"></use></svg> Git access</h2>
-    <p style="font-size: 12px; color: var(--muted); margin: 6px 0 12px">
-      Your vibes are real git repos at
-      <code>/git/&lt;you&gt;/&lt;vibe&gt;.git</code> — clone with your username
-      and password, or use a git token if you signed in with Google/GitHub (no
-      password on file). {% if profile.git_token_hash %} Status:
-      <b style="color: var(--success-text)">token set</b>. Rotate to invalidate
-      the old one. {% else %} Status:
-      <b style="color: var(--warning-text)">no token yet</b> — generate one to
-      push from your terminal. {% endif %}
-    </p>
-    <form method="post" action="{% url 'regenerate_git_token' %}">
-      {% csrf_token %}
-      <button class="btn-ghost">
-        {% if profile.git_token_hash %}Rotate token (revokes the old one){% else %}Generate git token{% endif %}
-      </button>
-    </form>
-  </div>
-
-  <div style="margin-top:28px;padding:16px;border:1px solid var(--line);background:var(--card);border-radius:12px">
-    <h2 style="font-size:14px;font-weight:700">Password &amp; devices</h2>
-    <p class="help" style="margin:6px 0 12px">Changing your password immediately signs out every other device. New devices or networks are recorded here and emailed to your account address.</p>
-    {% if user.has_usable_password %}<a href="{% url 'password_change' %}" class="btn-ghost">Change password</a>{% else %}<a href="{% url 'password_reset' %}" class="btn-ghost">Set a password by email</a>{% endif %}
-    <form method="post" action="{% url 'logout_other_devices' %}" style="display:inline">{% csrf_token %}<button class="btn-ghost" type="submit">Sign out other devices</button></form>
-    {% if security_events %}<ul style="list-style:none;padding:0;margin:14px 0 0;display:grid;gap:6px">{% for event in security_events %}<li style="font-size:12px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--surface-subtle)"><b>{{ event.get_event_display }}</b>{% if event.detail %} — {{ event.detail }}{% endif %}<span style="color:var(--muted);float:right">{{ event.created_at|date:"j M Y, H:i" }}</span></li>{% endfor %}</ul>{% endif %}
-  </div>
-
-  <div
-    style="
-      margin-top: 28px;
-      padding: 16px;
-      border: 1px solid var(--line);
-      background: var(--card);
-      border-radius: 12px;
-    "
-  >
-    <h2 style="font-size: 14px; font-weight: 700">Email</h2>
-    <p class="help" style="margin: 6px 0 10px">
-      {% if profile.email_verified %}Confirmed: {{ user.email }} {% else %}{{ user.email|default:"No email on this account" }} — not confirmed yet.{% endif %}
-    </p>
-    {% if not profile.email_verified %}
-    <a href="{% url 'edit_email' %}" class="btn-ghost">Fix email / resend confirmation</a>
-    {% endif %}
-  </div>
-
-  <div
-    style="
-      margin-top: 28px;
-      padding: 16px;
-      border: 1px solid var(--line);
-      background: var(--card);
-      border-radius: 12px;
-    "
-  >
-    <h2 style="font-size: 14px; font-weight: 700">Connected accounts</h2>
-    <p class="help" style="margin: 6px 0 10px">
-      Sign in with one tap instead of a password. Connecting does not post
-      anything — BlaqVibes only reads your name and email address.
-    </p>
-    {% if social_accounts %}
-    <ul style="list-style: none; padding: 0; margin: 0 0 12px; display: grid; gap: 6px">
-      {% for account in social_accounts %}
-      <li
-        style="
-          display: flex;
-          justify-content: space-between;
-          gap: 8px;
-          flex-wrap: wrap;
-          font-size: 12px;
-          padding: 8px 10px;
-          border: 1px solid var(--line);
-          border-radius: 10px;
-          background: var(--surface-subtle);
-        "
-      >
-        <b>{{ account.name }}</b>
-        <span style="color: var(--muted)">
-          {% if account.last_login %}last used {{ account.last_login|date:"j M Y" }}{% else %}connected{% endif %}
-        </span>
-      </li>
-      {% endfor %}
-    </ul>
-    {% if not can_disconnect_social %}
-    <div
-      style="
-        background: var(--warning-bg);
-        border: 1px solid var(--warning-border);
-        color: var(--warning-text);
-        padding: 10px 12px;
-        border-radius: 10px;
-        font-size: 12px;
-      "
-    >
-      This is the only way into your account — it has no password. Set a password
-      first if you want to disconnect it.
-    </div>
-    {% endif %}
-    {% else %}
-    <p class="help" style="margin: 0 0 12px">No accounts connected yet.</p>
-    {% endif %}
-    {% if social_providers %}
-    <a class="btn-ghost" href="/accounts/social/">Manage connections</a>
-    {% endif %}
-  </div>
-
-  <div
-    style="
-      margin-top: 28px;
-      padding: 16px;
-      border: 1px solid var(--danger-border);
-      background: var(--danger-bg);
-      border-radius: 12px;
-    "
-  >
-    <h2 style="font-size: 14px; font-weight: 700; color: var(--danger-text)">
-      Danger zone — POPIA
-    </h2>
-    <p style="font-size: 12px; color: var(--muted); margin: 6px 0 12px">
-      Delete your account, vibes, comments, and stars. This cannot be undone.
-    </p>
-    <form
-      method="post"
-      action="{% url 'delete_account' %}"
-      class="js-confirm-delete"
-      style="display: flex; gap: 8px; flex-wrap: wrap"
-    >
-      {% csrf_token %}
-      <input
-        name="confirm"
-        placeholder="Type {{ user.username }} to confirm"
-        class="field-input"
-        style="flex: 1; min-width: 180px"
-      />
-      <button
-        class="btn-ghost"
-        style="color: var(--danger-text); border-color: var(--danger-border)"
-      >
-        Delete my account
-      </button>
-    </form>
-  </div>
 </div>
 
-<link rel="stylesheet" href="{% static 'gallery/css/settings.css' %}?v=mobile-20260906">
+<link rel="stylesheet" href="{% static 'gallery/css/settings.css' %}?v=account-security-20260922">
 <script src="{% static 'gallery/js/settings.js' %}?v=feedback-fab-20260921" defer></script>
 {% endblock %}

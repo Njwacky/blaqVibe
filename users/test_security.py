@@ -45,5 +45,33 @@ class PasswordSecurityTests(TestCase):
 
     def test_owner_can_revoke_other_devices_without_changing_password(self):
         response = self.current.post(reverse('logout_other_devices'))
-        self.assertRedirects(response, reverse('settings'))
+        self.assertRedirects(response, reverse('account_security'))
         self.assertFalse(Session.objects.filter(session_key=self.other_key).exists())
+
+    def test_settings_shows_accounts_and_security_before_the_toggles(self):
+        response = self.current.get(reverse('settings'))
+        body = response.content.decode()
+        self.assertContains(response, 'Accounts &amp; Security')
+        self.assertLess(body.index('settings-jump'), body.index('Notifications'))
+        self.assertIn('/settings/account/', body)
+        self.assertNotContains(response, 'Delete my account')
+        self.assertNotContains(response, 'Git access')
+        self.assertNotContains(response, 'Change password')
+        self.assertContains(response, 'Show the floating feedback button')
+        self.assertContains(response, 'data-key="notify_on_star"')
+
+    def test_account_security_page_holds_password_logout_and_delete(self):
+        response = self.current.get(reverse('account_security'))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Change password')
+        self.assertContains(response, 'Log out')
+        self.assertContains(response, 'Sign out other devices')
+        self.assertContains(response, 'Git access')
+        self.assertContains(response, 'Connected accounts')
+        self.assertContains(response, 'Delete my account')
+        body = response.content.decode()
+        # The nav keeps its hidden logout form. This page posts to the same
+        # URL with its own form and must not duplicate that id.
+        self.assertEqual(body.count('id="logout-form"'), 1)
+        self.assertIn('action="/accounts/logout/"', body)
+        self.assertNotContains(response, 'settings.js')

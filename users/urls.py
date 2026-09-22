@@ -8,6 +8,7 @@ urlpatterns = [
     path('u/<str:username>/proof/', views.proof_cv_view, name='proof_cv'),
     path('u/<str:username>/', views.profile_view, name='profile_view'),
     path('settings/', views.settings_view, name='settings'),
+    path('settings/account/', views.account_security_view, name='account_security'),
     path('settings/logout-other-devices/', views.logout_other_devices, name='logout_other_devices'),
     path('settings/rename/', views.rename_username, name='rename_username'),
     path('settings/name-style/', views.set_name_style_view, name='set_name_style'),
