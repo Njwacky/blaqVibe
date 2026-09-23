@@ -53,6 +53,13 @@ def mark_seen(user):
 
     if user is None or not user.is_authenticated:
         return
-    if user.profile.overlay_seen:
+    profile = user.profile
+    if profile.overlay_seen:
         return
-    Profile.objects.filter(pk=user.profile.pk).update(overlay_seen=True)
+    Profile.objects.filter(pk=profile.pk).update(overlay_seen=True)
+    # `update()` bypasses the ORM, so the in-memory instance this request
+    # already loaded still says False. The request keeps rendering after
+    # this call (the /publish/?welcome=1 handoff), and base.html's overlay
+    # gate reads `user.profile.overlay_seen` — without this line the page
+    # would re-show the overlay the handoff just answered.
+    profile.overlay_seen = True

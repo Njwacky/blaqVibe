@@ -991,16 +991,20 @@ a.profile-social-chip:hover { border-color: var(--violet); color: var(--text); t
 .icon-btn { transition: border-color .18s ease, background .18s ease, color .18s ease; }
 .icon-btn:hover { border-color: var(--violet); color: var(--text); }
 
-/* Clickable cards — lift + violet ring; thumbnail zooms inside overflow:hidden. */
-a.card { transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
-a.card:hover, a.card:focus-visible {
+/* Clickable cards — lift + violet ring; thumbnail zooms inside overflow:hidden.
+   .card--click is the <div> form (feed cards): the card body holds a real
+   byline link and anchors cannot nest, so a stretched .vibe-card__go link
+   carries the click instead of an <a class="card"> wrapper. */
+a.card, .card--click { transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease; }
+a.card:hover, a.card:focus-visible,
+.card--click:hover, .card--click:focus-within {
   transform: translateY(-3px);
   border-color: color-mix(in srgb, var(--violet) 55%, var(--line));
   box-shadow: 0 14px 34px rgba(0, 0, 0, .28),
     0 6px 28px color-mix(in srgb, var(--violet) 16%, transparent);
 }
-a.card .card-thumb { transition: transform .35s ease; }
-a.card:hover .card-thumb { transform: scale(1.045); }
+a.card .card-thumb, .card--click .card-thumb { transition: transform .35s ease; }
+a.card:hover .card-thumb, .card--click:hover .card-thumb { transform: scale(1.045); }
 
 /* Inputs — violet focus ring for keyboard and mouse alike. */
 input:focus-visible, select:focus-visible, textarea:focus-visible {
