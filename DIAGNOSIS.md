@@ -1,5 +1,31 @@
 # BlaqVibes diagnosis — 2026-09-23
 
+> ## ✅ Fix round 1 applied (items 1 & 2) — same day
+>
+> **Suite: 1429 tests / 28 failures + 2 errors → 1435 tests / 5 failures.** All three CI
+> hardening gates pass; the two posture probes boot again.
+>
+> What changed:
+>
+> | Fix | Files |
+> |---|---|
+> | Cache-isolated test runner: flushes the default cache after every test (`stopTest`), keeping caching fully working *inside* a test so the cached-feed tests still exercise warm hits. Only flushes a locmem/dummy backend — never Redis. | `blaqvibes/testing.py` (new), `TEST_RUNNER` in `blaqvibes/settings.py` |
+> | Invalidation on write for the 10-minute footer-contacts cache, via `post_save`/`post_delete` so every writer is covered (operator editor, Django admin, queryset deletes). | `users/signals.py` |
+> | Invalidation on save for the 120 s SiteSettings cache. | `users/models.py` |
+> | Empty contact list is now an *empty footer* (only the Nolo section) as the spec test demands; the shipped-defaults fallback fires only when the contacts module itself fails. | `gallery/context_processors.py` |
+> | `DATABASE_URL` raise rescoped: audits/inspections (`security_check`, `check`, `collectstatic`, `makemigrations`, …) and bare `python -c` imports boot on the SQLite placeholder; gunicorn/celery/runserver without a DB URL still refuse. | `blaqvibes/settings.py` (`_DB_AUDIT_COMMANDS`, `_inspecting_without_database`) |
+> | Regression pins: cache isolation between tests, footer edit visible before the TTL, SiteSettings save drops its cache. (+6 tests) | `gallery/test_architecture.py`, `users/test_footer_contacts.py`, `users/test_site_settings.py` (new) |
+>
+> Corrections to the analysis below: the capability-search ERROR (`people[1]`) and
+> `test_feed_links_creator_names_to_profiles` were **both** first misread — capability search
+> caches too (`capability:search:*`), so its ERROR was cache poisoning and is now fixed; the
+> feed-links failure is a *genuine template bug* (the card renders `@feedstar` as plain text,
+> no `<a href="/u/feedstar/">`), confirmed by rendering the feed by hand.
+>
+> The 5 remaining failures are all the template/copy-drift cluster (item 3) + capability
+> logic is fine — hero copy, "Read the standard →", the welcome-overlay handoff, the feed
+> creator link, and the `⬆` emoji in `welcome_overlay.html:42`.
+
 Full health check of the repo at `3da796a` (merge of PR #121, tip of `master`), run on a clean
 Python 3.11 venv with `requirements.txt` installed as pinned.
 

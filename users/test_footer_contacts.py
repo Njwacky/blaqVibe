@@ -267,6 +267,29 @@ class FooterContactsAdminTests(TestCase):
         self.assertLess(footer.index('wa.me/27825550100'), footer.index('x.com/blaqvibes'))
         self.assertLess(footer.index('x.com/blaqvibes'), footer.index('mailto:last@example.com'))
 
+    def test_an_edit_reaches_the_footer_before_the_10_minute_cache_expires(self):
+        """The footer renders from a 600 s cache — an operator's save must
+        invalidate it (users.signals fires on every FooterContact write).
+
+        Without invalidation the old contact details served on every page
+        until the TTL expired: the editor preview looked right (it reads the
+        rows directly) while the public footer lagged ten minutes behind.
+        """
+        FooterContact.objects.create(kind='email', value='old@example.com', position=0)
+        self.assertIn('mailto:old@example.com', self._footer())  # warms the cache
+
+        existing = FooterContact.objects.get(kind='email')
+        self.client.force_login(self.admin)
+        response = self._post_rows(
+            new_rows=[{'kind': 'email', 'value': 'new@example.com', 'position': 0}],
+            delete=[existing.pk],
+        )
+        self.assertRedirects(response, self.url)
+
+        footer = self._footer()
+        self.assertIn('mailto:new@example.com', footer)
+        self.assertNotIn('mailto:old@example.com', footer)
+
     def test_display_label_overrides_the_raw_value(self):
         FooterContact.objects.create(
             kind='whatsapp', value='+27825550100', label='WhatsApp the team', position=0,

@@ -129,9 +129,15 @@ def extras(request):
             get_cached_social_providers,
             get_cached_site_settings,
         )
+        # An operator who deletes every contact chose an empty footer — the
+        # template then renders only the Nolo section, and that is the spec
+        # (users.test_footer_contacts pins it). The shipped defaults below are
+        # only for the case where the contacts module itself is broken.
         footer_contacts = get_cached_footer_contacts()
-        if not footer_contacts:
-            # Fallback if cache miss and module fails
+    except Exception:
+        # Fallback if the contacts module fails: keep the footer populated
+        # rather than empty.
+        try:
             from types import SimpleNamespace
             from users.footer_contacts import contact_as_dict
             footer_contacts = [
@@ -140,8 +146,8 @@ def extras(request):
                 contact_as_dict(SimpleNamespace(
                     kind='github', value='Njwacky', label='')),
             ]
-    except Exception:
-        footer_contacts = []
+        except Exception:
+            footer_contacts = []
 
     try:
         from .performance import get_cached_social_providers
