@@ -23,6 +23,13 @@ def _env_flag(name, default=False):
 # consumed by SEED_DEMO further down, so it must already be defined by then.
 TESTING = any(arg == 'test' for arg in sys.argv) or os.getenv('DJANGO_TEST') == '1'
 
+# The suite shares one process-wide LocMem cache, and Django rolls back the
+# database between tests but never the cache — the 30–600 s perf caches would
+# leak one test's rendered state into the next (a page rendered early in the
+# run served its footer contacts, social buttons and counters to every later
+# test). The flushing runner is why tests that pass alone pass in a run too.
+TEST_RUNNER = 'blaqvibes.testing.CacheIsolatedDiscoverRunner'
+
 # Local development is EXPLICIT, or it is a genuine DEBUG run.
 if os.getenv('DJANGO_LOCAL_DEV', '').strip() != '':
     LOCAL_DEV = _env_flag('DJANGO_LOCAL_DEV')
@@ -567,23 +574,58 @@ DATABASE_URL = (
     os.getenv('DATABASE_URL', '').strip()
     or os.getenv('SUPABASE_URL', '').strip()
 )
+
+# Commands that only read configuration, so they must be able to import
+# settings on a public host WITHOUT a database: scripts/ci.sh gate 2 runs
+# `security_check` in exactly that posture (DEBUG=0, DJANGO_LOCAL_DEV=0, no
+# DATABASE_URL) to prove the shipped defaults are refused, and the
+# LocalDevPosture tests import settings from a bare `python -c`. Everything
+# else — serving, migrating, cron jobs, a shell — still refuses below: on
+# SQLite those commands write to a file a restart would wipe.
+_DB_AUDIT_COMMANDS = frozenset({
+    'security_check', 'check', 'collectstatic', 'makemigrations',
+    'showmigrations', 'sqlmigrate', 'diffsettings',
+    'diagnose_email', 'test_brevo',
+})
+
+
+def _inspecting_without_database() -> bool:
+    """True when this process only reads configuration (audit/inspection),
+    so the SQLite placeholder is acceptable even in a public posture."""
+    if not sys.argv or sys.argv[0] in ('-c', ''):
+        return True  # `python -c "import blaqvibes.settings…"` — policy probes
+    if os.path.basename(sys.argv[0]).lower() == 'manage.py' and len(sys.argv) > 1:
+        return sys.argv[1].lower() in _DB_AUDIT_COMMANDS
+    return False
+
+
 if DATABASE_URL:
     DATABASES = {'default': _db_from_url(DATABASE_URL)}
 elif LOCAL_DEV or TESTING:
     # SQLite is for local dev / CI only. A public host with several gunicorn
     # workers must not share one SQLite file, and Supabase/Postgres is the
-    # production database — so production fails closed below instead of
+    # production database — so a public host fails closed below instead of
     # silently booting on SQLite.
     DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'db.sqlite3'}}
+elif _inspecting_without_database():
+    # An audit must see the posture a deploy would inherit: the SQLite
+    # placeholder below is exactly what security_check reports as
+    # 'DATABASES["default"] is SQLite' — scripts/ci.sh gate 2 asserts that
+    # this finding still fires on a public host. Nothing in this branch
+    # serves traffic or takes writes.
+    DATABASES = {'default': {'ENGINE': 'django.db.backends.sqlite3', 'NAME': BASE_DIR / 'db.sqlite3'}}
 else:
-    # Supabase is the production database. Without DATABASE_URL (the connection
-    # string Supabase gives you, pasted into Render's env vars) there is
-    # nothing to run against. Refuse to boot rather than silently lose all
-    # writes to a SQLite file that restarts would wipe.
+    # Supabase is the production database. Without DATABASE_URL (the
+    # connection string Supabase gives you, pasted into Render's env vars)
+    # there is nothing to run against. Refuse to boot rather than silently
+    # lose all writes to a SQLite file that restarts would wipe. Read-only
+    # audits and inspections are exempt (above); for one-off introspection
+    # without a database, set DJANGO_LOCAL_DEV=1 explicitly.
     raise RuntimeError(
-        'DATABASE_URL must be set in production. Paste your Supabase Postgres '
-        'connection string (session mode / port 5432) into Render as '
-        'DATABASE_URL — see .env.example.'
+        'DATABASE_URL must be set to run BlaqVibes here. Paste your Supabase '
+        'Postgres connection string (session mode / port 5432) into Render as '
+        'DATABASE_URL — see .env.example. Read-only audits (security_check, '
+        'check, collectstatic) run without it.'
     )
 
 REDIS_URL = os.getenv('REDIS_URL', '')

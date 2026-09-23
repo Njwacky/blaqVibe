@@ -17,6 +17,7 @@ from datetime import timedelta
 from pathlib import Path
 
 from django.conf import settings
+from django.core.cache import cache
 from django.test import SimpleTestCase, TestCase, override_settings
 from django.utils import timezone
 
@@ -457,4 +458,40 @@ class UiGlyphTests(SimpleTestCase):
             'glyphs referenced but not defined in the base.html sprite: '
             + '; '.join(f'{n} ({", ".join(sorted(set(f)))[:120]})'
                         for n, f in sorted(missing.items())),
+        )
+
+
+class TestRunnerIsolatesCacheBetweenTests(SimpleTestCase):
+    """`manage.py test` must not let one test's cache leak into the next.
+
+    The perf caches (footer contacts, social buttons, the Nolo backend label,
+    unread counters, trending scores, remix totals, the cached feed) live
+    30–600 s in the process-wide LocMem cache, and the Django test runner
+    rolls back the database between tests but never the cache — so a page
+    rendered early in the run served its data to every later test, and tests
+    that pass alone failed in the suite. blaqvibes.testing's runner flushes
+    the default cache after each test; these two cases pin that.
+
+    The names are a_/z_ on purpose: unittest runs a class alphabetically, so
+    the sentinel written first must be gone by the last test. Under
+    `--parallel` the pair usually lands in different processes and the second
+    passes trivially — that is fine; the serial default is the case that went
+    red.
+    """
+
+    SENTINEL_KEY = 'test-runner:isolation:sentinel'
+
+    def test_a_leaves_a_sentinel_in_the_cache(self):
+        cache.set(self.SENTINEL_KEY, 'written-by-the-first-test', 300)
+        self.assertEqual(cache.get(self.SENTINEL_KEY), 'written-by-the-first-test')
+
+    def test_z_starts_from_a_cold_cache(self):
+        self.assertEqual(
+            settings.TEST_RUNNER, 'blaqvibes.testing.CacheIsolatedDiscoverRunner',
+            'the flushing test runner is not configured',
+        )
+        self.assertIsNone(
+            cache.get(self.SENTINEL_KEY),
+            'the cache leaked between tests — is TEST_RUNNER still '
+            'blaqvibes.testing.CacheIsolatedDiscoverRunner?',
         )

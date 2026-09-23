@@ -633,6 +633,13 @@ class SiteSettings(models.Model):
     def save(self, *args, **kwargs):
         self.pk = 1
         super().save(*args, **kwargs)
+        # Operators flip these toggles at runtime (/settings/ toggle API and
+        # the settings form), so the cached copy (perf:site_settings:v1,
+        # 120 s) must not outlive the edit.
+        from django.core.cache import cache
+        from gallery.performance import SITE_SETTINGS_CACHE_KEY
+        cache.delete(SITE_SETTINGS_CACHE_KEY)
+
     @classmethod
     def get(cls):
         obj, _ = cls.objects.get_or_create(pk=1)
