@@ -1,5 +1,25 @@
 # BlaqVibes diagnosis — 2026-09-23
 
+> ## ✅ Fix round 2 applied (item 3, the template/copy-drift cluster) — same day
+>
+> **Suite: 1435 tests / 5 failures → 1435 tests / 0 failures — OK.** The first fully
+> green run since the performance stage. All three `scripts/ci.sh` hardening gates still
+> pass. No test was deleted, skipped, or weakened — every fix below restores the
+> pinned copy/behaviour in the product.
+>
+> | # | Failure | Root cause | Fix |
+> |---|---|---|---|
+> | 1 | `test_feed_links_creator_names_to_profiles` — `/` missing `/u/feedstar/` | The feed card rendered `@owner` as plain text. The card is one big `<a>`, and anchors cannot nest, so a byline link needs the card restructured. | `templates/gallery/feed.html`: card is now a `<div class="card vibe-card card--click">` with a stretched overlay link (`.vibe-card__go`) keeping the whole card one click target, and the byline is a real link via `{% url 'profile_view' p.owner.username %}` (named URL, can't drift). Hover/lift parity kept by extending the `a.card` rules in `blaqvibes.css` with `.card--click`; `.vibe-card__go` lives in `cards.css` next to the other `.vibe-card` rules (which already anticipated a byline link: `.vibe-card__meta a`). CSS `?v=` cache-busters bumped. |
+> | 2 | `test_landing_leads_with_the_community_question` — two of four hero strings gone | Hero rewrite dropped the answer tagline and the explore CTA. | `templates/gallery/feed.html`: restored **"Your work belongs in the answer."** under the `<h1>` and **"Explore what's being built"** as the primary CTA anchor into `#grid` (replacing the drifted "Browse projects →" anchor that pointed at the same target). |
+> | 3 | `test_feed_promises_render_and_link_the_standard` — "Read the standard →" gone | Label drifted to "Trust standard →" (target was already right: `{% url 'trust_legend' %}` *is* the `/trust/` route — same view, `gallery/urls.py`). | `templates/gallery/feed.html`: label restored to **"Read the standard →"**, still linking `/trust/`. The footer's "Trust standard" nav link is untouched. |
+> | 4 | `test_upload_handoff_marks_welcome_seen_before_rendering_publish` — overlay re-rendered on `/publish/?welcome=1` | **Correction to the round-1 analysis:** the publish view never *lost* the handoff — `gallery/views.py` still calls `welcome.mark_seen(request.user)` on `?welcome=1`. The real bug: `mark_seen` writes with `Profile.objects.filter(...).update(...)`, which bypasses the ORM, so the in-memory `request.user.profile` this request already loaded stays `overlay_seen=False` and `base.html`'s gate (`not user.profile.overlay_seen`) re-includes the overlay a few lines later. The DB flag *was* set (the test's `refresh_from_db()` assertion passed; only the `assertNotContains` failed). | `users/welcome.py`: `mark_seen` now syncs the in-memory instance (`profile.overlay_seen = True`) after the `.update()`, with a comment explaining why. Idempotency and never-unset semantics unchanged — the whole `users.test_welcome_overlay` module is green. |
+> | 5 | `test_no_ui_file_renders_an_emoji` — `welcome_overlay.html:42` rendered `⬆` (U+2B06) | Genuine rule violation in the one file the emoji sweep missed. | `templates/gallery/includes/welcome_overlay.html`: replaced the emoji with the sprite glyph `<svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-upload"></use></svg>` — already defined in the `base.html` sprite, so the companion "every referenced glyph exists" test stays green. |
+>
+> Also: `docs/STABILITY.md` §3.4 now documents the dirty-`.env` hazard from the
+> environment notes below (leaks into `LocalDevPostureTests` subprocesses and
+> `scripts/ci.sh` gate 2 → phantom failures; local `.env` for test runs should carry
+> only `SECRET_KEY`).
+
 > ## ✅ Fix round 1 applied (items 1 & 2) — same day
 >
 > **Suite: 1429 tests / 28 failures + 2 errors → 1435 tests / 5 failures.** All three CI

@@ -4,8 +4,12 @@
    palette from blaqvibes.css), so dark/light mode and future redesigns
    stay consistent. */
 
-/* Feed grid card · <a class="card vibe-card"> */
-.vibe-card { display: block; color: inherit; overflow: visible; min-width: 0; }
+/* Feed grid card. The card itself is a <div>, not an <a>: the byline must be
+   a real profile link, and anchors cannot nest. .vibe-card__go is the
+   stretched link that keeps the whole card one click target; the byline link
+   sits above it (z-index) so its own target wins the click. */
+.vibe-card { display: block; color: inherit; overflow: visible; min-width: 0; position: relative; }
+.vibe-card__go { position: absolute; inset: 0; z-index: 0; }
 .vibe-card .card-thumb,
 .vibe-card .card-thumb-fallback { border-radius: 15px 15px 0 0; }
 .vibe-card__body { padding: 12px; min-width: 0; }
