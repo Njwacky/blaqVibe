@@ -35,7 +35,7 @@
 .filter-actions{display:inline-flex;gap:8px;margin-left:auto}
 @media(max-width:900px){
   .vibe-grid{grid-template-columns:1fr 1fr}
-  .builder-hero{padding:16px 0 12px}
+  .builder-hero{padding:16px 0 12px!important}
   .builder-hero h1{font-size:22px!important}
 }
 @media(max-width:640px){
