@@ -1235,7 +1235,7 @@ a.profile-link-chip--maintenance { border-color: color-mix(in srgb, #f59e0b 45%,
   font-size: 11px;
   font-weight: 800;
   letter-spacing: 2.2px;
-  color: var(--gold);
+  color: var(--accent-text);
 }
 .welcome-h {
   font-family: "Space Grotesk", Inter, sans-serif;
@@ -1312,7 +1312,7 @@ a.profile-link-chip--maintenance { border-color: color-mix(in srgb, #f59e0b 45%,
   place-items: center;
   font-size: 11px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text);
   position: relative;
   padding: 0 8px;
   text-align: center;
@@ -1331,35 +1331,22 @@ a.profile-link-chip--maintenance { border-color: color-mix(in srgb, #f59e0b 45%,
 }
 /* Miniature "screenshot" fills — pure CSS, no image network calls. */
 .wv-fill-feed {
-  background:
-    radial-gradient(120px 70px at 14% 18%, #7c3aed85, transparent),
-    linear-gradient(180deg, #171a22 0%, #101220 100%);
+  background: var(--surface-subtle);
 }
 .wv-fill-trust {
-  background:
-    radial-gradient(120px 70px at 84% 12%, #f59e0b5c, transparent),
-    linear-gradient(180deg, #1a1a30 0%, #0d0f1c 100%);
+  background: var(--surface-subtle);
 }
 .wv-fill-remix {
-  background:
-    radial-gradient(120px 60px at 70% 80%, #ec48996e, transparent),
-    linear-gradient(180deg, #191a28 0%, #131018 100%);
+  background: var(--surface-subtle);
 }
 .wv-fill-connect {
-  background:
-    radial-gradient(120px 60px at 20% 80%, #22d3ee59, transparent),
-    linear-gradient(180deg, #141b22 0%, #0f1016 100%);
+  background: var(--surface-subtle);
 }
 .wv-fill-opp {
-  background:
-    radial-gradient(150px 70px at 80% 20%, #7c3aed80, transparent),
-    radial-gradient(120px 70px at 15% 80%, #f59e0b4d, transparent),
-    linear-gradient(180deg, #151220 0%, #0d0e16 100%);
+  background: var(--surface-subtle);
 }
 .wv-fill-step {
-  background:
-    radial-gradient(140px 70px at 80% 0%, #7c3aed6b, transparent),
-    linear-gradient(180deg, #14151f 0%, #0f0f17 100%);
+  background: var(--surface-subtle);
 }
 /* 2-col "screenshots" for step 2; 3-col everywhere else. */
 .welcome-panel[data-step="2"] .welcome-shots { grid-template-columns: repeat(2, 1fr); }
@@ -1400,13 +1387,13 @@ a.profile-link-chip--maintenance { border-color: color-mix(in srgb, #f59e0b 45%,
 }
 .welcome-skip:hover { color: var(--text); }
 .welcome-manifesto {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--accent-soft-bg) 70%, var(--card)), var(--card));
-  border: 1px solid var(--accent-border);
+  background: var(--input);
+  border: 1px solid var(--line);
   border-radius: 14px;
   padding: 18px 20px;
   margin-top: 4px;
 }
-.welcome-manifesto--gold { border-color: var(--gold); }
+.welcome-manifesto--gold { border-color: var(--accent-border); }
 .welcome-manifesto-title {
   font-size: 11px;
   font-weight: 800;

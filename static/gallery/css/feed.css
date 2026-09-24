@@ -1,12 +1,30 @@
 /* Builder-loop feed — first viewport is WHAT PEOPLE ARE BUILDING */
+.builder-hero{padding:22px 0 18px;border-bottom:1px solid var(--line);margin-bottom:14px}
+.builder-hero__eyebrow{font-size:11px;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:0}
+.builder-hero h1{font-family:Space Grotesk,sans-serif;font-size:30px;font-weight:800;line-height:1.1;margin:8px 0 8px;letter-spacing:0}
+.builder-hero__lead{font-size:14px;color:var(--text);line-height:1.5;max-width:640px;margin:0}
+.builder-hero__actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:16px}
+.builder-hero__actions .btn-violet,.builder-hero__actions .btn-ghost{padding:9px 16px}
+.builder-hero__quiet-link{font-size:12px;color:var(--link);font-weight:700;text-decoration:none;padding:8px 2px}
+.builder-hero__quiet-link:hover{text-decoration:underline}
+.builder-hero__activity{font-size:11px;color:var(--muted);margin-top:12px}
+.builder-hero__activity b{color:var(--text)}
 .kind-chips{margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .kind-chip{display:inline-flex;align-items:center;gap:4px;padding:6px 11px;border-radius:100px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:12px;text-decoration:none;white-space:nowrap}
 .kind-chip:hover{border-color:var(--accent-border)}
 .kind-chip.is-active{background:var(--accent-soft-bg);border-color:var(--accent-border);color:var(--accent-text);font-weight:700}
-.builder-hero h1{font-family:Space Grotesk,sans-serif}
 .vibe-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
 .vibe-card{display:block;color:inherit;overflow:visible;min-width:0}
 .vibe-card .card-thumb,.vibe-card .card-thumb-fallback{border-radius:15px 15px 0 0}
+.vibe-card__description{font-size:12px;color:var(--text);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:35px}
+.vibe-card__proof{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-top:10px;min-height:22px}
+.vibe-card__proof .badge,.proof-status{font-size:10px;line-height:1.2}
+.proof-status{display:inline-flex;align-items:center;gap:4px;color:var(--muted);white-space:nowrap}
+.proof-status--success{color:var(--success-text)}
+.vibe-card__open{font-size:12px;color:var(--link);font-weight:700;margin-top:10px}
+.feed-orientation{font-size:12px;color:var(--muted);line-height:1.5;margin-top:8px}
+.feed-orientation b{color:var(--text)}
+.feed-orientation a{color:var(--link);font-weight:700}
 .pager{margin-top:16px;display:flex;gap:8px;justify-content:center;align-items:center;flex-wrap:wrap}
 .filter-bar{margin-top:10px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px}
 /* Stickiness (position/top/z-index/scroll-margin) comes from blaqvibes.css alone:
@@ -17,7 +35,7 @@
 .filter-actions{display:inline-flex;gap:8px;margin-left:auto}
 @media(max-width:900px){
   .vibe-grid{grid-template-columns:1fr 1fr}
-  .builder-hero{padding:14px 0 10px!important}
+  .builder-hero{padding:16px 0 12px}
   .builder-hero h1{font-size:22px!important}
 }
 @media(max-width:640px){
@@ -25,6 +43,9 @@
   .kind-chips{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-left:-14px;margin-right:-14px;padding:2px 14px}
   .kind-chips::-webkit-scrollbar{display:none}
   .kind-chip{flex:0 0 auto}
+  .builder-hero__actions{gap:8px;margin-top:14px}
+  .builder-hero__actions .btn-violet,.builder-hero__actions .btn-ghost{padding:8px 12px}
+  .builder-hero__quiet-link{flex-basis:100%;padding:0}
   /* Mobile filter-bar layout (search+reset row / swipeable controls row)
      lives in blaqvibes.css only — repeating a grid here overrode it. */
 }

@@ -6,20 +6,16 @@
 {% endblock %}
 {% block content %}
 <div class="page">
-  <header class="builder-hero" style="padding:18px 0 12px;border-bottom:1px solid var(--line);margin-bottom:12px">
-    <p style="font-size:11px;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:0">BUILD → PROVE → CAPABILITY → DISCOVER</p>
-    <h1 style="font-family:Space Grotesk,sans-serif;font-size:28px;font-weight:800;line-height:1.1;margin:8px 0 6px">What are people building?</h1>
-    <p style="font-size:14px;color:var(--text);font-weight:700;line-height:1.4;max-width:640px;margin:0 0 8px">Your work belongs in the answer.</p>
-    <p style="font-size:13px;color:var(--muted);line-height:1.5;max-width:640px;margin:0">
-      <b style="color:var(--text)">New here?</b> Open any card. You will see the problem, the files, the scan, and what the builder actually did.
-      That proof is how capability becomes believable — not a skill list on a profile.
-    </p>
-    <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
-      <a href="#grid" class="btn-violet" style="padding:9px 16px">Explore what's being built</a>
-      <a href="{% url 'build_hub' %}" class="btn-ghost" style="padding:9px 16px">Build something →</a>
-      <a href="{% url 'capability_search' %}" class="btn-ghost" style="padding:9px 16px">Find who can do X →</a>
+  <header class="builder-hero">
+    <p class="builder-hero__eyebrow">BUILD → PROVE → CAPABILITY → DISCOVER</p>
+    <h1>What are people building?</h1>
+    <p class="builder-hero__lead">Open real projects. See what was built, what was checked, and what the creator can actually do.</p>
+    <div class="builder-hero__actions">
+      <a href="#grid" class="btn-violet">Explore real Builds</a>
+      <a href="{% url 'build_hub' %}" class="btn-ghost">Build your next →</a>
+      <a href="{% url 'capability_search' %}" class="builder-hero__quiet-link">Find capability →</a>
     </div>
-    {% if activity %}<div style="margin-top:10px;font-size:11px;color:var(--muted)">This week: <b style="color:var(--text)">{{ activity.published }} published</b> · <b style="color:var(--text)">{{ activity.remixes }} remixes</b> · {{ activity.stars }} stars · real builders, shipping now</div>{% endif %}
+    {% if activity %}<div class="builder-hero__activity"><b>{{ activity.published }} published</b> · {{ activity.remixes }} remixes · {{ activity.stars }} stars this week</div>{% endif %}
   </header>
 
   <div class="kind-chips" style="margin-top:10px">
@@ -38,7 +34,7 @@
     <span class="filter-actions"><button class="btnW" type="submit">Search</button><a href="{% url 'feed' %}" class="btnG">Reset</a></span>
   </form>
 
-  <div style="margin-top:8px;font-size:12px;color:var(--muted);line-height:1.5">
+  <div class="feed-orientation">
     Looking for <b style="color:var(--text)">who can do Django / React / APIs</b>?
     <a href="{% url 'capability_search' %}{% if q %}?q={{ q|urlencode }}{% endif %}" style="color:var(--link);font-weight:700">Search by capability →</a>
     That page ranks people by published proof, not followers.
@@ -51,18 +47,17 @@
     <div class="card vibe-card card--click" style="position:relative">
       {% if p.thumbnail %}<img class="card-thumb" src="{{ p.thumbnail.url }}" alt="" loading="lazy" />{% else %}
       <div class="card-thumb-fallback" style="height:140px;background:var(--surface-subtle);display:grid;place-items:center;color:var(--muted);font-size:24px">{{ p.kind_icon }}</div>{% endif %}
-      <div class="vibe-card__body" style="padding:12px">
-        <div style="font-weight:800;font-size:14px;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.title }}</div>
-        <div style="font-size:12px;color:var(--muted);margin-top:2px;position:relative;z-index:1"><a href="{% url 'profile_view' p.owner.username %}" style="color:var(--link);text-decoration:none">@{{ p.owner.username }}</a></div>
-        <div style="font-size:12px;color:var(--text);margin-top:6px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden">{{ p.short_description|truncatechars:80 }}</div>
-        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
-          <span class="badge badge--accent" style="font-size:10px">{{ p.kind_label }}</span>
-          <span class="badge badge--muted" style="font-size:10px">{{ p.build_method_label }}</span>
-          {% if p.trust == 'verified' %}<span class="badge badge--success" style="font-size:10px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> Checked</span>{% elif p.trust == 'scanned' %}<span class="badge badge--muted" style="font-size:10px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> Scanned</span>{% endif %}
-          {% if p.can_run_preview %}<span class="badge badge--success" style="font-size:10px">▶ Playable</span>{% else %}<span class="badge badge--muted" style="font-size:10px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-folder"></use></svg> Files only</span>{% endif %}
-          {% if p.remix_count %}<span class="badge badge--muted" style="font-size:10px">⑂ {{ p.remix_count }}</span>{% endif %}
+      <div class="vibe-card__body">
+        <div class="vibe-card__title">{{ p.title }}</div>
+        <div class="vibe-card__meta"><a href="{% url 'profile_view' p.owner.username %}">@{{ p.owner.username }}</a></div>
+        <div class="vibe-card__description">{{ p.short_description|truncatechars:80 }}</div>
+        <div class="vibe-card__proof">
+          <span class="badge badge--accent">{{ p.kind_label }}</span>
+          {% if p.trust == 'verified' %}<span class="proof-status proof-status--success"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> Checked</span>{% elif p.trust == 'scanned' %}<span class="proof-status"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> Scanned</span>{% endif %}
+          {% if p.can_run_preview %}<span class="proof-status proof-status--success">▶ Runnable</span>{% else %}<span class="proof-status"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-folder"></use></svg> Files only</span>{% endif %}
+          {% if p.remix_count %}<span class="proof-status">⑂ {{ p.remix_count }}</span>{% endif %}
         </div>
-        <div style="margin-top:8px;font-size:12px;color:var(--link);font-weight:700">View project →</div>
+        <div class="vibe-card__open">Open Build →</div>
       </div>
       <a class="vibe-card__go" href="{{ p.get_absolute_url }}" aria-label="Open {{ p.title }}"></a>
     </div>

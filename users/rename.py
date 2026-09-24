@@ -1,8 +1,4 @@
-"""Identity rules — PUBG-style rename cards and name styling.
-One module owns every username mutation, same pattern as wallet.py
-(every star balance move). The view is a thin shell; every future caller
-(admin tool, API) hits the same walls.
-"""
+
 from datetime import timedelta
 
 from django.contrib.auth.models import User

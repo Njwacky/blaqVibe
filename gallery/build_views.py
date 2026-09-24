@@ -119,14 +119,21 @@ def capability_search(request):
     "Matched because they built N projects using Django…".
     """
     from .capability import popular_capability_chips, search_capability
+    from django.core.paginator import Paginator
 
     q = (request.GET.get('q') or '').strip()[:80]
+    try:
+        project_page_number = max(1, int(request.GET.get('page') or 1))
+    except (TypeError, ValueError):
+        project_page_number = 1
     ctx = {
         'q': q,
         'projects': [],
         'people': [],
         'suggestions': [],
         'searched': bool(q),
+        'project_page': None,
+        'project_total': 0,
         'guide_steps': [
             ('1', 'Type a skill or stack', 'Django, React, API, authentication…'),
             ('2', 'See projects first', 'Real Builds that used that skill — not claims.'),
@@ -135,9 +142,12 @@ def capability_search(request):
         ],
     }
     try:
-        result = search_capability(q)
+        result = search_capability(q, project_limit=200)
         ctx['q'] = result['q']
-        ctx['projects'] = result['projects']
+        project_page = Paginator(result['projects'], 10).get_page(project_page_number)
+        ctx['project_page'] = project_page
+        ctx['project_total'] = project_page.paginator.count
+        ctx['projects'] = project_page.object_list
         ctx['people'] = result['people']
         ctx['suggestions'] = result['suggestions'] or popular_capability_chips()
     except Exception:
