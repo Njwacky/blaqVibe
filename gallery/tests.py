@@ -4434,3 +4434,86 @@ class ListCompletionTests(TestCase):
         project.save()
         response = self.client.get('/app/%s/' % project.slug)
         self.assertContains(response, 'the project README carries the creator')
+
+@override_settings(RATELIMIT_ENABLE=False)
+class BraveOpsCheckTests(TestCase):
+    """/ops/brave/ is the no-shell diagnostic for the free tier.
+
+    It must be login-walled, role-gated to staff, read the LIVE env, and
+    name the broken layer (no key / 401 / 400 / transport) instead of
+    returning "nothing arrived". The key must never appear unmasked.
+    """
+
+    URL = '/ops/brave/'
+    FAKE_KEY = 'xkeysib-fakekey-abcdef123456'
+
+    def _moderator(self):
+        user = make_user('bravemod', role='moderator')
+        self.client.login(username='bravemod', password='pass12345')
+        return user
+
+    def test_anonymous_redirected_to_login(self):
+        response = self.client.get(self.URL)
+        self.assertRedirects(response, '/accounts/login/?next=/ops/brave/')
+
+    def test_regular_user_forbidden(self):
+        make_user('pleb')
+        self.client.login(username='pleb', password='pass12345')
+        response = self.client.get(self.URL)
+        self.assertEqual(response.status_code, 403)
+
+    def test_no_key_names_the_broken_layer(self):
+        self._moderator()
+        env = dict(os.environ)
+        env.pop('BRAVE_API_KEY', None)
+        with mock.patch.dict(os.environ, env, clear=True):
+            response = self.client.get(self.URL)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, '(not set in this process)')
+        self.assertContains(response, 'BROKEN')
+
+    def test_success_path_shows_sample_and_masks_key(self):
+        self._moderator()
+        fake = mock.MagicMock()
+        fake.status_code = 200
+        fake.text = '{"grounding": {"generic": []}}'
+        fake.json.return_value = {
+            'grounding': {'generic': [
+                {'title': 'BlaqVibes', 'url': 'https://blaqvibes.co.za/', 'snippets': ['x']}
+            ]}
+        }
+        with mock.patch.dict(os.environ, {'BRAVE_API_KEY': self.FAKE_KEY}), \
+             mock.patch('gallery.ops_views.requests.get', return_value=fake) as call:
+            response = self.client.get(self.URL)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'WORKING')
+        self.assertContains(response, 'BlaqVibes')
+        # The raw key must never be echoed back.
+        self.assertNotIn(self.FAKE_KEY, response.content.decode())
+        self.assertIn('xkeysib-…3456', response.content.decode())
+        # And the outbound call must carry the token.
+        headers = call.call_args.kwargs.get('headers') or {}
+        self.assertEqual(headers.get('X-Subscription-Token'), self.FAKE_KEY)
+
+    def test_401_tells_them_the_key_is_bad(self):
+        self._moderator()
+        fake = mock.MagicMock()
+        fake.status_code = 401
+        fake.text = 'invalid api key'
+        with mock.patch.dict(os.environ, {'BRAVE_API_KEY': self.FAKE_KEY}), \
+             mock.patch('gallery.ops_views.requests.get', return_value=fake):
+            response = self.client.get(self.URL)
+        self.assertContains(response, '401')
+        self.assertContains(response, 'wrong, expired, or was regenerated')
+        self.assertContains(response, 'BROKEN')
+
+    def test_transport_failure_is_named_not_silent(self):
+        self._moderator()
+        import requests as _requests
+        with mock.patch.dict(os.environ, {'BRAVE_API_KEY': self.FAKE_KEY}), \
+             mock.patch('gallery.ops_views.requests.get',
+                        side_effect=_requests.ConnectionError('no route to host')):
+            response = self.client.get(self.URL)
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'Could not reach Brave')
+        self.assertContains(response, 'BROKEN')

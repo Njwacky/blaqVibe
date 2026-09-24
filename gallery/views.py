@@ -6,11 +6,12 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import F, Q, Count, Prefetch, Sum
 from django.http import Http404, HttpResponse, JsonResponse, HttpResponseRedirect
-from django.core.paginator import Paginator
+from django.core.paginator import Paginator, EmptyPage
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import ensure_csrf_cookie, csrf_exempt
 from django_ratelimit.decorators import ratelimit
+import collections.abc
 import zipfile, os, json, logging
 
 from .models import AppProject, Category, Comment, Star, AppFile, ScanJob, AppReport, AppVersion, Review, Trade, PullRequest, ProjectCoOwner
@@ -62,6 +63,69 @@ from .views_community import (
 # to avoid a cycle: that module calls back into register_zip_project.
 from .repo_import import import_from_github
 logger = logging.getLogger(__name__)
+
+
+# The only sort values the feed understands (see search_projects). Anything
+# else is normalised away before it can reach a cache key.
+FEED_SORTS = frozenset({'newest', 'trending', 'stars', 'clones', 'foryou'})
+
+
+class CachedFeedPage(collections.abc.Sequence):
+    """Page object for cached anonymous feed pages.
+
+    The normal Django Paginator asks COUNT(*) for the total and then derives
+    has_next from that count. For an already-cached page we already know the
+    answer, so the cache stores the page's IDs plus the has_next flag the
+    Paginator computed when the entry was written. Replaying that avoids the
+    COUNT(*) on the hot path without re-deriving anything.
+
+    It subclasses Sequence so `{% for p in page %}` and `{% empty %}` behave
+    exactly like a Django Page — a plain object without __len__/__getitem__
+    makes the template `for` tag raise TypeError, which the view's outer
+    except would swallow into an empty grid.
+    """
+    def __init__(self, object_list, number, has_next):
+        self.object_list = list(object_list)
+        self.number = number
+        self._has_next = bool(has_next)
+        self.paginator = self
+
+    def __len__(self):
+        return len(self.object_list)
+
+    def __getitem__(self, index):
+        return self.object_list[index]
+
+    @property
+    def has_next(self):
+        return self._has_next
+
+    @property
+    def has_previous(self):
+        return self.number > 1
+
+    @property
+    def has_other_pages(self):
+        return self.has_previous or self.has_next
+
+    def next_page_number(self):
+        if not self.has_next:
+            # Mirrors Django's Page: an invalid page request is a pagination
+            # error, not a missing resource.
+            raise EmptyPage("No next page")
+        return self.number + 1
+
+    def previous_page_number(self):
+        if not self.has_previous:
+            raise EmptyPage("No previous page")
+        return self.number - 1
+
+    @property
+    def num_pages(self):
+        # Exact total pages would require COUNT(*). The feed UI only needs
+        # the total when it is available from the normal paginator.
+        return None
+
 
 def safe_internal_next(request, default=''):
     """Same-origin relative `next` URL, or default.
@@ -136,6 +200,11 @@ def feed(request):
         # 'foryou' is the default only for people we actually have signal on.
         default_sort = 'foryou' if taste.has_enough_signal(request.user) else 'newest'
         sort = request.GET.get('sort', '') or default_sort
+        if sort not in FEED_SORTS:
+            # An unknown sort renders like 'newest' anyway (search_projects
+            # falls through), so normalising here changes nothing visible —
+            # it just stops every junk value from minting its own cache key.
+            sort = default_sort if default_sort in FEED_SORTS else 'newest'
         program_kind = coerce_program_kind_filter(request.GET.get('program'))
         runnable = request.GET.get('runnable', '')
         following = request.GET.get('following', '')
@@ -236,28 +305,39 @@ def feed(request):
         except Exception:
             categories = Category.objects.all().order_by('order')
 
-        # Optimized paginator: cache anonymous first pages' ids for 30s to avoid COUNT(*)
+        # Optimized paginator: cache anonymous early pages for 30s to avoid COUNT(*)
         from django.core.cache import cache
-        page_num = request.GET.get('page', '1')
+        # '' (a bare `?page=`) would build a second cache key holding the same
+        # page-1 rows, so normalise it before it can reach the key.
+        page_num = request.GET.get('page', '1') or '1'
         cache_key_page = None
-        cached_ids = None
+        cached_page = None
         if not request.user.is_authenticated and not any([q, cat, kind, program_kind, runnable, trust_filter, following, ai, tech]):
-            if page_num in ('1', '2', '3', '', None):
-                cache_key_page = f"feed:anon:page:{page_num}:sort:{sort}:v2"
+            if page_num in ('1', '2', '3'):
+                cache_key_page = f"feed:anon:page:{page_num}:sort:{sort}:v3"
                 try:
                     cached = cache.get(cache_key_page)
                     if cached and isinstance(cached, dict):
-                        cached_ids = cached.get('ids', [])
+                        cached_page = cached
                 except Exception:
-                    cached_ids = None
+                    cached_page = None
 
-        if cached_ids:
+        if cached_page and cached_page.get('ids'):
             try:
                 from django.db.models import Case, When
-                preserved = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(cached_ids)])
-                projects_filtered = AppProject.objects.filter(pk__in=cached_ids).select_related('owner','owner__profile','category').prefetch_related('tags').annotate(remix_count=Count('forks', filter=Q(forks__status='published'))).order_by(preserved)
-                paginator = Paginator(projects_filtered, 12)
-                page = paginator.get_page(page_num)
+                # The cache holds this page's own IDs plus the has_next flag
+                # the Paginator computed when the entry was written. Nothing
+                # here may be passed through Paginator — that would issue the
+                # COUNT(*) we cached to avoid.
+                page_ids = list(cached_page['ids'])[:12]
+                has_next = bool(cached_page.get('has_next'))
+                number = int(cached_page.get('number') or page_num or 1)
+                preserved = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(page_ids)])
+                # status='published' matters: the IDs were captured up to 30s
+                # ago, and a vibe quarantined, removed or unpublished in that
+                # window must not keep serving to anonymous visitors.
+                projects_filtered = AppProject.objects.filter(pk__in=page_ids, status='published').select_related('owner','owner__profile','category').prefetch_related('tags').annotate(remix_count=Count('forks', filter=Q(forks__status='published'))).order_by(preserved)
+                page = CachedFeedPage(projects_filtered, number, has_next)
             except Exception:
                 paginator = Paginator(projects, 12)
                 page = paginator.get_page(request.GET.get('page'))
@@ -266,8 +346,18 @@ def feed(request):
             page = paginator.get_page(request.GET.get('page'))
             if cache_key_page and not request.user.is_authenticated:
                 try:
-                    ids = [p.id for p in page.object_list]
-                    cache.set(cache_key_page, {'ids': ids}, 30)
+                    # `page` is already materialised and already knows whether
+                    # another page follows, so building the entry costs no
+                    # extra query at all. Deriving the IDs from the whole
+                    # queryset instead (`projects.values_list('id')[:13]`)
+                    # inherits the remix_count annotation and issues a second
+                    # LEFT JOIN + GROUP BY, and ignores the page offset so
+                    # pages 2 and 3 would cache page 1's rows.
+                    cache.set(cache_key_page, {
+                        'ids': [p.id for p in page.object_list],
+                        'has_next': bool(page.has_next()),
+                        'number': page.number,
+                    }, 30)
                 except Exception:
                     pass
         my_kinds = taste.top_kinds(request.user, limit=3) if request.user.is_authenticated else []
@@ -818,6 +908,15 @@ def register_zip_project(project, logger_name='publish'):
 @ratelimit(key='user', rate='5/h', method='POST')
 @not_quarantined
 def publish(request):
+    # The action-first welcome hands a brand-new builder here. Marking the
+    # welcome answered server-side prevents the modal from immediately
+    # reappearing on the publish page when navigation cancels the client POST.
+    if request.GET.get('welcome') == '1':
+        try:
+            from users import welcome
+            welcome.mark_seen(request.user)
+        except Exception:
+            logger.exception('action-first welcome handoff failed user=%s', request.user.pk)
     from users.models import SiteSettings
     from gallery.models import Challenge
     from django.utils import timezone
@@ -1034,8 +1133,17 @@ def publish_success(request, slug):
     checks = project.proof_checks()
     ok_count = sum(1 for row in checks if row['ok'])
     level_key, level_title = proof_level(ok_count, len(checks))
+    # Keep the first-post page focused on the user's immediate state.
+    # We show the wallet balance, but do NOT mint stars for uploading here:
+    # stars are a social/economic signal and an upload-only reward would make
+    # empty or low-value uploads profitable to farm.
+    try:
+        wallet_stars = int(request.user.profile.stars_balance)
+    except (AttributeError, TypeError, ValueError):
+        wallet_stars = 0
     return render(request, 'gallery/publish_success.html', {
         'project': project,
+        'wallet_stars': wallet_stars,
         'checks': checks,
         'ok_count': ok_count,
         'pct': round(100 * ok_count / len(checks)) if checks else 0,

@@ -27,8 +27,18 @@ class WelcomeOverlayTests(TestCase):
         self.client.login(username='greenhorn', password='pass12345')
         response = self.client.get('/')
         self.assertContains(response, 'id="welcome-overlay"')
-        self.assertContains(response, 'MAKE ABILITY VISIBLE')
-        self.assertContains(response, 'Skip intro')
+        self.assertContains(response, 'Show us what you built.')
+        self.assertContains(response, 'Upload my first app')
+        self.assertContains(response, 'Explore first')
+
+    def test_upload_handoff_marks_welcome_seen_before_rendering_publish(self):
+        self.client.login(username='greenhorn', password='pass12345')
+        response = self.client.get('/publish/?welcome=1')
+        self.assertEqual(response.status_code, 200)
+        self.user.profile.refresh_from_db()
+        self.assertTrue(self.user.profile.overlay_seen)
+        self.assertNotContains(response, 'id="welcome-overlay"')
+        self.assertContains(response, 'Publish')
 
     def test_overlay_absent_for_anonymous_feed(self):
         response = self.client.get('/')

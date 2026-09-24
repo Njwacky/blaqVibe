@@ -64,6 +64,8 @@ Runs on every push/PR: `security_check` in production posture (`--strict`, zero 
 
 The three gates deliberately run *before* the suite. `scripts/ci.sh` is `set -e`, so while any test was red the hardening gates below it never executed at all — a suite that fails for unrelated reasons silently turns "CI is green-ish, the audit step probably ran" into "the audit step was skipped". Gates first means a hardening regression is always the first thing a red run says.
 
+**Local `.env` hygiene (learned the hard way):** settings read `.env` from the repo root when it exists, so a *dirty* local `.env` (`DEBUG=1`, `EMAIL_BACKEND=…console`, …) leaks into everything run from that checkout — the subprocess-spawning posture tests (`LocalDevPostureTests`) and `scripts/ci.sh` gate 2 both see a machine that is not the clean CI machine, and report phantom failures. For local test runs, `.env` should carry **only** `SECRET_KEY` (the repo has none by design; CI supplies everything else as explicit env vars). Anything else you need locally belongs in the command's environment, not in `.env`.
+
 ### 3.5 Docker Compose hardening
 *(new: `docker-compose.yml`)*
 

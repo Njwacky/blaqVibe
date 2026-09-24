@@ -17,9 +17,9 @@
 <link rel="dns-prefetch" href="//fonts.googleapis.com">
 <link rel="preload" href="{% static 'gallery/css/fonts.css' %}?v=fonts-20260830" as="style">
 <link rel="stylesheet" href="{% static 'gallery/css/fonts.css' %}?v=fonts-20260830">
-<link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=nav-pc-fix-20260922">
-<link rel="preload" href="{% static 'gallery/css/cards.css' %}?v=mobile-20260906b" as="style" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel="stylesheet" href="{% static 'gallery/css/cards.css' %}?v=mobile-20260906b"></noscript>
+<link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=feed-byline-20260923">
+<link rel="preload" href="{% static 'gallery/css/cards.css' %}?v=feed-byline-20260923" as="style" onload="this.onload=null;this.rel='stylesheet'">
+<noscript><link rel="stylesheet" href="{% static 'gallery/css/cards.css' %}?v=feed-byline-20260923"></noscript>
 <link rel="preload" href="{% static 'gallery/css/premium.css' %}?v=nav-pc-fix-20260922" as="style" onload="this.onload=null;this.rel='stylesheet'">
 <noscript><link rel="stylesheet" href="{% static 'gallery/css/premium.css' %}?v=nav-pc-fix-20260922"></noscript>
 <link rel="preload" href="{% static 'gallery/css/footer.css' %}?v=footer-polish-20260921" as="style" onload="this.onload=null;this.rel='stylesheet'">
@@ -429,15 +429,13 @@ skip link (100) and transient toast/PWA banners (999).{% endcomment %}
 })();
 </script>
 {% block scripts %}{% endblock %}
-{% if user.is_authenticated and not user.profile.overlay_seen %}<script nonce="{{ request.csp_nonce|default:'' }}">(function(){var d=document,el=d.getElementById('welcome-overlay');if(!el)return;var total=4,step=0;
-function postSeen(){var u=el.getAttribute('data-seen-url');if(!u)return;var nv=new FormData(),c=el.getAttribute('data-csrf');if(c)nv.set('csrfmiddlewaretoken',c);fetch(u,{method:'POST',body:nv,headers:{'X-Requested-With':'XMLHttpRequest'}}).catch(function(){})}
-function show(i){step=Math.max(0,Math.min(total-1,i));var ps=el.querySelectorAll('.welcome-step');for(var j=0;j<ps.length;j++){ps[j].style.display=(j===step)?'block':'none'}el.setAttribute('data-step',String(step));var ds=el.querySelectorAll('.welcome-dot');for(var k=0;k<ds.length;k++){ds[k].classList.toggle('welcome-dot--on',k===step)}var n=el.querySelector('.welcome-next');if(n){n.textContent=(step===total-1)?'Explore BlaqVibes →':'Next →'}}
-function open(){el.style.display='block';var bd=d.querySelector('.welcome-backdrop');if(bd)bd.style.display='block';el.setAttribute('aria-hidden','false');show(0)}
+{% if user.is_authenticated and not user.profile.overlay_seen %}<script nonce="{{ request.csp_nonce|default:'' }}">(function(){var d=document,el=d.getElementById('welcome-overlay');if(!el)return;
+function postSeen(){var u=el.getAttribute('data-seen-url');if(!u)return;var nv=new FormData(),c=el.getAttribute('data-csrf');if(c)nv.set('csrfmiddlewaretoken',c);fetch(u,{method:'POST',body:nv,headers:{'X-Requested-With':'XMLHttpRequest'},keepalive:true}).catch(function(){})}
+function open(){el.style.display='block';var bd=d.querySelector('.welcome-backdrop');if(bd)bd.style.display='block';el.setAttribute('aria-hidden','false')}
 function close(){el.style.display='none';var bd=d.querySelector('.welcome-backdrop');if(bd)bd.style.display='none';el.setAttribute('aria-hidden','true');postSeen();try{localStorage.setItem('blaq-welcome-seen','1')}catch(e){}}
-function next(){if(step===total-1){close();return}show(step+1)}
-d.addEventListener('click',function(e){var t=e.target;while(t&&t!==d){var cls=t.getAttribute&&(t.getAttribute('class')||'');if(cls.indexOf('welcome-next')>-1){next();return}if(cls.indexOf('welcome-skip')>-1){close();return}if(cls.indexOf('welcome-backdrop')>-1){return}t=t.parentNode}});
-d.addEventListener('keydown',function(e){if(el.style.display!=='block')return;if(e.key==='Escape'){close()}else if(e.key==='ArrowRight'){next()}else if(e.key==='ArrowLeft'){show(step-1)}});
+d.addEventListener('click',function(e){var t=e.target;if(!t)return;if(t.closest&&t.closest('.welcome-skip')){close();return}if(t.closest&&t.closest('.welcome-start')){try{localStorage.setItem('blaq-welcome-seen','1')}catch(e){}return}});
+d.addEventListener('keydown',function(e){if(el.style.display!=='block')return;if(e.key==='Escape'){close()}});
 var known=null;try{known=localStorage.getItem('blaq-welcome-seen')}catch(e){}
-if(el.getAttribute('data-force')==='1'){open()}else if(known!=='1'){open()}})();</script>{% endif %}
+if(el.getAttribute('data-force')==='1'||known!=='1'){open()}})();</script>{% endif %}
 </body>
 </html>
