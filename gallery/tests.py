@@ -4472,6 +4472,38 @@ class BraveOpsCheckTests(TestCase):
         self.assertContains(response, '(not set in this process)')
         self.assertContains(response, 'BROKEN')
 
+    def test_no_key_names_the_serving_render_service(self):
+        """Wrong-service confusion: the page must say WHO is serving it."""
+        self._moderator()
+        env = {'RENDER_SERVICE_NAME': 'blaqvibes-web',
+               'RENDER_ENVIRONMENT': 'production',
+               'RENDER_GIT_COMMIT': 'a' * 40}
+        with mock.patch.dict(os.environ, env, clear=True):
+            response = self.client.get(self.URL)
+        self.assertContains(response, 'blaqvibes-web')
+        self.assertContains(response, 'served by <b>blaqvibes-web</b>')
+        # Commit is shortened so it can be eyeballed against the Deploys tab.
+        self.assertContains(response, 'a' * 12)
+        self.assertContains(response, 'Deploys tab')
+        self.assertContains(response, 'BROKEN')
+
+    def test_no_key_flags_misspelled_name_without_leaking_values(self):
+        """A near-miss NAME is shown, but never any value."""
+        self._moderator()
+        with mock.patch.dict(os.environ, {'BRAVE_APIKEY': 'sekritvalue'}, clear=True):
+            response = self.client.get(self.URL)
+        self.assertContains(response, 'BRAVE_APIKEY')
+        self.assertContains(response, 'misspelled')
+        self.assertNotIn('sekritvalue', response.content.decode())
+
+    def test_blank_value_is_named_as_blank(self):
+        """Variable exists but saved empty — a different fix than a missing one."""
+        self._moderator()
+        with mock.patch.dict(os.environ, {'BRAVE_API_KEY': '   '}, clear=True):
+            response = self.client.get(self.URL)
+        self.assertContains(response, 'value is empty or blank')
+        self.assertContains(response, 'BROKEN')
+
     def test_success_path_shows_sample_and_masks_key(self):
         self._moderator()
         fake = mock.MagicMock()
