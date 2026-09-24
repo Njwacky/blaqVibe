@@ -413,7 +413,8 @@ skip link (100) and transient toast/PWA banners (999).{% endcomment %}
       if(link && !link.hasAttribute('data-no-chooser')){
         var raw = link.getAttribute('href') || '';
         var path = raw.split('?')[0].split('#')[0];
-        if(path === '/publish' || path === '/publish/'){
+        var isWelcomeHandoff = /(?:^|[?&])welcome=1(?:&|$)/.test(raw.split('#')[0]);
+        if((path === '/publish' || path === '/publish/') && !isWelcomeHandoff){
           e.preventDefault();
           e.stopPropagation();
           openChooser(link.href);
