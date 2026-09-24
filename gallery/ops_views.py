@@ -32,6 +32,16 @@ BRAVE_TEST_ENDPOINT = "https://api.search.brave.com/res/v1/llm/context"
 BRAVE_TEST_QUERY = "blaqvibes"
 BRAVE_TIMEOUT = 15
 
+# Render injects these into every service it runs (COMMIT only for git-backed
+# deploys). Naming the serving service turns "I set it in Render" into a
+# checkable fact: if the Environment tab they edited belongs to a different
+# service in the same project, the name shown here won't match it.
+RENDER_META_VARS = (
+    "RENDER_SERVICE_NAME",
+    "RENDER_ENVIRONMENT",
+    "RENDER_GIT_COMMIT",
+)
+
 
 def _mask_key(key):
     """xkeysib-style: enough to confirm WHICH key is loaded, safe to display."""
@@ -41,6 +51,42 @@ def _mask_key(key):
     if len(key) <= 12:
         return key[:3] + "…"
     return f"{key[:8]}…{key[-4:]} (len={len(key)})"
+
+
+def _render_rows():
+    """Ground truth about which Render service is serving this page.
+
+    Render injects RENDER_* vars into every service it runs. When a key is
+    "set in Render" but missing from the live process, the usual cause is
+    that it was set on a different service in the same project (worker vs
+    web) — showing the serving service's name settles that without shell
+    access (the free tier has none). The commit makes a stale container
+    visible: a deploy that failed mid-way leaves the previous container
+    running, and its SHA will differ from the Deploys tab's latest.
+    """
+    rows = []
+    for var in RENDER_META_VARS:
+        val = (os.getenv(var) or "").strip()
+        if var == "RENDER_GIT_COMMIT" and val:
+            val = f"{val[:12]} — compare with the Deploys tab in Render"
+        rows.append((var, html.escape(val) if val
+                     else "(not set — not on Render, or deployed from an image)"))
+    return rows
+
+
+def _brave_near_misses():
+    """Env var NAMES containing "brave" that aren't the exact key — never values.
+
+    Catches "BRAVE_APIKEY", "brave_api_key", "BRAVE_KEY", a trailing space in
+    the name: all of these read as "I set it in Render" from the dashboard
+    while the code, which reads exactly BRAVE_API_KEY, sees nothing.
+    """
+    hits = [n for n in os.environ if "BRAVE" in n.upper() and n != "BRAVE_API_KEY"]
+    return sorted(
+        f"<code>{html.escape(n)}</code>"
+        + (" ← whitespace in the name" if n != n.strip() else "")
+        for n in hits
+    )
 
 
 def _page(title, rows, ok):
@@ -88,23 +134,59 @@ def brave_check(request):
     """Is BRAVE_API_KEY alive in this process, and does Brave accept it?
 
     Walks the chain and stops at the first broken link:
-      1. key present in the running process (wrong service / stale container → "(not set)")
+      1. key present in the running process — and if not, names WHICH failure:
+         blank value (variable saved empty), misspelled name (near-miss env
+         names listed), wrong service (the serving Render service is named so
+         the Environment tab they edited can be compared), or a stale
+         container (live RENDER_GIT_COMMIT shown to compare with Deploys)
       2. key accepted by Brave (401 → wrong/regenerated key)
       3. plan activated (400/403 → Search plan not active)
       4. results actually come back (grounding non-empty)
     """
-    key = (os.getenv("BRAVE_API_KEY") or "").strip()
+    raw = os.getenv("BRAVE_API_KEY")
+    key = (raw or "").strip()
     rows = [
         ("BRAVE_API_KEY (live process)", _mask_key(key)),
         ("endpoint", f"GET {html.escape(BRAVE_TEST_ENDPOINT)}"),
     ]
+    rows.extend(_render_rows())
 
     if not key:
-        rows.append(("verdict",
-            "No key in this process. If Render shows BRAVE_API_KEY, it is set on a "
-            "different service (worker vs web), misspelled, or the container predates "
-            "the change — re-save the env vars on the <b>web</b> service to force a "
-            "restart."))
+        if raw is not None:
+            verdict = (
+                "BRAVE_API_KEY exists in this process but its value is empty or blank — "
+                "the Render variable was saved without the key in it. Paste the key from "
+                "the Brave dashboard (API Keys) into the value on the web service, then "
+                "Save Changes.")
+        else:
+            near = _brave_near_misses()
+            if near:
+                rows.append(("similar names in this process", "; ".join(near)))
+                verdict = (
+                    "The variable name is misspelled. Render did set <b>something</b> — "
+                    "the names above are in the live process, but the code reads exactly "
+                    "<code>BRAVE_API_KEY</code>. Rename the variable on the web service's "
+                    "Environment tab, then Save Changes.")
+            else:
+                service = (os.getenv("RENDER_SERVICE_NAME") or "").strip()
+                if service:
+                    verdict = (
+                        f"No key in this process — and this page is served by "
+                        f"<b>{html.escape(service)}</b>. So BRAVE_API_KEY is either set "
+                        "on a different service in the Render project (open the "
+                        "Environment tab you edited and check the service name at the "
+                        "top matches this one), or the deploy that added it never "
+                        "finished — a failed deploy leaves the old container running "
+                        "(check the Deploys tab; the commit listed above is what is "
+                        "actually live). Re-saving the env vars on the "
+                        f"<b>{html.escape(service)}</b> service forces a restart.")
+                else:
+                    verdict = (
+                        "No key in this process. If Render shows BRAVE_API_KEY, it is "
+                        "set on a different service (worker vs web), misspelled, or the "
+                        "container predates the change — re-save the env vars on the "
+                        "<b>web</b> service to force a restart.")
+        rows.append(("verdict", verdict))
         return _respond(request, "Brave Search check", rows, ok=False)
 
     try:
