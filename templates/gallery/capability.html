@@ -22,9 +22,10 @@
 .cap-section h2{font-size:13px;font-weight:800;letter-spacing:.06em;color:var(--muted);margin:0 0 10px}
 .cap-section__head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:10px}.cap-section__head h2{margin:0}.cap-section__head>span{font-size:11px;color:var(--muted)}
 .cap-project-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 .pcard{display:flex;min-width:0;overflow:hidden;background:var(--card);border:1px solid var(--line);border-radius:10px;color:inherit;text-decoration:none;transition:border-color .16s,transform .16s,box-shadow .16s}
 .pcard:hover{border-color:var(--accent-border);transform:translateY(-2px);box-shadow:0 10px 26px rgba(0,0,0,.18)}
-.pcard__visual{width:96px;min-width:96px;display:grid;place-items:center;position:relative;overflow:hidden;background:var(--surface-subtle);border-right:1px solid var(--line)}
+.pcard__visual{width:96px;min-width:96px;flex-shrink:0;display:grid;place-items:center;position:relative;overflow:hidden;background:var(--surface-subtle);border-right:1px solid var(--line)}
 .pcard__visual img{width:100%;height:100%;display:block;object-fit:cover}
 .pcard__fallback{font-family:"Space Grotesk",Inter,sans-serif;font-size:18px;font-weight:800;letter-spacing:.06em;color:var(--muted)}
 .pcard__visual small{position:absolute;left:7px;bottom:7px;font-size:8px;letter-spacing:.08em;color:var(--muted);font-weight:800}
