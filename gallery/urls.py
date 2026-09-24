@@ -1,6 +1,6 @@
 from django.urls import path
 from django.views.generic import RedirectView
-from . import views, trading_views, api_views, launch_views, health, views_attention
+from . import views, trading_views, api_views, launch_views, health, views_attention, ops_views
 from .build_views import build_hub, capability_search, discover
 from .csp_views import csp_report
 from .moderation import (
@@ -20,6 +20,8 @@ urlpatterns = [
     # Unauthenticated, no-store JSON — see gallery/health.py.
     path('healthz', health.liveness, name='healthz'),
     path('readyz', health.readiness, name='readyz'),
+    # Staff-only browser diagnostics (no Render shell on the free tier).
+    path('ops/brave/', ops_views.brave_check, name='ops_brave_check'),
     path('', views.feed, name='feed'),
     path('trust/', views.trust_legend, name='trust_legend'),
     # Primary navigation (§4): PROJECTS | DISCOVER | SKILLS | CHALLENGES | BUILD.
