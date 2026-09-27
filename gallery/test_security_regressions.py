@@ -250,6 +250,27 @@ class AuthRateLimitRegressionTests(TestCase):
                 last = self.client.post('/accounts/password_reset/', {'email': 'someone@test.com'})
         self.assertEqual(last.status_code, 403)
 
+    def test_signup_ceiling_returns_the_views_own_429(self):
+        # Regression: django-ratelimit 4.x DEFAULTS to block=True, which raises
+        # Ratelimited before the view body runs. signup's decorator therefore
+        # passes block=False so its own branch is reachable — the ceiling is
+        # per IP (a classroom/NAT shares one), and "Too many signups from this
+        # network" is an explanation the person can act on, while the generic
+        # 403 page reads as "you are forbidden" and sends them to support.
+        # 429 is also the semantically correct status for a rate limit.
+        with patch('django_ratelimit.core.time.time', return_value=1_900_000_000):
+            codes = []
+            last = None
+            for i in range(11):  # rate is 10/h
+                last = self.client.post('/accounts/signup/', {
+                    'username': f'signupcap{i}',
+                    'email': f'signupcap{i}@test.com',
+                    'password1': 'sup3rsecret99', 'password2': 'sup3rsecret99',
+                })
+                codes.append(last.status_code)
+        self.assertEqual(codes, [302] * 10 + [429])
+        self.assertContains(last, 'Too many signups from this network', status_code=429)
+
 
 class CspReportRateLimitRegressionTests(TestCase):
     """Finding #8 — unauthenticated csp-report POST flood is bounded."""

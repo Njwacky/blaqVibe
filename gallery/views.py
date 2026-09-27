@@ -32,6 +32,7 @@ from django.core.mail import send_mail
 from users.decorators import not_quarantined
 from users.forms import SignUpForm
 from django.utils.http import url_has_allowed_host_and_scheme
+from django.urls import resolve
 
 from .views_community import (
     nolo_compare,
@@ -128,7 +129,7 @@ class CachedFeedPage(collections.abc.Sequence):
 
 
 def safe_internal_next(request, default=''):
-    """Same-origin relative `next` URL, or default.
+    """Same-origin relative `next` URL that resolves to a real route, or default.
     """
     candidate = (request.POST.get('next') or request.GET.get('next') or '').strip()
     if not candidate.startswith('/') or candidate.startswith('//'):
@@ -138,10 +139,31 @@ def safe_internal_next(request, default=''):
         allowed_hosts={request.get_host()},
         require_https=request.is_secure(),
     ):
+        # Same-origin is not the same as "this page exists". Every "Sign in
+        # to …" link on the site rides a ?next= back to wherever the person
+        # was, so a stale bookmark, a removed page or a renamed route
+        # (/feed/, /dashboard/, /profile/, /app/ with no slug — all 404)
+        # would otherwise become the FIRST thing a brand-new account sees:
+        # they fill the form in correctly, register successfully, and get
+        # dumped on the 404 error page. Resolve the route (query string
+        # stripped) and fall back to the feed when the target is dead.
+        from urllib.parse import urlsplit
+        try:
+            resolve(urlsplit(candidate).path)
+        except Exception:
+            return default
         return candidate
     return default
 
-@ratelimit(key='ip', rate='10/h', method='POST')
+# block=False is deliberate here, unlike login/password-reset in urls.py
+# (which let block=True raise Ratelimited -> handler403 -> safe_403): signup
+# keeps its own 429 branch. The ceiling is per IP, and a classroom/NAT shares
+# one IP — "Too many signups from this network" is an explanation the person
+# can act on, while a bare 403 page reads as "you are forbidden" and sends
+# them to support. 429 is also the semantically correct status for a limit.
+# Without block=False the decorator (which defaults to block=True) raises
+# before the view body runs, making the branch below unreachable dead code.
+@ratelimit(key='ip', rate='10/h', method='POST', block=False)
 def signup(request):
     """Account creation — rate limited per IP.
     """
