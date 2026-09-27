@@ -445,14 +445,36 @@ if AWS_ACCESS_KEY_ID:
     }
 
 MIDDLEWARE = [
+    # FIRST ON PURPOSE — the only position from which this middleware can do
+    # its job. `load_middleware` wraps in reverse (`for … in reversed(MIDDLEWARE)`),
+    # so index 0 ends up OUTERMOST: its request phase runs first and, crucially,
+    # its response-phase code runs *last*, after every other middleware has
+    # finished writing to the response. PreviewEmbedMiddleware rewrites cookie
+    # attributes, so it must see the finished response — SessionMiddleware sets
+    # `sessionid` and CsrfViewMiddleware rotates `csrftoken`, both further in.
+    #
+    # It used to sit just above CsrfViewMiddleware, where the rewrite caught
+    # `csrftoken` (set one level further in) but never `sessionid` (set one
+    # level further out) — the cookie did not exist yet when this ran. The
+    # preview iframe (https://{port}-{sandbox}.e2b.app inside Arena) is a
+    # cross-site context, where browsers now block *unpartitioned* third-party
+    # cookies no matter what SameSite says. So `csrftoken` came back
+    # `Partitioned` and survived while `sessionid` came back without it and was
+    # dropped: sign-in POSTed fine and answered 302 → `/`, the browser threw
+    # the session cookie away, the feed rendered signed-out, and every like,
+    # save and publish after that failed with a CSRF error nobody could act on.
+    # Both cookies now leave with SameSite=None; Secure; Partitioned.
+    #
+    # This entry has no request-phase code, so being outermost costs nothing,
+    # and it still runs after XFrameOptionsMiddleware on the way out — which is
+    # what lets it drop that header for the preview host only.
+    'gallery.middleware.PreviewEmbedMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
     # GZip compresses dynamic HTML/JSON — WhiteNoise already compresses static.
     'django.middleware.gzip.GZipMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
-    # Before CsrfView so process_response runs *after* the CSRF cookie is set.
-    'gallery.middleware.PreviewEmbedMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     # AFTER AuthenticationMiddleware: the maintenance wall needs request.user
