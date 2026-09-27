@@ -14,6 +14,15 @@ http_cookies.Morsel._flags.add('partitioned')
 
 class PreviewEmbedMiddleware:
     """Make CSRF/session cookies survive the Arena live-preview iframe.
+
+    MUST stay first in MIDDLEWARE (see the comment there). `load_middleware`
+    wraps in reverse, so index 0 is the outermost layer and its response-phase
+    code runs LAST — after SessionMiddleware and CsrfViewMiddleware have written
+    their cookies. Anywhere further in, `sessionid` is not in `response.cookies`
+    yet and silently misses the rewrite, which is exactly the bug this class
+    exists to prevent. The proof is `users/test_csrf.py`, asserting on a real
+    login POST driven through the whole stack rather than on a synthetic view
+    that sets its own cookie.
     """
 
     def __init__(self, get_response):
