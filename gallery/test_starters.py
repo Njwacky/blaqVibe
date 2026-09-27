@@ -162,6 +162,52 @@ class StudioPreviewLoginGateTests(TestCase):
         self.assertEqual(resp.status_code, 302)
         self.assertNotIn('evil.example', resp.url)
 
+    def test_signup_never_lands_a_new_account_on_a_dead_route(self):
+        # Regression: signup used to honour ANY same-origin ?next=, so a stale
+        # bookmark or renamed route (/feed/, /dashboard/, /profile/, /app/
+        # with no slug — every one of them 404s) became the first page a
+        # brand-new account saw. The form was filled in correctly and the
+        # account was created, yet the person was dumped on the 404 error
+        # page. Same-origin is not the same as "this page exists" — resolve
+        # the route and fall back to the feed when the target is dead.
+        for dead in ('/feed/', '/dashboard/', '/profile/', '/app/', '/welcome/'):
+            with self.subTest(next=dead):
+                resp = self.client.post('/accounts/signup/', {
+                    'username': f'deadnext{abs(hash(dead))}',
+                    'email': f'deadnext{abs(hash(dead))}@test.com',
+                    'password1': 'correcthorse1',
+                    'password2': 'correcthorse1',
+                    'next': dead,
+                })
+                self.assertEqual(resp.status_code, 302)
+                self.assertEqual(resp.url, '/')
+
+    def test_signup_still_returns_to_a_live_next(self):
+        # The guard must not break the flow it exists for: coming back from
+        # the studio/publish signup prompt to the page you were writing on.
+        resp = self.client.post('/accounts/signup/', {
+            'username': 'livenext',
+            'email': 'livenext@test.com',
+            'password1': 'correcthorse1',
+            'password2': 'correcthorse1',
+            'next': '/studio/todo-list/',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, '/studio/todo-list/')
+
+    def test_signup_next_with_query_string_still_resolves(self):
+        # request.get_full_path carries the query, so a live target arrives as
+        # "/u/someone/?tab=followers". Stripping the query must still resolve.
+        resp = self.client.post('/accounts/signup/', {
+            'username': 'querynext',
+            'email': 'querynext@test.com',
+            'password1': 'correcthorse1',
+            'password2': 'correcthorse1',
+            'next': '/?sort=newest&page=2',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertEqual(resp.url, '/?sort=newest&page=2')
+
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-studio-tests')
 class StudioPublishTests(TestCase):
     def setUp(self):

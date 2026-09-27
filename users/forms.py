@@ -367,12 +367,16 @@ class SignUpForm(UserCreationForm):
             # Gated at signup too, not just rename: "admin"/"support"/"nolo"
             # phishing works wherever the handle can appear, and signup is the
             # first place it can. One shared list (users/rename.py) gates both
-            # doors with no drift. The message mentions sign-in because
-            # operators try to *register* as admin, get this error, and report
-            # "admin login never works" — point them at the real door.
+            # doors with no drift. Lead with "cannot be registered" — the old
+            # wording opened with "That username is reserved", which people
+            # read as "someone already has this name" and then report that
+            # signup rejects brand-new names. The sign-in hint stays for the
+            # operators who try to *register* as admin and would otherwise
+            # report "admin login never works": point them at the real door.
             raise forms.ValidationError(
-                "That username is reserved. Sign in if you already have "
-                "an operator account, or pick another name."
+                "That username is reserved by the platform and cannot be "
+                "registered — pick another name. If you already have an "
+                "operator account, sign in with it instead."
             )
         return validate_public_text(username, allow_blank=False)
 
