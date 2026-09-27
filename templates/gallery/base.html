@@ -198,8 +198,8 @@ literal text — the regression guard in gallery/test_engagement.py pins that.
 {% if messages %}
 <div style="max-width:1100px;margin:12px auto 0;padding:0 20px;display:flex;flex-direction:column;gap:8px">
   {% for message in messages %}
-  <div style="padding:12px 14px;border-radius:12px;font-size:13px;display:flex;align-items:center;gap:10px;{% if message.tags == 'success' %}background:var(--success-bg);border:1px solid var(--success-border);color:var(--success-text){% elif message.tags == 'info' %}background:var(--info-bg);border:1px solid var(--info-border);color:var(--info-text){% else %}background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger-text){% endif %}">
-    <span style="font-size:16px">{% if message.tags == 'success' %}✓{% elif message.tags == 'info' %}<svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-clock"></use></svg>{% else %}●{% endif %}</span>
+  <div style="padding:12px 14px;border-radius:12px;font-size:13px;display:flex;align-items:center;gap:10px;{% if message.tags == 'success' %}background:var(--success-bg);border:1px solid var(--success-border);color:var(--success-text){% elif message.tags == 'warning' %}background:var(--warning-bg);border:1px solid var(--warning-border);color:var(--warning-text){% elif message.tags == 'info' %}background:var(--info-bg);border:1px solid var(--info-border);color:var(--info-text){% else %}background:var(--danger-bg);border:1px solid var(--danger-border);color:var(--danger-text){% endif %}">
+    <span style="font-size:16px">{% if message.tags == 'success' %}✓{% elif message.tags == 'warning' %}<svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-alert"></use></svg>{% elif message.tags == 'info' %}<svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-clock"></use></svg>{% else %}●{% endif %}</span>
     <span>{{ message }}</span>
     <button class="js-dismiss" style="margin-left:auto;background:transparent;border:none;color:inherit;cursor:pointer">✕</button>
   </div>
