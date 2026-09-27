@@ -300,6 +300,63 @@ def report_action(request, report_id):
         return redirect(next_url)
     return redirect('reports_queue')
 
+def _announce_moderation_decision(request, project, approved):
+    """Tell the builder the outcome, then clear the staff's now-stale rows.
+
+    A human decision used to flip the status and NOTHING else — the uploader
+    (usually a brand-new account waiting on its very first vibe) heard no
+    notification, got no email, and the other moderators' "Pending approval"
+    rows stayed unread forever. The pipeline's publish path already does all
+    of this for auto-publishes; a human decision must not be the quieter path.
+    """
+    from .notify import notify
+    if approved:
+        messages.success(
+            request,
+            f'Approved — “{project.title}” is live and @{project.owner.username} has been notified.',
+        )
+        notify(
+            project.owner, 'published',
+            f'“{project.title}” is live',
+            'A moderator approved your vibe — it’s on the feed now. Welcome to BlaqVibes.',
+            project.get_absolute_url(),
+        )
+        # Same post-publish bookkeeping the pipeline runs for auto-publishes:
+        # XP once per project, then labels/appeal so the feed can rank it.
+        try:
+            from users.progress import award
+            award(project.owner, 'publish', ref=f'project:{project.pk}')
+        except Exception:
+            logger.exception('publish xp on manual approve failed %s', project.slug)
+        try:
+            from .tasks import classify_and_score
+            classify_and_score(project)
+        except Exception:
+            logger.exception('classify on manual approve failed %s', project.slug)
+    else:
+        messages.info(
+            request,
+            f'Held — @{project.owner.username} has been told why “{project.title}” is not live.',
+        )
+        notify(
+            project.owner, 'quarantined',
+            f'“{project.title}” was not approved',
+            'A moderator held this upload. Open the vibe page to see the scan '
+            'details — fix what it flags and re-upload, or reply via Feedback.',
+            project.get_absolute_url(),
+        )
+    try:
+        from .tasks import send_status_email
+        send_status_email(project)
+    except Exception:
+        logger.exception('status email on moderation decision failed %s', project.slug)
+    try:
+        from .admin_notifications import dismiss_admin_project_notifications
+        dismiss_admin_project_notifications(project)
+    except Exception:
+        logger.exception('stale staff rows on moderation decision failed %s', project.slug)
+
+
 @moderator_required
 @require_POST
 def moderation_action(request, slug):
@@ -318,17 +375,40 @@ def moderation_action(request, slug):
             pass
         from .models import ScanJob
         ScanJob.objects.update_or_create(project=project, defaults={'status': 'clean'})
+        _announce_moderation_decision(request, project, approved=True)
     elif action == 'reject':
         project.status = 'quarantined'
         project.save(update_fields=['status'])
         from .models import ScanJob
         ScanJob.objects.update_or_create(project=project, defaults={'status': 'quarantined'})
+        _announce_moderation_decision(request, project, approved=False)
     elif action == 'delete':
         if not request.user.profile.is_admin():
             return render(request, '403.html', status=403)
         # Same rule as owner deletes: paid vibes soft-delete so buyers keep
         # their receipts and downloads; unpaid vibes hard-delete.
         from .lifecycle import remove_project
+        owner = project.owner
+        title = project.title
         remove_project(project)
+        # The most destructive decision is also the one that must never be
+        # silent: the builder is told, in their inbox, that it happened.
+        try:
+            from .notify import notify
+            notify(
+                owner, 'quarantined',
+                f'“{title}” was removed by moderators',
+                'A moderator removed this vibe from BlaqVibes. If you think '
+                'that is a mistake, use the Feedback button to appeal.',
+                '',
+            )
+        except Exception:
+            logger.exception('owner notify on moderation delete failed %s', project.slug)
+        try:
+            from .admin_notifications import dismiss_admin_project_notifications
+            dismiss_admin_project_notifications(project)
+        except Exception:
+            logger.exception('stale staff rows on moderation delete failed %s', project.slug)
+        messages.success(request, f'Removed “{title}” — @{owner.username} has been notified.')
         return redirect('moderation_queue')
     return redirect('moderation_queue')

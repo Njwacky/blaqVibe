@@ -883,7 +883,38 @@ def register_zip_project(project, logger_name='publish'):
         job.status = 'scanning'
         job.save(update_fields=['task_id', 'status'])
     except Exception as e:
-        logger.warning("Queue error, fallback eager for %s: %s", project.slug, e)
+        # The old comment promised "fallback eager" but never ran one — a dead
+        # broker left the project 'pending' with a ScanJob that no worker would
+        # ever pick up: the upload silently never finished. Actually run the
+        # pipeline in-request when the queue is unreachable. Slow, but a slow
+        # scan beats a forever-queue.
+        logger.warning("Queue error, running pipeline eager for %s: %s", project.slug, e)
+        try:
+            from .tasks import (attention_check, finalize_publish,
+                                scan_zip_with_clamav, vulnerability_scan)
+            verdict = scan_zip_with_clamav.apply(args=[project.id]).get()
+            vulnerability_scan.apply(args=[project.id]).get()
+            finalize_publish.apply(args=[project.id]).get()
+            attention_check.apply(args=[project.id]).get()
+            logger.info("Eager pipeline finished for %s: %s", project.slug, verdict)
+        except Exception:
+            logger.exception("Eager pipeline fallback failed for %s", project.slug)
+    # The uploader's own receipt — "your application is in". Without this row
+    # the only confirmation was a toast that dies with the page; a new user
+    # who closed the tab had NOTHING in their inbox showing the upload landed
+    # and is being reviewed. Lives next to the staff fan-out so every path
+    # that queues a scan (publish, repo import) also receipts the builder.
+    try:
+        notify(
+            project.owner,
+            'upload',
+            f'Application received: “{project.title}”',
+            'Your vibe is in the safety-check queue. We’ll tell you the moment '
+            'the review is done — you can follow its status on the vibe page.',
+            project.get_absolute_url(),
+        )
+    except Exception:
+        logger.exception('owner upload receipt failed slug=%s', project.slug)
     try:
         from .admin_notifications import notify_admins_pending_project
         notify_admins_pending_project(project, reason="New ZIP upload — waiting in scan queue, needs approval check")
@@ -1021,7 +1052,7 @@ def publish(request):
                         logger.exception('snippet grade failed %s', project.slug)
                     notify(
                         project.owner,
-                        'quarantined',
+                        'review_needed',
                         f'“{project.title}” is held for review',
                         'The code looks like it contains an API key or token. Remove it and '
                         'edit the vibe — it goes straight to the feed after that.',
@@ -1062,6 +1093,14 @@ def publish(request):
                     messages.success(
                         request,
                         f"Your snippet “{project.title}” is published — it’s on the feed now.",
+                    )
+                    # Inbox parity with ZIPs: every publish path leaves a row,
+                    # so a builder's first snippet is as visible as a first ZIP.
+                    notify(
+                        project.owner, 'published',
+                        f'"{project.title}" is live',
+                        'Your snippet is on the feed now.',
+                        project.get_absolute_url(),
                     )
                     try:
                         from users.progress import award

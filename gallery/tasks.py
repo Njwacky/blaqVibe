@@ -186,7 +186,13 @@ def scan_zip_with_clamav(self, project_id):
         p.save(update_fields=['scan_report', 'status'])
         _apply_trust(p)
         from .notify import notify
-        notify(p.owner, 'quarantined', f'“{p.title}” needs human review', 'Virus scanner is offline. We did not auto-publish.', p.get_absolute_url())
+        # 'review_needed' (amber, "a decision is waiting"), not 'quarantined'
+        # (red, "blocked/unsafe"): nothing wrong with THIS upload — our
+        # scanner is offline, and the builder deserves the honest framing.
+        notify(p.owner, 'review_needed', f'“{p.title}” is with our reviewers',
+               'Our safety scanner is offline, so a moderator checks this upload '
+               'by hand. Nothing is wrong with your vibe — we’ll notify you the '
+               'moment it’s approved.', p.get_absolute_url())
         return "scanner_unavailable"
     except subprocess.TimeoutExpired:
         logger.warning(f"ClamAV timeout {p.slug}, retry")
@@ -217,8 +223,12 @@ def scan_zip_with_clamav(self, project_id):
         p.save(update_fields=['scan_report', 'status'])
         _apply_trust(p)
         from .notify import notify
-        notify(p.owner, 'quarantined', f'“{p.title}” needs human review',
-               'Possible secrets detected in the ZIP. A moderator will review it before it goes live.',
+        # The project is 'pending' (held for a human), not 'quarantined' —
+        # the inbox colour should match the state: amber "review waiting".
+        notify(p.owner, 'review_needed', f'“{p.title}” is held for a quick review',
+               'The scan thinks the ZIP may contain an API key or token. A moderator '
+               'checks it before it goes live — remove any secrets from the code and '
+               're-upload to speed things up.',
                p.get_absolute_url())
         return "secrets_found"
     return "clean"
@@ -249,7 +259,13 @@ def _apply_trust(p):
     except Exception:
         logger.exception('trust grade write failed %s', getattr(p, 'slug', '?'))
 
-def _send_status_email(p):
+def send_status_email(p):
+    """Tell the owner by email where their vibe landed (live / needs review).
+
+    Public (not `_send_status_email`) because the human moderation path
+    (gallery.moderation.moderation_action) must send the SAME mail when it
+    makes the decision — one letter, no matter who approved the vibe.
+    """
     try:
         if p.owner.email:
             from django.core.mail import EmailMultiAlternatives
@@ -316,6 +332,10 @@ def finalize_publish(*args, project_id=None):
             notify_admins_pending_project(p, reason="ClamAV scanner unavailable, manual review required")
         except Exception:
             logger.exception('admin notify failed for unavailable scanner %s', p.slug)
+        # The owner got the in-app "with our reviewers" row at the scan step;
+        # this early return used to skip the email entirely, so a builder
+        # without an unread badge heard NOTHING. Same letter every hold sends.
+        send_status_email(p)
         return "pending_no_scanner"
     if report.get('clamav') == 'disabled':
         logger.info(f"ClamAV disabled — publishing {p.slug} without virus scan")
@@ -328,6 +348,7 @@ def finalize_publish(*args, project_id=None):
             notify_admins_quarantined_project(p, reason="Secrets detected in ZIP, manual review required", secrets=report.get('secrets', [])[:5])
         except Exception:
             logger.exception('admin notify failed for pending project with secrets %s', p.slug)
+        send_status_email(p)
         return "pending_secrets"
     if not p.file_tree and p.zip_file:
         try:
@@ -355,11 +376,30 @@ def finalize_publish(*args, project_id=None):
                 )
             except Exception:
                 logger.exception('admin notify failed for pending project %s', p.slug)
+            # The builder's side of the same decision. Before this row existed,
+            # a new user's clean scan ended in an EMAIL only — no inbox row,
+            # so anyone without a delivered email saw no state at all.
+            notify(
+                p.owner, 'review_needed',
+                f'“{p.title}” passed the safety scan',
+                'New accounts get a quick human check before the first vibes go '
+                'live. A moderator has been notified — we’ll tell you the moment '
+                'it’s approved.',
+                p.get_absolute_url(),
+            )
             _set_scan_job(p, 'pending')
             _apply_trust(p)
-            _send_status_email(p)
+            send_status_email(p)
             return "pending_review_needed"
     if p.status == 'published':
+        # The queue-entry fan-out told staff "needs approval check" for EVERY
+        # upload; this one cleared the scan on its own. Clear the now-stale
+        # row, or the badge keeps asking for a decision that no longer exists.
+        try:
+            from .admin_notifications import dismiss_admin_project_notifications
+            dismiss_admin_project_notifications(p, kinds=('approval', 'upload'))
+        except Exception:
+            logger.exception('stale admin row cleanup failed %s', p.slug)
         try:
             classify_and_score(p)
         except Exception:
@@ -383,8 +423,12 @@ def finalize_publish(*args, project_id=None):
             logger.exception('publish xp failed %s', p.slug)
     _set_scan_job(p, 'clean' if p.status == 'published' else p.status)
     _apply_trust(p)
-    _send_status_email(p)
+    send_status_email(p)
     return "published" if p.status == 'published' else p.status
+
+
+# Back-compat alias — older imports/callers used the private name.
+_send_status_email = send_status_email
 
 def classify_and_score(project):
     """Label the program and give it a starting appeal score.

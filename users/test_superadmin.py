@@ -50,12 +50,30 @@ class CreateSuperadminTest(TestCase):
                      '/blaq-admin-secure/'):
             self.assertEqual(c.get(path).status_code, 200, path)
 
-    def test_plain_superuser_is_forbidden_on_app_admin_pages(self):
+    def test_plain_superuser_still_reaches_app_admin_pages(self):
+        # A `createsuperuser` account has profile.role='user'. It used to be
+        # 403'd on the app's own pages — which is exactly how a fresh install
+        # ended up with uploads landing and NOBODY able to open the
+        # notification that announced them ("staff see nothing"). Django
+        # superusers already hold every key in /blaq-admin-secure/ (users,
+        # roles and project statuses are editable there), so the app pages
+        # grant them nothing new — they just stop stranding them outside.
         u = User.objects.create_user('ghost', 'g@example.com', PW)
         u.is_staff = u.is_superuser = True
         u.save()
         c = Client()
         c.login(username='ghost', password=PW)
+        self.assertEqual(c.get('/admin/roles/').status_code, 200)
+
+    def test_plain_staff_flag_alone_still_forbidden(self):
+        # is_staff without is_superuser is a Django-admin support account,
+        # NOT an app moderator — the implicit equivalence stops at superuser.
+        u = User.objects.create_user('helper', 'h@example.com', PW)
+        u.is_staff = True
+        u.is_superuser = False
+        u.save()
+        c = Client()
+        c.login(username='helper', password=PW)
         self.assertEqual(c.get('/admin/roles/').status_code, 403)
 
 class EmailLoginTest(TestCase):

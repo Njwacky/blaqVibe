@@ -36,6 +36,17 @@ True, plain user/moderator ⇒ False), but we NEVER silently clear
 `is_superuser`: demoting someone here must not look like it revoked the Django
 admin account when it did not. When the target still holds that flag, the
 result says so out loud and the audit row records it.
+
+One deliberate bridge between the axes: Django's `is_superuser` implicitly
+holds the top app role in every role check (users/models.Profile.is_* and
+users/decorators._has_role). Such an account can already edit users, roles
+and project statuses from /blaq-admin-secure/, so the app pages grant it
+nothing new — but refusing them is exactly how a fresh install stranded its
+only operator: uploads landed, the notification fan-out found nobody, and the
+one account that COULD help 403'd on every link we sent. The STORED role is
+still displayed as-is (get_role_display), so a demotion stays visible and
+auditable; only the effective power follows the Django flag. Plain `is_staff`
+does NOT cross the bridge — only full superusers do.
 """
 import logging
 from dataclasses import dataclass

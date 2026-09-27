@@ -9,10 +9,19 @@ from django.shortcuts import render
 logger = logging.getLogger(__name__)
 
 def _has_role(user, required):
+    # Delegate to the Profile predicates: they are the single source of truth
+    # for role checks, including the implicit Django-superuser equivalence
+    # (a `createsuperuser` account must be able to OPEN the moderation pages
+    # its notifications link to — see users/models.Profile.is_moderator).
     try:
-        role = getattr(user.profile, 'role', 'user')
-        order = {'user':0,'moderator':1,'admin':2,'superadmin':3}
-        return order.get(role,0) >= order.get(required,0)
+        profile = user.profile
+        if required == 'moderator':
+            return profile.is_moderator()
+        if required == 'admin':
+            return profile.is_admin()
+        if required == 'superadmin':
+            return profile.is_superadmin()
+        return False
     except Exception:
         return False
 

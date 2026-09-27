@@ -10,6 +10,14 @@ Why this module?
   1. In-app Notification (existing `notify()` path)
   2. Email via Brevo (transactional API) to all moderators/admins/superadmins
 
+Recipients are BOTH staff axes (get_admin_users_for_notification): the app
+role axis (profile.role moderator/admin/superadmin) AND the Django axis
+(is_staff/is_superuser). A fresh install whose only operator came from
+`createsuperuser` used to match NEITHER filter — uploads arrived and nobody
+was ever told. Repeat fan-outs for the SAME decision are deduped while the
+first row is unread (dedupe_body_prefix), and resolved projects clear their
+own stale rows (dismiss_admin_project_notifications).
+
 Events covered:
   - ZIP upload needs review (new user <3 published, or scanner offline)
   - Project quarantined (virus / secrets)
@@ -39,18 +47,36 @@ logger = logging.getLogger(__name__)
 
 def get_admin_users_for_notification():
     """
-    All active users who can moderate — moderator, admin, superadmin.
+    Everyone who should open their inbox when an approval is needed.
+
+    Two axes, both included:
+      1. The app role axis — profile.role in moderator/admin/superadmin
+         (the people who work /moderation/queue/).
+      2. The Django axis — is_staff / is_superuser. A fresh install's
+         `createsuperuser` account has profile.role='user', and before this
+         account was included the fan-out found NOBODY: uploads arrived and
+         no staff member ever saw a notification. Anyone holding Django
+         staff keys can already read every project in /blaq-admin-secure/,
+         so telling them about pending work leaks nothing.
+
     Ordered by username for stable logs.
     """
     try:
         from django.contrib.auth.models import User
+        # NOTE: no email filter here. The in-app row must reach staff even
+        # when they never set an email (a `createsuperuser` account can skip
+        # it) — emails go only to the subset that HAS one (get_admin_emails /
+        # notify_admins_for_approval filter per recipient).
         return (
             User.objects.filter(is_active=True)
-            .filter(Q(profile__role='moderator') | Q(profile__role='admin') | Q(profile__role='superadmin'))
-            .filter(email__isnull=False)
-            .exclude(email='')
+            .filter(
+                Q(profile__role='moderator') | Q(profile__role='admin')
+                | Q(profile__role='superadmin')
+                | Q(is_staff=True) | Q(is_superuser=True)
+            )
             .order_by('username')
             .select_related('profile')
+            .distinct()
         )
     except Exception:
         logger.exception('get_admin_users_for_notification failed')
@@ -140,7 +166,7 @@ def send_admin_email(subject, text_body, html_body=None, to_emails=None, context
     return sent
 
 
-def notify_admins_for_approval(kind, title, body, url, email_subject=None, email_text_template=None, email_html_template=None, context=None, project=None, report=None):
+def notify_admins_for_approval(kind, title, body, url, email_subject=None, email_text_template=None, email_html_template=None, context=None, project=None, report=None, dedupe_body_prefix=None):
     """
     Unified admin notification for approval-needing events.
 
@@ -156,6 +182,13 @@ def notify_admins_for_approval(kind, title, body, url, email_subject=None, email
     context: extra context for email templates
     project: optional AppProject for context
     report: optional AppReport for context
+    dedupe_body_prefix: optional. When set, an admin who ALREADY has an UNREAD
+        row of the same kind+title whose body starts with this prefix gets
+        neither a second row nor a second email. One upload fans out at least
+        twice (queue entry, then the scan verdict) and the decision waiting on
+        staff is the SAME — duplicate rows and emails per fan-out turn the
+        inbox into noise and train staff to ignore it. Once the row is read
+        the next fan-out notifies again (a re-escalation, on purpose).
     """
     from .notify import notify
     from .reports import moderators_to_notify
@@ -163,22 +196,39 @@ def notify_admins_for_approval(kind, title, body, url, email_subject=None, email
     # Determine admins to notify (exclude reporter if needed — caller handles)
     # For generic approval, use all admins
     try:
-        admins = get_admin_users_for_notification()
+        admins = list(get_admin_users_for_notification())
         if not admins:
-            logger.info('notify_admins_for_approval: no admins found kind=%s title=%r', kind, title)
+            # A fan-out with no recipients is the exact failure behind "staff
+            # never see uploads" — loud, not informational.
+            logger.warning('notify_admins_for_approval: NO staff found to notify kind=%s title=%r — '
+                           'check that at least one active account has a moderator role or Django staff flags',
+                           kind, title)
             return 0
 
         # In-app notifications
         in_app_count = 0
+        fresh_admins = []  # admins who got a new row (or a failed create) → still email them
         for admin in admins:
             try:
+                if dedupe_body_prefix:
+                    from .models import Notification
+                    already_open = Notification.objects.filter(
+                        user=admin, kind=kind, title=title[:200], is_read=False,
+                        body__startswith=dedupe_body_prefix[:400],
+                    ).exists()
+                    if already_open:
+                        continue  # the same decision is already waiting in their inbox
                 # Avoid notifying the actor if they are admin themselves (optional)
                 # For now, notify all — admin action by admin still shows in their own inbox for audit
                 n = notify(admin, kind, title, body, url)
                 if n:
                     in_app_count += 1
+                # Email even when the in-app row failed — the email is the
+                # backup channel, so a DB hiccup must not silence the alert.
+                fresh_admins.append(admin)
             except Exception:
                 logger.exception('in-app notify failed for admin %s', getattr(admin, 'username', '?'))
+                fresh_admins.append(admin)
 
         # Email notifications
         # Build email context
@@ -211,13 +261,17 @@ def notify_admins_for_approval(kind, title, body, url, email_subject=None, email
             )
 
         if not html_body and email_html_template is None:
-            # Generate minimal branded HTML fallback
+            # Generate minimal branded HTML fallback. Title/body are user-shaped
+            # text (project titles, report details) — escape them so a title
+            # like `<img src=x onerror=...>` stays text in the mail client.
+            from django.utils.html import escape
+            safe_title, safe_body = escape(title), escape(body)
             html_body = (
                 f"<html><body style=\"font-family:Inter,Helvetica,Arial,sans-serif;background:#0a0a0f;padding:24px;color:#ddd;\">"
                 f"<div style=\"max-width:600px;margin:0 auto;background:#11111a;border:1px solid #222;border-radius:12px;padding:24px;\">"
                 f"<div style=\"display:inline-block;background:#7c3aed;color:#fff;font-weight:800;padding:6px 12px;border-radius:8px;font-size:13px;margin-bottom:12px;\">ADMIN • APPROVAL NEEDED</div>"
-                f"<h2 style=\"margin:0 0 8px 0;color:#fff;font-size:18px;\">{title}</h2>"
-                f"<p style=\"color:#aaa;line-height:1.6;font-size:14px;\">{body}</p>"
+                f"<h2 style=\"margin:0 0 8px 0;color:#fff;font-size:18px;\">{safe_title}</h2>"
+                f"<p style=\"color:#aaa;line-height:1.6;font-size:14px;\">{safe_body}</p>"
                 f"<p style=\"margin:20px 0 0 0;\"><a href=\"{email_ctx['site_url']}{url}\" style=\"display:inline-block;background:#7c3aed;color:#fff;text-decoration:none;font-weight:600;padding:10px 18px;border-radius:8px;\">Review & Approve</a></p>"
                 f"<p style=\"color:#666;font-size:12px;margin-top:20px;\">Sent to all moderators/admins • {email_ctx['site_url']}</p>"
                 f"</div></body></html>"
@@ -231,18 +285,20 @@ def notify_admins_for_approval(kind, title, body, url, email_subject=None, email
                     'account_quarantine', 'appeal'):
             tags.append(kind)
 
+        # Only admins who got a FRESH decision this time get the email —
+        # dedupe-skipped admins already have the same decision in their inbox.
         email_sent = send_admin_email(
             subject=email_subject_final,
             text_body=text_body,
             html_body=html_body,
-            to_emails=[u.email for u in admins if u.email],
+            to_emails=[u.email for u in fresh_admins if u.email],
             context=email_ctx,
             tags=tags,
         )
 
         logger.info(
-            'admin approval notification kind=%s title=%r in_app=%s email=%s url=%s',
-            kind, title, in_app_count, email_sent, url,
+            'admin approval notification kind=%s title=%r staff=%s in_app=%s email=%s url=%s',
+            kind, title, len(admins), in_app_count, email_sent, url,
         )
         return in_app_count + email_sent
 
@@ -277,7 +333,45 @@ def notify_admins_pending_project(project, reason=""):
             'moderation_url': admin_url,
         },
         project=project,
+        # One upload fans out here at queue-entry AND again from the scan
+        # verdict — same decision, so the second call stays quiet while the
+        # first row is still unread.
+        dedupe_body_prefix=f'@{project.owner.username} uploaded "{project.title}"',
     )
+
+
+def dismiss_admin_project_notifications(project, kinds=('approval', 'upload', 'quarantined')):
+    """
+    Mark staff inbox rows about this project as read once its fate is decided.
+
+    A "Pending approval" row that survives the project's auto-publish (or a
+    human approve/reject) is stale noise — it keeps the badge lit for a
+    decision that no longer exists, which is exactly how staff learn to
+    ignore the badge. Called from the pipeline's publish step and from
+    moderation_action, so every resolution path clears its own paper trail.
+
+    Rows are matched on the body prefix this module writes (stable across
+    reasons), never on user-supplied text patterns.
+    """
+    try:
+        from .models import Notification
+        owner = getattr(project, 'owner', None)
+        if owner is None:
+            return 0
+        upload_prefix = f'@{owner.username} uploaded "{project.title}"'
+        quarantine_prefix = f'"{project.title}" by @{owner.username} was quarantined'
+        from django.db.models import Q
+        updated = Notification.objects.filter(
+            kind__in=list(kinds), is_read=False,
+        ).filter(
+            Q(body__startswith=upload_prefix) | Q(body__startswith=quarantine_prefix)
+        ).update(is_read=True)
+        if updated:
+            logger.info('dismissed %s stale staff notification(s) for %s', updated, project.slug)
+        return updated
+    except Exception:
+        logger.exception('dismiss_admin_project_notifications failed slug=%s', getattr(project, 'slug', '?'))
+        return 0
 
 
 def notify_admins_quarantined_project(project, reason="", secrets=None):
@@ -302,6 +396,7 @@ def notify_admins_quarantined_project(project, reason="", secrets=None):
             'moderation_url': admin_url,
         },
         project=project,
+        dedupe_body_prefix=f'"{project.title}" by @{project.owner.username} was quarantined',
     )
 
 
