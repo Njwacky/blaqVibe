@@ -416,9 +416,19 @@ class Profile(models.Model):
             models.CheckConstraint(check=models.Q(stars_balance__gte=0), name='stars_balance_gte_0')
         ]
     def __str__(self): return f"@{self.user.username} ({self.role})"
-    def is_moderator(self): return self.role in ('moderator','admin','superadmin')
-    def is_admin(self): return self.role in ('admin','superadmin')
-    def is_superadmin(self): return self.role == 'superadmin'
+    # Django's `is_superuser` already opens EVERYTHING in /blaq-admin-secure/
+    # (project status, users, reports can all be edited there), so refusing
+    # the app's own moderation pages to that same account gains no security —
+    # it only strands a fresh install's `createsuperuser` operator outside the
+    # very inbox we just notified (profile.role defaults to 'user'). The two
+    # axes stay coherent: a superuser implicitly holds the top app role, and
+    # `get_role_display()` still shows the STORED role, so nothing is hidden.
+    def is_moderator(self):
+        return self.role in ('moderator', 'admin', 'superadmin') or bool(getattr(self.user, 'is_superuser', False))
+    def is_admin(self):
+        return self.role in ('admin', 'superadmin') or bool(getattr(self.user, 'is_superuser', False))
+    def is_superadmin(self):
+        return self.role == 'superadmin' or bool(getattr(self.user, 'is_superuser', False))
 
     @property
     def is_pro_active(self):

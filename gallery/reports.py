@@ -39,13 +39,25 @@ def _is_admin(user) -> bool:
         return False
 
 def moderators_queryset():
-    """Active staff in every moderator-bearing role, in stable order."""
+    """Active staff who receive moderation notifications, in stable order.
+
+    Delivery list, not a permission check (gates live in users/decorators).
+    It covers both staff axes: the app role axis (moderator/admin/superadmin)
+    and the Django axis (is_staff/is_superuser) — so a fresh install whose
+    only operator is a `createsuperuser` account still sees reports and
+    uploads land, instead of the fan-out silently matching nobody.
+    """
     return (
         User.objects
         .filter(is_active=True)
-        .filter(Q(profile__role='moderator') | Q(profile__role='admin') | Q(profile__role='superadmin'))
+        .filter(
+            Q(profile__role='moderator') | Q(profile__role='admin')
+            | Q(profile__role='superadmin')
+            | Q(is_staff=True) | Q(is_superuser=True)
+        )
         .order_by('username')
         .select_related('profile')
+        .distinct()
     )
 
 def moderators_to_notify(reporter=None):
