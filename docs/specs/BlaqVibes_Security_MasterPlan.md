@@ -62,7 +62,8 @@ This is where most "Git-like" clones get hacked. BlaqVibes enforces:
 # gallery/validators.py
 MAX_ZIP_SIZE = 100 * 1024 * 1024  # 100MB hard cap
 MAX_FILES = 2000
-BLOCKED_EXT = ['.exe','.dll','.so','.dylib','.sh','.bat']
+# Native/compiled payloads are blocked; text scripts are source and never run by the platform.
+BLOCKED_EXT = ['.exe','.dll','.so','.dylib','.bin','.o','.a']
 BLOCKED_NAMES = ['node_modules','__pycache__','.git','.env','venv','.venv']
 
 def validate_zip(file):

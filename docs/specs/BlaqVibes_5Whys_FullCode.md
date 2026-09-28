@@ -86,7 +86,7 @@ For each feature we ask Why 5 times:
 
 **Why 2:** Why check `uncompressed >500MB` + `>2000 files`? — Shortcut `file.size <100MB` misses bomb (1MB compressed → 5GB uncompressed). We sum `file_size`.
 
-**Why 3:** Why block `node_modules`, `.env`, `.git`, `.exe/.sh`? — `node_modules` bloats S3 (200MB+). `.env` leaks secrets. `.exe` is malware vector. Full code: `validators.py:BLOCKED_NAMES`, `BLOCKED_EXT`.
+**Why 3:** Why block `node_modules`, `.env`, `.git`, and native binaries? — `node_modules` bloats storage, `.env` leaks secrets, and compiled executables are not source code. Text scripts such as `.sh` are allowed as source; scans treat them as data and extracted files do not retain executable bits. Full code: `validators.py:BLOCKED_NAMES`, `BLOCKED_EXT`, `safe_extract_zip()`.
 
 **Why 4:** Why scan secrets with regex (`sk_live`, `AKIA`, `BEGIN PRIVATE KEY`)? — AI apps often hardcode keys. Scan warns owner before publish, not after leak.
 

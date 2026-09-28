@@ -646,6 +646,19 @@ class Scenario10_UploadAndZipSafety(TestCase):
     def test_executable_extension_is_rejected(self):
         self._reject({'run.exe': 'MZ'})
 
+    def test_shell_build_script_is_accepted_as_source(self):
+        """A ZIP may contain a build helper; validation never runs it."""
+        from gallery.validators import validate_zip
+        upload = SimpleUploadedFile(
+            'facial-clockin.zip',
+            make_zip_bytes({
+                'facial-clockin/tool/build_apk.sh': '#!/bin/sh\necho build\n',
+                'facial-clockin/README.md': '# Facial Clock-In\n',
+            }),
+            content_type='application/zip',
+        )
+        self.assertIsNone(validate_zip(upload))
+
     def test_too_many_files_is_rejected(self):
         self._reject({f'f{i}.txt': 'x' for i in range(1001)})
 

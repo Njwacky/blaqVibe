@@ -126,6 +126,15 @@ class QuickPublishFormTests(TestCase):
         project = self.save_project(form)
         self.assertTrue(project.zip_file)
 
+    def test_shell_build_script_zip_is_valid_on_the_publish_form(self):
+        upload = make_zip_file({
+            'facial-clockin/tool/build_apk.sh': '#!/bin/sh\necho build\n',
+            'facial-clockin/app.py': 'print("ready")\n',
+        }, name='facial-clockin.zip')
+        form = QuickPublishForm(data=self.base_data(html_code=''), files={'zip_file': upload})
+        self.assertTrue(form.is_valid(), form.errors.as_json())
+        self.assertNotIn('zip_file', form.errors)
+
     def test_legacy_ai_checkbox_without_build_method_still_maps(self):
         """Old clients (and old tests) post the plain ai_generated checkbox."""
         form = QuickPublishForm(data=self.base_data(build_method='', ai_generated='on'))

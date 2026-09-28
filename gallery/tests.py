@@ -3728,6 +3728,35 @@ class CredentialFileBlockTests(TestCase):
         # (which is how a project tells you WHICH secrets to set) gets rejected.
         validate_zip(make_zip_file({'app.py': 'print(1)\n', '.env.example': 'API_KEY=\n'}))
 
+    def test_shell_build_script_is_allowed_and_extracted_without_execute_bits(self):
+        """Shell helpers are source, but the scanner's extraction is non-runnable."""
+        import stat
+        import tempfile
+        from gallery.validators import safe_extract_zip
+
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, 'w') as zf:
+            info = zipfile.ZipInfo('facial-clockin/tool/build_apk.sh')
+            info.external_attr = 0o100755 << 16
+            zf.writestr(info, '#!/bin/sh\necho build\n')
+        upload = SimpleUploadedFile('facial-clockin.zip', buf.getvalue(), content_type='application/zip')
+        validate_zip(upload)
+
+        with tempfile.TemporaryDirectory() as tmp:
+            zip_path = os.path.join(tmp, 'facial-clockin.zip')
+            with open(zip_path, 'wb') as fh:
+                fh.write(buf.getvalue())
+            dest = os.path.join(tmp, 'extracted')
+            script = os.path.join(dest, 'facial-clockin', 'tool', 'build_apk.sh')
+            os.makedirs(os.path.dirname(script), exist_ok=True)
+            with open(script, 'w', encoding='utf-8') as fh:
+                fh.write('old executable')
+            os.chmod(script, 0o700)
+            safe_extract_zip(zip_path, dest)
+            with open(script, encoding='utf-8') as fh:
+                self.assertEqual(fh.read(), '#!/bin/sh\necho build\n')
+            self.assertFalse(os.stat(script).st_mode & (stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH))
+
     def test_extract_gate_refuses_them_too(self):
         """Second gate: validate_zip can be skipped by a code path; extraction may not."""
         import shutil

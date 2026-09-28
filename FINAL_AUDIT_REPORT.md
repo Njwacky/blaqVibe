@@ -86,7 +86,7 @@ The 10 realistic "somebody made an authorization mistake" scenarios now all pass
 7. **Role escalation** — Django `is_staff` grants nothing; moderator ≠ admin; admin ≠ superadmin; moderators can't POST role changes.
 8. **Economy races** — double trade charges once; insufficient balance charges nothing; star toggle idempotent/counter never negative; XP can't be farmed; duplicate follow impossible; trade replay-safe.
 9. **Git auth** — browser session can't push; wrong user/pass → 401; non-owner with right creds → 403; rotated token stops working; plaintext token never persisted.
-10. **Upload/ZIP safety** — path traversal, absolute path, Windows drive path, symlink, `.env`, `node_modules`, executables, >1000 files, zip-bomb ratio all rejected; extraction refuses the same paths; snippet only runs in sandbox; uploaded file preview never executes.
+10. **Upload/ZIP safety** — path traversal, absolute path, Windows drive path, symlink, `.env`, `node_modules`, native binaries, >1000 files, and zip-bomb ratios are rejected; text scripts may be stored as source but extracted without executable bits and never run by scanners; snippet only runs in sandbox; uploaded file preview never executes.
 
 ### Part 9 anti-abuse
 Rate limits verified: AI readme 10/h, payout 5/h, bookmark 60/h, review 10/h, PR action 20/h (plus the existing login 20/m, pw-reset 10/m, publish 5/h, fork 5/h, comment 10/h, buy 10/h, create_pr 5/h, nolo 20–30/h, follow 30/h, tip 20/h).

@@ -49,16 +49,17 @@ scan queue. It is deliberately **not** a second upload path — it hands the
 project to the same `register_zip_project()` pipeline a hand upload uses, so
 tree, scan, classification and trust all apply identically.
 
-Two things make GitHub's raw archive unuploadable as-is, and both are handled:
+GitHub's archive is normalized before it reaches the same publish pipeline:
 
 1. **The wrapper folder.** GitHub nests everything under `blaqVibe-master/`.
    That one level is stripped, and only when *every* entry sits under it — a
    repository whose real content is `src/…` plus a root `README.md` keeps its
    tree intact.
-2. **Paths the validator refuses.** This repository's own archive fails
-   `validate_zip` on `scripts/ci.sh`, because `.sh` is a blocked extension.
-   Refused paths are dropped and **reported to the user** — never removed
-   quietly. `.env.example` with empty values comes through; `.env` does not.
+2. **Unsafe paths.** Build output, credential files and native binaries are
+   dropped and **reported to the user** — never removed quietly.
+   `.env.example` with empty values comes through; `.env` does not. Source
+   scripts such as `scripts/ci.sh` are kept as code; BlaqVibes scans but never
+   runs uploaded scripts.
 
 The normalizer asks `validators.blocked_reason()` what to drop, so the importer
 and the upload form can never disagree about what is allowed.
@@ -84,8 +85,8 @@ public repo. A small neutral sample
 (`https://github.com/mdn/beginner-html-site`) is offered as a one-click
 example — not this platform’s own source. The committed fixture
 `gallery/fixtures/github_blaqvibe_master.zip` still exercises the normalizer
-against a real GitHub-shaped archive (wrapper folder + blocked `.sh`) in CI
-with no network.
+against a real GitHub-shaped archive (wrapper folder + retained `.sh` source)
+in CI with no network.
 
 **Capability discovery** lives at `/capability/`: search a skill (Django,
 React, API…) and get matching **projects** plus **people**, ranked by how many
