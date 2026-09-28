@@ -492,11 +492,17 @@ class ImportRateLimitTests(TestCase):
             last = None
             for i in range(6):
                 last = self.client.post('/import/github/', {'repo_url': 'mdn/beginner-html-site', 'title': f'v{i}'})
-        # django-ratelimit with block=True raises PermissionDenied, which this
-        # project routes to handler403/safe_403 — so the ceiling surfaces as
-        # 403, not 429. The view's own `request.limited` branch (429) is only
-        # reachable when RATELIMIT_ENABLE is off but the flag is still set.
-        self.assertEqual(last.status_code, 403)
+        # block=False (mirroring publish()): the 6th import answers 429 with a
+        # reason and the pasted link still in the box — NOT handler403's generic
+        # "You tried to access a page you shouldn't". This is the new-user
+        # onboarding path, so a ban-looking 403 on a retry is the worst first
+        # impression; the fix is the same one publish() got in Sep 2026.
+        self.assertEqual(last.status_code, 429)
+        body = last.content.decode()
+        self.assertIn('5 imports in an hour', body, 'no reason for the limit')
+        self.assertIn('mdn/beginner-html-site', body, 'the pasted link was thrown away')
+        self.assertNotIn("You tried to access a page you shouldn", body,
+                         'fell through to the generic 403 page')
         self.assertLessEqual(AppProject.objects.filter(owner=user).count(), 5)
 
 

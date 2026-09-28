@@ -34,7 +34,6 @@ import requests
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.http import HttpResponse
 from django_ratelimit.decorators import ratelimit
 
 from .validators import MAX_ZIP_SIZE, blocked_reason
@@ -399,7 +398,13 @@ def suggest_category(imported_files):
 # and on three.
 
 @login_required
-@ratelimit(key='user', rate='5/h', method='POST')
+# block=False, mirroring publish(): a rate-limited import must answer 429 with
+# a reason and the pasted link still in the box — NOT handler403's generic
+# "you tried to access a page you shouldn't" page. This is the NEW-USER
+# onboarding path ("arriving with nothing"), so a ban-looking 403 on a sixth
+# retry is the worst possible first impression. publish() documents the exact
+# same trap (gallery/views.py); this is that fix applied to the import door.
+@ratelimit(key='user', rate='5/h', method='POST', block=False)
 def import_from_github(request):
     """Import a public GitHub repository as this user's first vibe."""
     from django.contrib import messages
@@ -418,11 +423,21 @@ def import_from_github(request):
     if request.method != 'POST':
         return render(request, 'gallery/import_repo.html', context)
 
-    if getattr(request, 'limited', False):
-        return HttpResponse('Rate limit: 5 imports/hour', status=429)
-
+    # Read the pasted link BEFORE the rate-limit branch so the refusal can put
+    # it back in the box (the template pre-fills repo_url). Reading it after —
+    # as before — meant the branch had nothing to hand back and answered a bare
+    # text 429, throwing away what the builder typed.
     raw_url = (request.POST.get('repo_url') or '').strip()[:300]
     context['repo_url'] = raw_url
+
+    if getattr(request, 'limited', False):
+        messages.error(
+            request,
+            'That\u2019s 5 imports in an hour \u2014 the safety scanner needs a moment '
+            'to catch up. Your link is still in the box: wait a few minutes and '
+            'press Import again.',
+        )
+        return render(request, 'gallery/import_repo.html', context, status=429)
 
     try:
         imported = build_import(raw_url)
