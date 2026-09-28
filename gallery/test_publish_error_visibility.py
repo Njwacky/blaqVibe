@@ -154,6 +154,33 @@ class PublishRateLimitTests(PublishPostMixin, TestCase):
         self.assertTrue('You tried to access a page you shouldn' not in body,
                         'fell through to the generic 403 page')
 
+    def test_the_upload_limit_keeps_what_was_typed(self):
+        """An unbound form here discarded everything the builder had just
+        typed, while the message told them nothing was lost."""
+        last = None
+        for i in range(6):
+            last = self.post(title=f'Vibe {i}', publish_token=f'{i}' * 32)
+        self.assertEqual(last.status_code, 429)
+        body = last.content.decode()
+        self.assertTrue('value="Vibe 5"' in body, 'typed title was thrown away')
+        self.assertTrue(
+            'value="A simple inventory system for small businesses."' in body,
+            'typed description was thrown away')
+        self.assertTrue('Nothing was lost' not in body,
+                        'the page still claims nothing was lost')
+
+    def test_the_upload_limit_explains_the_empty_picker(self):
+        """The refusal carries a valid form, so `form.errors` is empty — the
+        note has to key off the refusal, not off validation."""
+        last = None
+        for i in range(6):
+            last = self.post(title=f'Vibe {i}', publish_token=f'{i}' * 32)
+        self.assertEqual(last.status_code, 429)
+        body = last.content.decode()
+        self.assertTrue('id="zip-lost-note"' in body, 'no note about the lost ZIP')
+        self.assertTrue('id="publish-errors"' not in body,
+                        'a valid form must not show an error summary')
+
     def test_the_first_five_still_publish(self):
         for i in range(5):
             res = self.post(title=f'Vibe {i}', publish_token=f'{i}' * 32)

@@ -957,12 +957,13 @@ def register_zip_project(project, logger_name='publish'):
             pass
     return ScanJob.objects.filter(status__in=['queued', 'scanning']).count()
 
-def _publish_form_page(request, form, challenge, challenge_tag, upload_zip, status=200):
+def _publish_form_page(request, form, challenge, challenge_tag, upload_zip,
+                       status=200, rejected=False):
     """One place that renders the publish card.
 
-    Both the normal render and the rate-limit refusal go through here, so a
-    builder who hits the upload ceiling gets the real page (their message in
-    the messages block, the form still in front of them) instead of a bare
+    Both the normal render and the two refusal paths go through here, so a
+    builder whose publish did not land gets the real page — their message in
+    the messages block, the form still in front of them — instead of a bare
     text response or the generic 403.
     """
     from .forms import BUILD_METHOD_HINTS, BUILD_METHOD_PUBLISH_CHOICES
@@ -974,7 +975,10 @@ def _publish_form_page(request, form, challenge, challenge_tag, upload_zip, stat
         # A rejected re-render cannot put the uploaded file back in the picker
         # (FileField.bound_data returns `initial`, never the posted file), and
         # the template has no other way to know one was sent. Without this the
-        # builder sees an empty picker and no explanation for it.
+        # builder sees an empty picker and no explanation for it. `rejected`
+        # rather than `form.errors` because the upload-limit refusal carries a
+        # valid form — it still did not publish, and still dropped the file.
+        'publish_rejected': rejected,
         'zip_was_posted': bool(request.FILES.get('zip_file')),
         # The ONE build-method question, rendered as four radio cards.
         'method_options': [
@@ -1022,10 +1026,16 @@ def publish(request):
         messages.error(
             request,
             'That’s 5 publishes in an hour — the safety scanner needs a moment '
-            'to catch up. Nothing was lost: wait a few minutes and publish again.',
+            'to catch up. Your details are still in the form: wait a few '
+            'minutes and press Publish again.',
         )
+        # Bound, not blank: an unbound form here threw away everything the
+        # builder had just typed while the message told them nothing was lost.
+        form = (QuickPublishForm(request.POST, request.FILES)
+                if request.method == 'POST' else QuickPublishForm())
         return _publish_form_page(
-            request, QuickPublishForm(), challenge, challenge_tag, upload_zip, status=429,
+            request, form, challenge, challenge_tag, upload_zip,
+            status=429, rejected=True,
         )
     if request.method == 'POST':
         form = QuickPublishForm(request.POST, request.FILES)
@@ -1200,7 +1210,10 @@ def publish(request):
             note_blocked_language(request, surface='project', form=form)
     else:
         form = QuickPublishForm()
-    return _publish_form_page(request, form, challenge, challenge_tag, upload_zip)
+    # A POST reaching this line means the form was invalid — the publish did
+    # not land, so the picker owes the builder an explanation for its empty state.
+    return _publish_form_page(request, form, challenge, challenge_tag, upload_zip,
+                              rejected=(request.method == 'POST'))
 
 
 @login_required

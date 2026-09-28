@@ -86,7 +86,7 @@
         vanished 100MB ZIP. Say so — publish.js removes this note when it
         manages to re-attach the file it still holds in memory.
       {% endcomment %}
-      {% if form.is_bound and form.errors and zip_was_posted %}
+      {% if publish_rejected and zip_was_posted %}
       <p class="pub-error" id="zip-lost-note">
         Your ZIP did not survive the failed publish — <b>pick it again</b> from
         Files, then press Publish. Everything else you typed was kept.
