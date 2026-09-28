@@ -957,8 +957,46 @@ def register_zip_project(project, logger_name='publish'):
             pass
     return ScanJob.objects.filter(status__in=['queued', 'scanning']).count()
 
+def _publish_form_page(request, form, challenge, challenge_tag, upload_zip,
+                       status=200, rejected=False):
+    """One place that renders the publish card.
+
+    Both the normal render and the two refusal paths go through here, so a
+    builder whose publish did not land gets the real page — their message in
+    the messages block, the form still in front of them — instead of a bare
+    text response or the generic 403.
+    """
+    from .forms import BUILD_METHOD_HINTS, BUILD_METHOD_PUBLISH_CHOICES
+    return render(request, 'gallery/publish.html', {
+        'form': form,
+        'challenge': challenge,
+        'challenge_tag': challenge_tag,
+        'upload_zip': upload_zip,
+        # A rejected re-render cannot put the uploaded file back in the picker
+        # (FileField.bound_data returns `initial`, never the posted file), and
+        # the template has no other way to know one was sent. Without this the
+        # builder sees an empty picker and no explanation for it. `rejected`
+        # rather than `form.errors` because the upload-limit refusal carries a
+        # valid form — it still did not publish, and still dropped the file.
+        'publish_rejected': rejected,
+        'zip_was_posted': bool(request.FILES.get('zip_file')),
+        # The ONE build-method question, rendered as four radio cards.
+        'method_options': [
+            {'value': value, 'label': label, 'hint': BUILD_METHOD_HINTS.get(value, '')}
+            for value, label in BUILD_METHOD_PUBLISH_CHOICES
+        ],
+    }, status=status)
+
+
 @login_required
-@ratelimit(key='user', rate='5/h', method='POST')
+# block=False is deliberate, and it is the same trap the signup view documents:
+# django-ratelimit's decorator defaults to block=True, which raises
+# Ratelimited -> handler403 -> safe_403 -> "You tried to access a page you
+# shouldn't". A builder who published five times in an hour is not being
+# forbidden from anything, and that page (which the XHR upload then discarded
+# outright) read as a ban. With block=False the branch below is reachable and
+# 429 — the semantically correct status for a limit — is what the client sees.
+@ratelimit(key='user', rate='5/h', method='POST', block=False)
 @not_quarantined
 def publish(request):
     # The action-first welcome hands a brand-new builder here. Marking the
@@ -985,7 +1023,20 @@ def publish(request):
     upload_zip = request.GET.get('upload') == 'zip'
     
     if getattr(request, 'limited', False):
-        return HttpResponse("Rate limit: 5 uploads/hour", status=429)
+        messages.error(
+            request,
+            'That’s 5 publishes in an hour — the safety scanner needs a moment '
+            'to catch up. Your details are still in the form: wait a few '
+            'minutes and press Publish again.',
+        )
+        # Bound, not blank: an unbound form here threw away everything the
+        # builder had just typed while the message told them nothing was lost.
+        form = (QuickPublishForm(request.POST, request.FILES)
+                if request.method == 'POST' else QuickPublishForm())
+        return _publish_form_page(
+            request, form, challenge, challenge_tag, upload_zip,
+            status=429, rejected=True,
+        )
     if request.method == 'POST':
         form = QuickPublishForm(request.POST, request.FILES)
         if form.is_valid():
@@ -1159,18 +1210,10 @@ def publish(request):
             note_blocked_language(request, surface='project', form=form)
     else:
         form = QuickPublishForm()
-    from .forms import BUILD_METHOD_HINTS, BUILD_METHOD_PUBLISH_CHOICES
-    return render(request, 'gallery/publish.html', {
-        'form': form,
-        'challenge': challenge,
-        'challenge_tag': challenge_tag,
-        'upload_zip': upload_zip,
-        # The ONE build-method question, rendered as four radio cards.
-        'method_options': [
-            {'value': value, 'label': label, 'hint': BUILD_METHOD_HINTS.get(value, '')}
-            for value, label in BUILD_METHOD_PUBLISH_CHOICES
-        ],
-    })
+    # A POST reaching this line means the form was invalid — the publish did
+    # not land, so the picker owes the builder an explanation for its empty state.
+    return _publish_form_page(request, form, challenge, challenge_tag, upload_zip,
+                              rejected=(request.method == 'POST'))
 
 
 @login_required

@@ -2,7 +2,7 @@
 {% load static %}
 {% block title %}Publish — BlaqVibes{% endblock %}
 {% block head %}
-<link rel="stylesheet" href="{% static 'gallery/css/publish.css' %}?v=publish-first-20260911">
+<link rel="stylesheet" href="{% static 'gallery/css/publish.css' %}?v=publish-errors-20260928">
 {% endblock %}
 {% block content %}
 <div class="pub-page">
@@ -16,6 +16,40 @@
   <div class="pub-challenge">
     <span><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-challenges"></use></svg></span>
     <div><b>Challenge Mode:</b> publishing for <b>#{{ challenge_tag }}</b> — the tag is added automatically.</div>
+  </div>
+  {% endif %}
+
+  {% comment %}
+    ── Why it did not publish ──
+    The publish form posts over XHR and used to be re-rendered silently: a
+    rejected submission came back as the same page with nothing on it. Every
+    error is listed here first, including errors on fields this template does
+    not render individually (css_code, js_code, readme, tech_stack, category,
+    creator_kind, pricing) — a field with no markup of its own used to fail
+    the form with no message anywhere on the page.
+    A comment block, not a hash comment: Django's hash comment is single-line
+    only and a multi-line one reaches the browser verbatim.
+  {% endcomment %}
+  {% if form.is_bound and form.errors %}
+  <div class="pub-error pub-error--summary" id="publish-errors" role="alert">
+    <b>Not published yet — fix {{ form.errors|length }} thing{{ form.errors|length|pluralize }} and try again:</b>
+    <ul class="pub-error-list">
+      {% for e in form.non_field_errors %}
+      <li>{{ e }}</li>
+      {% endfor %}
+      {% comment %}
+        No anchors: the tolerated extras (readme, tech_stack, category, kind,
+        pricing) have no input on this page to jump to, and a link that goes
+        nowhere is its own small dead end. The fields that ARE rendered also
+        carry their error inline, right where the builder is looking.
+      {% endcomment %}
+      {% for field in form %}
+      {% if field.errors %}
+      <li><b>{{ field.label }}</b> — {{ field.errors.0 }}</li>
+      {% endif %}
+      {% endfor %}
+    </ul>
+    <p class="pub-error-note">Nothing was lost — what you typed is still in the form below.</p>
   </div>
   {% endif %}
 
@@ -46,6 +80,18 @@
       {% include 'gallery/_zip_picker.html' %}
       <div id="zip-progress" style="display:none;margin-top:10px;height:8px;background:var(--line);border-radius:99px;overflow:hidden"><div id="zip-bar" style="height:100%;width:0;background:#7C3AED"></div></div>
       {% if form.zip_file.errors %}<div class="pub-error">{{ form.zip_file.errors.0 }}</div>{% endif %}
+      {% comment %}
+        A browser cannot put an uploaded file back into a form, so a rejected
+        submission comes back with an empty picker and no explanation for the
+        vanished 100MB ZIP. Say so — publish.js removes this note when it
+        manages to re-attach the file it still holds in memory.
+      {% endcomment %}
+      {% if publish_rejected and zip_was_posted %}
+      <p class="pub-error" id="zip-lost-note">
+        Your ZIP did not survive the failed publish — <b>pick it again</b> from
+        Files, then press Publish. Everything else you typed was kept.
+      </p>
+      {% endif %}
       <details class="pub-snippet" {% if form.html_code.value %}open{% endif %}>
         <summary type="button">No ZIP? Paste a code snippet instead</summary>
         <div class="pub-snippet-fields">
@@ -91,5 +137,5 @@
   <p class="pub-alt">Nothing to upload yet? <a href="{% url 'starter_gallery' %}">✦ Start in your browser instead</a></p>
   <p class="pub-alt pub-alt--quiet">This publishes a BlaqVibes listing with a safe preview — not a production host. <a href="{% url 'launch_hub' %}">Find the right launch path →</a></p>
 </div>
-<script src="{% static 'gallery/js/publish.js' %}?v=publish-idem-20260918" defer></script>
+<script src="{% static 'gallery/js/publish.js' %}?v=publish-errors-20260928" defer></script>
 {% endblock %}

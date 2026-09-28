@@ -310,6 +310,22 @@ class QuickPublishForm(forms.ModelForm):
             'css_code': forms.Textarea(attrs={'rows': 3, 'placeholder': 'main { color: rebeccapurple }'}),
             'js_code': forms.Textarea(attrs={'rows': 3, 'placeholder': '// optional'}),
         }
+        # Django's default "This field is required." lands under labels like
+        # "What did you build?" and tells the builder nothing about what to do.
+        # The two primary inputs answer in the words the form already uses;
+        # clean_*() keeps covering the present-but-empty cases.
+        error_messages = {
+            'title': {'required': 'Give your project a name.'},
+            'short_description': {'required': 'Tell people what you built — one line is enough.'},
+        }
+        # The error summary names the field it is complaining about, so those
+        # names must be the ones printed next to the inputs — "Short
+        # description" under a box labelled "What did you build?" sends the
+        # builder hunting for a field that is not there.
+        labels = {
+            'title': 'Project name',
+            'short_description': 'What did you build?',
+        }
 
     def clean_title(self):
         title = (self.cleaned_data.get('title') or '').strip()
