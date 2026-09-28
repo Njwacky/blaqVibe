@@ -1,18 +1,19 @@
 """First-time welcome overlay helpers.
 
-The welcome screen answers three questions — What is BlaqVibes, What do I
-do here, Why should I care — in 3+1 screens, shown full-screen the first
-time someone signs in and never again.
+The welcome screen gives a short first-build path — Bring → Show → Improve —
+shown once when someone first signs in.
 
 Gate semantics (single source of truth = Profile.overlay_seen):
 
     True  -> done. Never rendered or shown again, on any device.
     False -> the account has not answered yet, so render the overlay.
-             The browser-side flag (localStorage `blaq-welcome-seen`) is the
-             JS's last line of defence against a *lost* POST: if the server
-             flag is still False but this browser already closed the overlay,
-             it stays closed here and the JS reconciles the server flag with
-             an idempotent POST.
+             A user-scoped browser flag (localStorage
+             `blaq-welcome-seen-<user id>`) is the JS's last line of defence
+             against a *lost* POST: if the server flag is still False but this
+             browser already closed the overlay, it stays closed here and the
+             JS reconciles the server flag with an idempotent POST. Scoping by
+             account matters on shared browsers: one person's completed
+             welcome must never hide another person's first-run guide.
 
 Why keep a server flag at all if the browser also tracks it? The server
 answer is the one that survives a different browser/device, and it keeps
@@ -21,10 +22,9 @@ tests can read. The client flag only patches the race window around the
 driver POST.
 """
 
-# localStorage key the inline boot script reads. It lives here too so the
-# Python side and the JS side never drift apart silently (grep for it, not
-# for two different spellings).
-CSP_MARKER = "blaq-welcome-seen"
+# Prefix for the user-scoped localStorage key used by the inline boot script.
+# Keep the browser and server-side docs aligned; user ID is appended in HTML.
+CSP_MARKER = "blaq-welcome-seen-"
 
 
 def should_show_overlay(user):

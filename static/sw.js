@@ -2,7 +2,7 @@
 // receive layout fixes immediately while retaining an offline fallback.
 // No secrets in JS — no S3 keys, no scan_report.
 // Bump this whenever the app shell changes; activation removes older caches.
-const CACHE = 'blaqvibes-v9-network-opt';
+const CACHE = 'blaqvibes-v11-welcome-clean';
 // Account-specific pages — never cache (they contain per-user data).
 const PRIVATE_PREFIXES = [
   '/my-vibes/', '/inbox/', '/saved/', '/settings/', '/sales/',
@@ -12,7 +12,7 @@ const PRIVATE_PREFIXES = [
 // entry warms the offline cache with a stylesheet the pages no longer ask for.
 const STATIC_ASSETS = [
   '/static/gallery/css/fonts.css?v=fonts-20260830',
-  '/static/gallery/css/blaqvibes.css?v=fab-tip-dismiss-20260921',
+  '/static/gallery/css/blaqvibes.css?v=welcome-clean-20260928',
   '/static/gallery/css/cards.css?v=mobile-20260906b',
   '/static/gallery/css/premium.css?v=product-system-20260909',
   '/static/gallery/css/footer.css?v=footer-polish-20260921',

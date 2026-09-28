@@ -45,6 +45,37 @@ class WelcomeOverlayTests(TestCase):
         self.assertNotContains(response, 'id="welcome-overlay"')
         self.assertNotContains(response, 'Make it visible')
 
+    def test_welcome_browser_marker_is_scoped_to_the_account(self):
+        self.client.force_login(self.user)
+        first = self.client.get('/')
+        self.assertContains(first, f'data-user-key="blaq-welcome-seen-{self.user.pk}"')
+
+        other = make_user('anothergreenhorn')
+        self.client.force_login(other)
+        second = self.client.get('/')
+        self.assertContains(second, f'data-user-key="blaq-welcome-seen-{other.pk}"')
+        self.assertNotContains(second, f'data-user-key="blaq-welcome-seen-{self.user.pk}"')
+
+    def test_signup_lands_on_the_first_run_welcome(self):
+        response = self.client.post('/accounts/signup/', {
+            'username': 'freshbuilder',
+            'email': 'freshbuilder@test.com',
+            'password1': 'correcthorse1',
+            'password2': 'correcthorse1',
+        })
+        self.assertRedirects(response, '/')
+        user = User.objects.get(username='freshbuilder')
+        self.assertFalse(user.profile.overlay_seen)
+
+        welcome_page = self.client.get('/')
+        self.assertContains(welcome_page, 'id="welcome-overlay"')
+        self.assertContains(welcome_page, 'Show us what you built.')
+        self.assertContains(welcome_page, 'aria-label="Your first build"')
+        self.assertContains(welcome_page, 'Bring')
+        self.assertContains(welcome_page, 'Improve')
+        self.assertNotContains(welcome_page, 'Your proof')
+        self.assertContains(welcome_page, f'data-user-key="blaq-welcome-seen-{user.pk}"')
+
     def test_seen_account_never_renders_overlay_again(self):
         welcome.mark_seen(self.user)
         self.client.login(username='greenhorn', password='pass12345')
