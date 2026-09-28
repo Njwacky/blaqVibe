@@ -2,9 +2,8 @@
 
 Every network call is patched. The one place real bytes are used is
 RealGitHubArchiveTests, which runs the archive GitHub actually serves for this
-repository through the real validator: that archive contains scripts/ci.sh, and
-`.sh` is blocked, so it is the case that proves the normalizer is doing
-something and not just passing bytes through.
+repository through the real validator: its `scripts/ci.sh` is retained as source,
+while the normalizer strips GitHub's wrapper folder and drops unsafe paths.
 """
 import io
 import zipfile
@@ -57,8 +56,8 @@ def make_user(username='newbie'):
     )
 
 
-# A tree shaped like GitHub's: one wrapper folder, a blocked executable, a
-# blocked build folder, a .env that must go and a .env.example that must stay.
+# A tree shaped like GitHub's: one wrapper folder, a retained source script,
+# a blocked build folder, a .env that must go and a .env.example that must stay.
 GITHUB_SHAPED = {
     'myrepo-main/index.html': '<h1>hi</h1>',
     'myrepo-main/app.py': 'print("hi")\n',
@@ -220,9 +219,12 @@ class NormalizeGithubZipTests(TestCase):
     def test_blocked_paths_are_dropped_and_reported(self):
         result = normalize_github_zip(zip_bytes(GITHUB_SHAPED))
         dropped = {item['path'] for item in result['dropped']}
-        self.assertEqual(dropped, {'scripts/run.sh', 'node_modules/left-pad/index.js', '.env'})
-        self.assertEqual(sorted(result['files']), ['.env.example', 'app.py', 'index.html'])
-        self.assertEqual(result['file_count'], 3)
+        self.assertEqual(dropped, {'node_modules/left-pad/index.js', '.env'})
+        self.assertEqual(
+            sorted(result['files']),
+            ['.env.example', 'app.py', 'index.html', 'scripts/run.sh'],
+        )
+        self.assertEqual(result['file_count'], 4)
 
     def test_env_example_survives_but_env_does_not(self):
         result = normalize_github_zip(zip_bytes(GITHUB_SHAPED))
@@ -240,8 +242,17 @@ class NormalizeGithubZipTests(TestCase):
         result = normalize_github_zip(zip_bytes(GITHUB_SHAPED))
         validate_zip(uploaded(result['bytes'], 'repo.zip'))  # must not raise
 
-    def test_the_raw_github_shape_would_have_been_refused(self):
-        """Control for the test above — the normalizer is load-bearing."""
+    def test_shell_build_scripts_are_kept_and_uploadable(self):
+        result = normalize_github_zip(zip_bytes({
+            'repo-main/tool/build_apk.sh': '#!/bin/sh\necho build\n',
+            'repo-main/index.html': '<h1>app</h1>',
+        }))
+        self.assertEqual(result['dropped'], [])
+        self.assertIn('tool/build_apk.sh', result['files'])
+        validate_zip(uploaded(result['bytes'], 'repo.zip'))
+
+    def test_the_raw_archive_with_build_output_or_credentials_is_refused(self):
+        """Normalization is still load-bearing for unsafe paths, not scripts."""
         with self.assertRaises(ValidationError):
             validate_zip(uploaded(zip_bytes(GITHUB_SHAPED), 'repo.zip'))
 
@@ -266,7 +277,7 @@ class NormalizeGithubZipTests(TestCase):
 
     def test_an_archive_of_nothing_but_blocked_paths_is_refused(self):
         with self.assertRaises(ValidationError) as ctx:
-            normalize_github_zip(zip_bytes({'repo-main/run.sh': '#!/bin/sh\n'}))
+            normalize_github_zip(zip_bytes({'repo-main/run.exe': 'MZ'}))
         self.assertIn('Nothing left', ' '.join(ctx.exception.messages))
 
     def test_corrupt_bytes_are_refused(self):
@@ -400,11 +411,11 @@ class ImportFromGithubViewTests(TestCase):
         self.assertRedirects(response, project.get_absolute_url())
         self.assertEqual(project.status, 'pending')
         self.assertTrue(project.zip_file)
-        self.assertEqual(project.file_count, 3)
+        self.assertEqual(project.file_count, 4)
         self.assertEqual(project.star_cost, 0)
         self.assertEqual(
             sorted(AppFile.objects.filter(project=project).values_list('path', flat=True)),
-            ['.env.example', 'app.py', 'index.html'],
+            ['.env.example', 'app.py', 'index.html', 'scripts/run.sh'],
         )
         # Same pipeline as a hand upload: a scan job exists.
         self.assertTrue(ScanJob.objects.filter(project=project).exists())
@@ -422,11 +433,11 @@ class ImportFromGithubViewTests(TestCase):
         self.assertIn('# ', readme)
         self.assertIn('https://github.com/mdn/beginner-html-site', readme)
 
-    def test_the_user_is_told_what_was_left_out(self):
+    def test_the_user_is_told_what_was_left_out_but_shell_scripts_are_kept(self):
         response = self.post()
         text = ' '.join(str(m.message) for m in response.context['messages'])
-        self.assertIn('scripts/run.sh', text)
-        self.assertIn('3 path(s) were left out', text)
+        self.assertNotIn('scripts/run.sh', text)
+        self.assertIn('2 path(s) were left out', text)
 
     def test_a_non_github_link_is_refused_without_any_request(self):
         from gallery.models import AppProject
@@ -494,9 +505,10 @@ class RealGitHubArchiveTests(TestCase):
 
     `gallery/fixtures/github_blaqvibe_master.zip` is a slice of the archive
     `codeload.github.com/Njwacky/blaqVibe/zip/refs/heads/master` actually
-    serves: the `blaqVibe-master/` wrapper, the real `scripts/ci.sh` that makes
-    the raw archive unuploadable, plus `manage.py`, `.env.example` and the
-    README. Committed rather than downloaded so this runs in CI with no network.
+    serves: the `blaqVibe-master/` wrapper and real `scripts/ci.sh`, plus
+    `manage.py`, `.env.example` and the README. The shell script is source and
+    the archive passes validation; normalization still strips the wrapper.
+    Committed rather than downloaded so this runs in CI with no network.
     """
 
     FIXTURE = Path(__file__).parent / 'fixtures' / 'github_blaqvibe_master.zip'
@@ -504,22 +516,19 @@ class RealGitHubArchiveTests(TestCase):
     def raw(self):
         return self.FIXTURE.read_bytes()
 
-    def test_the_raw_archive_is_refused_by_the_upload_validator(self):
-        """The failure a new user hits today if they upload the GitHub ZIP."""
-        with self.assertRaises(ValidationError) as ctx:
-            validate_zip(uploaded(self.raw(), 'blaqVibe-master.zip'))
-        message = ' '.join(ctx.exception.messages)
-        self.assertIn('Blocked file type .sh', message)
-        self.assertIn('blaqVibe-master/scripts/ci.sh', message)
+    def test_the_raw_archive_passes_with_its_shell_script_as_source(self):
+        validate_zip(uploaded(self.raw(), 'blaqVibe-master.zip'))
+        with zipfile.ZipFile(io.BytesIO(self.raw())) as zf:
+            self.assertIn('blaqVibe-master/scripts/ci.sh', zf.namelist())
 
-    def test_the_normalized_archive_passes_the_upload_validator(self):
+    def test_the_normalized_archive_passes_and_keeps_its_shell_script(self):
         result = normalize_github_zip(self.raw())
         validate_zip(uploaded(result['bytes'], 'blaqVibe.zip'))  # must not raise
         self.assertEqual(result['wrapper'], 'blaqVibe-master')
-        self.assertEqual([item['path'] for item in result['dropped']], ['scripts/ci.sh'])
+        self.assertEqual(result['dropped'], [])
         self.assertEqual(
             sorted(result['files']),
-            ['.env.example', 'README.md', 'manage.py'],
+            ['.env.example', 'README.md', 'manage.py', 'scripts/ci.sh'],
         )
 
     def test_the_fixture_readme_is_the_repositorys_real_one(self):

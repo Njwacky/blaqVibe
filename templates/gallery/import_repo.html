@@ -64,12 +64,14 @@
     It is a tiny HTML learning site — good practice, not this platform’s own source.
     <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
       <b style="color:var(--text)">What gets left out, and why.</b>
-      Executables (<code>.sh</code>, <code>.exe</code>, <code>.dll</code>, …),
+      Native binaries (<code>.exe</code>, <code>.dll</code>, <code>.so</code>, …),
       <code>node_modules/</code>, <code>.venv/</code>, <code>__pycache__/</code>,
       <code>.git/</code>, symlinks, and anything shaped like a credential
       (<code>.env</code>, <code>.npmrc</code>, <code>id_rsa</code>, …) never enter
-      a vibe. You are told exactly which paths were dropped — nothing is removed
-      quietly. <code>.env.example</code> with empty values is fine and comes through.
+      a vibe. Source scripts such as <code>.sh</code> are kept, but BlaqVibes
+      scans uploaded files without running them. You are told exactly which
+      paths were dropped — nothing is removed quietly. <code>.env.example</code>
+      with empty values is fine and comes through.
     </div>
     <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
       <b style="color:var(--text)">Limits.</b> 60 MB of archive, 1000 files,

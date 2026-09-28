@@ -23,7 +23,12 @@ BLOCKED_NAMES = {
     '.pypirc', '.pip.conf', 'pip.conf', '.gitconfig', '.git-credentials',
     'id_rsa', 'id_dsa', 'id_ecdsa', 'id_ed25519',
 }
-BLOCKED_EXT = {'.exe','.dll','.so','.dylib','.sh','.bat','.bin','.o','.a'}
+# Keep source scripts in the archive: build helpers such as `tool/build_apk.sh`
+# are part of many apps. The upload/scan pipeline treats ZIP contents as data
+# and never invokes scripts; safe_extract_zip also creates files without
+# carrying executable bits forward. Continue refusing native binaries and
+# compiled artifacts, which are not useful source files to publish.
+BLOCKED_EXT = {'.exe','.dll','.so','.dylib','.bin','.o','.a'}
 # A subset of BLOCKED_NAMES that is *build output*, not a credential. They
 # get their own error message: the beginner fix ("delete the folder and
 # re-zip") is different from the security fix ("rotate that key"). The single
@@ -260,6 +265,11 @@ def _write_extracted_file(src, target, remaining_budget):
     fd = os.open(target, flags, 0o600)
     written = 0
     try:
+        # `O_CREAT`'s mode is ignored when the target already exists; reset it
+        # explicitly so a pre-existing executable is no more runnable than a
+        # new file created from this archive.
+        if hasattr(os, 'fchmod'):
+            os.fchmod(fd, 0o600)
         with os.fdopen(fd, 'wb') as out:
             fd = None
             while True:

