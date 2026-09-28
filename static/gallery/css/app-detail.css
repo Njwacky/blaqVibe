@@ -1,0 +1,8 @@
+/* Extracted from: templates/gallery/app_detail.html
+   Loaded by a <link>/<script> tag in those template(s); keep the two in sync. */
+.builder-evidence{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;margin-top:10px}
+.builder-evidence div{font-size:12px;line-height:1.5;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.builder-evidence b{font-size:11px;letter-spacing:.04em;color:var(--muted);display:block;margin-bottom:2px}
+.sticky-actions{display:none;position:fixed;bottom:0;left:0;right:0;z-index:90;background:color-mix(in srgb,var(--card) 92%,transparent);backdrop-filter:blur(12px);border-top:1px solid var(--line);padding:10px 12px;gap:8px}
+.sticky-actions a,.sticky-actions button{flex:1;justify-content:center}
+@media(max-width:900px){.sticky-actions{display:flex}.page.detail-layout{padding-bottom:72px}}

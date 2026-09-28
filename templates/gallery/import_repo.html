@@ -90,15 +90,5 @@
     </div>
   </div>
 </div>
-<script>
-(function(){
-  var btn = document.querySelector('.js-fill-demo');
-  var input = document.getElementById('repo_url');
-  if (!btn || !input) return;
-  btn.addEventListener('click', function(){
-    input.value = btn.getAttribute('data-url') || '';
-    input.focus();
-  });
-})();
-</script>
+<script src="{% static 'gallery/js/import-repo.js' %}?v=split-20260928" defer></script>
 {% endblock %}

@@ -1,0 +1,5 @@
+/* Extracted from: templates/users/sales_dashboard.html
+   Loaded by a <link>/<script> tag in those template(s); keep the two in sync. */
+@media (max-width: 800px) {
+  .sales-grid { grid-template-columns: 1fr !important; }
+}

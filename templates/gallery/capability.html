@@ -3,54 +3,7 @@
 {% block title %}{% if q %}{{ q }} — who can build this?{% else %}Find builders by what they built{% endif %} — BlaqVibes{% endblock %}
 {% block meta_desc %}Search by capability. See projects first, then people ranked by published proof — not followers.{% endblock %}
 {% block head %}
-<style>
-.cap-shell{max-width:1080px;margin:0 auto;padding:20px 16px 48px}
-.cap-hero{padding:8px 0 18px;border-bottom:1px solid var(--line);margin-bottom:18px}
-.cap-kicker{font-size:11px;letter-spacing:.08em;color:var(--muted);font-weight:800;margin:0}
-.cap-hero h1{font-family:Space Grotesk,sans-serif;font-size:26px;font-weight:800;line-height:1.15;margin:8px 0 8px}
-.cap-hero p{font-size:14px;color:var(--muted);line-height:1.6;max-width:640px;margin:0}
-.cap-search{margin-top:16px;display:flex;gap:8px;flex-wrap:wrap}
-.cap-search input{flex:1;min-width:200px;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--input);color:var(--text);font-size:15px}
-.cap-chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
-.cap-chip{font-size:12px;padding:6px 12px;border-radius:999px;border:1px solid var(--line);background:var(--input);color:var(--text);text-decoration:none}
-.cap-chip:hover,.cap-chip.is-active{border-color:var(--accent-border);background:var(--accent-soft-bg);color:var(--accent-text)}
-.cap-guide{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:18px 0}
-.cap-guide article{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}
-.cap-guide b{display:block;font-size:11px;letter-spacing:.06em;color:var(--accent-text)}
-.cap-guide span{display:block;margin-top:4px;font-size:12px;line-height:1.5;color:var(--muted)}
-.cap-section{margin-top:22px}
-.cap-section h2{font-size:13px;font-weight:800;letter-spacing:.06em;color:var(--muted);margin:0 0 10px}
-.cap-section__head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:10px}.cap-section__head h2{margin:0}.cap-section__head>span{font-size:11px;color:var(--muted)}
-.cap-project-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
-.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-.pcard{display:flex;min-width:0;overflow:hidden;background:var(--card);border:1px solid var(--line);border-radius:10px;color:inherit;text-decoration:none;transition:border-color .16s,transform .16s,box-shadow .16s}
-.pcard:hover{border-color:var(--accent-border);transform:translateY(-2px);box-shadow:0 10px 26px rgba(0,0,0,.18)}
-.pcard__visual{width:96px;min-width:96px;flex-shrink:0;display:grid;place-items:center;position:relative;overflow:hidden;background:var(--surface-subtle);border-right:1px solid var(--line)}
-.pcard__visual img{width:100%;height:100%;display:block;object-fit:cover}
-.pcard__fallback{font-family:"Space Grotesk",Inter,sans-serif;font-size:18px;font-weight:800;letter-spacing:.06em;color:var(--muted)}
-.pcard__visual small{position:absolute;left:7px;bottom:7px;font-size:8px;letter-spacing:.08em;color:var(--muted);font-weight:800}
-.pcard__lineage{position:absolute;top:7px;left:7px;padding:3px 5px;border:1px solid var(--line);border-radius:999px;background:color-mix(in srgb,var(--card) 88%,transparent);font-size:8px;color:var(--muted);font-weight:800}
-.pcard__body{display:flex;flex-direction:column;min-width:0;min-height:126px;padding:10px}
-.pcard__eyebrow{display:flex;justify-content:space-between;gap:6px;color:var(--accent-text);font-size:9px;font-weight:800;letter-spacing:.03em;text-transform:uppercase}
-.pcard__eyebrow span{color:var(--muted);font-weight:500;letter-spacing:0;text-transform:none;white-space:nowrap}
-.pcard__title{margin:4px 0 0;font-family:"Space Grotesk",Inter,sans-serif;font-size:14px;line-height:1.2;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pcard__desc{margin:4px 0 0;color:var(--muted);font-size:11px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.pcard__builder{margin-top:6px;color:var(--muted);font-size:10px}.pcard__builder b{color:var(--text)}
-.pcard__stack{margin-top:4px;color:var(--text);font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.pcard__proof{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px;min-height:17px}.pcard__proof span{padding:2px 5px;border:1px solid var(--line);border-radius:999px;background:var(--input);color:var(--muted);font-size:9px}
-.pcard__cta{margin-top:auto;padding-top:7px;color:var(--link);font-size:11px;font-weight:800}
-.cap-pager{display:flex;justify-content:center;align-items:center;gap:14px;margin-top:14px;font-size:11px;color:var(--muted)}.cap-pager a{color:var(--link);font-weight:800;text-decoration:none}.cap-pager a:hover{text-decoration:underline}
-.cap-person{display:block;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:10px;text-decoration:none;color:inherit}
-.cap-person:hover{border-color:var(--accent-border)}
-.cap-person-top{display:flex;gap:10px;align-items:baseline;flex-wrap:wrap}
-.cap-person-top b{font-size:15px;color:var(--link)}
-.cap-count{font-size:12px;background:var(--accent-soft-bg);color:var(--accent-text);border:1px solid var(--accent-border);border-radius:999px;padding:2px 10px}
-.cap-reason{margin-top:8px;font-size:13px;line-height:1.55;color:var(--text)}
-.cap-reason em{font-style:normal;color:var(--muted)}
-.cap-empty{background:var(--input);border:1px dashed var(--line);border-radius:14px;padding:20px;text-align:center;font-size:14px;color:var(--muted);line-height:1.6}
-.cap-talk{background:var(--accent-soft-bg);border:1px solid var(--accent-border);border-radius:14px;padding:14px 16px;font-size:13px;line-height:1.6;margin-bottom:16px}
-@media(max-width:700px){.cap-project-grid{grid-template-columns:1fr}.pcard__visual{width:88px;min-width:88px}}
-</style>
+<link rel="stylesheet" href="{% static 'gallery/css/capability.css' %}?v=split-20260928">
 {% endblock %}
 {% block content %}
 <div class="cap-shell">

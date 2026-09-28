@@ -77,7 +77,7 @@ deadline that answers "pick which copy to keep".
       <button type="submit" class="btn-violet">Keep it — I'll fix it</button>
     </form>
     <form method="post" action="{% url 'attention_decide' case.pk %}"
-          onsubmit="return confirm('Park this build? It comes off the public site now, and you get {{ final_delete_hours }} hours to press FINAL DELETE or undo.');">
+          data-confirm-submit="Park this build? It comes off the public site now, and you get {{ final_delete_hours }} hours to press FINAL DELETE or undo.">
       {% csrf_token %}
       <button type="submit" class="btn-danger">Delete it</button>
     </form>
@@ -138,7 +138,7 @@ deadline that answers "pick which copy to keep".
         {% else %}
         <div class="attention-actions">
           <form method="post" action="{% url 'attention_delete' case.pk candidate.pk %}"
-                onsubmit="return confirm('Delete “{{ candidate.title|escapejs }}” for good? This cannot be undone.');">
+                data-confirm-submit="Delete “{{ candidate.title }}” for good? This cannot be undone.">
             {% csrf_token %}
             <button type="submit" class="btn-danger">Final delete</button>
           </form>
