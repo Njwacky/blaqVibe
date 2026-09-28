@@ -97,7 +97,10 @@ def skill_detail(request, slug):
 
 @login_required
 @require_POST
-@ratelimit(key='user', rate='20/h', method='POST')
+# block=False: let the friendly request.limited branch below answer (message +
+# redirect) instead of django-ratelimit's default Ratelimited -> handler403 ->
+# the generic "you shouldn't be here" page. Same fix publish()/import got.
+@ratelimit(key='user', rate='20/h', method='POST', block=False)
 def use_skill(request, slug):
     if getattr(request, 'limited', False):
         messages.error(request, 'Too many skill uses. Try again later.')
@@ -123,7 +126,10 @@ def use_skill(request, slug):
 @not_quarantined
 @login_required
 @require_POST
-@ratelimit(key='user', rate='10/h', method='POST')
+# block=False: let the friendly request.limited branch below answer (message +
+# redirect) instead of django-ratelimit's default Ratelimited -> handler403 ->
+# the generic "you shouldn't be here" page. Same fix publish()/import got.
+@ratelimit(key='user', rate='10/h', method='POST', block=False)
 def update_skill(request, slug):
     """Edit a skill you published — the edit publishes a NEW version.
 
@@ -175,7 +181,10 @@ def update_skill(request, slug):
 @not_quarantined
 @login_required
 @require_POST
-@ratelimit(key='user', rate='5/h', method='POST')
+# block=False: let the friendly request.limited branch below answer (message +
+# redirect) instead of django-ratelimit's default Ratelimited -> handler403 ->
+# the generic "you shouldn't be here" page. Same fix publish()/import got.
+@ratelimit(key='user', rate='5/h', method='POST', block=False)
 def create_skill(request):
     if getattr(request, 'limited', False):
         messages.error(request, 'Too many skill submissions. Try again later.')
