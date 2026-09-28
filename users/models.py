@@ -399,8 +399,8 @@ class Profile(models.Model):
     # First-time welcome overlay (users/welcome.py). False for every existing
     # account (migrated in 0029 so nobody is ambushed by onboarding they never
     # got); flipped True the first time a user closes it. The client-side
-    # `blaq-welcome-seen` flag means the server only asks while the answer is
-    # genuinely unknown — the overlay can never nag a person who skipped it.
+    # `blaq-welcome-seen-<user id>` flag is account-scoped so one person on a
+    # shared browser cannot suppress another person's first-run guide.
     overlay_seen = models.BooleanField(default=False, help_text='True once the first-time welcome overlay has been completed or skipped')
     # The floating feedback shortcut is on for everyone by default. People can
     # turn it off in Settings without losing the Feedback link in their account

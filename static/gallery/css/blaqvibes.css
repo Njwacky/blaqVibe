@@ -1193,11 +1193,8 @@ a.profile-link-chip--maintenance { border-color: color-mix(in srgb, #f59e0b 45%,
 }
 
 /* ── First-time welcome overlay (users/welcome.py + base.html) ──
-   Full-screen modal answering What / What do I do / Why care, in 3+1 steps.
-   Theme-aware via the existing :root variables, so light mode gets light
-   chip surfaces and the gradient text stays readable. The backdrop never
-   scrolls the page behind it (position:fixed), and prefers-reduced-motion
-   drops the CSS transitions. */
+   A short Bring → Show → Improve path. Theme-aware surfaces use existing
+   variables; the backdrop is fixed and reduced-motion preferences are honored. */
 .welcome-overlay,
 .welcome-backdrop {
   position: fixed;
@@ -1292,64 +1289,45 @@ a.profile-link-chip--maintenance { border-color: color-mix(in srgb, #f59e0b 45%,
   font-size: 16px;
   font-weight: 700;
 }
-/* "3 screenshots in each screen": compact framed mock panels proving each
-   claim. They fade/slide in via the panel's animation. */
-.welcome-shots {
+/* A quiet three-step path replaces the old colorful screenshot collage. */
+.welcome-path {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 10px;
-  text-align: left;
-}
-.welcome-shot {
-  background: var(--bg);
+  grid-template-columns: 1fr auto 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  max-width: 440px;
+  margin: 26px auto 8px;
+  padding: 18px 16px;
+  list-style: none;
   border: 1px solid var(--line);
-  border-radius: 12px;
-  overflow: hidden;
+  border-radius: 14px;
+  background: var(--surface-subtle);
 }
-.welcome-shot-img {
-  height: 62px;
+.welcome-path-step {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+.welcome-path-icon {
   display: grid;
   place-items: center;
-  font-size: 11px;
-  font-weight: 700;
+  width: 34px;
+  height: 34px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
   color: var(--text);
-  position: relative;
-  padding: 0 8px;
-  text-align: center;
+  background: var(--card);
 }
-.welcome-shot-cap {
-  padding: 8px 9px;
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text);
-}
-.welcome-shot-sub {
-  padding: 0 9px 9px;
-  font-size: 11px;
+.welcome-path-icon .bv-glyph { width: 16px; height: 16px; }
+.welcome-path-arrow {
+  margin-top: -18px;
   color: var(--muted);
-  line-height: 1.4;
+  font-size: 20px;
+  line-height: 1;
 }
-/* Miniature "screenshot" fills — pure CSS, no image network calls. */
-.wv-fill-feed {
-  background: var(--surface-subtle);
-}
-.wv-fill-trust {
-  background: var(--surface-subtle);
-}
-.wv-fill-remix {
-  background: var(--surface-subtle);
-}
-.wv-fill-connect {
-  background: var(--surface-subtle);
-}
-.wv-fill-opp {
-  background: var(--surface-subtle);
-}
-.wv-fill-step {
-  background: var(--surface-subtle);
-}
-/* 2-col "screenshots" for step 2; 3-col everywhere else. */
-.welcome-panel[data-step="2"] .welcome-shots { grid-template-columns: repeat(2, 1fr); }
 @keyframes bv-we-fade {
   from { opacity: 0; transform: translateY(16px); }
   to { opacity: 1; transform: translateY(0); }
@@ -1386,40 +1364,24 @@ a.profile-link-chip--maintenance { border-color: color-mix(in srgb, #f59e0b 45%,
   padding: 6px 10px;
 }
 .welcome-skip:hover { color: var(--text); }
-.welcome-manifesto {
-  background: var(--input);
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  padding: 18px 20px;
-  margin-top: 4px;
-}
-.welcome-manifesto--gold { border-color: var(--accent-border); }
-.welcome-manifesto-title {
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 1.6px;
-  color: var(--muted);
-}
-.welcome-manifesto-line {
-  font-family: "Space Grotesk", Inter, sans-serif;
-  font-size: 19px;
-  font-weight: 700;
-  line-height: 1.2;
-  margin-top: 8px;
-}
-.welcome-manifesto-sub {
-  font-size: 13px;
-  color: var(--muted);
-  line-height: 1.5;
-  max-width: 540px;
-  margin: 8px auto 0;
-}
 @media (max-width: 560px) {
+  /* The intro is taller than a phone viewport once its three illustration
+     cards stack. Start at the top and scroll the overlay itself so the heading
+     is never centered off-screen and the final action stays reachable. Safe
+     areas keep the panel clear of iPhone notches/home indicators. */
+  .welcome-overlay {
+    place-items: start center;
+    padding: max(12px, env(safe-area-inset-top))
+             max(12px, env(safe-area-inset-right))
+             max(12px, env(safe-area-inset-bottom))
+             max(12px, env(safe-area-inset-left));
+  }
   .welcome-panel { padding: 26px 18px 20px; }
   .welcome-h { font-size: 24px; }
   .welcome-p { font-size: 14px; }
-  .welcome-panel[data-step="2"] .welcome-shots,
-  .welcome-shots { grid-template-columns: 1fr; }
+  .welcome-path { gap: 7px; padding: 14px 10px; margin-top: 20px; }
+  .welcome-path-step { font-size: 11px; }
+  .welcome-path-arrow { font-size: 17px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .welcome-panel { animation: none; }
