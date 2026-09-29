@@ -1,0 +1,63 @@
+{% comment %}
+  The approval journey on a My Vibes card: three bordered steps, no fill,
+  no glow — state is carried by the ring colour alone.
+
+    Uploaded      In review        Approved
+      (✔)          ( ◍ )            ( ○ )
+    white ring    orange ring      gray ring
+
+  - pending     → ✔ white · orange ring (empty, still) · gray ring
+  - quarantined → ✔ white · red ring with ✕ · gray ring
+  - published   → ✔ white · ✔ orange · ✔ green
+  - removed     → no stepper (an archived vibe is off the journey)
+
+  The REJECT reason is never spelled out here — the owner finds that
+  message in their inbox (scan/admin flows already notify). The card only
+  shows the state, one word at most.
+{% endcomment %}
+{% if p.status == 'pending' or p.status == 'quarantined' or p.status == 'published' %}
+<div class="approval-steps"
+     aria-label="Approval progress: uploaded{% if p.status == 'quarantined' %}, rejected, not approved{% elif p.status == 'published' %}, reviewed, approved{% else %}, waiting for approval, not approved yet{% endif %}">
+  <div class="approval-step approval-step--done" title="Uploaded — your files are in">
+    <span class="approval-dot">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.6 4.6 4.6L19 7.4"/></svg>
+    </span>
+    <span class="approval-label">Uploaded</span>
+  </div>
+  <span class="approval-rail" aria-hidden="true"></span>
+  {% if p.status == 'quarantined' %}
+  <div class="approval-step approval-step--blocked" title="Rejected — the reason is in your inbox">
+    <span class="approval-dot">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </span>
+    <span class="approval-label approval-label--danger">Rejected</span>
+  </div>
+  {% elif p.status == 'published' %}
+  <div class="approval-step approval-step--done" title="Reviewed">
+    <span class="approval-dot approval-dot--warn">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.6 4.6 4.6L19 7.4"/></svg>
+    </span>
+    <span class="approval-label">Reviewed</span>
+  </div>
+  {% else %}
+  <div class="approval-step approval-step--active" title="Waiting for approval">
+    <span class="approval-dot approval-dot--warn"></span>
+    <span class="approval-label approval-label--warn">In review</span>
+  </div>
+  {% endif %}
+  <span class="approval-rail" aria-hidden="true"></span>
+  {% if p.status == 'published' %}
+  <div class="approval-step approval-step--approved" title="Approved — live on the feed">
+    <span class="approval-dot approval-dot--ok">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12.6 4.6 4.6L19 7.4"/></svg>
+    </span>
+    <span class="approval-label approval-label--ok">Approved</span>
+  </div>
+  {% else %}
+  <div class="approval-step approval-step--todo" title="Not approved yet">
+    <span class="approval-dot"></span>
+    <span class="approval-label">Approved</span>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
