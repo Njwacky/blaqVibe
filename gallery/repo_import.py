@@ -37,6 +37,7 @@ from django.core.files.uploadedfile import SimpleUploadedFile
 from django_ratelimit.decorators import ratelimit
 
 from .validators import MAX_ZIP_SIZE, blocked_reason
+from .upload_diagnostics import UploadTrace, trace_upload
 
 logger = logging.getLogger(__name__)
 
@@ -346,15 +347,19 @@ def demo_payload(repo_url):
     return owner, repo, ref, codeload_url(owner, repo, ref)
 
 
-def build_import(repo_url):
+def build_import(repo_url, trace=None):
     """Fetch + normalize. Returns the dict the view turns into a form.
 
     Raises RepoImportError for anything the user can fix, ValidationError for
     an archive with nothing publishable in it.
     """
-    owner, repo, ref, url = demo_payload(repo_url)
-    raw = fetch_archive(url)
-    result = normalize_github_zip(raw)
+    trace = trace or UploadTrace('github')
+    with trace.stage('parse_repository'):
+        owner, repo, ref, url = demo_payload(repo_url)
+    with trace.stage('fetch_archive'):
+        raw = fetch_archive(url)
+    with trace.stage('normalize_archive'):
+        result = normalize_github_zip(raw)
     result.update({
         'owner': owner,
         'repo': repo,
@@ -397,6 +402,7 @@ def suggest_category(imported_files):
 # in the request that asked for it is what makes the demo work on one worker
 # and on three.
 
+@trace_upload('github')
 @login_required
 # block=False, mirroring publish(): a rate-limited import must answer 429 with
 # a reason and the pasted link still in the box — NOT handler403's generic
@@ -410,11 +416,13 @@ def import_from_github(request):
     from django.contrib import messages
     from django.core.exceptions import ValidationError
     from django.shortcuts import redirect, render
+    from django.db import transaction
 
     from .forms import AppUploadForm
     from .views import register_zip_project
     from . import taste
 
+    trace = getattr(request, 'upload_trace', None) or UploadTrace('github')
     context = {
         'demo_repo_url': DEMO_REPO_URL,
         'demo_label': DEMO_LABEL,
@@ -440,7 +448,7 @@ def import_from_github(request):
         return render(request, 'gallery/import_repo.html', context, status=429)
 
     try:
-        imported = build_import(raw_url)
+        imported = build_import(raw_url, trace=trace)
     except RepoImportError as exc:
         messages.error(request, str(exc))
         return render(request, 'gallery/import_repo.html', context)
@@ -452,7 +460,7 @@ def import_from_github(request):
         # logged with its traceback and answered with a plain retry message —
         # the user never sees a stack trace and never gets a half-made vibe.
         logger.exception('repo import failed for %r', raw_url[:200])
-        messages.error(request, 'That import failed on our side. Please try again.')
+        messages.error(request, f'That import failed on our side. Please try again. Reference: {trace.reference}.')
         return render(request, 'gallery/import_repo.html', context)
 
     # Not truncated: AppUploadForm's title field is max_length=200, so an
@@ -476,7 +484,9 @@ def import_from_github(request):
         'price_zar': 0,
     }, {'zip_file': imported['zip_file']})
 
-    if not form.is_valid():
+    with trace.stage('validate_form'):
+        valid = form.is_valid()
+    if not valid:
         # The normalized archive has already passed validate_zip, so what lands
         # here is a field problem (a title the text filter refused, a missing
         # category). Show it next to the form rather than as a banner.
@@ -488,15 +498,39 @@ def import_from_github(request):
     project.status = 'pending'  # Always pending first — must go through queue
     if not getattr(request.user.profile, 'allow_trading', True):
         project.star_cost = 0
-    project.save()
-    form.save_m2m()
+    try:
+        with trace.stage('save_project'), transaction.atomic():
+            project.save()
+            trace.project_id = project.pk
+    except Exception:
+        # Fetching succeeded, but object storage / the database did not.
+        # This used to be OUTSIDE the importer’s try block and returned a bare
+        # 500. Keep the pasted URL/title, log the exact stage, and do not queue.
+        logger.exception('repo import save failed ref=%s', trace.reference)
+        context['form'] = form
+        messages.error(
+            request,
+            "We couldn’t save your vibe — nothing was published. "
+            f"Please try again in a moment. Reference: {trace.reference}.",
+        )
+        return render(request, 'gallery/import_repo.html', context, status=503)
+    with trace.stage('save_relations'):
+        form.save_m2m()
 
-    register_zip_project(project)
-    messages.success(
-        request,
-        f'✅ Imported {imported["file_count"]} files from {imported["repo_label"]} — '
-        f'“{project.title}” is in the scan queue. It goes live the moment the scan clears it.',
-    )
+    register_zip_project(project, logger_name='github', trace=trace)
+    if project._scan_queue_failed:
+        messages.warning(
+            request,
+            "Your files are saved, but our safety-check queue is temporarily unavailable. "
+            "Your vibe stays private; staff have been alerted. Do not import it again. "
+            f"Reference: {trace.reference}.",
+        )
+    else:
+        messages.success(
+            request,
+            f'Imported {imported["file_count"]} files from {imported["repo_label"]} — '
+            f'“{project.title}” is in the scan queue. It goes live once the safety checks and review clear it.',
+        )
     if imported['dropped']:
         names = ', '.join(item['path'] for item in imported['dropped'][:4])
         extra = '' if len(imported['dropped']) <= 4 else f" (+{len(imported['dropped']) - 4} more)"

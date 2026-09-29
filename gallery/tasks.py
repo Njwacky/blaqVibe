@@ -467,7 +467,7 @@ def refresh_appeal_scores(limit=500):
         logger.exception('refresh_appeal_scores failed')
         return 0
 
-@shared_task(queue='scan')
+@shared_task(queue='scan', ignore_result=True)
 def process_upload_pipeline(project_id):
     """Master queue: Ensures EVERY app is checked in order, even with 20 concurrent uploads.
     Called via .delay() from publish view — Celery FIFO queue 'scan' serializes.

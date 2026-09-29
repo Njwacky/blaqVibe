@@ -15,6 +15,14 @@
       <p>Your upload matched a safety pattern, so a moderator checks it first. You'll get a notification the moment it's live. Everything below still helps.</p>
     </div>
   </div>
+  {% elif scan_failed %}
+  <div class="ps-hero ps-hero--held" role="status">
+    <span class="ps-hero-mark"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-clock"></use></svg></span>
+    <div>
+      <b>Project received — safety checks need attention</b>
+      <p>Your files are saved and private. Our scan service is temporarily unavailable; staff have been alerted. You do not need to upload again.</p>
+    </div>
+  </div>
   {% elif scan_pending %}
   <div class="ps-hero ps-hero--scan" role="status">
     <span class="ps-hero-mark"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-clock"></use></svg></span>

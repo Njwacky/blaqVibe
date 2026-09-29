@@ -118,6 +118,28 @@ it, and keep one test that runs the code on a backend with no `path()`.
 
 ---
 
+### 3.8 Upload failures: trace the stage, do not scan in a web fallback
+
+A second, separate 500 was reproduced on a valid ZIP with an unavailable Redis
+broker and a slow scanner: `register_zip_project()` caught the queue error and
+ran ClamAV in the HTTP worker. Gunicorn's default 30-second timeout killed the
+worker before it could respond, even though the upload was already saved.
+
+Dispatch is now bounded and never falls back to scanning inside a production
+request. The saved project stays pending/private, its `ScanJob` is marked failed,
+and the owner/staff see why it is held. GitHub's previously unprotected
+`project.save()` also returns a useful 503 on storage/database failure. Each POST
+has a generated reference, stage logs with elapsed time/tracebacks, and an
+`X-Upload-Reference` response header. File-index inserts are batched rather than
+paying one remote-database round trip per file.
+
+See [ZIP / GitHub upload failure diagnosis](UPLOAD_FAILURE_DIAGNOSIS.md) for the
+original failing call stack, controlled before/after measurements, stage names,
+and `retry_failed_scans` recovery instructions. Production still needs a real
+Redis broker and a worker consuming `scan`; this is not a bypass of safety checks.
+
+---
+
 ## 4. Runbook (what to do when things break)
 
 | Symptom | First thing to check |
@@ -125,7 +147,8 @@ it, and keep one test that runs the code on a backend with no `path()`.
 | "Site is slow / alerts on readyz" | `curl -s localhost:8000/readyz` → DB or queue detail. Check DB connections, Redis memory. |
 | Load balancer restarts web | `curl -s localhost:8000/healthz`; if it fails the process is dead — read `docker compose logs web`. |
 | Uploads never finish scanning | `docker compose logs celery` — the scan queue job exists? Redis reachable? ClamAV installed? |
-| Publish / GitHub import answers 500 | Read `docker compose logs web`: the write of the upload inside `AppProject.save()` failed — usually `ValueError: I/O operation on closed file`, i.e. a reader closed the still-unsaved archive (`gallery/ziputil.py:open_zip` must leave the FieldFile open). Reproduce locally against an S3 stub; a local-disk run never shows it. |
+| Publish / GitHub import fails | Search web logs by the upload reference and `stage=… event=failed`; see [the diagnosis](UPLOAD_FAILURE_DIAGNOSIS.md). `save_project` isolates storage/SQL failures; `queue_scan` isolates dispatch. The old closed-stream fix is already shipped — do not assume every 500 is that bug. `WORKER TIMEOUT` points to the last started stage. |
+| Files saved but safety checks unavailable | Restore Redis and the `scan` worker, then run `python manage.py retry_failed_scans`. Add `--include-stale` for pre-fix queued jobs with no task ID older than five minutes. Never ask the builder to upload a second copy. |
 | Bad deploy | `bash scripts/ci.sh` locally first. CI gates hardening first, then migrate/seed/tests, on every PR. |
 | I changed a model | New migration + run the full suite; CI does not merge red. |
 | Accidentally broke data | `python manage.py backup_db` nightly; restore from `backups/`. Then find why (append-only logs, admin dashboard). |
