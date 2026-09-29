@@ -294,7 +294,15 @@ CELERY_TASK_ROUTES = {
 }
 CELERY_TASK_TIME_LIMIT = 120  # 2min hard kill per scan
 CELERY_TASK_SOFT_TIME_LIMIT = 90
-CELERY_BROKER_TRANSPORT_OPTIONS = {'visibility_timeout': 3600}
+# Redis defaults can spend the entire Gunicorn request budget reconnecting.
+# Upload dispatch disables publish retries; bound each socket attempt too.
+CELERY_BROKER_CONNECTION_TIMEOUT = 3
+CELERY_BROKER_TRANSPORT_OPTIONS = {
+    'visibility_timeout': 3600,
+    'socket_connect_timeout': 3,
+    'socket_timeout': 3,
+    'retry_on_timeout': False,
+}
 
 # ----------------------------------------------------------------------
 # Attention cases (gallery/attention.py): duplicated builds + malfunctions.

@@ -1,45 +1,65 @@
 {% extends 'gallery/base.html' %}
+{% load static %}
 {% block title %}Moderation Queue — BlaqVibes{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'gallery/css/moderation-queue.css' %}?v=mobile-20260929">
+{% endblock %}
 {% block content %}
-<div style="max-width:1100px;margin:0 auto;padding:20px">
-  <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-    <div>
-      <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> Moderation Queue</h1>
-      <p style="color:var(--muted);font-size:13px">Staff only — approve pending vibes or review quarantined (virus/secrets). All actions are backend, no JS secrets.</p>
+<div class="moderation-page">
+  <header class="moderation-header">
+    <div class="moderation-header__intro">
+      <h1><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> Moderation Queue</h1>
+      <p>Staff only — approve pending vibes or review quarantined (virus/secrets). All actions are backend, no JS secrets.</p>
     </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap">
-      <a href="{% url 'reports_queue' %}" style="font-size:12px;font-weight:700;color:var(--danger-text);text-decoration:none"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-alert"></use></svg> Report triage{% if open_reports %} ({{ open_reports }} open){% endif %} →</a>
-      <a href="{% url 'appeals_queue' %}" style="font-size:12px;font-weight:700;color:var(--warning-text);text-decoration:none"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> Account quarantine &amp; appeals{% if open_appeals %} ({{ open_appeals }} open){% endif %} →</a>
-    </div>
-  </div>
+    <nav class="moderation-header__links" aria-label="Moderation tools">
+      <a href="{% url 'reports_queue' %}" class="moderation-link--danger"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-alert"></use></svg> Report triage{% if open_reports %} ({{ open_reports }} open){% endif %} →</a>
+      <a href="{% url 'appeals_queue' %}" class="moderation-link--warning"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> Account quarantine &amp; appeals{% if open_appeals %} ({{ open_appeals }} open){% endif %} →</a>
+    </nav>
+  </header>
 
-  <h2 style="margin:16px 0 8px;font-size:14px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-clock"></use></svg> Pending Scan/Review ({{ pending.count }})</h2>
-  {% for p in pending %}
-  <div style="background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px;margin-bottom:8px">
-    <div style="flex:1">
-      <div style="font-weight:700">{{ p.title }} <span style="font-size:11px;color:var(--muted)">@{{ p.owner.username }} • {{ p.tech_stack|default:"—" }} • {{ p.file_count }} files</span></div>
-      <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ p.short_description }}</div>
-      <div style="font-size:11px;color:var(--warning-text)">Status: {{ p.status }} • <a href="{{ p.get_absolute_url }}" style="color:var(--link)" target="_blank">View</a> • <a href="{% url 'scan_status' p.slug %}" style="color:var(--muted)">scan-status json</a></div>
-    </div>
-    <form method="post" action="{% url 'moderation_action' p.slug %}" style="display:flex;gap:6px">{% csrf_token %}
-      <button name="action" value="approve" class="btn-violet" style="padding:8px 12px;font-size:12px">✓ Approve → Published</button>
-      <button name="action" value="reject" class="btn-ghost" style="padding:8px 12px;font-size:12px;color:var(--warning-text)">Reject → Quarantined</button>
-    </form>
-  </div>
-  {% empty %}<div style="color:var(--muted);font-size:13px;padding:12px;background:var(--bg);border:1px dashed var(--line);border-radius:10px">No pending vibes — queue is clean.</div>{% endfor %}
+  <section class="moderation-section" aria-labelledby="pending-heading">
+    <h2 id="pending-heading"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-clock"></use></svg> Pending Scan/Review ({{ pending.count }})</h2>
+    {% for p in pending %}
+    <article class="moderation-card" aria-labelledby="pending-title-{{ p.pk }}">
+      <div class="moderation-card__content">
+        <h3 id="pending-title-{{ p.pk }}">{{ p.title }}</h3>
+        <p class="moderation-card__meta">@{{ p.owner.username }} • {{ p.tech_stack|default:"—" }} • {{ p.file_count }} files</p>
+        <p class="moderation-card__description">{{ p.short_description }}</p>
+        <div class="moderation-card__status">
+          <span>Status: {{ p.status }}</span>
+          <a href="{{ p.get_absolute_url }}" target="_blank" rel="noopener">View</a>
+          <a href="{% url 'scan_status' p.slug %}" class="moderation-card__scan-link">scan-status json</a>
+        </div>
+      </div>
+      <form method="post" action="{% url 'moderation_action' p.slug %}" class="moderation-actions">
+        {% csrf_token %}
+        <button type="submit" name="action" value="approve" class="btn-violet">✓ Approve → Published</button>
+        <button type="submit" name="action" value="reject" class="btn-ghost moderation-action--reject">Reject → Quarantined</button>
+      </form>
+    </article>
+    {% empty %}<div class="moderation-empty">No pending vibes — queue is clean.</div>{% endfor %}
+  </section>
 
-  <h2 style="margin:16px 0 8px;font-size:14px;color:var(--danger-text)"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-alert"></use></svg> Quarantined — Virus/Secrets ({{ quarantined.count }})</h2>
-  {% for p in quarantined %}
-  <div style="background:var(--danger-bg);border:1px solid var(--danger-border);border-radius:12px;padding:12px;display:flex;align-items:center;gap:12px;margin-bottom:8px">
-    <div style="flex:1">
-      <div style="font-weight:700">{{ p.title }} <span style="font-size:11px;color:var(--danger-text)">@{{ p.owner.username }}</span></div>
-      <div style="font-size:11px;color:var(--danger-text)">Quarantined by ClamAV/secrets. Check worker logs. <code style="background:var(--danger-bg);padding:2px 6px;border-radius:6px">{{ p.scan_report|default:"no report" }}</code></div>
-    </div>
-    <form method="post" action="{% url 'moderation_action' p.slug %}" class="js-confirm-delete" style="display:flex;gap:6px">{% csrf_token %}
-      <button name="action" value="approve" class="btn-ghost">Override Approve</button>
-      <button name="action" value="delete" class="btn-violet" style="background:var(--danger-action)">Delete</button>
-    </form>
-  </div>
-  {% empty %}<div style="color:var(--muted);font-size:13px;padding:12px;background:var(--bg);border:1px dashed var(--line);border-radius:10px">No quarantined vibes.</div>{% endfor %}
+  <section class="moderation-section moderation-section--quarantined" aria-labelledby="quarantined-heading">
+    <h2 id="quarantined-heading"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-alert"></use></svg> Quarantined — Virus/Secrets ({{ quarantined.count }})</h2>
+    {% for p in quarantined %}
+    <article class="moderation-card moderation-card--quarantined" aria-labelledby="quarantined-title-{{ p.pk }}">
+      <div class="moderation-card__content">
+        <h3 id="quarantined-title-{{ p.pk }}">{{ p.title }}</h3>
+        <p class="moderation-card__meta">@{{ p.owner.username }}</p>
+        <p class="moderation-card__description">Quarantined by ClamAV/secrets. Check worker logs.</p>
+        <details class="moderation-scan-report">
+          <summary>Scan report</summary>
+          <pre>{{ p.scan_report|default:"no report" }}</pre>
+        </details>
+      </div>
+      <form method="post" action="{% url 'moderation_action' p.slug %}" class="moderation-actions js-confirm-delete">
+        {% csrf_token %}
+        <button type="submit" name="action" value="approve" class="btn-ghost">Override Approve</button>
+        <button type="submit" name="action" value="delete" class="btn-violet moderation-action--delete">Delete</button>
+      </form>
+    </article>
+    {% empty %}<div class="moderation-empty">No quarantined vibes.</div>{% endfor %}
+  </section>
 </div>
 {% endblock %}

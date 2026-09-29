@@ -35,11 +35,12 @@
         Title <span style="color:var(--muted);font-weight:400">(optional — defaults to the repo name)</span>
       </label>
       <input type="text" id="title" name="title" maxlength="200"
+             value="{{ request.POST.title|default:'' }}"
              placeholder="My first vibe"
              style="width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--input);color:var(--text);font-size:15px">
     </div>
 
-    {% if form %}
+    {% if form.errors %}
     <div style="margin-top:16px;padding:12px 14px;border-radius:12px;border:1px solid var(--accent-border);background:var(--accent-soft-bg);font-size:13px;color:var(--text)">
       <b>Something in the details needs a change:</b>
       <ul style="margin:8px 0 0 18px;padding:0;line-height:1.7">

@@ -36,6 +36,8 @@ def owner_scan_reason(project) -> str:
     report = project.scan_report or {}
     if project.status == 'quarantined':
         return 'Virus or blocked secret found. Edit and re-upload a clean ZIP.'
+    if project.status == 'pending' and getattr(getattr(project, 'scan_job', None), 'status', '') == 'failed':
+        return 'Safety checks are temporarily unavailable. Your files are saved and private; staff have been alerted.'
     if report.get('clamav') == 'unavailable':
         return 'Virus scanner is offline. This vibe was not auto-published — a human will review it.'
     if report.get('secrets'):
@@ -128,7 +130,8 @@ def scan_progress(project) -> dict:
     scanner_off = report.get('clamav') == 'unavailable'
     has_secrets = bool(report.get('secrets'))
     published = status == 'published'
-    held = (not published) and (quarantined or scanner_off or has_secrets)
+    queue_failed = status == 'pending' and job_status == 'failed'
+    held = (not published) and (quarantined or scanner_off or has_secrets or queue_failed)
 
     def state_for(done, active=False, blocked=False):
         if blocked:
@@ -146,6 +149,14 @@ def scan_progress(project) -> dict:
         'detail': 'We received your files.',
         'state': 'done',
     }]
+
+    if queue_failed:
+        steps.append({
+            'key': 'queue',
+            'label': 'Scan service',
+            'detail': 'Temporarily unavailable — staff can retry your saved upload.',
+            'state': 'blocked',
+        })
 
     if is_snippet:
         # Snippets skip the queue entirely (see publish view): a fast regex
@@ -167,9 +178,10 @@ def scan_progress(project) -> dict:
             'detail': ('A virus was found — blocked.' if quarantined
                        else 'Scanner offline — held for a human.' if scanner_off
                        else 'Checking the ZIP with ClamAV.'),
-            'state': state_for(virus_done and not (quarantined or scanner_off),
-                               active=not virus_done,
-                               blocked=quarantined or scanner_off),
+            'state': ('pending' if queue_failed
+                      else state_for(virus_done and not (quarantined or scanner_off),
+                                     active=not virus_done,
+                                     blocked=quarantined or scanner_off)),
         })
         # Secret scan
         secret_done = published or has_secrets or quarantined
@@ -178,7 +190,7 @@ def scan_progress(project) -> dict:
             'label': 'Secret scan',
             'detail': ('Possible secrets found — held for a moderator.' if has_secrets
                        else 'Looking for API keys or passwords in the files.'),
-            'state': ('pending' if quarantined or scanner_off
+            'state': ('pending' if quarantined or scanner_off or queue_failed
                       else state_for(published, active=not secret_done,
                                      blocked=has_secrets)),
         })
@@ -225,6 +237,8 @@ def scan_progress(project) -> dict:
         headline = 'Blocked — a virus or secret was found'
     elif has_secrets:
         headline = 'Held for review — possible secrets in the ZIP'
+    elif queue_failed:
+        headline = 'Your files are saved — safety checks need attention'
     elif scanner_off:
         headline = 'Held for a human — the scanner is offline'
     else:

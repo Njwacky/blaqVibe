@@ -63,6 +63,7 @@ from .views_community import (
 # everything through gallery.views. The import itself lives in repo_import.py
 # to avoid a cycle: that module calls back into register_zip_project.
 from .repo_import import import_from_github
+from .upload_diagnostics import UploadTrace, trace_upload
 logger = logging.getLogger(__name__)
 
 
@@ -878,71 +879,67 @@ def run_static(request, slug):
     resp['Cross-Origin-Resource-Policy'] = 'same-origin'
     return resp
 
-def register_zip_project(project, logger_name='publish'):
-    """Everything that must happen to a saved project that carries a ZIP.
+def register_zip_project(project, logger_name='publish', trace=None):
+    """Shared post-save tree, bounded scan dispatch and notification path.
 
-    Extracted from publish() so the GitHub demo import
-    (gallery.repo_import) runs the SAME tree build, the SAME scan queue and
-    the SAME moderator fan-out — one pipeline, no second copy that drifts.
-    Returns the queue position so the caller can word its own message.
+    A failed dispatch leaves the saved vibe pending/private with a failed
+    ScanJob, visible to the owner and staff and recoverable without another
+    upload. Never run slow scanners inside a production web request.
     """
+    from .scan_queue import enqueue_scan
+
+    trace = trace or UploadTrace(logger_name)
+    trace.project_id = project.pk
     try:
-        from .ziputil import build_tree
-        tree, file_list = build_tree(project.zip_file)
-        project.file_tree = tree
-        project.file_count = len(file_list)
-        project.save(update_fields=['file_tree', 'file_count'])
-        for f in file_list[:2000]:
-            AppFile.objects.create(project=project, path=f['path'], size=f['size'])
+        with trace.stage('build_tree'):
+            from .ziputil import build_tree
+            tree, file_list = build_tree(project.zip_file)
+            project.file_tree = tree
+            project.file_count = len(file_list)
+            project.save(update_fields=['file_tree', 'file_count'])
+            # One round trip per file can itself exceed Gunicorn's timeout
+            # on a remote database. AppFile has no save hooks; insert in batches.
+            AppFile.objects.bulk_create([
+                AppFile(project=project, path=f['path'], size=f['size'])
+                for f in file_list[:2000]
+            ], batch_size=500)
     except Exception as e:
         logger.warning("Tree build error for %s: %s", project.slug, e)
-    # Queue EVERY app — concurrent uploads serialize in 'scan' queue (FIFO, acks_late, prefetch 1)
+
+    queued = enqueue_scan(project, trace=trace)
+    project._scan_queue_failed = not queued
+    # Receipt lives beside dispatch so ZIP and GitHub uploads both tell the
+    # builder that the files arrived, even when our queue is offline.
     try:
-        from .tasks import process_upload_pipeline
-        job, _ = ScanJob.objects.get_or_create(project=project, defaults={'status': 'queued'})
-        task = process_upload_pipeline.delay(project.id)
-        job.task_id = task.id if hasattr(task, 'id') else ''
-        job.status = 'scanning'
-        job.save(update_fields=['task_id', 'status'])
-    except Exception as e:
-        # The old comment promised "fallback eager" but never ran one — a dead
-        # broker left the project 'pending' with a ScanJob that no worker would
-        # ever pick up: the upload silently never finished. Actually run the
-        # pipeline in-request when the queue is unreachable. Slow, but a slow
-        # scan beats a forever-queue.
-        logger.warning("Queue error, running pipeline eager for %s: %s", project.slug, e)
-        try:
-            from .tasks import (attention_check, finalize_publish,
-                                scan_zip_with_clamav, vulnerability_scan)
-            verdict = scan_zip_with_clamav.apply(args=[project.id]).get()
-            vulnerability_scan.apply(args=[project.id]).get()
-            finalize_publish.apply(args=[project.id]).get()
-            attention_check.apply(args=[project.id]).get()
-            logger.info("Eager pipeline finished for %s: %s", project.slug, verdict)
-        except Exception:
-            logger.exception("Eager pipeline fallback failed for %s", project.slug)
-    # The uploader's own receipt — "your application is in". Without this row
-    # the only confirmation was a toast that dies with the page; a new user
-    # who closed the tab had NOTHING in their inbox showing the upload landed
-    # and is being reviewed. Lives next to the staff fan-out so every path
-    # that queues a scan (publish, repo import) also receipts the builder.
-    try:
-        notify(
-            project.owner,
-            'upload',
-            f'Application received: “{project.title}”',
-            'Your vibe is in the safety-check queue. We’ll tell you the moment '
-            'the review is done — you can follow its status on the vibe page.',
-            project.get_absolute_url(),
-        )
+        with trace.stage('notify_owner'):
+            notify(
+                project.owner,
+                'upload',
+                f'Application received: “{project.title}”',
+                ('Your vibe is in the safety-check queue. We’ll tell you the moment '
+                 'the review is done — follow its status on the vibe page.' if queued
+                 else 'Your files are saved, but our safety-check queue is unavailable. '
+                 'Your vibe stays private while staff restore the scan service.'),
+                project.get_absolute_url(),
+            )
+            if not queued:
+                notify(
+                    project.owner, 'review_needed',
+                    f'“{project.title}” is waiting for safety checks',
+                    'Your files are saved. Our scan service is temporarily unavailable; '
+                    f'staff have been alerted. You do not need to upload again. Reference: {trace.reference}.',
+                    project.get_absolute_url(),
+                )
     except Exception:
         logger.exception('owner upload receipt failed slug=%s', project.slug)
     try:
-        from .admin_notifications import notify_admins_pending_project
-        notify_admins_pending_project(project, reason="New ZIP upload — waiting in scan queue, needs approval check")
+        with trace.stage('notify_staff'):
+            from .admin_notifications import notify_admins_pending_project
+            reason = ("New ZIP upload — waiting in scan queue, needs approval check" if queued
+                      else f"Scan dispatch failed — restore the queue and retry the saved upload. Reference: {trace.reference}")
+            notify_admins_pending_project(project, reason=reason)
     except Exception:
         logger.exception('upload moderator fan-out failed slug=%s', project.slug)
-        # Fallback to in-app only
         try:
             from .reports import moderators_to_notify
             for staff in moderators_to_notify(project.owner):
@@ -950,7 +947,7 @@ def register_zip_project(project, logger_name='publish'):
                     staff,
                     'upload',
                     f'New ZIP upload: {project.title}',
-                    f'@{project.owner.username} uploaded a project and it is waiting in the scan queue.',
+                    f'@{project.owner.username} uploaded a project and it needs safety checks.',
                     project.get_absolute_url(),
                 )
         except Exception:
@@ -988,6 +985,7 @@ def _publish_form_page(request, form, challenge, challenge_tag, upload_zip,
     }, status=status)
 
 
+@trace_upload('publish')
 @login_required
 # block=False is deliberate, and it is the same trap the signup view documents:
 # django-ratelimit's decorator defaults to block=True, which raises
@@ -999,6 +997,7 @@ def _publish_form_page(request, form, challenge, challenge_tag, upload_zip,
 @ratelimit(key='user', rate='5/h', method='POST', block=False)
 @not_quarantined
 def publish(request):
+    trace = getattr(request, 'upload_trace', None) or UploadTrace('publish')
     # The action-first welcome hands a brand-new builder here. Marking the
     # welcome answered server-side prevents the modal from immediately
     # reappearing on the publish page when navigation cancels the client POST.
@@ -1039,7 +1038,9 @@ def publish(request):
         )
     if request.method == 'POST':
         form = QuickPublishForm(request.POST, request.FILES)
-        if form.is_valid():
+        with trace.stage('validate_form'):
+            valid = form.is_valid()
+        if valid:
             # ── Idempotent publish: one submission, one feed row ──
             # A double-tap on a slow connection (100MB ZIPs on mobile data
             # are exactly where this happens), an XHR retry after a lost
@@ -1088,7 +1089,9 @@ def publish(request):
             if not getattr(request.user.profile, 'allow_trading', True):
                 project.star_cost = 0
             try:
-                project.save()
+                with trace.stage('save_project'), transaction.atomic():
+                    project.save()
+                    trace.project_id = project.pk
             except Exception:
                 # The one step here that can fail outside our code is writing
                 # the upload itself (storage.save() inside AppProject.save) —
@@ -1103,21 +1106,30 @@ def publish(request):
                 messages.error(
                     request,
                     "We couldn’t save your vibe — nothing was published. "
-                    "Please try again in a moment.",
+                    f"Please try again in a moment. Reference: {trace.reference}.",
                 )
                 return _publish_form_page(
                     request, form, challenge, challenge_tag, upload_zip,
                     status=503, rejected=True,
                 )
-            form.save_m2m()
+            with trace.stage('save_relations'):
+                form.save_m2m()
             # Challenge — if checked or from URL, add tag
             if challenge and (request.POST.get('challenge_join') == 'on' or challenge_tag):
                 from gallery.models import Tag
                 tag, _ = Tag.objects.get_or_create(slug=challenge.tag, defaults={'name': challenge.tag})
                 project.tags.add(tag)
             if project.zip_file:
-                position = register_zip_project(project)
-                messages.info(request, f"⏳ Your vibe “{project.title}” is in the queue — we’re checking for vulnerabilities. We’ll tell you when it’s uploaded! You’re #{position} in line, even with concurrent uploads every app is checked.")
+                position = register_zip_project(project, trace=trace)
+                if project._scan_queue_failed:
+                    messages.warning(
+                        request,
+                        "Your files are saved, but our safety-check queue is temporarily unavailable. "
+                        "Your vibe stays private; staff have been alerted. Do not upload it again. "
+                        f"Reference: {trace.reference}.",
+                    )
+                else:
+                    messages.info(request, f"Your vibe “{project.title}” is in the safety-check queue. We’ll tell you when it’s live. You’re #{position} in line.")
                 try:
                     if SiteSettings.get().auto_run_enabled:
                         messages.info(request, "File preview is on the vibe page after the scan. This is not a live server.")
@@ -1276,6 +1288,7 @@ def publish_success(request, slug):
         'level_title': level_title,
         'actions': strengthen_actions(project),
         'scan_pending': project.status == 'pending',
+        'scan_failed': project.status == 'pending' and getattr(getattr(project, 'scan_job', None), 'status', '') == 'failed',
         'quarantined': project.status == 'quarantined',
     })
 
