@@ -214,6 +214,21 @@ document.addEventListener('submit', function(e){
   if(confirmForm){
     if(!confirm('Delete forever?')) e.preventDefault();
   }
+  // Generic per-form confirmation: keep the prompt text in a data attribute
+  // instead of an inline onsubmit handler (CSP-friendliness + separation).
+  const asked = e.target.closest('[data-confirm-submit]');
+  if(asked){
+    if(!confirm(asked.getAttribute('data-confirm-submit'))) e.preventDefault();
+  }
+});
+
+// Auto-submit forms whose control carries data-submit-onchange (filters etc.)
+// — replaces inline `onchange="this.form.submit()"`.
+document.addEventListener('change', function(e){
+  const ctrl = e.target;
+  if(ctrl && ctrl.form && ctrl.hasAttribute && ctrl.hasAttribute('data-submit-onchange')){
+    ctrl.form.submit();
+  }
 });
 
 /* Mobile top-bar height → --bv-nav-h. The bar is sticky (in-flow), so page

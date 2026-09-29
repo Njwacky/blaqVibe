@@ -22,6 +22,11 @@ from users.models import Profile
 logger = logging.getLogger(__name__)
 
 HTML_DIR = Path(settings.BASE_DIR) / 'real_templates' / 'html'
+# Split out of the HTML by the refactor: sibling stylesheets/scripts next to
+# each snippet, seeded into the project's own css_code/js_code fields so the
+# Code tab, the preview iframe and the copy-paste export stay separated too.
+CSS_DIR = Path(settings.BASE_DIR) / 'real_templates' / 'css'
+JS_DIR = Path(settings.BASE_DIR) / 'real_templates' / 'js'
 
 # The documented local password. Kept in ONE place so the README, the tests and
 # the seeder cannot drift apart into three different known credentials.
@@ -189,10 +194,21 @@ def _body_html(path: Path) -> str:
     raw = path.read_text(encoding='utf-8')
     match = re.search(r'<body[^>]*>(.*)</body>', raw, re.I | re.S)
     body = match.group(1).strip() if match else raw
+    # Local <link>/<script> references are seeded from real_templates/css|js
+    # into css_code/js_code (served by snippet_css/snippet_js) — drop the raw
+    # relative paths so the stored HTML never carries a dead ../ link.
+    body = re.sub(r'\s*<link rel="stylesheet" href="\.\./css/[^"]+">', '', body)
+    body = re.sub(r'\s*<script src="\.\./js/[^"]+"></script>', '', body)
     # Tailwind classes need the CDN inside the sandboxed iframe.
     if 'cdn.tailwindcss.com' not in body:
         body = '<script src="https://cdn.tailwindcss.com"></script>\n' + body
     return body
+
+
+def _snippet_sidecar(kind: str, folder: Path, filename: str) -> str:
+    """Read css/js that was split out of a snippet's HTML file, if present."""
+    path = folder / (Path(filename).stem + f'.{kind}')
+    return path.read_text(encoding='utf-8') if path.exists() else ''
 
 def _ensure_user(username: str, password: str, stars: int = 5, *,
                  wallet: bool = True, usable_password: bool = True,
@@ -280,6 +296,9 @@ def _seed_snippets(owner, cats, superowner=None):
         if not path.exists():
             continue
         html = _body_html(path)
+        css_code = _snippet_sidecar('css', CSS_DIR, item['file']) or \
+            '/* Tailwind via CDN inside the sandboxed preview iframe. */'
+        js_code = _snippet_sidecar('js', JS_DIR, item['file'])
         # The flagship lands on the superadmin in dev posture: their profile
         # is the showcase ("what it looks like to have it all"), and rank /
         # stars-received count stars on published vibes — the operator
@@ -297,7 +316,8 @@ def _seed_snippets(owner, cats, superowner=None):
                 'readme': item['readme'],
                 'tech_stack': item['tech'],
                 'html_code': html,
-                'css_code': '/* Tailwind via CDN inside the sandboxed preview iframe. */',
+                'css_code': css_code,
+                'js_code': js_code,
                 'status': 'published',
                 'file_count': 1,
                 'stars': this_stars,

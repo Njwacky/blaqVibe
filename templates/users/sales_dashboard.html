@@ -1,5 +1,7 @@
 {% extends 'gallery/base.html' %}
+{% load static %}
 {% block title %}Sales — BlaqVibes{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'gallery/css/sales-dashboard.css' %}?v=split-20260928">{% endblock %}
 {% block content %}
 <div style="max-width:1100px;margin:0 auto;padding:20px">
   <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-sales"></use></svg> Sales — @{{ user.username }}</h1>
@@ -179,9 +181,4 @@
     {% endfor %}
   </div>
 </div>
-<style>
-@media (max-width: 800px) {
-  .sales-grid { grid-template-columns: 1fr !important; }
-}
-</style>
 {% endblock %}

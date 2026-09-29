@@ -1,0 +1,12 @@
+/* Extracted from: templates/gallery/base.html
+   Loaded by a <link>/<script> tag in those template(s); keep the two in sync. */
+.nav{min-height:64px}.vibe-grid{display:grid;gap:12px}
+
+.pub-choose-backdrop{position:fixed;inset:0;z-index:95;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.62);backdrop-filter:blur(4px)}
+.pub-choose-backdrop.open{display:flex}
+.pub-choose-card{background:var(--card);border:1px solid var(--line);border-radius:18px;max-width:520px;width:100%;padding:22px;box-shadow:var(--shadow)}
+.pub-choose-opt{display:flex;gap:14px;align-items:flex-start;text-decoration:none;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:16px;transition:border-color .15s,transform .15s}
+.pub-choose-opt:hover{border-color:var(--violet);transform:translateY(-1px)}
+.pub-choose-opt:focus-visible{outline:2px solid var(--violet);outline-offset:2px}
+.pub-choose-ico{flex:0 0 44px;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--accent-soft-bg);border:1px solid var(--accent-border);color:var(--accent-text)}
+.pub-choose-ico .bv-icon{width:22px;height:22px;flex-basis:22px}

@@ -18,19 +18,15 @@
 <link rel="preload" href="{% static 'gallery/css/fonts.css' %}?v=fonts-20260830" as="style">
 <link rel="stylesheet" href="{% static 'gallery/css/fonts.css' %}?v=fonts-20260830">
 <link rel="stylesheet" href="{% static 'gallery/css/blaqvibes.css' %}?v=welcome-clean-20260928">
-<link rel="preload" href="{% static 'gallery/css/cards.css' %}?v=feed-byline-20260923" as="style" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel="stylesheet" href="{% static 'gallery/css/cards.css' %}?v=feed-byline-20260923"></noscript>
-<link rel="preload" href="{% static 'gallery/css/premium.css' %}?v=nav-pc-fix-20260922" as="style" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel="stylesheet" href="{% static 'gallery/css/premium.css' %}?v=nav-pc-fix-20260922"></noscript>
-<link rel="preload" href="{% static 'gallery/css/footer.css' %}?v=footer-polish-20260921" as="style" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel="stylesheet" href="{% static 'gallery/css/footer.css' %}?v=footer-polish-20260921"></noscript>
-<link rel="preload" href="{% static 'gallery/css/attention.css' %}?v=attention-20260917" as="style" onload="this.onload=null;this.rel='stylesheet'">
-<noscript><link rel="stylesheet" href="{% static 'gallery/css/attention.css' %}?v=attention-20260917"></noscript>
-<style>.nav{min-height:64px}.vibe-grid{display:grid;gap:12px}</style>
+<link rel="stylesheet" href="{% static 'gallery/css/cards.css' %}?v=feed-byline-20260923">
+<link rel="stylesheet" href="{% static 'gallery/css/premium.css' %}?v=nav-pc-fix-20260922">
+<link rel="stylesheet" href="{% static 'gallery/css/footer.css' %}?v=footer-polish-20260921">
+<link rel="stylesheet" href="{% static 'gallery/css/attention.css' %}?v=attention-20260917">
+<link rel="stylesheet" href="{% static 'gallery/css/base.css' %}?v=split-20260928">
 <link rel="preload" href="{% static 'gallery/js/alpine.min.js' %}?v=alpine-3.16.3" as="script">
 <script src="{% static 'gallery/js/head-theme.js' %}?v=fab-tip-dismiss-20260921"></script>
 <script src="{% static 'gallery/js/alpine.min.js' %}?v=alpine-3.16.3" defer></script>
-<script src="{% static 'gallery/js/blaqvibes.js' %}?v=nav-pc-fix-20260922" defer></script>
+<script src="{% static 'gallery/js/blaqvibes.js' %}?v=form-helpers-20260928" defer></script>
 <script src="{% static 'gallery/js/attention.js' %}?v=attention-20260917" defer></script>
 {% block head %}{% endblock %}
 </head>
@@ -346,16 +342,6 @@ or START (write in the browser from a starter or blank canvas). The Upload
 button keeps the original href, so ?challenge= and similar params survive.
 Layer 95: above the nav menu (60) and mobile sticky actions (90), below the
 skip link (100) and transient toast/PWA banners (999).{% endcomment %}
-<style>
-.pub-choose-backdrop{position:fixed;inset:0;z-index:95;display:none;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.62);backdrop-filter:blur(4px)}
-.pub-choose-backdrop.open{display:flex}
-.pub-choose-card{background:var(--card);border:1px solid var(--line);border-radius:18px;max-width:520px;width:100%;padding:22px;box-shadow:var(--shadow)}
-.pub-choose-opt{display:flex;gap:14px;align-items:flex-start;text-decoration:none;color:inherit;background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:16px;transition:border-color .15s,transform .15s}
-.pub-choose-opt:hover{border-color:var(--violet);transform:translateY(-1px)}
-.pub-choose-opt:focus-visible{outline:2px solid var(--violet);outline-offset:2px}
-.pub-choose-ico{flex:0 0 44px;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--accent-soft-bg);border:1px solid var(--accent-border);color:var(--accent-text)}
-.pub-choose-ico .bv-icon{width:22px;height:22px;flex-basis:22px}
-</style>
 <div class="pub-choose-backdrop" id="pub-choose" role="dialog" aria-modal="true" aria-labelledby="pub-choose-title" hidden>
   <div class="pub-choose-card">
     <div style="display:flex;align-items:flex-start;gap:10px">
@@ -377,67 +363,8 @@ skip link (100) and transient toast/PWA banners (999).{% endcomment %}
     </div>
   </div>
 </div>
-<script>
-(function(){
-  var backdrop = document.getElementById('pub-choose');
-  if(!backdrop) return;
-  var uploadBtn = document.getElementById('pub-choose-upload');
-  var closeBtn = document.getElementById('pub-choose-close');
-  var lastFocus = null;
-  function openChooser(uploadHref){
-    lastFocus = document.activeElement;
-    if(uploadHref) uploadBtn.setAttribute('href', uploadHref);
-    backdrop.hidden = false;
-    backdrop.classList.add('open');
-    var menu = document.getElementById('nav-menu');
-    if(menu) menu.classList.remove('open');
-    var links = document.getElementById('nav-links');
-    if(links) links.classList.remove('open');
-    if(closeBtn) closeBtn.focus();
-    document.body.style.overflow = 'hidden';
-  }
-  function closeChooser(){
-    backdrop.classList.remove('open');
-    backdrop.hidden = true;
-    document.body.style.overflow = '';
-    if(lastFocus && lastFocus.focus) lastFocus.focus();
-  }
-  document.addEventListener('click', function(e){
-    if(e.defaultPrevented) return;
-    if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
-    var t = e.target;
-    if(t && t.closest){
-      if(t.closest('#pub-choose-close')){ e.preventDefault(); closeChooser(); return; }
-      if(t === backdrop){ closeChooser(); return; }
-      var link = t.closest('a[href]');
-      if(link && !link.hasAttribute('data-no-chooser')){
-        var raw = link.getAttribute('href') || '';
-        var path = raw.split('?')[0].split('#')[0];
-        var isWelcomeHandoff = /(?:^|[?&])welcome=1(?:&|$)/.test(raw.split('#')[0]);
-        if((path === '/publish' || path === '/publish/') && !isWelcomeHandoff){
-          e.preventDefault();
-          e.stopPropagation();
-          openChooser(link.href);
-          return;
-        }
-      }
-    }
-  }, true);
-  document.addEventListener('keydown', function(e){
-    if(e.key === 'Escape' && backdrop.classList.contains('open')) closeChooser();
-  });
-})();
-</script>
+<script src="{% static 'gallery/js/publish-chooser.js' %}?v=split-20260928" defer></script>
 {% block scripts %}{% endblock %}
-{% if user.is_authenticated and not user.profile.overlay_seen %}<script nonce="{{ request.csp_nonce|default:'' }}">(function(){var d=document,el=d.getElementById('welcome-overlay');if(!el)return;
-function postSeen(){var u=el.getAttribute('data-seen-url');if(!u)return;var nv=new FormData(),c=el.getAttribute('data-csrf');if(c)nv.set('csrfmiddlewaretoken',c);fetch(u,{method:'POST',body:nv,headers:{'X-Requested-With':'XMLHttpRequest'},keepalive:true}).catch(function(){})}
-function open(){el.style.display='grid';var bd=d.querySelector('.welcome-backdrop');if(bd)bd.style.display='block';el.setAttribute('aria-hidden','false')}
-function seenKey(){return el.getAttribute('data-user-key')||'blaq-welcome-seen'}
-function rememberSeen(){try{localStorage.setItem(seenKey(),'1')}catch(e){}}
-function close(){el.style.display='none';var bd=d.querySelector('.welcome-backdrop');if(bd)bd.style.display='none';el.setAttribute('aria-hidden','true');postSeen();rememberSeen()}
-d.addEventListener('click',function(e){var t=e.target;if(!t)return;if(t.closest&&t.closest('.welcome-skip')){close();return}if(t.closest&&t.closest('.welcome-start')){rememberSeen();return}});
-d.addEventListener('keydown',function(e){if(el.getAttribute('aria-hidden')==='true')return;if(e.key==='Escape'){close()}});
-var known=null;try{known=localStorage.getItem(seenKey())}catch(e){}
-if(el.getAttribute('data-force')==='1'||known!=='1'){open()}})();</script>{% endif %}
+{% if user.is_authenticated and not user.profile.overlay_seen %}<script nonce="{{ request.csp_nonce|default:'' }}" src="{% static 'gallery/js/welcome-overlay.js' %}?v=split-20260928" defer></script>{% endif %}
 </body>
 </html>

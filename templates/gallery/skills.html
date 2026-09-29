@@ -43,7 +43,7 @@
       </div>
       <form method="get">
         <input name="q" value="{{ q }}" placeholder="Search skills">
-        <select name="difficulty" onchange="this.form.submit()">
+        <select name="difficulty" data-submit-onchange>
           <option value="">All levels</option>
           <option value="beginner" {% if difficulty == 'beginner' %}selected{% endif %}>Beginner</option>
           <option value="intermediate" {% if difficulty == 'intermediate' %}selected{% endif %}>Intermediate</option>

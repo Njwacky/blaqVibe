@@ -125,3 +125,15 @@
   .feedback-attachment__name { max-width: 100%; white-space: normal; }
   .feedback-screenshot { width: 100%; }
 }
+
+
+/* --- extracted from templates/users/feedback_conversation.html (kept here so every feedback style lives together) --- */
+    .fb-msg{display:flex;flex-direction:column;max-width:82%}
+    .fb-msg--user{align-self:flex-start;align-items:flex-start}
+    .fb-msg--staff{align-self:flex-end;align-items:flex-end}
+    .fb-msg__meta{font-size:11px;color:var(--muted);margin:0 0 4px 6px;display:flex;gap:8px;align-items:center}
+    .fb-msg__body{font-size:13.5px;line-height:1.6;padding:12px 14px;border-radius:14px;white-space:pre-line;word-break:break-word}
+    .fb-msg--user .fb-msg__body{background:var(--card);border:1px solid var(--line);border-bottom-left-radius:4px}
+    .fb-msg--staff .fb-msg__body{background:linear-gradient(140deg,color-mix(in srgb,var(--violet) 16%,var(--card)),var(--card));border:1px solid var(--accent-border);border-bottom-right-radius:4px}
+    @media (max-width:640px){.fb-msg{max-width:94%}}
+  
