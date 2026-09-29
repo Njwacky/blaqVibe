@@ -36,12 +36,15 @@ import re
 import zipfile
 from io import BytesIO
 from pathlib import Path
+from unittest import mock
 
 from django.contrib.auth.models import User
 from django.core.cache import caches
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase, override_settings
 from django.urls import reverse
+
+from gallery.models import AppProject
 
 STATIC = Path(__file__).resolve().parent.parent / 'static' / 'gallery'
 
@@ -218,3 +221,43 @@ class PublishUploadScriptTests(TestCase):
         self.assertIn('xhr.status >= 400', self.js)
         self.assertIn('Nothing was published', self.js)
         self.assertIn('xhr.ontimeout', self.js)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests')
+class PublishSaveFailureIsVisibleTests(PublishPostMixin, TestCase):
+    """A save that dies on our side must not answer a bare 500.
+
+    The row and the uploaded archive are written by the same
+    AppProject.save(), and the archive is written first — so a storage
+    failure (a bucket that went away, an expired key, a stream that was
+    closed under us) took the whole POST down with Django's generic 500
+    page: nothing in the UI, no way to tell a half-made vibe from none at
+    all, and nothing about what to do next. The file write happens before
+    the INSERT, so there is never a half-made vibe to clean up.
+    """
+
+    def setUp(self):
+        self.user = User.objects.create_user('builder', password='pw12345!')
+        self.client.force_login(self.user)
+
+    def test_a_storage_failure_answers_in_place_not_a_bare_500(self):
+        with mock.patch.object(AppProject, 'save',
+                               side_effect=ValueError('I/O operation on closed file.')):
+            res = self.post()
+        self.assertEqual(res.status_code, 503)
+        self.assertEqual(res.resolver_match.url_name, 'publish')
+        body = res.content.decode()
+        # Apostrophes are HTML-escaped in the rendered message, so match on
+        # the words that carry the meaning.
+        self.assertTrue('save your vibe' in body, 'no explanation on the page')
+        self.assertTrue('nothing was published' in body, 'does not say nothing landed')
+        self.assertTrue('id="publish-form"' in body, 'the form is gone')
+        self.assertFalse(AppProject.objects.filter(owner=self.user).exists(),
+                         'a half-made vibe was left behind')
+
+    def test_the_failure_is_logged_with_its_traceback(self):
+        with mock.patch.object(AppProject, 'save', side_effect=ValueError('boom')):
+            with self.assertLogs('gallery.views', level='ERROR') as logs:
+                self.post()
+        self.assertIn('publish save failed', '\n'.join(logs.output))
+        self.assertIn('Traceback', '\n'.join(logs.output))

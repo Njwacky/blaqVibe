@@ -9,13 +9,14 @@
   <header class="builder-hero">
     <p class="builder-hero__eyebrow">BUILD → PROVE → CAPABILITY → DISCOVER</p>
     <h1>What are people building?</h1>
-    <p class="builder-hero__lead">Open real projects. See what was built, what was checked, and what the creator can actually do.</p>
+    {# §19: the landing answers with the community's work, not a creator pitch. #}
+    <p class="builder-hero__lead">Your work belongs in the answer. Open real projects — see what was built, what was checked, and what the creator can actually do.</p>
     <div class="builder-hero__actions">
-      <a href="#grid" class="btn-violet">Explore real Builds</a>
+      <a href="#grid" class="btn-violet">Explore what's being built</a>
       <a href="{% url 'build_hub' %}" class="btn-ghost">Build your next →</a>
       <a href="{% url 'capability_search' %}" class="builder-hero__quiet-link">Find capability →</a>
     </div>
-    {% if activity %}<div class="builder-hero__activity"><b>{{ activity.published }} published</b> · {{ activity.remixes }} remixes · {{ activity.stars }} stars this week</div>{% endif %}
+    {% if activity %}<div class="builder-hero__activity"><b>{{ activity.published }} published</b> · {{ activity.remixes }} remixes · {{ activity.stars }} stars this week — real builders, shipping now</div>{% endif %}
   </header>
 
   <div class="kind-chips" style="margin-top:10px">

@@ -11,3 +11,7 @@ backups/
 .DS_Store
 .vscode/
 .ruff_cache/
+
+# local agent sandbox venv (not for the app)
+.venvlocal/
+.tmpwork/

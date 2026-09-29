@@ -1087,7 +1087,28 @@ def publish(request):
             project.publish_token = token
             if not getattr(request.user.profile, 'allow_trading', True):
                 project.star_cost = 0
-            project.save()
+            try:
+                project.save()
+            except Exception:
+                # The one step here that can fail outside our code is writing
+                # the upload itself (storage.save() inside AppProject.save) —
+                # a bucket that went away, an expired key, a stream that was
+                # closed under us. The file is written during pre_save, so the
+                # INSERT never happens and there is no half-made vibe to clean
+                # up: log the traceback, say what happened, and hand the form
+                # back instead of a bare 500 page that tells the builder
+                # nothing about what to do next.
+                logger.exception('publish save failed for %r',
+                                 (form.cleaned_data.get('title') or '')[:120])
+                messages.error(
+                    request,
+                    "We couldn’t save your vibe — nothing was published. "
+                    "Please try again in a moment.",
+                )
+                return _publish_form_page(
+                    request, form, challenge, challenge_tag, upload_zip,
+                    status=503, rejected=True,
+                )
             form.save_m2m()
             # Challenge — if checked or from URL, add tag
             if challenge and (request.POST.get('challenge_join') == 'on' or challenge_tag):
