@@ -32,8 +32,15 @@ PAGE_SIZE = 12
 
 
 def card_titles(body):
-    """Titles of the vibe cards actually rendered in the grid."""
-    return re.findall(r'ellipsis">([^<]*)</div>', body)
+    """Titles of the vibe cards actually rendered in the grid.
+
+    Selects the grid card's title element (class comes from
+    static/gallery/css/cards.css .vibe-card__title). The 2026-09 redesign
+    replaced the old inline `text-overflow:ellipsis` style with that class,
+    which wraps long words instead of clipping them — the cards are the same
+    cards, only the marker this helper matches had to move with the markup.
+    """
+    return re.findall(r'vibe-card__title">([^<]*)</div>', body)
 
 
 def pager_text(body):

@@ -99,6 +99,25 @@ Fail-closed design: it **refuses** in-memory databases (a backup that hangs/corr
 
 ---
 
+### 3.7 Fixed: publishing 500'd on object storage
+*(new: `gallery/ziputil.py:open_zip`, pinned by `gallery/test_ziputil.py`)*
+
+`AppProject.save()` reads the uploaded archive for language stats and then
+writes the very same, still-unsaved upload through `storage.save()`. On local
+disk that is invisible — the reader opens the file by path and never touches
+the FieldFile. On S3/R2 the reader streams through the storage API and used to
+close the FieldFile on the way out, so the write that followed read a closed
+file and raised `ValueError: I/O operation on closed file` out of an unguarded
+`super().save()`: `POST /publish/` and `POST /import/github/` both answered a
+bare 500 with nothing in the UI to explain it.
+
+`open_zip()` now leaves the FieldFile open and rewound. The lesson worth
+keeping: **a local-disk test run cannot see a storage-API bug.** Reproduce
+against any S3-compatible stub (`moto_server`, MinIO) with `AWS_*` pointed at
+it, and keep one test that runs the code on a backend with no `path()`.
+
+---
+
 ## 4. Runbook (what to do when things break)
 
 | Symptom | First thing to check |
@@ -106,6 +125,7 @@ Fail-closed design: it **refuses** in-memory databases (a backup that hangs/corr
 | "Site is slow / alerts on readyz" | `curl -s localhost:8000/readyz` → DB or queue detail. Check DB connections, Redis memory. |
 | Load balancer restarts web | `curl -s localhost:8000/healthz`; if it fails the process is dead — read `docker compose logs web`. |
 | Uploads never finish scanning | `docker compose logs celery` — the scan queue job exists? Redis reachable? ClamAV installed? |
+| Publish / GitHub import answers 500 | Read `docker compose logs web`: the write of the upload inside `AppProject.save()` failed — usually `ValueError: I/O operation on closed file`, i.e. a reader closed the still-unsaved archive (`gallery/ziputil.py:open_zip` must leave the FieldFile open). Reproduce locally against an S3 stub; a local-disk run never shows it. |
 | Bad deploy | `bash scripts/ci.sh` locally first. CI gates hardening first, then migrate/seed/tests, on every PR. |
 | I changed a model | New migration + run the full suite; CI does not merge red. |
 | Accidentally broke data | `python manage.py backup_db` nightly; restore from `backups/`. Then find why (append-only logs, admin dashboard). |
