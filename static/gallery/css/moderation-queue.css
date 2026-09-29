@@ -1,0 +1,172 @@
+/* Staff approvals: readable content and reachable actions at every width. */
+.moderation-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px;
+  overflow-wrap: anywhere;
+}
+.moderation-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+  justify-content: space-between;
+}
+.moderation-header__intro { min-width: 0; }
+.moderation-header h1 {
+  font-family: Space Grotesk, sans-serif;
+  font-size: 22px;
+}
+.moderation-header p {
+  color: var(--muted);
+  font-size: 13px;
+}
+.moderation-header__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 10px;
+  min-width: 0;
+}
+.moderation-header__links a {
+  display: inline-flex;
+  gap: 4px;
+  align-items: center;
+  min-height: 44px;
+  max-width: 100%;
+  font-size: 12px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.moderation-header__links .bv-glyph { flex-shrink: 0; }
+.moderation-link--danger { color: var(--danger-text); }
+.moderation-link--warning { color: var(--warning-text); }
+.moderation-section { margin-top: 16px; }
+.moderation-section h2 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+.moderation-section--quarantined h2 { color: var(--danger-text); }
+.moderation-card {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  margin-bottom: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+.moderation-card__content { min-width: 0; }
+.moderation-card h3 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+.moderation-card__meta,
+.moderation-card__description {
+  margin: 4px 0 0;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.moderation-card__meta { font-size: 11px; }
+.moderation-card__description { font-size: 12px; }
+.moderation-card__status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  align-items: center;
+  margin-top: 4px;
+  color: var(--warning-text);
+  font-size: 11px;
+}
+.moderation-card__status a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+  color: var(--link);
+}
+.moderation-card__status .moderation-card__scan-link { color: var(--muted); }
+.moderation-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  min-width: 0;
+}
+.moderation-actions .btn-violet,
+.moderation-actions .btn-ghost {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 10px 12px;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1.4;
+  text-align: center;
+  white-space: normal;
+}
+.moderation-actions .moderation-action--reject { color: var(--warning-text); }
+.moderation-actions .moderation-action--delete { background: var(--danger-action); }
+.moderation-card--quarantined {
+  border-color: var(--danger-border);
+  background: var(--danger-bg);
+}
+.moderation-card--quarantined .moderation-card__meta,
+.moderation-card--quarantined .moderation-card__description { color: var(--danger-text); }
+.moderation-scan-report {
+  min-width: 0;
+  margin-top: 4px;
+  color: var(--danger-text);
+  font-size: 12px;
+}
+.moderation-scan-report summary {
+  min-height: 44px;
+  padding: 12px 0;
+  cursor: pointer;
+  font-weight: 700;
+}
+.moderation-scan-report pre {
+  max-width: 100%;
+  margin: 0;
+  padding: 10px;
+  border: 1px solid var(--danger-border);
+  border-radius: 8px;
+  background: var(--danger-bg);
+  font-size: 11px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.moderation-empty {
+  padding: 12px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--muted);
+  font-size: 13px;
+}
+@media (max-width: 900px) {
+  /* Keep the first heading clear of the shared mobile feedback button. */
+  .moderation-header__intro {
+    width: 100%;
+    padding-right: 52px;
+  }
+}
+@media (max-width: 479px) {
+  .moderation-page { padding: 16px; }
+  .moderation-header { align-items: stretch; }
+  .moderation-header__links {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (min-width: 560px) {
+  .moderation-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 960px) {
+  .moderation-card {
+    grid-template-columns: minmax(0, 1fr) 340px;
+    align-items: center;
+  }
+}

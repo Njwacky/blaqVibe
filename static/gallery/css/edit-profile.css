@@ -1,0 +1,273 @@
+/* Edit Profile: mobile-first, scoped so other forms keep their layout. */
+.profile-edit {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 20px;
+  overflow-wrap: anywhere;
+}
+.profile-edit__header h1 {
+  font-family: Space Grotesk, sans-serif;
+  font-size: 22px;
+}
+.profile-edit__header p {
+  color: var(--muted);
+  font-size: 13px;
+}
+.profile-edit__form {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 16px;
+}
+.profile-edit__form > *,
+.profile-edit__field-grid > *,
+.profile-edit__style-form > *,
+.profile-edit__style-grid > *,
+.profile-edit .link-cell {
+  min-width: 0;
+}
+.profile-edit__field-grid,
+.profile-edit__style-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+}
+.profile-edit input:not([type="checkbox"]):not([type="hidden"]),
+.profile-edit select,
+.profile-edit textarea {
+  min-width: 0;
+  max-width: 100%;
+  min-height: 44px;
+  /* 16px prevents Safari zooming the page when a mobile field is focused. */
+  font-size: 16px;
+}
+.profile-edit textarea {
+  resize: vertical;
+}
+.profile-edit .btn-violet,
+.profile-edit .btn-ghost {
+  min-height: 44px;
+  max-width: 100%;
+  justify-content: center;
+  white-space: normal;
+  text-align: center;
+}
+.profile-edit__hint {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.profile-edit__section-note {
+  margin: 6px 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.profile-edit__avatar-preview {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.profile-edit__avatar-preview > :first-child {
+  flex-shrink: 0;
+}
+.profile-edit__avatar-preview > :last-child {
+  min-width: 0;
+}
+.profile-edit__avatar-widget {
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.profile-edit__avatar-widget a {
+  display: inline-block;
+  max-width: 100%;
+  min-height: 44px;
+  vertical-align: middle;
+}
+.profile-edit__avatar-widget input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+}
+.profile-edit__avatar-widget label {
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 8px;
+  vertical-align: middle;
+}
+.profile-edit input[type="file"] {
+  display: block;
+  margin-top: 6px;
+  padding: 4px;
+}
+.profile-edit input[type="file"]::file-selector-button {
+  min-height: 44px;
+  margin-right: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text);
+  font: inherit;
+  cursor: pointer;
+}
+.profile-edit__links {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-subtle, var(--bg));
+}
+.profile-edit__links-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  justify-content: space-between;
+}
+.profile-edit h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+}
+.profile-edit__link-rows {
+  display: grid;
+  gap: 10px;
+}
+.profile-edit .link-row-main {
+  grid-template-columns: minmax(0, 1fr) 44px;
+  gap: 10px;
+  align-items: end;
+}
+.profile-edit .link-cell {
+  grid-column: 1 / -1;
+}
+.profile-edit .link-cell--status {
+  grid-column: 1;
+}
+.profile-edit .link-remove {
+  grid-column: 2;
+  align-self: end;
+  width: 44px;
+  height: 44px;
+  margin-top: 0;
+  font-size: 16px;
+}
+.profile-edit .link-row-errors {
+  overflow-wrap: anywhere;
+}
+.profile-edit__add-link {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 10px;
+}
+.profile-edit__actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.profile-edit__panel {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--card);
+}
+.profile-edit__panel--identity {
+  margin-top: 20px;
+  border-color: var(--accent-border);
+}
+.profile-edit__success { color: var(--success-text); }
+.profile-edit__warning { color: var(--warning-text); }
+.profile-edit__errors,
+.profile-edit__cooldown {
+  padding: 10px 12px;
+  border: 1px solid var(--danger-border);
+  border-radius: 10px;
+  background: var(--danger-bg);
+  color: var(--danger-text);
+  font-size: 13px;
+}
+.profile-edit__cooldown {
+  border-color: var(--warning-border);
+  background: var(--warning-bg);
+  color: var(--warning-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+.profile-edit__rename-form,
+.profile-edit__style-form {
+  display: grid;
+  gap: 10px;
+}
+.profile-edit__rename-field { min-width: 0; }
+.profile-edit__name-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 10px 0;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--surface-subtle, var(--bg));
+}
+/* JS replaces the preview's classes on every change; its ID stays stable. */
+.profile-edit #name-style-preview {
+  min-width: 0;
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.profile-edit__style-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+@media (max-width: 720px) {
+  /* The shared mobile feedback button sits beside the first heading. */
+  .profile-edit__header { padding-right: 52px; }
+}
+@media (max-width: 479px) {
+  .profile-edit { padding: 16px; }
+  .profile-edit__links { padding: 12px; }
+  .profile-edit__add-link .btn-ghost,
+  .profile-edit__style-actions .btn-ghost { width: 100%; }
+}
+@media (min-width: 480px) {
+  .profile-edit__style-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 720px) {
+  .profile-edit__field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .profile-edit__actions {
+    display: flex;
+    justify-content: flex-end;
+  }
+  .profile-edit__rename-form {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: end;
+    gap: 8px;
+  }
+  .profile-edit__rename-field { flex: 1 1 180px; }
+}
+/* Wide touch screens (including landscape phones) retain full-size inputs
+   and stacked website rows. Compact columns are only for desktop pointers. */
+@media (min-width: 720px) and (hover: hover) and (pointer: fine) {
+  .profile-edit input:not([type="checkbox"]):not([type="hidden"]),
+  .profile-edit select,
+  .profile-edit textarea { font-size: 13px; }
+  .profile-edit .link-row-main {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr) minmax(0, .9fr) 44px;
+    gap: 8px;
+    align-items: start;
+  }
+  .profile-edit .link-cell { grid-column: auto; }
+  .profile-edit .link-remove { margin-top: 22px; }
+  .profile-edit .link-cell--status select { padding-inline: 6px; }
+}
