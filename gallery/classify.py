@@ -91,7 +91,9 @@ Reply with ONLY a JSON object, no prose:
 
 "kind" is what the program IS. "appeal" is how interesting it looks to a
 casual browser (a playable game or a polished tool scores high; an empty
-boilerplate scores low). Judge only from the facts below.
+boilerplate scores low). Judge only from the facts below. The
+"Detected markers" line comes from deterministic file/dependency analysis —
+treat it as strong evidence, not marketing copy.
 
 Title: {title}
 One-liner: {desc}
@@ -99,16 +101,18 @@ Declared stack: {stack}
 Languages: {langs}
 File count: {count}
 Notable files: {files}
+Detected markers: {markers}
 README extract:
 {readme}
 """
 
-def _build_prompt(project):
+def _build_prompt(project, heuristic=None):
     try:
         from .kind_detect import _shallow_paths
         files = _shallow_paths(project)[:40]
     except Exception:
         files = []
+    markers = list((heuristic or {}).get('evidence') or [])[:6]
     return _PROMPT.format(
         kinds=', '.join(KIND_VALUES),
         title=(getattr(project, 'title', '') or '')[:120],
@@ -117,6 +121,7 @@ def _build_prompt(project):
         langs=', '.join((getattr(project, 'language_stats', None) or {}).keys())[:120],
         count=getattr(project, 'file_count', 0) or 0,
         files=', '.join(files)[:600] or 'none',
+        markers='; '.join(markers)[:400] or 'none',
         readme=(getattr(project, 'readme', '') or '')[:1200],
     )
 
@@ -200,14 +205,19 @@ def _providers():
     head = [(preferred, _call_preferred)] if preferred else []
     return head + [('claude', _call_claude), ('gemini', _call_gemini), ('groq', _call_groq)]
 
-def llm_classify(project):
-    """One LLM opinion, or None. Never raises."""
+def llm_classify(project, heuristic=None):
+    """One LLM opinion, or None. Never raises.
+
+    `heuristic` (the detect_kind verdict) is passed in so the prompt can
+    carry the deterministic markers — same shape as linguist feeding its
+    Bayesian classifier only the candidate languages, not all of them.
+    """
     if not llm_available():
         return None
     if not _take_budget():
         logger.info('kind LLM budget exhausted this minute — heuristic only')
         return None
-    prompt = _build_prompt(project)
+    prompt = _build_prompt(project, heuristic)
     for name, fn in _providers():
         try:
             out = fn(prompt)
@@ -231,7 +241,7 @@ def classify_project(project, allow_llm=True, save=True):
     verdict['heuristic_kind'] = heuristic.get('kind')
 
     if allow_llm and needs_llm(heuristic):
-        llm = llm_classify(project)
+        llm = llm_classify(project, heuristic)
         if llm:
             verdict['kind'] = llm['kind']
             verdict['confidence'] = llm['confidence']

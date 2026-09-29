@@ -1,7 +1,7 @@
 {% extends 'gallery/base.html' %}
 {% load static %}
 {% block title %}My Projects — BlaqVibes{% endblock %}
-{% block head %}<link rel="stylesheet" href="{% static 'gallery/css/my-vibes.css' %}?v=projects-filters-20260910">{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'gallery/css/my-vibes.css' %}?v=approval-steps-20260929">{% endblock %}
 {% block content %}
 <div class="projects-shell">
   <header class="projects-hero">
@@ -40,6 +40,7 @@
         <div class="project-title-row"><h2><a href="{{ p.get_absolute_url }}">{{ p.title }}</a></h2><span class="project-updated">{{ p.updated_at|timesince }} ago</span></div>
         <p class="project-purpose">{{ p.short_description|default:"A build in progress."|truncatechars:125 }}</p>
         {% if p.tech_stack %}<p class="project-stack">{{ p.tech_stack }}</p>{% endif %}
+        {% include 'gallery/_approval_steps.html' with p=p %}
         {% if p.status != 'published' and p.progress %}<div class="project-next"><strong>{% if p.status == 'quarantined' %}Clean up needed{% else %}Next up{% endif %}</strong><span>{% if p.status == 'quarantined' %}Review the upload and publish a clean version{% elif p.progress.steps %}{{ p.progress.steps.0.label }}{% else %}Continue building{% endif %}</span></div>{% endif %}
         <div class="project-proof" aria-label="Project proof">
           {% if p.readme %}<span class="proof-done">✓ README</span>{% endif %}
