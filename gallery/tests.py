@@ -4374,7 +4374,7 @@ class CommunityFirstHeroTests(TestCase):
     def test_landing_leads_with_the_community_question(self):
         response = self.client.get('/')
         self.assertContains(response, 'What are people building?')
-        self.assertContains(response, 'Your work belongs in the answer.')
+        self.assertNotContains(response, 'Your work belongs in the answer.')
         self.assertContains(response, "Explore what's being built")
         self.assertContains(response, 'real builders, shipping now')
 

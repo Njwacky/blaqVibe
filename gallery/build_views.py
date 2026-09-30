@@ -136,9 +136,9 @@ def capability_search(request):
         'project_total': 0,
         'guide_steps': [
             ('1', 'Type a skill or stack', 'Django, React, API, authentication…'),
-            ('2', 'See projects first', 'Real Builds that used that skill — not claims.'),
-            ('3', 'Then see people', 'Ranked by how many published Builds prove it.'),
-            ('4', 'Read why they matched', 'Every person gets an honest “Matched because…” line.'),
+            ('2', 'See projects first', 'Real Builds that use it.'),
+            ('3', 'Then see people', 'Ranked by published Builds.'),
+            ('4', 'Read why they matched', 'Each match shows a reason.'),
         ],
     }
     try:
