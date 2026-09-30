@@ -1,0 +1,66 @@
+{% extends 'gallery/base.html' %}
+{% load static %}
+{% block title %}Quarantine clean-up — BlaqVibes{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'gallery/css/quarantine-cleanup.css' %}?v=cleanup-20260930">
+{% endblock %}
+{% block content %}
+<div class="qa-page" id="qa-root" data-max="{{ data.max_batch }}" data-list-url="{% url 'quarantined_accounts' %}"{% if reset_selection %} data-reset="1"{% endif %}>
+  <header class="qa-header">
+    <div class="qa-header__intro">
+      <p class="qa-kicker">Admin</p>
+      <h1><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-trash"></use></svg> Quarantine clean-up</h1>
+      <p class="qa-intro">
+        Find held accounts, tick the ones to remove, review what goes, then confirm.
+        <b>Nothing is deleted until the last step.</b>
+        An account can go once its hold is <b>{{ data.min_hold_hours }} hours</b> old (time to appeal) and nothing is waiting on it.
+      </p>
+    </div>
+    <nav class="qa-header__links" aria-label="Related tools">
+      <a href="{% url 'appeals_queue' %}">Holds &amp; appeals →</a>
+      <a href="{% url 'audit_log' %}">Audit log →</a>
+    </nav>
+  </header>
+
+  <form class="qa-filters" id="qa-filters" method="get" action="{% url 'quarantined_accounts' %}" role="search" aria-label="Search held accounts">
+    <div class="qa-search">
+      <label class="qa-label" for="qa-q">Search held accounts</label>
+      <div class="qa-search__row">
+        <input id="qa-q" type="search" name="q" value="{{ filters.query }}"
+               placeholder="{% if searches_email %}@name or email{% else %}@username{% endif %}"
+               autocomplete="off" spellcheck="false" autocapitalize="off" maxlength="80">
+        <button type="submit" class="btn-violet">Search</button>
+        <a class="btn-ghost" href="{% url 'quarantined_accounts' %}" data-qa-reset>Clear</a>
+      </div>
+    </div>
+    <div class="qa-selects">
+      <label>Reason
+        <select name="reason">
+          <option value="">All reasons</option>
+          {% for slug, label, n in data.reason_counts %}<option value="{{ slug }}"{% if filters.reason == slug %} selected{% endif %}>{{ label }} ({{ n }})</option>{% endfor %}
+        </select>
+      </label>
+      <label>Show
+        <select name="show">
+          {% for slug, label in shows %}<option value="{{ slug }}"{% if filters.show == slug %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Sort
+        <select name="sort">
+          {% for slug, label in sorts %}<option value="{{ slug }}"{% if filters.sort == slug %} selected{% endif %}>{{ label }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Per page
+        <select name="per">
+          {% for size in page_sizes %}<option value="{{ size }}"{% if filters.per == size %} selected{% endif %}>{{ size }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+  </form>
+
+  <div id="qa-results" class="qa-results">
+    {% include 'users/_quarantined_results.html' %}
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'gallery/js/quarantine-cleanup.js' %}?v=cleanup-20260930b" defer></script>{% endblock %}

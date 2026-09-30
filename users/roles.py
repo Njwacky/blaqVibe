@@ -67,7 +67,7 @@ ROLE_ORDER = {'user': 0, 'moderator': 1, 'admin': 2, 'superadmin': 3}
 ROLE_GUIDE = (
     ('user', 'User', 'Publish, comment, trade. No moderation tools, no admin pages.'),
     ('moderator', 'Moderator', 'Moderation queue only: approve or quarantine other people\'s projects.'),
-    ('admin', 'Admin', 'Moderation queue, delete any project, triage reports, admin dashboard, footer contacts.'),
+    ('admin', 'Admin', 'Moderation queue, delete any project, clean up quarantined accounts, triage reports, admin dashboard, footer contacts.'),
     ('superadmin', 'Super Admin', 'Everything above, plus role changes. Only this role can open Manage roles.'),
 )
 

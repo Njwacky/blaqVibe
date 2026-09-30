@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Your BlaqVibes account was removed</title></head>
+<body style="margin:0;padding:0;background:#0a0a0f;font-family:Inter,Helvetica,Arial,sans-serif;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#0a0a0f;padding:32px 16px;">
+<tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#11111a;border:1px solid #222;border-radius:16px;overflow:hidden;">
+<tr><td style="padding:24px 32px 0 32px;">
+<div style="display:inline-block;background:#ef4444;color:#fff;font-weight:800;padding:6px 12px;border-radius:8px;font-size:12px;">ACCOUNT NOTICE</div>
+<h1 style="margin:16px 0 0 0;color:#fff;font-size:20px;">Your account @{{ username }} was removed</h1>
+</td></tr>
+<tr><td style="padding:16px 32px 0 32px;">
+<div style="background:#1a1a28;border-radius:10px;padding:16px;">
+<p style="margin:0;color:#ccc;font-size:13px;font-weight:600;">Reason</p>
+<p style="margin:8px 0 0 0;color:#aaa;font-size:14px;line-height:1.6;">Removed by our moderators after a quarantine for: {{ reason }}.</p>
+</div>
+</td></tr>
+<tr><td style="padding:16px 32px 0 32px;color:#aaa;font-size:14px;line-height:1.6;">
+<p style="margin:0 0 8px 0;">You can no longer sign in, and your profile, comments and reviews are gone.</p>
+<p style="margin:0;">Vibes of yours that people had already bought stay available to those buyers{% if vibes_kept %} ({{ vibes_kept }} of yours){% endif %}. Your other vibes were deleted.</p>
+</td></tr>
+<tr><td style="padding:16px 32px 0 32px;color:#aaa;font-size:14px;line-height:1.6;">
+<p style="margin:0;">{% if support_email %}If you think this was a mistake, write to <a href="mailto:{{ support_email }}" style="color:#a78bfa;">{{ support_email }}</a> and a person will read it.{% else %}If you think this was a mistake, get in touch with the BlaqVibes team through <a href="{{ site_url }}" style="color:#a78bfa;">{{ site_url }}</a>.{% endif %}</p>
+</td></tr>
+<tr><td style="padding:24px 32px 32px 32px;border-top:1px solid #1e1e2e;margin-top:24px;">
+<p style="margin:0;color:#555;font-size:12px;">You are getting this because your BlaqVibes account was affected by a moderation decision.</p>
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>

@@ -1,0 +1,12 @@
+Hi @{{ username }},
+
+Your BlaqVibes account was removed by our moderators after a quarantine for: {{ reason }}.
+
+What that means:
+- You can no longer sign in, and your profile, comments and reviews are gone.
+- Vibes of yours that people had already bought stay available to those buyers{% if vibes_kept %} ({{ vibes_kept }} of yours){% endif %}. Your other vibes were deleted.
+
+{% if support_email %}If you think this was a mistake, write to {{ support_email }} and a person will read it.{% else %}If you think this was a mistake, get in touch with the BlaqVibes team through {{ site_url }}.{% endif %}
+
+— BlaqVibes
+{{ site_url }}

@@ -29,6 +29,7 @@
     <a href="{% url 'footer_contacts' %}" class="btnG"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-mail"></use></svg> Footer Contacts</a>
     {% if user.profile.is_superadmin %}<a href="{% url 'manage_roles' %}" class="btnG">Manage Roles</a>{% endif %}
     <a href="{% url 'appeals_queue' %}" class="btnG"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-id"></use></svg> Quarantine &amp; Appeals{% if stats.open_appeals %} ({{ stats.open_appeals }}){% endif %}</a>
+    <a href="{% url 'quarantined_accounts' %}" class="btnG"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-trash"></use></svg> Quarantine Clean-up{% if stats.accounts_quarantined %} ({{ stats.accounts_quarantined }}){% endif %}</a>
     <a href="{% url 'audit_log' %}" class="btnG"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-doc"></use></svg> Audit Log</a>
     <a href="/blaq-admin-secure/" class="btnG">Django Admin</a>
   </div>

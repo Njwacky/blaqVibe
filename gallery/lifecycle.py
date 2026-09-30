@@ -4,6 +4,7 @@ import logging
 
 from django.contrib.auth.models import User
 from django.db import transaction
+from django.db.models import Exists, OuterRef
 from django.db.models.deletion import ProtectedError
 
 from .models import AppProject, Sale, Trade
@@ -95,23 +96,52 @@ def remove_project(project) -> str:
             locked = AppProject.objects.select_for_update().get(pk=project.pk)
             return _soft(locked)
 
-def release_account_projects(user):
-    """Called BEFORE user.delete(): keep sold vibes alive under the ghost.
+def paid_projects_of(user_ids):
+    """Projects owned by any of these accounts that somebody paid for.
+
+    ONE query for the whole set. The per-project `has_paid_records` helper
+    above costs two queries per vibe, which is fine for one owner deleting
+    their own account and ruinous when staff clear a hundred of them.
+    """
+    return AppProject.objects.filter(owner_id__in=list(user_ids)).filter(
+        Exists(Trade.objects.filter(project=OuterRef('pk')))
+        | Exists(Sale.objects.filter(project=OuterRef('pk')))
+    )
+
+def release_accounts_projects(users):
+    """Called BEFORE the users are deleted: keep sold vibes alive under the ghost.
 
     - Paid vibes → owner becomes the ghost user, status becomes 'removed'
       (buyers keep downloading; the public page is gone).
     - Unpaid vibes → left alone; the user cascade hard-deletes them, which
       is exactly the erasure the account owner asked for.
+
+    The batch form exists for staff clean-up (users/account_cleanup.py). The
+    moves still go through `project.save()`, one sold vibe at a time, exactly
+    as the single-account version always did: AppProject.save() is the
+    model's one write path, and a bulk UPDATE would quietly skip whatever
+    that path does now or later. Sold vibes are the rare case, so the loop is
+    short; what the batch removes is the per-owner, per-vibe lookups around it.
     """
+    users = list(users)
+    if not users:
+        return 0
     ghost = get_ghost_user()
     moved = 0
-    for project in AppProject.objects.filter(owner=user):
-        if has_paid_records(project):
-            project.owner = ghost
-            project.status = 'removed'
-            project.is_featured = False
-            project.save(update_fields=['owner', 'status', 'is_featured'])
-            moved += 1
+    for project in paid_projects_of(u.pk for u in users):
+        project.owner = ghost
+        project.status = 'removed'
+        project.is_featured = False
+        project.save(update_fields=['owner', 'status', 'is_featured'])
+        moved += 1
     if moved:
-        logger.info('released %s paid vibes from @%s to ghost', moved, user.username)
+        logger.info('released %s paid vibes from %s account(s) to ghost', moved, len(users))
     return moved
+
+def release_account_projects(user):
+    """Single-account form: the owner deleting their own account.
+
+    Delegates, so there is exactly one implementation of "what happens to a
+    sold vibe when its creator goes".
+    """
+    return release_accounts_projects([user])

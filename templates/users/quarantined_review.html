@@ -1,0 +1,83 @@
+{% extends 'gallery/base.html' %}
+{% load static %}
+{% block title %}Review deletion — BlaqVibes{% endblock %}
+{% block head %}
+<link rel="stylesheet" href="{% static 'gallery/css/quarantine-cleanup.css' %}?v=cleanup-20260930">
+{% endblock %}
+{% block content %}
+<div class="qa-page qa-page--review">
+  <p class="qa-back"><a href="{% url 'quarantined_accounts' %}">← Back to the list</a></p>
+  <header class="qa-header">
+    <div class="qa-header__intro">
+      <p class="qa-kicker">Step 2 of 2 — review, then confirm</p>
+      <h1><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-alert"></use></svg>
+        {% if review.rows %}Delete {{ review.count }} account{{ review.count|pluralize }}?{% else %}Nothing to delete{% endif %}
+      </h1>
+      <p class="qa-intro">This is a dry run. <b>Nothing has been changed yet.</b></p>
+    </div>
+  </header>
+
+  {% if review.rows %}
+  <ul class="qa-impact" aria-label="What deleting these accounts does">
+    <li class="qa-impact--danger"><b>{{ review.count }}</b><span>account{{ review.count|pluralize }} erased — sign-in, profile, comments, reviews, followers, inbox and the star wallet.</span></li>
+    <li class="qa-impact--danger"><b>{{ review.vibes_deleted }}</b><span>{% if review.vibes_deleted %}vibe{{ review.vibes_deleted|pluralize }} deleted for good — nobody paid for {{ review.vibes_deleted|pluralize:"it,them" }}.{% else %}unsold vibes to delete — these accounts have none.{% endif %}</span></li>
+    <li class="qa-impact--keep"><b>{{ review.vibes_kept }}</b><span>{% if review.vibes_kept %}sold vibe{{ review.vibes_kept|pluralize }} kept: hidden from the site, still downloadable by the people who paid, receipts intact.{% else %}sold vibes to keep — none of these accounts has sold one.{% endif %}</span></li>
+    <li><b>{{ review.stars }}★</b><span>in wallets, destroyed with the accounts.</span></li>
+    {% if review.remixes %}<li><b>{{ review.remixes }}</b><span>remix{{ review.remixes|pluralize:"es" }} by other builders lose their “remixed from” link (the remixes themselves stay).</span></li>{% endif %}
+  </ul>
+  {% endif %}
+
+  {% if review.skipped %}
+  <section class="qa-notice" aria-labelledby="qa-skipped-h">
+    <h2 id="qa-skipped-h">{{ review.skipped|length }} selected account{{ review.skipped|length|pluralize }} will be skipped</h2>
+    <ul>
+      {% for s in review.skipped %}<li><b>{{ s.label }}</b> — {{ s.reasons|join:" " }}</li>{% endfor %}
+    </ul>
+  </section>
+  {% endif %}
+
+  {% if review.rows %}
+  <h2>Accounts that will be deleted</h2>
+  <ul class="qa-table">
+    {% for u in review.rows %}
+    <li>
+      <span><b>@{{ u.username }}</b><span class="qa-meta"> · joined {{ u.date_joined|date:"j M Y" }}</span></span>
+      <span class="qa-meta">{{ u.reason_label }} · held {{ u.hold_started|timesince }}</span>
+      <span class="qa-meta">{{ u.vibes_total }} vibe{{ u.vibes_total|pluralize }}{% if u.vibes_sold %} ({{ u.vibes_sold }} kept){% endif %} · {{ u.stars }}★</span>
+    </li>
+    {% endfor %}
+  </ul>
+
+  <form method="post" action="{% url 'quarantined_delete' %}" class="qa-confirm" data-qa-confirm-form
+        data-phrase="{{ review.phrase }}" data-min-reason="{{ reason_min }}">
+    {% csrf_token %}
+    {% for u in review.rows %}<input type="hidden" name="ids" value="{{ u.pk }}">{% endfor %}
+    <label for="qa-reason">Why are you deleting them?
+      <small>Kept in the audit log, because the accounts won't be there to ask. {{ reason_min }}–{{ reason_max }} characters.</small>
+    </label>
+    <input id="qa-reason" type="text" name="reason" value="{{ submitted_reason }}" required minlength="{{ reason_min }}" maxlength="{{ reason_max }}"
+           placeholder="e.g. spam wave 29 Sept — no appeals, held over 72h" autocomplete="off">
+    <label for="qa-phrase">Type <code>{{ review.phrase }}</code> to confirm</label>
+    <input id="qa-phrase" type="text" name="confirm" required autocomplete="off" spellcheck="false" autocapitalize="characters"
+           placeholder="{{ review.phrase }}" data-qa-phrase>
+    <label class="qa-tick" for="qa-notify">
+      <input id="qa-notify" type="checkbox" name="notify"{% if submitted_notify %} checked{% endif %}>
+      <span>Email each person a final notice.
+        <small>{% if review.only_spam %}Off by default: this batch is all spam, and bot addresses bounce — bounces damage the sender reputation our sign-in and reset emails rely on.{% else %}Sent after the delete, best-effort. They get the reason, what happens to their vibes, and a way to reach us.{% endif %}</small>
+      </span>
+    </label>
+    <div class="qa-confirm__actions">
+      <a class="btn-ghost" href="{% url 'quarantined_accounts' %}">Cancel — go back</a>
+      <button type="submit" class="btn-violet qa-danger" data-qa-go data-label="Delete {{ review.count }} account{{ review.count|pluralize }} permanently">Delete {{ review.count }} account{{ review.count|pluralize }} permanently</button>
+    </div>
+  </form>
+  {% else %}
+  <div class="qa-empty">
+    <b>None of the selected accounts can be deleted right now.</b>
+    <span>The reasons are above. Most clear on their own (an appeal window closing) or with one action on the appeals page.</span>
+    <a href="{% url 'quarantined_accounts' %}">← Back to the list</a>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'gallery/js/quarantine-cleanup.js' %}?v=cleanup-20260930b" defer></script>{% endblock %}
