@@ -97,7 +97,7 @@ class CapabilitySearchTests(TestCase):
         response = self.client.get('/capability/')
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Find builders by what they actually built')
-        self.assertContains(response, 'New here?')
+        self.assertContains(response, 'Type a skill or stack')
         found = self.client.get('/capability/', {'q': 'Django'})
         self.assertEqual(found.status_code, 200)
         self.assertContains(found, 'dev_b_proof')

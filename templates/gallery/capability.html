@@ -8,13 +8,7 @@
 {% block content %}
 <div class="cap-shell">
   <header class="cap-hero">
-    <p class="cap-kicker">BUILD → PROVE → CAPABILITY → DISCOVER</p>
     <h1>{% if q %}Who can build with “{{ q }}”?{% else %}Find builders by what they actually built{% endif %}</h1>
-    <p>
-      Skills are easy to claim. Here we only rank people by
-      <b style="color:var(--text)">published projects</b> that use the skill —
-      not followers, not likes. Every match tells you <em>why</em>.
-    </p>
     <form class="cap-search" method="get" action="{% url 'capability_search' %}" role="search">
       <label class="sr-only" for="cap-q" style="position:absolute;left:-9999px">Skill or technology</label>
       <input id="cap-q" name="q" value="{{ q }}" placeholder="Try Django, React, API, authentication…" autocomplete="off" autofocus>
@@ -30,20 +24,13 @@
   </header>
 
   {% if not searched %}
-  <div class="cap-talk">
-    <b style="color:var(--text)">New here?</b>
-    Type a skill above — or tap a chip. You will see
-    <b style="color:var(--text)">projects first</b> (the evidence), then
-    <b style="color:var(--text)">people</b> ranked by how many Builds prove that skill.
-    Popularity does not win this page.
-  </div>
   <div class="cap-guide">
     {% for num, title, note in guide_steps %}
     <article><b>{{ num }} · {{ title }}</b><span>{{ note }}</span></article>
     {% endfor %}
   </div>
   <div style="margin-top:8px;font-size:13px;color:var(--muted)">
-    Or go explore the feed: <a href="{% url 'feed' %}" style="color:var(--link)">What are people building? →</a>
+    <a href="{% url 'feed' %}" style="color:var(--link)">Browse projects →</a>
     · <a href="{% url 'build_hub' %}" style="color:var(--link)">Start your own Build →</a>
   </div>
   {% else %}
@@ -53,10 +40,8 @@
     Found <b style="color:var(--text)">{{ project_total }} project{{ project_total|pluralize }}</b>
     and <b style="color:var(--text)">{{ people|length }} builder{{ people|length|pluralize }}</b>
     for <b style="color:var(--text)">“{{ q }}”</b>.
-    Ranked by published proof — stars and followers do not decide this list.
     {% else %}
     No published Builds match <b style="color:var(--text)">“{{ q }}”</b> yet.
-    That is honest: capability only appears when someone ships.
     <a href="{% url 'build_hub' %}" style="color:var(--link);font-weight:700">Be the first to prove it →</a>
     {% endif %}
   </div>
@@ -67,7 +52,7 @@
       {% for p in projects %}
         {% include 'gallery/_project_card.html' with p=p cta="Open proof →" %}
       {% empty %}
-      <div class="cap-empty" style="grid-column:1/-1">No matching projects yet. Publish one and this row fills in.</div>
+      <div class="cap-empty" style="grid-column:1/-1">No projects yet.</div>
       {% endfor %}
     </div>
     {% if project_page and project_page.paginator.num_pages > 1 %}
@@ -99,12 +84,11 @@
       <div style="margin-top:8px;font-size:12px;color:var(--link);font-weight:700">View builder →</div>
     </a>
     {% empty %}
-    <div class="cap-empty">No builders matched yet. When someone publishes a Build with this stack, they appear here — with a reason.</div>
+    <div class="cap-empty">No builders yet.</div>
     {% endfor %}
   </section>
 
   <div style="margin-top:20px;font-size:12px;color:var(--muted);text-align:center">
-    Hardest test: a builder with few followers and real projects beats a popular profile with claims.
     <a href="{% url 'capability_search' %}" style="color:var(--link)">Clear search</a>
   </div>
   {% endif %}

@@ -7,10 +7,7 @@
 {% block content %}
 <div class="page">
   <header class="builder-hero">
-    <p class="builder-hero__eyebrow">BUILD → PROVE → CAPABILITY → DISCOVER</p>
     <h1>What are people building?</h1>
-    {# §19: the landing answers with the community's work, not a creator pitch. #}
-    <p class="builder-hero__lead">Your work belongs in the answer. Open real projects — see what was built, what was checked, and what the creator can actually do.</p>
     <div class="builder-hero__actions">
       <a href="#grid" class="btn-violet">Explore what's being built</a>
       <a href="{% url 'build_hub' %}" class="btn-ghost">Build your next →</a>
@@ -65,7 +62,6 @@
     {% empty %}
     <div class="card" style="grid-column:1/-1;padding:36px;text-align:center">
       <div style="font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700">The creative community is getting started.</div>
-      <p style="color:var(--muted);font-size:13px;margin-top:8px;max-width:460px;margin-left:auto;margin-right:auto">Explore featured demo projects or be one of the first creators to publish your own work.</p>
       <div style="margin-top:8px;font-size:13px;color:var(--muted)">Publish your first vibe — <a href="{% url 'build_hub' %}" style="color:var(--link)">Build something →</a></div>
     </div>
     {% endfor %}
@@ -96,30 +92,28 @@
 
   {% if show_onboarding %}
   <div style="margin-top:14px;background:var(--card);border:1px solid var(--accent-border);border-radius:16px;padding:16px 18px">
-    <div style="font-weight:800;font-size:14px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-users"></use></svg> New here? Three steps — then you have proof.</div>
-    <p style="font-size:13px;color:var(--muted);line-height:1.55;margin:8px 0 12px;max-width:640px">
-      BlaqVibes is not another empty profile. You ship a project, we show the evidence, and that evidence is how people find you.
-    </p>
+    <div style="font-weight:800;font-size:14px"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-users"></use></svg> New here?</div>
+<div style="height:10px"></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;font-size:12px">
       <div style="background:var(--input);border:1px solid var(--line);border-radius:12px;padding:12px">
         <b style="color:var(--accent-text)">1 · Look around</b>
-        <div style="color:var(--muted);margin-top:4px;line-height:1.45">Open a card below. Read the proof. See how someone built it.</div>
+        <div style="color:var(--muted);margin-top:4px;line-height:1.45">Open a card below.</div>
       </div>
       <div style="background:var(--input);border:1px solid var(--line);border-radius:12px;padding:12px">
         <b style="color:var(--accent-text)">2 · Ship something</b>
-        <div style="color:var(--muted);margin-top:4px;line-height:1.45">Upload a ZIP, paste a snippet, or import a public GitHub repo.</div>
+        <div style="color:var(--muted);margin-top:4px;line-height:1.45">ZIP, snippet or GitHub repo.</div>
         <a href="{% url 'build_hub' %}" class="btn-violet" style="display:inline-block;margin-top:8px;padding:6px 12px;text-decoration:none;font-size:12px">Build →</a>
       </div>
       <div style="background:var(--input);border:1px solid var(--line);border-radius:12px;padding:12px">
         <b style="color:var(--accent-text)">3 · Get discovered</b>
-        <div style="color:var(--muted);margin-top:4px;line-height:1.45">Your stack becomes searchable capability — not a claim.</div>
+        <div style="color:var(--muted);margin-top:4px;line-height:1.45">Get found by your stack.</div>
         <a href="{% url 'capability_search' %}" style="display:inline-block;margin-top:8px;color:var(--link);font-weight:700">Try capability search →</a>
       </div>
     </div>
   </div>
   {% endif %}
 
-  <div style="margin-top:14px;font-size:11px;color:var(--muted);text-align:center">Builder pulse: {{ activity.published|default:0 }} published · {{ activity.remixes|default:0 }} remixes this week — projects first, not dashboards.</div>
+  <div style="margin-top:14px;font-size:11px;color:var(--muted);text-align:center">Builder pulse: {{ activity.published|default:0 }} published · {{ activity.remixes|default:0 }} remixes this week</div>
 </div>
 {% endblock %}
 {% block scripts %}
