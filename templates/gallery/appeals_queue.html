@@ -15,6 +15,7 @@
     <div style="display:flex;gap:10px;flex-wrap:wrap">
       <a href="{% url 'moderation_queue' %}" style="font-size:12px;font-weight:700;color:var(--link);text-decoration:none">← Scan queue</a>
       <a href="{% url 'reports_queue' %}" style="font-size:12px;font-weight:700;color:var(--link);text-decoration:none">Report triage →</a>
+      {% if user.profile.is_admin %}<a href="{% url 'quarantined_accounts' %}" style="font-size:12px;font-weight:700;color:var(--danger-text);text-decoration:none">Clean up held accounts →</a>{% endif %}
     </div>
   </div>
 

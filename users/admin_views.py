@@ -1,14 +1,20 @@
 from datetime import timedelta
+from urllib.parse import urlencode
 
+from django.core.paginator import Paginator
 from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib.auth.models import User
 from django.contrib import messages
+from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_http_methods
+from django.views.decorators.cache import never_cache
+from django.views.decorators.http import require_http_methods, require_POST
+from django.views.decorators.vary import vary_on_headers
 from django.db.models import Case, Count, IntegerField, Sum, Value, When
 from django_ratelimit.decorators import ratelimit
 from django.db.models.functions import TruncDate
 
+from . import account_cleanup
 from .decorators import admin_required, superadmin_required
 from .models import AdminLog, FooterContact, Profile
 from .roles import ROLE_GUIDE, ROLE_ORDER, apply_role_change
@@ -369,9 +375,193 @@ def _render_footer_contacts(request, formset):
     })
 
 
+AUDIT_PAGE_SIZE = 50
+
 @admin_required
 def audit_log(request):
-    logs = AdminLog.objects.select_related('actor').order_by('-created_at')[:50]
+    # Paged, not sliced: a bulk clean-up writes one row per account, and a
+    # hard "latest 50" would let a single batch push every older decision out
+    # of reach of this page.
+    logs = Paginator(
+        AdminLog.objects.select_related('actor').order_by('-created_at', '-pk'), AUDIT_PAGE_SIZE,
+    ).get_page(request.GET.get('page'))
     trades = Trade.objects.select_related('buyer','seller','project').order_by('-created_at')[:20]
     return render(request, 'users/audit_log.html', {'logs': logs, 'trades': trades})
+
+
+# ----------------------------------------------------------------------
+# Quarantine clean-up: find held accounts, review the blast radius, delete in
+# bulk. Every decision lives in users/account_cleanup.py; these views carry the
+# request in and the result out, so they stay thin enough to read in one go.
+# ----------------------------------------------------------------------
+def _pager(data):
+    """Numbered links with gaps (1 … 4 5 [6] 7 8 … 40), URLs built from the
+    filters so paging never drops the search."""
+    page = data.page
+    last = page.paginator.num_pages
+    base = reverse('quarantined_accounts')
+
+    def url(n):
+        query = urlencode(data.filters.params(page=n))
+        return f'{base}?{query}' if query else base
+
+    shown = sorted({1, last, *range(max(1, page.number - 2), min(last, page.number + 2) + 1)})
+    items, previous = [], None
+    for n in shown:
+        if previous is not None and n - previous > 1:
+            items.append({'gap': True})
+        items.append({'n': n, 'url': url(n), 'current': n == page.number})
+        previous = n
+    return {
+        'items': items,
+        'prev': url(page.number - 1) if page.has_previous() else '',
+        'next': url(page.number + 1) if page.has_next() else '',
+        'multiple': last > 1,
+    }
+
+
+@admin_required
+# One URL, two shapes, so the browser must never reuse one for the other. Found
+# the hard way: without these, typing in the search box, leaving, and pressing
+# Back rendered the bare results fragment — no nav, no styles, no filters —
+# because the HTTP cache had stored the script's partial under the page's URL.
+# `no-store` is also right on its own terms: this is per-account admin data that
+# is stale the moment anyone lifts a hold.
+@never_cache
+@vary_on_headers('X-Requested-With')
+@require_http_methods(['GET', 'HEAD'])
+def quarantined_accounts(request):
+    """Search, filter and page the accounts that are held right now.
+
+    One URL, two shapes: the full page, and (for the page's own script, which
+    sends X-Requested-With) just the results block — so live search replaces
+    a table instead of reloading the site around it.
+    """
+    filters = account_cleanup.parse_filters(request.GET)
+    data = account_cleanup.listing(
+        request.user, filters, include_email=account_cleanup.can_search_email(request.user),
+    )
+    context = {
+        'data': data,
+        'filters': filters,
+        'pager': _pager(data),
+        'shows': account_cleanup.SHOWS,
+        'sorts': account_cleanup.SORTS,
+        'page_sizes': account_cleanup.PAGE_SIZES,
+        'searches_email': account_cleanup.can_search_email(request.user),
+        'reset_selection': request.GET.get('cleared') == '1',
+    }
+    if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+        response = render(request, 'users/_quarantined_results.html', context)
+        # The script checks this before it swaps anything in, so an expired
+        # session (a redirect to the login page) is never pasted into the table.
+        response['X-QA-Partial'] = '1'
+        return response
+    return render(request, 'users/quarantined_accounts.html', context)
+
+
+def _review_context(review, *, reason='', notify=None):
+    return {
+        'review': review,
+        'submitted_reason': reason,
+        'submitted_notify': (not review.only_spam) if notify is None else notify,
+        'reason_min': account_cleanup.REASON_MIN,
+        'reason_max': account_cleanup.REASON_MAX,
+        'min_hold_hours': account_cleanup.min_hold_hours(),
+    }
+
+
+@admin_required
+# The review names people and their holds; like the list, it must not sit in a
+# browser or proxy cache after the admin has left.
+@never_cache
+# block=False: django-ratelimit 4.x blocks by default, which raises before the
+# friendly `request.limited` branch below could answer (see gallery/skill_views).
+# The rate is a callable so the setting is read per request (ACCOUNT_CLEANUP_REVIEW_RATE).
+@ratelimit(key='user', rate=account_cleanup.review_rate_for, method='POST', block=False)
+@require_POST
+def quarantined_review(request):
+    """The dry run: show exactly who goes, who is refused, and what it costs.
+
+    Changes nothing. POST (not GET) because the ids travel in the body — a
+    hundred of them would not survive in a URL — and because nothing that
+    names accounts to act on should be a link someone can paste into chat.
+    """
+    if getattr(request, 'limited', False):
+        messages.error(request, 'Too many requests — try again in a minute.')
+        return redirect('quarantined_accounts')
+    review = account_cleanup.review(request.user, request.POST.getlist('ids'))
+    if not review.requested:
+        messages.error(request, 'Select at least one account first.')
+        return redirect('quarantined_accounts')
+    if review.over_limit:
+        messages.error(
+            request,
+            f'You selected more than {review.limit} accounts. Deselect some — {review.limit} per batch '
+            'keeps every delete fast and every review readable.',
+        )
+        return redirect('quarantined_accounts')
+    return render(request, 'users/quarantined_review.html', _review_context(review))
+
+
+def _skip_line(prefix, items, limit=4):
+    shown = '; '.join(f'{item.label} — {item.reasons[0]}' for item in items[:limit])
+    more = f' … and {len(items) - limit} more' if len(items) > limit else ''
+    return f'{prefix} {len(items)}: {shown}{more}'
+
+
+def _count(n, word):
+    return f'{n} {word}{"" if n == 1 else "s"}'
+
+
+def _flash_result(request, result):
+    deleted = len(result.deleted)
+    if deleted:
+        kept = f'; {_count(result.vibes_kept, "sold vibe")} kept for their buyers' if result.vibes_kept else ''
+        messages.success(
+            request,
+            f'Deleted {_count(deleted, "account")} '
+            f'({_count(result.vibes_deleted, "vibe")} deleted{kept}). Logged as batch {result.batch}.',
+        )
+    else:
+        messages.warning(request, 'Nothing was deleted.')
+    if result.skipped:
+        messages.warning(request, _skip_line('Skipped', result.skipped))
+    if result.failed:
+        messages.error(request, _skip_line('Failed (nothing changed for these)', result.failed))
+    if result.notified or result.not_notified:
+        note = f'Notice emailed to {result.notified} of {result.notified + result.not_notified}.'
+        if result.not_notified:
+            note += ' The rest were not sent (mail provider slow or refused).'
+        messages.info(request, note)
+
+
+@admin_required
+@never_cache
+@ratelimit(key='user', rate=account_cleanup.delete_rate_for, method='POST', block=False)  # ACCOUNT_CLEANUP_DELETE_RATE
+@require_POST
+def quarantined_delete(request):
+    """The one destructive step. Nothing here trusts the page that sent it:
+    the engine re-checks the confirmation, the reason and every account."""
+    if getattr(request, 'limited', False):
+        messages.error(request, 'Too many deletions in the last hour — try again later.')
+        return redirect('quarantined_accounts')
+    ids = request.POST.getlist('ids')
+    reason = request.POST.get('reason', '')
+    notify = request.POST.get('notify') == 'on'
+    result = account_cleanup.delete_quarantined_accounts(
+        actor=request.user, ids=ids, reason=reason,
+        confirm=request.POST.get('confirm', ''), notify=notify,
+    )
+    if not result.ok:
+        messages.error(request, result.error)
+        review = account_cleanup.review(request.user, ids)
+        if review.over_limit or not (review.rows or review.skipped):
+            return redirect('quarantined_accounts')
+        # Refused: show the same review again with what the operator typed.
+        return render(request, 'users/quarantined_review.html',
+                      _review_context(review, reason=reason, notify=notify))
+    _flash_result(request, result)
+    # `cleared` tells the page's script to forget its remembered selection.
+    return redirect(f"{reverse('quarantined_accounts')}?cleared=1")
 

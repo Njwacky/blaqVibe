@@ -36,6 +36,13 @@ urlpatterns = [
     # keep resolving instead of dying with NoReverseMatch after this change.
     path('admin/roles/<str:username>/set/', admin_views.manage_user_role, name='set_role'),
     path('admin/audit/', admin_views.audit_log, name='audit_log'),
+    # Quarantine clean-up (users/account_cleanup.py): search the held accounts,
+    # select, review the blast radius, then confirm. Three URLs because the
+    # three steps are three different promises — read-only list, read-only
+    # dry run, and the one write.
+    path('admin/quarantined/', admin_views.quarantined_accounts, name='quarantined_accounts'),
+    path('admin/quarantined/review/', admin_views.quarantined_review, name='quarantined_review'),
+    path('admin/quarantined/delete/', admin_views.quarantined_delete, name='quarantined_delete'),
     # Feedback conversations — the temporary construction channel behind the
     # glowing floating button. /feedback/ is the builder's side; /admin/feedback/
     # is the superadmin's inbox (queue + reply).

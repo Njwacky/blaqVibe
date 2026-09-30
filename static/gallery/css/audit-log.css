@@ -159,6 +159,31 @@
   font-size: 12px;
 }
 
+/* Paging for the admin-action list. One bulk clean-up writes a row per account,
+   so "latest 50 and nothing older" stopped being an acceptable audit page. */
+.audit-pager {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 12px;
+}
+.audit-pager a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  box-sizing: border-box;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: none;
+}
+.audit-pager a:hover { border-color: var(--violet); }
+
 /* Keyboard focus stays visible in both themes. */
 .audit-page a:focus-visible {
   outline: 2px solid var(--violet);

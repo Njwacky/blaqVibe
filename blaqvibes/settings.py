@@ -333,6 +333,39 @@ ATTENTION_STUCK_HOURS = max(1, int(os.getenv('ATTENTION_STUCK_HOURS', '48')))
 # Sweep ceilings: one hourly pass must stay cheap on a big table.
 ATTENTION_DETECT_BATCH = max(10, int(os.getenv('ATTENTION_DETECT_BATCH', '400')))
 
+# ----------------------------------------------------------------------
+# Quarantine clean-up (users/account_cleanup.py): staff bulk-delete of held
+# accounts at /admin/quarantined/. The numbers the page quotes are settings, so
+# the sentence and the rule are one number. Read through envparse: a typo in a
+# deploy stops the boot and names the variable (the host keeps the old release
+# running); a number outside its range is clamped, never fatal.
+# ----------------------------------------------------------------------
+from blaqvibes.envparse import env_int, env_rate
+
+# Hours a hold must have been running before its account can be deleted — the
+# person's time to read the notice and appeal. 0 switches the rule off.
+ACCOUNT_CLEANUP_MIN_HOLD_HOURS = env_int('ACCOUNT_CLEANUP_MIN_HOLD_HOURS', 72, minimum=0, maximum=24 * 30)
+# Accounts per confirmed delete. A batch is one reviewable page and finishes
+# well inside a request; bigger backlogs are several rounds, not one long one.
+# Capped at 500 because Django refuses a POST with more than
+# DATA_UPLOAD_MAX_NUMBER_FIELDS (1000) fields, and every id is one field.
+ACCOUNT_CLEANUP_MAX_BATCH = env_int('ACCOUNT_CLEANUP_MAX_BATCH', 100, minimum=1, maximum=500)
+# A pending checkout younger than this blocks deleting its buyer or its seller:
+# Paystack answers "unknown reference" for a deleted intent, so the customer would
+# be charged and nothing delivered. Longer than the 30-minute INTENT_TTL on
+# purpose — the webhook never looks at expires_at, and Paystack retries a failed
+# live webhook hourly for up to 72 h. Raise it (96 covers a full retry window)
+# if your webhook endpoint has ever been down.
+ACCOUNT_CLEANUP_PAYMENT_HOLD_HOURS = env_int('ACCOUNT_CLEANUP_PAYMENT_HOLD_HOURS', 24, minimum=1, maximum=24 * 30)
+# Seconds the optional "your account was removed" emails may take, in total, inside
+# the request. gunicorn's default worker timeout is 30 s and one email can take
+# BREVO_TIMEOUT (10 s) on top of this, so it stops at 20.
+ACCOUNT_CLEANUP_NOTICE_BUDGET_SECONDS = env_int('ACCOUNT_CLEANUP_NOTICE_BUDGET_SECONDS', 6, minimum=1, maximum=20)
+# Per-admin request limits on the two POST steps ('30/h', '5/m', '10/2h' ...).
+# Tighten them during an incident with an env var and a restart.
+ACCOUNT_CLEANUP_REVIEW_RATE = env_rate('ACCOUNT_CLEANUP_REVIEW_RATE', '120/h')
+ACCOUNT_CLEANUP_DELETE_RATE = env_rate('ACCOUNT_CLEANUP_DELETE_RATE', '30/h')
+
 from celery.schedules import crontab
 CELERY_BEAT_SCHEDULE = {
     'generate-weekly-challenges': {

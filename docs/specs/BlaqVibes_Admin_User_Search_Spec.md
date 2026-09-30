@@ -154,7 +154,10 @@ paste the same statements into the Supabase SQL editor once.
 * **Bulk import of role changes from CSV** — a role change is 1–5 events a
   quarter, each with a human reason. Bulk tooling would be used once, misuse
   would be invisible in the audit trail, and the guard rails (self, last
-  superadmin, confirmation) have no place to live.
+  superadmin, confirmation) have no place to live. (Clearing *quarantined
+  accounts* is the opposite case — a volume action, often hundreds at once —
+  and does get bulk tooling, with the guards running per account:
+  `BlaqVibes_Quarantine_Cleanup_Spec.md`.)
 * **Autocomplete/typeahead on every keystroke** — full-page GET search is fine
   for a rare admin action and works with JS disabled; a live endpoint adds a
   second thing to secure, rate limit and keep in sync with the guards.

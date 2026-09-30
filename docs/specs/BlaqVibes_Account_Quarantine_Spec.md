@@ -66,6 +66,13 @@ person posts text
 * Every staff decision writes an `AdminLog` row (`quarantine_user`,
   `quarantine_lifted`, `quarantine_extended`, `quarantine_appeal`).
 
+## After the hold
+
+A hold pauses posting; it deletes nothing. Accounts whose hold nobody will
+appeal can be removed by an admin in bulk — search, select, review, confirm —
+at `/admin/quarantined/`. An account with an open appeal, or whose hold is
+younger than 72 hours, is refused there. See `BlaqVibes_Quarantine_Cleanup_Spec.md`.
+
 ## Where things live
 
 | Piece | File |
@@ -79,6 +86,7 @@ person posts text
 | Staff surfaces | moderation queue link/badge, base nav badge, admin dashboard cards + recent appeals, in-app + email fan-out |
 | Templates | `templates/users/quarantine.html`, `templates/gallery/appeals_queue.html`, `templates/emails/{quarantine_notice,admin_user_quarantine,admin_appeal}.{txt,html}` |
 | Migrations | `users/0026_*`, `gallery/0044_alter_notification_kind` |
+| Staff clean-up (bulk delete of held accounts) | `users/account_cleanup.py`, `/admin/quarantined/` — see `BlaqVibes_Quarantine_Cleanup_Spec.md` |
 
 ## Wiring a new public write path
 

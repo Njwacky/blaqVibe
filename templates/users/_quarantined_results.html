@@ -1,0 +1,98 @@
+{# The results block of the quarantine clean-up page. Rendered inside the full #}
+{# page AND returned on its own to the page's script (live search, paging).   #}
+<p class="qa-summary" role="status">
+  <b>{{ data.held_total }}</b> held now
+  · <span class="qa-ok"><b>{{ data.ready_total }}</b> ready to delete</span>
+  · <span class="qa-warn"><b>{{ data.blocked_total }}</b> blocked</span>
+  {% if filters.params %}— <b>{{ data.matched }}</b> match{{ data.matched|pluralize:"es" }} your filters{% endif %}
+</p>
+
+{% if not data.held_total %}
+  <div class="qa-empty">
+    <b>Nothing is quarantined right now.</b>
+    <span>Accounts appear here while a hold is live. Holds end on their own after 30 days, or when staff lift them on the <a href="{% url 'appeals_queue' %}">appeals page</a>.</span>
+  </div>
+{% elif not data.rows %}
+  <div class="qa-empty">
+    <b>No held account matches.</b>
+    <span>Try fewer words or a different filter. {% if not searches_email %}Search matches usernames only; email search is for super admins.{% endif %}</span>
+  </div>
+{% else %}
+  <form method="post" action="{% url 'quarantined_review' %}" class="qa-select" data-qa-form>
+    {% csrf_token %}
+    <div class="qa-listhead">
+      {% if data.selectable %}
+        <label class="qa-all">
+          <input type="checkbox" data-qa-all aria-label="Select every ready account on this page">
+          <span>Select all ready on this page ({{ data.selectable }})</span>
+        </label>
+      {% else %}
+        <span>No account on this page can be selected — see the reason on each row.</span>
+      {% endif %}
+      <span>{{ data.page.start_index }}–{{ data.page.end_index }} of {{ data.matched }}</span>
+    </div>
+
+    <ul class="qa-list">
+      {% for u in data.rows %}
+      <li class="qa-row{% if u.blockers %} qa-row--blocked{% endif %}" data-qa-row>
+        <label class="qa-row__pick">
+          {% if u.blockers %}
+            <input type="checkbox" disabled aria-label="@{{ u.username }} cannot be selected: {{ u.blockers.0.1 }}">
+          {% else %}
+            <input type="checkbox" class="qa-check" name="ids" value="{{ u.pk }}" aria-label="Select @{{ u.username }}">
+          {% endif %}
+        </label>
+        <div class="qa-row__who">
+          {% if u.profile.avatar %}<img class="qa-avatar" src="{{ u.profile.avatar.url }}" alt="" loading="lazy" width="40" height="40">{% else %}<span class="qa-avatar qa-avatar--letter" aria-hidden="true">{{ u.username|first|upper }}</span>{% endif %}
+          <div class="qa-identity">
+            {# `as` swallows NoReverseMatch: a name the URL pattern cannot carry (an import, a shell) would otherwise take the whole list down — and those are exactly the accounts this page exists to clear. #}
+            {% url 'profile_view' u.username as profile_url %}
+            {% if profile_url %}<a class="qa-username" href="{{ profile_url }}" target="_blank" rel="noopener">@{{ u.username }}</a>{% else %}<span class="qa-username">@{{ u.username }}</span>{% endif %}
+            <p class="qa-meta">
+              Joined {{ u.date_joined|date:"j M Y" }}
+              · {{ u.vibes_total }} vibe{{ u.vibes_total|pluralize }}{% if u.vibes_sold %} ({{ u.vibes_sold }} sold){% endif %}
+              · {{ u.stars }}★
+            </p>
+          </div>
+        </div>
+        <div class="qa-row__hold">
+          <p class="qa-chips">
+            <span class="qa-chip qa-chip--reason">{{ u.reason_label }}</span>
+            <span class="qa-chip">{% if u.hold_source == 'staff' %}Staff hold{% else %}Automatic{% endif %}{% if u.hold_strikes > 1 %} · {{ u.hold_strikes }} strikes{% endif %}</span>
+          </p>
+          <p class="qa-meta">Held for {{ u.hold_started|timesince }} · lifts in {{ u.days_left }} day{{ u.days_left|pluralize }}</p>
+          {% if u.hold_detail %}<p class="qa-detail">{{ u.hold_detail|truncatechars:120 }}</p>{% endif %}
+        </div>
+        <div class="qa-row__state">
+          {% if u.blockers %}
+            <ul class="qa-why">
+              {% for code, text in u.blockers %}<li class="qa-chip qa-chip--block qa-chip--{{ code }}">{{ text }}</li>{% endfor %}
+            </ul>
+          {% else %}
+            <span class="qa-chip qa-chip--ready">Ready to delete</span>
+          {% endif %}
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+
+    <div class="qa-bar" data-qa-bar hidden role="region" aria-label="Bulk actions">
+      <p class="qa-bar__count"><b data-qa-count>0</b> selected<span class="qa-bar__hint" data-qa-hint></span></p>
+      <button type="submit" class="btn-violet">Review deletion →</button>
+      <button type="button" class="btn-ghost" data-qa-clear>Clear selection</button>
+    </div>
+    <noscript><button type="submit" class="btn-violet qa-noscript">Review the ticked accounts →</button></noscript>
+  </form>
+
+  {% if pager.multiple %}
+  <nav class="qa-pager" aria-label="Pages">
+    {% if pager.prev %}<a href="{{ pager.prev }}" rel="prev">← Prev</a>{% endif %}
+    {% for item in pager.items %}
+      {% if item.gap %}<span class="qa-pager__gap" aria-hidden="true">…</span>
+      {% elif item.current %}<span class="qa-pager__cur" aria-current="page">{{ item.n }}</span>
+      {% else %}<a href="{{ item.url }}">{{ item.n }}</a>{% endif %}
+    {% endfor %}
+    {% if pager.next %}<a href="{{ pager.next }}" rel="next">Next →</a>{% endif %}
+  </nav>
+  {% endif %}
+{% endif %}

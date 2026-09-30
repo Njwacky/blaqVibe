@@ -256,6 +256,35 @@ render `mailto:`, `tel:`, `wa.me`, the network named by the type, or a validated
 `http(s)` URL: a pasted `javascript:` URL is rejected on save, and is ignored
 even if a row bypasses the form.
 
+## Clearing quarantined accounts in bulk
+
+Admins and super admins clear held accounts at `/admin/quarantined/` — search by
+username (super admins can also search by email), filter by reason or by
+*ready / blocked*, tick rows, then **review** before anything is deleted:
+
+1. **Select** — a bounded, server-paged list; the selection survives searching
+   and paging. Every row is either *Ready to delete* or says why not.
+2. **Review** — a dry run: accounts, vibes that die, *sold* vibes that are kept
+   for their buyers, stars destroyed, and the accounts that will be skipped.
+3. **Confirm** — a reason (kept in the audit log) and a typed phrase that carries
+   the count (`DELETE 12`). At most 100 accounts per batch.
+
+Refused, with the reason on the row: staff accounts, yourself, accounts with an
+open appeal, holds younger than 72 hours (the person's time to appeal), and
+accounts with a purchase in flight. Each account is re-checked under lock at the
+moment of deletion; a failing chunk is retried one account at a time.
+
+Admin-only, CSRF-protected and rate-limited per admin. Ids, the search text and
+the reason are cleaned server-side (control, bidi and zero-width characters are
+removed; an invisible reason is no reason), every name is escaped, and the pages
+are `no-store`. Six settings tune it — `ACCOUNT_CLEANUP_MIN_HOLD_HOURS`,
+`ACCOUNT_CLEANUP_MAX_BATCH`, `ACCOUNT_CLEANUP_PAYMENT_HOLD_HOURS`,
+`ACCOUNT_CLEANUP_NOTICE_BUDGET_SECONDS`, `ACCOUNT_CLEANUP_REVIEW_RATE` and
+`ACCOUNT_CLEANUP_DELETE_RATE` — all documented in `.env.example`; a typo stops the
+boot and names the variable. Design, the security model, measurements and what
+was deliberately left out:
+[`docs/specs/BlaqVibes_Quarantine_Cleanup_Spec.md`](docs/specs/BlaqVibes_Quarantine_Cleanup_Spec.md).
+
 ## Profile website links are rows, with status lights
 
 A builder is rarely one URL, so the profile carries a list of **website links**,

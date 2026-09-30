@@ -25,6 +25,13 @@
         <span class="audit-action-tag">{{ log.action }}</span>
       </article>
       {% empty %}<div class="audit-empty">No admin actions yet.</div>{% endfor %}
+      {% if logs.has_other_pages %}
+      <nav class="audit-pager" aria-label="Audit log pages">
+        {% if logs.has_previous %}<a href="?page={{ logs.previous_page_number }}" rel="prev">← Newer</a>{% endif %}
+        <span>Page {{ logs.number }} of {{ logs.paginator.num_pages }}</span>
+        {% if logs.has_next %}<a href="?page={{ logs.next_page_number }}" rel="next">Older →</a>{% endif %}
+      </nav>
+      {% endif %}
     </section>
     <section class="audit-section" aria-labelledby="audit-trades-heading">
       <h2 id="audit-trades-heading">Trading History (Who Traded With Whom)</h2>
