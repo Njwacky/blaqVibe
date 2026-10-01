@@ -9,8 +9,8 @@ Why separate endpoints?
 2. Readiness (`/readyz`) answers "can this process serve requests?" — it
    checks the database (a web request that cannot read the DB is broken).
    It only reports the queue/broker state instead of failing: reads and
-   browsing still work while Redis is down, and the celery service has its
-   own healthcheck, so the web container should not be killed for it.
+   browsing still work while a scanner or optional broker is unavailable.
+   Queue reachability is not a claim that a runner is currently alive.
 3. Both are unauthenticated, GET-only, JSON, no-store, and bypass the
    maintenance wall (a 503 on the health path would hide "we are up but
    under maintenance" from load balancers and alerting).
@@ -53,24 +53,37 @@ def _db_ok():
         return False, 'unavailable'
 
 def _queue_state():
-    """Report Celery/broker state. Eager/CELERY_EAGER is a local dev mode,
-    so it is healthy by definition. Without a broker URL the app runs
-    without async work in some deployments — report 'disabled', not an error."""
+    """Report the database queue, or the explicitly selected Celery broker.
+
+    This is queue reachability, not runner liveness. Local eager mode is
+    healthy by definition; an absent optional broker is reported as disabled.
+    """
+    from .scan_queue import queue_backend
+    if queue_backend() == 'database':
+        try:
+            from .models import ScanJob
+            ScanJob.objects.exists()  # An empty queue is healthy too.
+            return True, 'database_queue'  # Not a claim that a runner is alive.
+        except Exception:
+            logger.exception('readiness database queue check failed')
+            return False, 'unavailable'
     if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
         return True, 'eager'
     url = getattr(settings, 'CELERY_BROKER_URL', '') or ''
     if not url:
         return True, 'disabled'
     try:
-        import redis as redis_lib
-        client = redis_lib.Redis.from_url(
-            url, socket_connect_timeout=2, socket_timeout=2,
-        )
-        client.ping()
+        _ping_redis(url)
         return True, 'ok'
     except Exception as exc:
         logger.exception('readiness queue check failed')
         return False, 'unavailable'
+
+def _ping_redis(url):
+    # Optional dependency. The default deployment never imports redis-py.
+    import redis
+    redis.Redis.from_url(url, socket_connect_timeout=2, socket_timeout=2).ping()
+
 
 def readiness(request):
     """Ready to serve? DB must answer SELECT 1; queue is reported, not gated."""
@@ -79,7 +92,8 @@ def readiness(request):
 
     checks = {
         'database': {'ok': db_ok, 'detail': db_detail},
-        'queue': {'ok': queue_ok, 'detail': queue_detail},
+        'queue': {'ok': queue_ok, 'detail': queue_detail,
+                  'backend': getattr(settings, 'SCAN_QUEUE_BACKEND', 'database')},
     }
     payload = {
         'status': 'ok' if db_ok else 'unavailable',

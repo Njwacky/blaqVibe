@@ -1,0 +1,69 @@
+# Optional future deployment:
+# docker compose -f docker-compose.yml -f docker-compose.celery.yml up --build
+# Nothing here is required for the default Redis-free mode.
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    # Internal only. No host port; persist queue data rather than a disposable cache.
+    command: redis-server --appendonly yes --maxmemory-policy noeviction
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  web:
+    build:
+      context: .
+      args:
+        INSTALL_CELERY_REDIS: "1"
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - SCAN_QUEUE_BACKEND=celery
+      - USE_REDIS=1
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  scan-worker:
+    build:
+      context: .
+      args:
+        INSTALL_CELERY_REDIS: "1"
+    command: celery -A blaqvibes worker -Q scan,rank --loglevel=info -c 2
+    environment:
+      - REDIS_URL=redis://redis:6379/0
+      - SCAN_QUEUE_BACKEND=celery
+      - USE_REDIS=1
+    depends_on:
+      redis:
+        condition: service_healthy
+
+  celery-beat:
+    build:
+      context: .
+      args:
+        INSTALL_CELERY_REDIS: "1"
+    restart: unless-stopped
+    command: celery -A blaqvibes beat --loglevel=info
+    volumes:
+      - media:/app/media
+    env_file: .env
+    environment:
+      - DATABASE_URL=postgres://blaq:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@db:5432/blaqvibes
+      - REDIS_URL=redis://redis:6379/0
+      - SCAN_QUEUE_BACKEND=celery
+      - CELERY_EAGER=0
+      - USE_REDIS=1
+    depends_on:
+      web:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    stop_grace_period: 60s
+
+volumes:
+  redisdata:

@@ -1,3 +1,4 @@
+# Default deployment: Postgres-backed caches and scans, no Redis service.
 services:
   db:
     image: postgres:16-alpine
@@ -5,9 +6,6 @@ services:
     environment:
       POSTGRES_DB: blaqvibes
       POSTGRES_USER: blaq
-      # The DB has no host port mapping, so the fallback only ever answers on
-      # the compose network. Still, set a strong POSTGRES_PASSWORD in .env
-      # (see .env.example) before any public deploy — never reuse the default.
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}
     volumes:
       - pgdata:/var/lib/postgresql/data
@@ -18,56 +16,26 @@ services:
       retries: 10
       start_period: 10s
 
-  redis:
-    image: redis:7-alpine
-    restart: unless-stopped
-    # No host port mapping: Redis is the Celery broker AND the shared
-    # rate-limit cache. Publishing :6379 to the host (or leaving it
-    # unauthenticated on a reachable interface) lets an attacker flush the
-    # rate-limit cache or inject broker messages. Services reach it on the
-    # compose network only. If you must expose it, add
-    #   command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:?}"]
-    # and update REDIS_URL accordingly.
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
-      timeout: 3s
-      retries: 10
-      start_period: 5s
-
-  # Gitea removed. 5 Whys: Why? It ran on :3000 and :2222 with zero Python
-  # integration — an unpatched, unused attack surface. Git hosting comes
-  # back as a service the app actually calls, or not at all.
-
   web:
     build: .
     restart: unless-stopped
-    # Production-shaped container: source code is baked into the image and
-    # is NOT bind-mounted from the host. A bind mount would expose .env and
-    # the working tree to every compromised app process and make host files
-    # writable from the container. Rebuild after code changes.
     command: bash -c "python manage.py migrate && python manage.py collectstatic --noinput && python manage.py security_check && gunicorn blaqvibes.wsgi:application --bind 0.0.0.0:8000 --workers 3 --access-logfile - --error-logfile -"
     volumes:
       - media:/app/media
-    # Bind only to loopback. Put nginx/Caddy/a cloud load balancer with real
-    # TLS in front and set DJANGO_BEHIND_TLS_PROXY=1. Never publish Gunicorn
-    # directly to the internet on port 8000.
+    # nginx/Caddy/cloud TLS proxy goes in front of the local Gunicorn port.
     ports:
       - "127.0.0.1:8000:8000"
     env_file: .env
     environment:
       - DATABASE_URL=postgres://blaq:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@db:5432/blaqvibes
-      - REDIS_URL=redis://redis:6379/0
+      - SCAN_QUEUE_BACKEND=database
+      - USE_REDIS=0
       - CELERY_EAGER=0
       - DJANGO_BEHIND_TLS_PROXY=1
     depends_on:
       db:
         condition: service_healthy
-      redis:
-        condition: service_healthy
     healthcheck:
-      # Liveness probe: process up. DB/broker failures are reported by
-      # /readyz but must not kill healthy workers (see gallery/health.py).
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=5).status==200 else 1)"]
       interval: 10s
       timeout: 5s
@@ -75,54 +43,24 @@ services:
       start_period: 30s
     stop_grace_period: 30s
 
-  celery:
+  scan-worker:
     build: .
     restart: unless-stopped
-    command: celery -A blaqvibes worker -Q scan --loglevel=info -c 2
+    command: python manage.py process_scan_queue --watch --limit 20
     volumes:
       - media:/app/media
     env_file: .env
     environment:
       - DATABASE_URL=postgres://blaq:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@db:5432/blaqvibes
-      - REDIS_URL=redis://redis:6379/0
+      - SCAN_QUEUE_BACKEND=database
+      - USE_REDIS=0
       - CELERY_EAGER=0
     depends_on:
       db:
         condition: service_healthy
-      redis:
+      # The web startup runs migrations before accepting health checks.
+      web:
         condition: service_healthy
-    healthcheck:
-      # Worker liveness: it must be able to reach the broker it consumes from.
-      test: ["CMD", "python", "-c", "import os,redis,sys; redis.Redis.from_url(os.getenv('REDIS_URL','redis://redis:6379/0'), socket_connect_timeout=5).ping(); sys.exit(0)"]
-      interval: 15s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
-    stop_grace_period: 60s
-
-  celery-beat:
-    build: .
-    restart: unless-stopped
-    command: celery -A blaqvibes beat --loglevel=info
-    volumes:
-      - media:/app/media
-    env_file: .env
-    environment:
-      - DATABASE_URL=postgres://blaq:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set in .env}@db:5432/blaqvibes
-      - REDIS_URL=redis://redis:6379/0
-      - CELERY_EAGER=0
-    depends_on:
-      db:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    healthcheck:
-      # Beat liveness: it must be able to reach the broker it schedules into.
-      test: ["CMD", "python", "-c", "import os,redis,sys; redis.Redis.from_url(os.getenv('REDIS_URL','redis://redis:6379/0'), socket_connect_timeout=5).ping(); sys.exit(0)"]
-      interval: 15s
-      timeout: 10s
-      retries: 3
-      start_period: 20s
     stop_grace_period: 60s
 
 volumes:

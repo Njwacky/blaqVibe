@@ -3961,6 +3961,11 @@ class SecurityCheckCommandTests(SimpleTestCase):
         # that is reachable from the web process, never eager and never the
         # inferred localhost.
         'CELERY_TASK_ALWAYS_EAGER': False,
+        'SCAN_QUEUE_BACKEND': 'celery',
+        'CACHES': {
+            'default': {'BACKEND': 'blaqvibes.cache.DatabaseCache', 'LOCATION': 'default', 'KEY_PREFIX': 'test-ui'},
+            'ratelimit': {'BACKEND': 'blaqvibes.cache.DatabaseCache', 'LOCATION': 'default'},
+        },
         'REDIS_URL': 'redis://redis:6379/0',
         'CELERY_BROKER_URL': 'redis://redis:6379/0',
     }

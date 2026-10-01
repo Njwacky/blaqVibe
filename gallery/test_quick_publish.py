@@ -227,7 +227,8 @@ class PublishFlowTests(TestCase):
         project = AppProject.objects.get(title='Zip vibe')
         response = self.client.get(reverse('publish_success', args=[project.slug]))
         body = response.content.decode()
-        self.assertIn('safety scan running', body)
+        self.assertIn('waiting for safety checks', body)
+        self.assertNotIn('safety scan running', body)
         self.assertNotIn('PROJECT PUBLISHED', body)
         self.assertEqual(project.status, 'pending')
 

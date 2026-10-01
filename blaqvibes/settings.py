@@ -278,8 +278,14 @@ SOCIALACCOUNT_PROVIDERS = {
     if globals()[cfg['id_setting']] and globals()[cfg['secret_setting']]
 }
 
-CELERY_BROKER_URL = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
-CELERY_RESULT_BACKEND = os.getenv('REDIS_URL', 'redis://localhost:6379/0')
+# Redis-free by default: the existing ScanJob table is the durable queue.
+# Celery remains an opt-in deployment for operators with a broker/worker.
+SCAN_QUEUE_BACKEND = os.getenv('SCAN_QUEUE_BACKEND', 'database').strip().lower()
+if SCAN_QUEUE_BACKEND not in ('database', 'celery'):
+    raise RuntimeError('SCAN_QUEUE_BACKEND must be database or celery.')
+REDIS_URL = os.getenv('REDIS_URL', '').strip()
+CELERY_BROKER_URL = REDIS_URL if SCAN_QUEUE_BACKEND == 'celery' and REDIS_URL else 'memory://'
+CELERY_RESULT_BACKEND = REDIS_URL if SCAN_QUEUE_BACKEND == 'celery' and REDIS_URL else None
 CELERY_TASK_ALWAYS_EAGER = os.getenv('CELERY_EAGER', '1' if LOCAL_DEV else '0') == '1'
 CELERY_TASK_EAGER_PROPAGATES = True
 CELERY_TASK_ACKS_LATE = True
@@ -691,9 +697,11 @@ else:
         'check, collectstatic) run without it.'
     )
 
-REDIS_URL = os.getenv('REDIS_URL', '')
-if REDIS_URL and (not LOCAL_DEV or os.getenv('USE_REDIS', '0') == '1'):
-    # Shared Redis-backed caches so limits + perf caches hold across gunicorn workers.
+# Redis is never selected merely because an old REDIS_URL is still present.
+# Production caches/counters share Supabase/Postgres; local tests keep locmem.
+if os.getenv('USE_REDIS', '0') == '1':
+    if not REDIS_URL:
+        raise RuntimeError('USE_REDIS=1 requires REDIS_URL and requirements-celery.txt.')
     RATELIMIT_CACHE = {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
         'LOCATION': REDIS_URL,
@@ -704,8 +712,7 @@ if REDIS_URL and (not LOCAL_DEV or os.getenv('USE_REDIS', '0') == '1'):
         'LOCATION': REDIS_URL,
         'KEY_PREFIX': 'blaqvibes-default',
     }
-else:
-    # Dev fallback (single process) — per-worker cache is fine without Redis.
+elif LOCAL_DEV:
     RATELIMIT_CACHE = {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         'LOCATION': 'blaqvibes-ratelimit',
@@ -713,6 +720,17 @@ else:
     DEFAULT_CACHE = {
         'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
         'LOCATION': 'blaqvibes',
+    }
+else:
+    RATELIMIT_CACHE = {
+        'BACKEND': 'blaqvibes.cache.DatabaseCache',
+        'LOCATION': 'default',
+        'KEY_PREFIX': 'blaqvibes-ratelimit',
+    }
+    DEFAULT_CACHE = {
+        'BACKEND': 'blaqvibes.cache.DatabaseCache',
+        'LOCATION': 'default',
+        'KEY_PREFIX': 'blaqvibes-default',
     }
 
 CACHES = {

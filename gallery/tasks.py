@@ -4,10 +4,11 @@ from django.conf import settings
 from django.core.mail import send_mail
 from .validators import SECRET_PATTERNS
 from .notify import notify
+from .scan_safety import scan_project
 logger = logging.getLogger(__name__)
 
 @shared_task(bind=True, max_retries=2, queue='scan', time_limit=120, soft_time_limit=90)
-def vulnerability_scan(self, *args, project_id=None):
+def vulnerability_scan(self, *args, project_id=None, scan_claim=None):
     """Backend only: dependency audits + Nolo review. No JS sees this.
 
     The audits are hostile-input work, so they are delegated to
@@ -16,17 +17,17 @@ def vulnerability_scan(self, *args, project_id=None):
     upload>` — that turns an uploaded manifest into an outbound request (or a
     build step) executed by the worker.
     """
-    from .models import AppProject
     # Handle chain arg: chain passes previous result as first arg
     if project_id is None and args:
         # args = (prev_result, project_id) or (project_id,)
         project_id = args[-1]
-    p = AppProject.objects.get(pk=project_id)
+    with scan_project(project_id, scan_claim) as p:
+        pass  # Keep the immutable snapshot, but release locks before slow work.
     # Even snippets without zip get Nolo review
     # dep_audit evidence (gallery.trust reads it): 'ran' is True only when
     # an audit actually executed and parsed — so a missing tool or a
     # missing manifest can never be mistaken for a passed check.
-    report = {"npm": [], "pip": [], "secrets": [], "dep_audit": {"ran": False, "reason": "no_manifests"}}
+    report = {"npm": [], "pip": [], "dep_audit": {"ran": False, "reason": "no_manifests"}}
     # Dependency NAMES for the slopsquatting check (gallery.dep_check):
     # collected while the ZIP is already extracted — no second read.
     deps = {"npm": [], "pip": []}
@@ -112,33 +113,22 @@ def vulnerability_scan(self, *args, project_id=None):
     except Exception as e:
         logger.exception(f"Nolo review crush {p.slug}: {e}")
         report["nolo_review"] = {"score": 5, "fixes": [], "pros": [], "source": "error"}
-    # Merge with existing scan_report (don't overwrite)
-    try:
-        existing = p.scan_report or {}
+    # Dependency evidence must not erase the secret verdict from step one.
+    # Validate again before writing: storage/network work held no row locks.
+    with scan_project(project_id, scan_claim) as current:
+        existing = dict(current.scan_report or {})
         existing.update(report)
-        p.scan_report = existing
-        p.save(update_fields=['scan_report'])
-    except Exception:
-        try:
-            p.scan_report = report
-            p.save(update_fields=['scan_report'])
-        except Exception: pass
+        current.scan_report = existing
+        current.save(update_fields=['scan_report'])
+        _apply_trust(current)
     logger.info(f"Vuln scan {p.slug}: {report}")
-    # Trust badge: the vuln step is the last evidence writer before
-    # finalize — grade here so the tier reflects fresh evidence even if
-    # finalize is delayed behind other rows in the FIFO queue.
-    try:
-        from .trust import apply_trust_grade
-        apply_trust_grade(p)
-    except Exception:
-        logger.exception('trust grade after vuln scan failed %s', p.slug)
     return report
 
 @shared_task(bind=True, max_retries=2, queue='scan', time_limit=120, soft_time_limit=90)
-def scan_zip_with_clamav(self, project_id):
+def scan_zip_with_clamav(self, project_id, scan_claim=None):
     """Step 1 of pipeline: ClamAV + secrets. Backend only."""
-    from .models import AppProject
-    p = AppProject.objects.get(pk=project_id)
+    with scan_project(project_id, scan_claim) as p:
+        pass
     if not p.zip_file:
         return "no_zip"
     # Check the site toggle here (rather than running the scan and ignoring
@@ -146,27 +136,40 @@ def scan_zip_with_clamav(self, project_id):
     # a superadmin who disables it expects the pipeline to skip the full scan.
     # Defaults True (security on out of the box); ops turn it off only when the
     # container lacks the ClamAV binary or an external scanner is used.
+    clamav_enabled = True
     try:
         from users.models import SiteSettings
-        if not SiteSettings.get().clamav_enabled:
-            report = p.scan_report or {}
-            report['clamav'] = 'disabled'
-            p.scan_report = report
-            p.save(update_fields=['scan_report'])
-            logger.info(f"ClamAV disabled by site setting — skipping scan for {p.slug}")
-            return "clamav_disabled"
+        clamav_enabled = SiteSettings.get().clamav_enabled
     except Exception:
         pass
+    if not clamav_enabled:
+        with scan_project(project_id, scan_claim) as current:
+            report = dict(current.scan_report or {})
+            report['clamav'] = 'disabled'
+            current.scan_report = report
+            current.save(update_fields=['scan_report'])
+        logger.info(f"ClamAV disabled by site setting — skipping scan for {p.slug}")
+        return "clamav_disabled"
     # clamscan needs a real filesystem path; on S3/R2 the object is streamed
     # to a temp file for the duration of the scan (ziputil handles both).
     from .ziputil import materialized_path, open_zip
     try:
         with materialized_path(p.zip_file) as zip_path:
             result = subprocess.run(['clamscan', '--no-summary', zip_path], capture_output=True, timeout=30)
-        if result.returncode == 1:
-            p.status = 'quarantined'
-            p.save(update_fields=['status'])
-            _apply_trust(p)
+        if result.returncode == 0:
+            with scan_project(project_id, scan_claim) as current:
+                report = dict(current.scan_report or {})
+                report['clamav'] = 'clean'
+                current.scan_report = report
+                current.save(update_fields=['scan_report'])
+        elif result.returncode == 1:
+            with scan_project(project_id, scan_claim) as current:
+                report = dict(current.scan_report or {})
+                report['clamav'] = 'infected'
+                current.scan_report = report
+                current.status = 'quarantined'
+                current.save(update_fields=['status', 'scan_report'])
+                _apply_trust(current)
             logger.warning(f"Virus quarantined {p.slug}")
             from .notify import notify
             notify(p.owner, 'quarantined', f'"{p.title}" was quarantined', 'Virus or blocked secret found. Edit and re-upload a clean ZIP.', p.get_absolute_url())
@@ -177,14 +180,20 @@ def scan_zip_with_clamav(self, project_id):
             except Exception:
                 logger.exception('admin quarantine notify failed %s', p.slug)
             return "quarantined"
+        else:
+            # Exit 2 is a scanner failure (e.g. missing signature database),
+            # NOT a clean result. Never publish unchecked bytes as a fallback.
+            logger.warning('clamscan failed for %s (exit %s)', p.slug, result.returncode)
+            raise FileNotFoundError('ClamAV could not complete the scan')
     except FileNotFoundError:
-        logger.warning(f"clamscan missing — leaving pending {p.slug}")
-        report = p.scan_report or {}
-        report['clamav'] = 'unavailable'
-        p.scan_report = report
-        p.status = 'pending'
-        p.save(update_fields=['scan_report', 'status'])
-        _apply_trust(p)
+        logger.warning(f"ClamAV unavailable — leaving pending {p.slug}")
+        with scan_project(project_id, scan_claim) as current:
+            report = dict(current.scan_report or {})
+            report['clamav'] = 'unavailable'
+            current.scan_report = report
+            current.status = 'pending'
+            current.save(update_fields=['scan_report', 'status'])
+            _apply_trust(current)
         from .notify import notify
         # 'review_needed' (amber, "a decision is waiting"), not 'quarantined'
         # (red, "blocked/unsafe"): nothing wrong with THIS upload — our
@@ -204,24 +213,32 @@ def scan_zip_with_clamav(self, project_id):
         with open_zip(p.zip_file) as z:
             for name in z.namelist():
                 if name.lower().endswith(('.py','.js','.env','.txt','.json','.md')):
-                    try:
-                        text = z.read(name).decode('utf-8', errors='ignore')
-                        for pat in SECRET_PATTERNS:
-                            if pat.search(text):
-                                secrets.append(name)  # store filename only, not key
-                                break
-                    except Exception: pass
-    except Exception: pass
+                    text = z.read(name).decode('utf-8', errors='ignore')
+                    for pat in SECRET_PATTERNS:
+                        if pat.search(text):
+                            secrets.append(name)  # store filename only, not key
+                            break
+    except Exception:
+        logger.exception('Secret scan could not read the saved ZIP for %s', p.slug)
+        raise  # Missing evidence must not be silently treated as a clean scan.
+    # Write even an empty list so an explicitly re-scanned clean replacement
+    # does not inherit an old secret flag. Failed reads above never reach here.
+    with scan_project(project_id, scan_claim) as current:
+        report = dict(current.scan_report or {})
+        report['secrets'] = secrets
+        current.scan_report = report
+        if secrets:
+            current.status = 'pending'
+            current.save(update_fields=['scan_report', 'status'])
+            _apply_trust(current)
+        else:
+            current.save(update_fields=['scan_report'])
+            # Grade a clean archive only after fresh dependency evidence;
+            # an edited project must not reuse its previous audit here.
     if secrets:
         logger.warning(f"Secrets in {p.slug}: {secrets[:3]}")
-        # Keep pending for human review, don't auto-publish. Store filenames only
-        # (never the secret values) so owner_scan_reason can explain the hold.
-        report = p.scan_report or {}
-        report['secrets'] = secrets
-        p.scan_report = report
-        p.status = 'pending'
-        p.save(update_fields=['scan_report', 'status'])
-        _apply_trust(p)
+        # Store filenames only, never the secret values.
+
         from .notify import notify
         # The project is 'pending' (held for a human), not 'quarantined' —
         # the inbox colour should match the state: amber "review waiting".
@@ -470,7 +487,8 @@ def refresh_appeal_scores(limit=500):
 @shared_task(queue='scan', ignore_result=True)
 def process_upload_pipeline(project_id):
     """Master queue: Ensures EVERY app is checked in order, even with 20 concurrent uploads.
-    Called via .delay() from publish view — Celery FIFO queue 'scan' serializes.
+    Only used when SCAN_QUEUE_BACKEND=celery. Database runners execute the
+    same steps explicitly without a broker.
     No sensitive info leaves backend — JS only gets status poll via /app/<slug>/scan-status/ (clean/pending/quarantined)."""
     # Chain: virus -> vuln -> finalize -> attention. If any quarantines, later
     # steps still run but finalize skips publish. `attention_check` is last on

@@ -26,6 +26,7 @@ from .access import (
 )
 from .zip_serve import serve_named_zip, serve_project_zip, owner_scan_reason, scan_progress
 from .notify import notify
+from .scan_queue import enqueue_scan, queue_backend
 from . import taste
 from .taxonomy import KIND_BY_VALUE, PROGRAM_KINDS, coerce_kind
 from django.core.mail import send_mail
@@ -886,8 +887,6 @@ def register_zip_project(project, logger_name='publish', trace=None):
     ScanJob, visible to the owner and staff and recoverable without another
     upload. Never run slow scanners inside a production web request.
     """
-    from .scan_queue import enqueue_scan
-
     trace = trace or UploadTrace(logger_name)
     trace.project_id = project.pk
     try:
@@ -916,8 +915,8 @@ def register_zip_project(project, logger_name='publish', trace=None):
                 project.owner,
                 'upload',
                 f'Application received: “{project.title}”',
-                ('Your vibe is in the safety-check queue. We’ll tell you the moment '
-                 'the review is done — follow its status on the vibe page.' if queued
+                ('Your files are saved in the safety-check queue. Your vibe stays '
+                 'private until the checks and any required review clear it.' if queued
                  else 'Your files are saved, but our safety-check queue is unavailable. '
                  'Your vibe stays private while staff restore the scan service.'),
                 project.get_absolute_url(),
@@ -935,7 +934,9 @@ def register_zip_project(project, logger_name='publish', trace=None):
     try:
         with trace.stage('notify_staff'):
             from .admin_notifications import notify_admins_pending_project
-            reason = ("New ZIP upload — waiting in scan queue, needs approval check" if queued
+            reason = (f"Saved in the database scan queue — run process_scan_queue before review. Reference: {trace.reference}"
+                      if queued and queue_backend() == 'database'
+                      else "New ZIP upload — waiting in scan queue, needs approval check" if queued
                       else f"Scan dispatch failed — restore the queue and retry the saved upload. Reference: {trace.reference}")
             notify_admins_pending_project(project, reason=reason)
     except Exception:
@@ -1128,6 +1129,8 @@ def publish(request):
                         "Your vibe stays private; staff have been alerted. Do not upload it again. "
                         f"Reference: {trace.reference}.",
                     )
+                elif queue_backend() == 'database':
+                    messages.info(request, f"Your vibe “{project.title}” is saved and private, waiting for safety checks. You do not need to upload again.")
                 else:
                     messages.info(request, f"Your vibe “{project.title}” is in the safety-check queue. We’ll tell you when it’s live. You’re #{position} in line.")
                 try:
@@ -1289,6 +1292,13 @@ def publish_success(request, slug):
         'actions': strengthen_actions(project),
         'scan_pending': project.status == 'pending',
         'scan_failed': project.status == 'pending' and getattr(getattr(project, 'scan_job', None), 'status', '') == 'failed',
+        'scan_waiting': (project.status == 'pending' and queue_backend() == 'database'
+                         and getattr(getattr(project, 'scan_job', None), 'status', '') == 'queued'),
+        'scan_held': (project.status == 'pending' and
+                      (getattr(getattr(project, 'scan_job', None), 'status', '') == 'pending'
+                       or (project.scan_report or {}).get('clamav') == 'unavailable'
+                       or bool((project.scan_report or {}).get('secrets')))),
+        'scan_hold_reason': owner_scan_reason(project),
         'quarantined': project.status == 'quarantined',
     })
 
@@ -1691,13 +1701,9 @@ def edit_vibe(request, slug):
                         AppFile.objects.create(project=p, path=f['path'], size=f['size'])
                 except Exception:
                     logger.exception('tree rebuild failed on edit %s', p.slug)
-                from .tasks import process_upload_pipeline
-                from .models import ScanJob
-                job, _ = ScanJob.objects.get_or_create(project=p)
-                job.status = 'queued'
-                job.save(update_fields=['status'])
                 try:
-                    process_upload_pipeline.delay(p.id)
+                    if not enqueue_scan(p):
+                        raise RuntimeError('Scan dispatch failed')
                 except Exception:
                     # The broker is down. Say so instead of pretending the
                     # queued state is progress — a silent "we'll tell you"
@@ -1713,8 +1719,8 @@ def edit_vibe(request, slug):
                 if was_published:
                     messages.info(
                         request,
-                        f"⏳ “{p.title}” is re-scanning — it stays out of the feed for a "
-                        f"moment so nobody downloads unchecked files. Buyers keep their "
+                        f"⏳ “{p.title}” is waiting for safety checks — it stays out of the "
+                        f"feed until those checks clear. Buyers keep their "
                         f"downloads. We’ll tell you when it’s live again.",
                     )
                 else:
@@ -2106,16 +2112,9 @@ def fork_vibe(request, slug):
         try:
             fork.tags.set(original.tags.all())
         except Exception: pass
-        # Create ScanJob and queue — every fork is re-scanned
-        from .models import ScanJob
-        from .tasks import process_upload_pipeline
-        job, _ = ScanJob.objects.get_or_create(project=fork, defaults={'status': 'queued'})
-        job.status = 'queued'
-        job.save(update_fields=['status'])
-        try:
-            process_upload_pipeline.delay(fork.id)
-        except Exception:
-            pass
+        # Every fork uses the same Redis-free/optional-Celery dispatch path.
+        if not enqueue_scan(fork):
+            messages.warning(request, 'Your remix is saved and private, but safety checks need attention.')
         messages.success(request, f"You remixed {original.title} by @{original.owner.username}. Your version is now part of the project's remix family.")
         return redirect('edit_vibe', slug=fork.slug)
     except Exception as e:

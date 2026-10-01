@@ -29,7 +29,8 @@ REMOTE_STORAGE = {
 
 
 @override_settings(RATELIMIT_ENABLE=False, STORAGES=REMOTE_STORAGE,
-                   CELERY_TASK_ALWAYS_EAGER=False)
+                   CELERY_TASK_ALWAYS_EAGER=False, SCAN_QUEUE_BACKEND='celery',
+                   CELERY_BROKER_URL='memory://', CELERY_RESULT_BACKEND=None)
 class UploadFailureTests(TestCase):
     def setUp(self):
         self.category = make_category()
@@ -202,7 +203,8 @@ class UploadFailureTests(TestCase):
 
 
 @override_settings(RATELIMIT_ENABLE=False, STORAGES=REMOTE_STORAGE,
-                   CELERY_TASK_ALWAYS_EAGER=False)
+                   CELERY_TASK_ALWAYS_EAGER=False, SCAN_QUEUE_BACKEND='celery',
+                   CELERY_BROKER_URL='memory://', CELERY_RESULT_BACKEND=None)
 class FailedScanRecoveryTests(TestCase):
     def setUp(self):
         self.category = make_category()

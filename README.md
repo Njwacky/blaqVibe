@@ -146,6 +146,30 @@ turns every notification into something you can triage without reading it:
 Full spec, weights, and why detection is O(n) rather than O(n²):
 [`docs/specs/BlaqVibes_Attention_Duplicates_Spec.md`](docs/specs/BlaqVibes_Attention_Duplicates_Spec.md).
 
+## Redis-free uploads (Render + Supabase)
+
+**Redis is optional, not a requirement.** By default, uploads are stored in a
+Supabase/Postgres-backed safety-check queue, and production rate-limit counters
+use the same database with atomic increments. No scanner runs in the upload
+HTTP request and no missing broker turns a saved upload into a queue outage.
+
+Keep `SCAN_QUEUE_BACKEND=database`, `USE_REDIS=0`, and `CELERY_EAGER=0` on Render.
+Run migrations when deploying. Uploaded ZIPs must remain in private object
+storage; Supabase database rows alone do not preserve files on Render's disk.
+
+Scans still need a runner outside the web service:
+
+```bash
+python manage.py retry_failed_scans --limit 100  # recover previously saved failures
+python manage.py process_scan_queue --limit 20  # process one batch, without Redis
+```
+
+Until that command (or a standalone `--watch` runner) checks them, ZIP projects
+stay private and the UI says **waiting for safety checks**. This does not turn
+Render Free into an always-on worker or disable scanners, auth, CSRF or rate
+limits. Full setup, safe recovery and optional Celery instructions:
+[`docs/REDIS_FREE.md`](docs/REDIS_FREE.md).
+
 ## Run locally
 
 ```bash

@@ -1,8 +1,7 @@
 """Tests for the ops probes: /healthz (liveness) and /readyz (readiness)."""
 import json
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-import redis
 
 from django.test import TestCase, override_settings
 
@@ -35,17 +34,15 @@ class HealthProbeTests(TestCase):
         self.assertEqual(body['status'], 'unavailable')
         self.assertFalse(body['checks']['database']['ok'])
 
-    @override_settings(CELERY_TASK_ALWAYS_EAGER=False,
+    @override_settings(SCAN_QUEUE_BACKEND='celery', CELERY_TASK_ALWAYS_EAGER=False,
                        CELERY_BROKER_URL='redis://127.0.0.1:1/0')
     def test_readyz_reports_queue_down_without_failing_readiness(self):
-        fake_client = Mock()
-        fake_client.ping.side_effect = Exception('redis down')
-        with patch.object(redis.Redis, 'from_url', return_value=fake_client):
+        with patch('gallery.health._ping_redis', side_effect=Exception('redis down')) as ping:
             response = self.client.get('/readyz')
         self.assertEqual(response.status_code, 200)
         body = json.loads(response.content)
         self.assertFalse(body['checks']['queue']['ok'])
-        fake_client.ping.assert_called_once()
+        ping.assert_called_once_with('redis://127.0.0.1:1/0')
 
     def test_healthz_survives_maintenance_mode(self):
         SiteSettings.get().save()  # ensure row exists
