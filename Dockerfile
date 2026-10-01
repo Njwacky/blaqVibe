@@ -11,7 +11,10 @@ RUN useradd --create-home --uid 10001 appuser
 
 WORKDIR /app
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+ARG INSTALL_CELERY_REDIS=0
+COPY requirements-celery.txt .
+RUN pip install --no-cache-dir -r requirements.txt \
+    && if [ "$INSTALL_CELERY_REDIS" = "1" ]; then pip install --no-cache-dir -r requirements-celery.txt; fi
 
 COPY . .
 
@@ -26,8 +29,8 @@ RUN mkdir -p /app/media/apps/zips /app/staticfiles && chown -R appuser:appuser /
 RUN DJANGO_LOCAL_DEV=1 python manage.py collectstatic --noinput \
     && chown -R appuser:appuser /app/staticfiles
 
-# ClamAV freshclam (mock if no internet, crush silently)
-RUN freshclam || echo "freshclam failed — mock mode"
+# Fetch virus signatures. If unavailable, runtime scans hold uploads for review.
+RUN freshclam || echo "freshclam failed — scans require working signatures"
 
 USER appuser
 

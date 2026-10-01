@@ -1,3 +1,9 @@
+> **Current default (October 2026):** Redis is no longer required. Use the
+> database queue and `process_scan_queue` described in [REDIS_FREE.md](REDIS_FREE.md).
+> The broker-outage diagnosis below applies only to the optional
+> `SCAN_QUEUE_BACKEND=celery` deployment. Saved failed jobs can be requeued with
+> `retry_failed_scans` in either mode, without another upload.
+
 # ZIP / GitHub upload failure diagnosis
 
 Investigated 29 September 2026, starting from `f621ce4`.

@@ -573,7 +573,8 @@ def _after_push(request, project, user, old_head=None):
             locked.save(update_fields=['zip_file', 'status', 'trust', 'trust_graded_at'])
             job, _ = ScanJob.objects.get_or_create(project=locked)
             job.status = 'queued'
-            job.save(update_fields=['status'])
+            job.task_id = ''
+            job.save(update_fields=['status', 'task_id'])
             project.pk = locked.pk
         adopted = True
 
@@ -609,8 +610,9 @@ def _after_push(request, project, user, old_head=None):
         project.save(update_fields=['scan_report'])
 
         try:
-            from .tasks import process_upload_pipeline
-            process_upload_pipeline.delay(project.pk)
+            from .scan_queue import enqueue_scan
+            if not enqueue_scan(project):
+                raise RuntimeError('Scan dispatch failed')
         except Exception:
             logger.exception('push scan queue trigger failed %s', project.slug)
             # The ScanJob row says 'queued', so the moderation queue still holds

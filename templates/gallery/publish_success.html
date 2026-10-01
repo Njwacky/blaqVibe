@@ -1,6 +1,6 @@
 {% extends 'gallery/base.html' %}
 {% load static %}
-{% block title %}{{ project.title }} — published — BlaqVibes{% endblock %}
+{% block title %}{{ project.title }} — {% if project.status == 'published' %}published{% else %}saved{% endif %} — BlaqVibes{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{% static 'gallery/css/publish.css' %}?v=publish-first-20260911">
 {% endblock %}
@@ -21,6 +21,22 @@
     <div>
       <b>Project received — safety checks need attention</b>
       <p>Your files are saved and private. Our scan service is temporarily unavailable; staff have been alerted. You do not need to upload again.</p>
+    </div>
+  </div>
+  {% elif scan_waiting %}
+  <div class="ps-hero ps-hero--queued" role="status">
+    <span class="ps-hero-mark"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-clock"></use></svg></span>
+    <div>
+      <b>Project received — waiting for safety checks</b>
+      <p>Your files are saved and private. A safety-check runner must check them before the project can go live. You do not need to upload again.</p>
+    </div>
+  </div>
+  {% elif scan_held %}
+  <div class="ps-hero ps-hero--held" role="status">
+    <span class="ps-hero-mark">⏸</span>
+    <div>
+      <b>Project received — awaiting review</b>
+      <p>{{ scan_hold_reason }} Your project stays private until approved. You do not need to upload again.</p>
     </div>
   </div>
   {% elif scan_pending %}
@@ -50,7 +66,7 @@
       <h2 style="margin:4px 0 3px;font-size:18px">You put a build on the platform.</h2>
       <p style="margin:0;color:var(--muted);font-size:12px;line-height:1.45">
         {% if scan_pending or quarantined %}
-        The project is received. The normal safety check is the only thing between this build and the public feed.
+        The project is received and private until safety checks and any required review clear it.
         {% else %}
         Your project is live. Now you can explore other builders and come back to strengthen this build whenever you want.
         {% endif %}

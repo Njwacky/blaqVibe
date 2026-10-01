@@ -24,6 +24,7 @@ from .models import (
     Challenge, AppFile, AppVersion, ScanJob,
 )
 from .notify import notify
+from .scan_queue import enqueue_scan
 from .access import user_can_see_project
 from users.decorators import not_quarantined
 
@@ -334,7 +335,6 @@ def pr_action(request, slug, pr_id):
         action = request.POST.get('action')
         if action == 'merge':
             from django.core.files.base import ContentFile
-            from .tasks import process_upload_pipeline
             source = pr.source
             if target.zip_file:
                 try:
@@ -380,13 +380,9 @@ def pr_action(request, slug, pr_id):
             target.files.all().delete()
             for af in source.files.all():
                 AppFile.objects.create(project=target, path=af.path, size=af.size)
-            job, _ = ScanJob.objects.get_or_create(project=target)
-            job.status = 'queued'
-            job.save(update_fields=['status'])
-            try:
-                process_upload_pipeline.delay(target.id)
-            except Exception:
-                logger.exception('pr rematch scan queue failed')
+            if not enqueue_scan(target):
+                logger.error('pr rematch scan queue failed')
+                messages.warning(request, 'Merged files are saved and private, but safety checks need attention.')
             pr.status = 'merged'
             pr.save(update_fields=['status','updated_at'])
             notify(pr.author, 'pr', f'PR #{pr.id} merged into {target.title}', url=target.get_absolute_url())

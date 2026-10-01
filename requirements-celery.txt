@@ -1,0 +1,4 @@
+# Optional only: install this instead of requirements.txt when enabling
+# SCAN_QUEUE_BACKEND=celery and/or USE_REDIS=1.
+-r requirements.txt
+redis==5.0.4

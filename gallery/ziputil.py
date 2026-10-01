@@ -68,16 +68,26 @@ def materialized_path(file_field, suffix='.zip'):
     deleted when the block exits.
     """
     local = _local_path(file_field)
-    if local is not None and os.path.exists(local):
+    if local is not None and getattr(file_field, '_committed', True) and os.path.exists(local):
         yield local
         return
     tmp = tempfile.NamedTemporaryFile(suffix=suffix, delete=False)
     try:
-        file_field.open('rb')
+        # Use an independent storage handle for committed files. Closing a
+        # borrowed remote FieldFile here can make the subsequent secret scan
+        # unable to reopen its stream (and must not consume an unsaved upload).
+        committed = getattr(file_field, '_committed', False) and hasattr(file_field, 'storage')
+        source = file_field.storage.open(file_field.name, 'rb') if committed else file_field
         try:
-            shutil.copyfileobj(file_field, tmp, length=1024 * 1024)
+            if not committed:
+                source.open('rb')
+                source.seek(0)
+            shutil.copyfileobj(source, tmp, length=1024 * 1024)
         finally:
-            file_field.close()
+            if committed:
+                source.close()
+            else:
+                source.seek(0)
         tmp.close()
         yield tmp.name
     finally:

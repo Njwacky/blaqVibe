@@ -630,13 +630,27 @@ class Comment(models.Model):
             self.body_html = render_markdown_inline(self.body)
         super().save(*args, **kwargs)
 
+class CacheEntry(models.Model):
+    """Private shared cache and atomic counters, migrated with the app."""
+    cache_key = models.CharField(max_length=255, primary_key=True)
+    value = models.TextField(blank=True, default='')
+    number = models.BigIntegerField(null=True, blank=True)
+    expires = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    class Meta:
+        db_table = 'blaqvibes_cache'
+
+
 class ScanJob(models.Model):
     """Queue tracking — backend only, JS polls status via scan_status view (no secrets)."""
     project = models.OneToOneField(AppProject, on_delete=models.CASCADE, related_name='scan_job')
     task_id = models.CharField(max_length=100, blank=True)
-    status = models.CharField(max_length=20, default='queued', choices=[('queued','Queued'),('scanning','Scanning'),('clean','Clean'),('quarantined','Quarantined'),('failed','Failed')])
+    status = models.CharField(max_length=20, default='queued', choices=[('queued','Queued'),('scanning','Scanning'),('pending','Awaiting review'),('clean','Clean'),('quarantined','Quarantined'),('failed','Failed')])
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [models.Index(fields=['status', 'created_at'], name='gallery_scan_queue_idx')]
 
 class AppReport(models.Model):
     REASON_CHOICES = [('spam','Spam'),('malware','Malware/Virus'),('copyright','Copyright'),('other','Other')]

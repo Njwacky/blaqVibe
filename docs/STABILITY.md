@@ -1,3 +1,8 @@
+> **Redis-free default:** production cache/rate limits and upload jobs now use
+> Postgres/Supabase. See [REDIS_FREE.md](REDIS_FREE.md) for migration and separate
+> scan-runner instructions. Redis/Celery services mentioned below are optional;
+> the default Compose stack uses `scan-worker` with `process_scan_queue --watch`.
+
 # BlaqVibes — Stability & Operations Guide
 
 How BlaqVibes helps people, and what keeps it standing when real users arrive.

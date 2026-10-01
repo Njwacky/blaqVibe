@@ -111,6 +111,25 @@ class RemoteStorageZipAccessTests(TestCase):
         self.assertFalse(project.zip_file.closed)
         self.assertEqual(project.zip_file.read(), payload)
 
+    def test_materializing_a_remote_file_does_not_break_the_next_secret_scan(self):
+        from pathlib import Path
+        from gallery.ziputil import materialized_path, open_zip
+        project = self._unsaved_project({'main.js': 'const example = "sk_live_NOTAREALKEY";'})
+        project.save()
+        with materialized_path(project.zip_file) as path:
+            self.assertTrue(Path(path).exists())
+        with open_zip(project.zip_file) as archive:
+            self.assertIn(b'sk_live_NOTAREALKEY', archive.read('main.js'))
+
+    def test_materializing_an_unsaved_upload_leaves_its_stream_writable(self):
+        from gallery.ziputil import materialized_path
+        project = self._unsaved_project({'main.js': 'console.log(1);'})
+        with materialized_path(project.zip_file):
+            pass
+        self.assertFalse(project.zip_file.closed)
+        project.save()
+        self.assertTrue(project.zip_file.storage.exists(project.zip_file.name))
+
     def test_open_zip_still_reads_a_saved_remote_file(self):
         """The seek-0 contract must not break post-save readers (build_tree)."""
         from gallery.ziputil import open_zip

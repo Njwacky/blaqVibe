@@ -1,4 +1,4 @@
-"""Recover saved uploads after Redis/scan dispatch is restored."""
+"""Requeue saved uploads for the database runner or optional Celery."""
 from datetime import timedelta
 
 from django.core.management.base import BaseCommand, CommandError
@@ -6,16 +6,16 @@ from django.db.models import Q
 from django.utils import timezone
 
 from gallery.models import ScanJob
-from gallery.scan_queue import enqueue_scan
+from gallery.scan_queue import enqueue_scan, queue_backend
 
 
 class Command(BaseCommand):
-    help = 'Requeue failed scans for saved, pending ZIP uploads. Never publishes or duplicates a vibe.'
+    help = 'Requeue failed scans for saved, pending uploads. Never publishes or duplicates a vibe.'
 
     def add_arguments(self, parser):
         parser.add_argument('--limit', type=int, default=100, help='Maximum jobs to retry (1–1000).')
         parser.add_argument('--include-stale', action='store_true',
-                            help='Also recover queued jobs with no task ID older than five minutes (pre-fix timeouts).')
+                            help='Also recover unsent jobs older than five minutes and database claims older than 30 minutes. Stop old runners first.')
 
     def handle(self, *args, **options):
         limit = options['limit']
@@ -24,9 +24,13 @@ class Command(BaseCommand):
         eligible = Q(status='failed')
         if options['include_stale']:
             eligible |= Q(status='queued', task_id='', updated_at__lt=timezone.now() - timedelta(minutes=5))
+            if queue_backend() == 'database':
+                eligible |= Q(status='scanning', task_id__startswith='database:',
+                              updated_at__lt=timezone.now() - timedelta(minutes=30))
         jobs = (ScanJob.objects
                 .filter(eligible, project__status='pending')
-                .exclude(project__zip_file='').exclude(project__zip_file__isnull=True)
+                .filter(Q(project__zip_file__isnull=False) & ~Q(project__zip_file='')
+                        | ~Q(project__html_code=''))
                 .select_related('project').order_by('updated_at', 'pk')[:limit])
         requeued = 0
         for job in jobs:

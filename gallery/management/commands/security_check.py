@@ -158,31 +158,34 @@ class Command(BaseCommand):
                 'will be delivered. Paste your Brevo API key as BREVO_API_KEY.'
             )
 
-        # Background work. The scan pipeline is the only path to `published`,
-        # and finalize_publish deliberately holds a vibe in `pending` forever
-        # when nothing drains its queue — so a public host with no reachable
-        # broker does not fail loudly, it just stops shipping. settings derives
-        # the broker from REDIS_URL and *guesses* localhost when it is unset,
-        # which is the same inference-by-default that used to decide LOCAL_DEV.
+        # Uploads default to a durable database queue. It needs a separate
+        # runner, not a Redis service and never a synchronous HTTP fallback.
         if production:
+            backend = getattr(settings, 'SCAN_QUEUE_BACKEND', 'database')
+            if backend not in ('database', 'celery'):
+                add('SCAN_QUEUE_BACKEND must be database or celery.')
             if getattr(settings, 'CELERY_TASK_ALWAYS_EAGER', False):
-                add('CELERY_TASK_ALWAYS_EAGER is on — every upload scan (90s soft / 120s hard limit, '
-                    'hostile ZIPs included) runs inside the web request that queued it. Clear '
-                    'CELERY_EAGER and run `celery -A blaqvibes worker -Q scan`.')
-            elif not getattr(settings, 'REDIS_URL', ''):
-                inferred = getattr(settings, 'CELERY_BROKER_URL', '') or 'redis://localhost:6379/0'
-                add(f'REDIS_URL is unset, so the Celery broker is inferred as {inferred} — on a public '
-                    'host nothing consumes that queue and every upload sits in "pending". Set REDIS_URL '
-                    '(docker-compose ships redis://redis:6379/0, a managed deploy the provider URL).')
-            elif LOCAL_BROKER_RE.match(getattr(settings, 'CELERY_BROKER_URL', '') or ''):
-                warnings.append(
-                    'REDIS_URL points at localhost — fine on a single box that really runs Redis there, '
-                    'wrong in a container or PaaS web process, where the scan queue is unreachable and '
-                    'uploads never publish.')
+                add('CELERY_TASK_ALWAYS_EAGER is on — keep CELERY_EAGER=0 on public hosts; '
+                    'run process_scan_queue outside web requests instead.')
+            if backend == 'celery':
+                if not getattr(settings, 'REDIS_URL', ''):
+                    add('REDIS_URL is unset in optional Celery mode — set the broker URL and '
+                        'run a Celery worker, or use SCAN_QUEUE_BACKEND=database.')
+                elif LOCAL_BROKER_RE.match(getattr(settings, 'CELERY_BROKER_URL', '') or ''):
+                    warnings.append('REDIS_URL points at localhost — only valid on a box that '
+                                    'really runs Redis. It is not a managed deployment broker.')
+            cache_name = getattr(settings, 'RATELIMIT_USE_CACHE', 'default')
+            cache_backend = settings.CACHES.get(cache_name, {}).get('BACKEND', '')
+            if cache_backend in ('django.core.cache.backends.locmem.LocMemCache',
+                                 'django.core.cache.backends.dummy.DummyCache',
+                                 'django.core.cache.backends.db.DatabaseCache',
+                                 'django.core.cache.backends.filebased.FileBasedCache'):
+                add('The rate-limit cache must be shared and support atomic increments. '
+                    'Use blaqvibes.cache.DatabaseCache (the Redis-free production default).')
 
         # Database engine. settings fall back to a file-backed SQLite whenever
         # DATABASE_URL is unset, which is exactly what a "just deploy it" host
-        # ends up running. compose ships Postgres for web/worker/beat, so this
+        # ends up running. compose ships Postgres for web/scan-worker, so this
         # is a misconfiguration, not a supported topology: one writer per
         # database means every publish/scan transaction queues behind the
         # others, `backup_db` degrades to copying a live file, and the search
