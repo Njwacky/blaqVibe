@@ -41,6 +41,27 @@ def _language_gate(request, values):
     return ''
 
 
+def _workflow_preview_steps(skill, limit=6):
+    """Break a workflow into short step-like lines for the hero preview.
+
+    A workflow is free text, so there is no single delimiter: the seeded
+    skills are semicolon-separated prose, others arrive as sentences or as
+    newline-separated lines. Try each separator and keep whichever produces
+    the most step-shaped result — a one-line blob of prose is not a preview.
+    """
+    if not skill:
+        return []
+    raw = (skill.workflow or '').strip()
+    if not raw:
+        return []
+    for sep in (';', '\n', '. '):
+        parts = [p.strip(' .-–') for p in raw.split(sep)]
+        parts = [p for p in parts if len(p) > 2]
+        if len(parts) > 1:
+            return parts[:limit]
+    return [raw[:120]]
+
+
 def skill_list(request):
     q = _clean(request.GET.get('q'), 100)
     difficulty = request.GET.get('difficulty', '').strip().lower()
@@ -67,10 +88,16 @@ def skill_list(request):
         .distinct()
         .count()
     )
+    # The hero shows a real workflow rather than stock imagery: the top-ranked
+    # skill, broken into steps. It is decorative (the same skill is a card in
+    # the grid below), so it carries no link and is hidden from screen readers.
+    featured = skills[0] if skills else None
     return render(request, 'gallery/skills.html', {
         'skills': skills,
         'q': q,
         'difficulty': difficulty,
+        'featured': featured,
+        'featured_steps': _workflow_preview_steps(featured),
         'skill_count': published.count(),
         'total_uses': totals.get('uses') or 0,
         'builder_count': totals.get('builders') or 0,

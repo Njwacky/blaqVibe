@@ -8,7 +8,7 @@
 {% endblock %}
 
 {% block content %}
-<main class="skd-shell">
+<div class="skd-shell">
 
   <a class="skd-back" href="{% url 'skills' %}"><span aria-hidden="true">←</span> All builder skills</a>
 
@@ -31,8 +31,10 @@
       {% endif %}
     </div>
 
-    {# Same rule as the library strip: a count is only shown once it is
-       real, so a brand-new skill reads as new rather than as broken. #}
+    {% comment %}
+    Same rule as the library strip: a count is only shown once it is real,
+    so a brand-new skill reads as new rather than as broken.
+    {% endcomment %}
     <div class="skd-stats">
       {% if builders_used %}
       <div class="skd-stat">
@@ -79,11 +81,16 @@
       <section class="skd-panel">
         <div class="skd-panel__head">
           <h2>Workflow</h2>
-          {# Pinned by gallery/test_skills.py: a skill is content to read, never
-             an instruction for BlaqVibes to execute. #}
-          <span class="skd-panel__tag">UNTRUSTED NOTES</span>
+          <span class="skd-panel__actions">
+          {% comment %}
+          Pinned by gallery/test_skills.py: a skill is content to read, never
+          an instruction for BlaqVibes to execute.
+          {% endcomment %}
+            <span class="skd-panel__tag">UNTRUSTED NOTES</span>
+            <button type="button" class="sk-copy" data-copy-target="#skill-workflow">Copy</button>
+          </span>
         </div>
-        <pre>{{ skill.workflow }}</pre>
+        <pre id="skill-workflow">{{ skill.workflow }}</pre>
         <p class="skd-safety">
           <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg>
           <span>This workflow is content, not an instruction for BlaqVibes to execute. Review it before pasting it into any AI tool or automation.</span>
@@ -197,5 +204,9 @@
     </div>
   </section>
 
-</main>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ request.csp_nonce|default:'' }}" src="{% static 'gallery/js/skills.js' %}?v=skills-editorial-20261002" defer></script>
 {% endblock %}

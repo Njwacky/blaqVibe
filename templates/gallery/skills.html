@@ -8,32 +8,55 @@
 {% endblock %}
 
 {% block content %}
-<main class="sk-shell">
+<div class="sk-shell">
 
   {# HERO ---------------------------------------------------------------- #}
   <header class="sk-hero">
     <div class="sk-hero__glow" aria-hidden="true"></div>
-    <p class="sk-eyebrow">BUILDER SKILLS</p>
-    <h1 class="sk-hero__title">Learn how other builders solve problems.</h1>
-    <p class="sk-hero__lead">
-      Knowledge shared by builders: the problem, the workflow, the tools, and the
-      projects that prove it works. AI can be one tool inside a workflow — the
-      builder is the point.
-    </p>
-    <div class="sk-cta-row">
-      {% if user.is_authenticated %}
-        <a class="sk-btn sk-btn--primary" href="#publish-skill">Publish a skill</a>
-      {% else %}
-        <a class="sk-btn sk-btn--primary" href="{% url 'signup' %}">Join to publish a skill</a>
-      {% endif %}
-      <a class="sk-btn sk-btn--outline" href="#skills">Browse the library</a>
+
+    <div class="sk-hero__copy">
+      <p class="sk-eyebrow">BUILDER SKILLS</p>
+      <h1 class="sk-hero__title">Learn how other builders solve problems.</h1>
+      <p class="sk-hero__lead">
+        Knowledge shared by builders: the problem, the workflow, the tools, and the
+        projects that prove it works. AI can be one tool inside a workflow — the
+        builder is the point.
+      </p>
+      <div class="sk-cta-row">
+        {% if user.is_authenticated %}
+          <a class="sk-btn sk-btn--primary" href="#publish-skill">Publish a skill</a>
+        {% else %}
+          <a class="sk-btn sk-btn--primary" href="{% url 'signup' %}">Join to publish a skill</a>
+        {% endif %}
+        <a class="sk-btn sk-btn--outline" href="#skills">Browse the library</a>
+      </div>
     </div>
+
+    {% if featured and featured_steps %}
+    {% comment %}
+    Decorative: a real workflow from the library, shown instead of stock
+    imagery. The same skill is a real card in the grid below, so this is
+    hidden from assistive tech and carries no link.
+    {% endcomment %}
+    <aside class="sk-preview" aria-hidden="true">
+      <div class="sk-preview__bar">
+        <span class="sk-preview__dots"><i></i><i></i><i></i></span>
+        <span class="sk-preview__name">{{ featured.title|truncatechars:32 }}</span>
+      </div>
+      <ol class="sk-preview__steps">
+        {% for step in featured_steps %}<li><span class="sk-preview__num">{{ forloop.counter }}</span><span class="sk-preview__text">{{ step }}</span></li>{% endfor %}
+      </ol>
+      <div class="sk-preview__foot">A real workflow from the library</div>
+    </aside>
+    {% endif %}
   </header>
 
-  {# EVIDENCE, NOT HYPE ---------------------------------------------------
-     Each number appears only once it is true. BlaqVibes does not seed fake
-     engagement, so on a young library the strip shows the counts that exist
-     rather than a row of zeros.                                            #}
+  {% comment %}
+  Each number appears only once it is true. BlaqVibes does not seed fake
+  engagement, so on a young library the strip shows the counts that exist
+  rather than a row of zeros. Multi-line notes must use this tag: Django's
+  short comment form cannot span lines and would render as literal text.
+  {% endcomment %}
   <section class="sk-stats" aria-label="The skill library at a glance">
     <div class="sk-stat">
       <span class="sk-stat__n">{{ skill_count }}</span>
@@ -191,5 +214,5 @@
     </div>
   </section>
 
-</main>
+</div>
 {% endblock %}
