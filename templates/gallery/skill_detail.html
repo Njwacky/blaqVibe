@@ -1,54 +1,172 @@
 {% extends 'gallery/base.html' %}
 {% load static %}
 
-{% block title %}{{ skill.title }} — BlaqVibes{% endblock %}
+{% block title %}{{ skill.title }} — Builder Skill{% endblock %}
+{% block meta_desc %}{{ skill.summary }}{% endblock %}
 {% block head %}
-<link rel="stylesheet" href="{% static 'gallery/css/skills.css' %}">
+<link rel="stylesheet" href="{% static 'gallery/css/skills.css' %}?v=skills-editorial-20261002">
 {% endblock %}
 
 {% block content %}
-<main class="skill-detail-shell">
-  <a class="skill-back" href="{% url 'skills' %}">← All builder skills</a>
-  <header class="skill-detail-hero">
-    <p class="skills-eyebrow">BUILDER SKILL · {{ skill.get_difficulty_display|upper }}</p>
-    <h1>{{ skill.title }}</h1>
-    <p class="skill-lead">{{ skill.summary }}</p>
-    <p class="skill-byline">Shared by <strong>@{{ skill.creator.username }}</strong> · Used by {{ builders_used }} builder{{ builders_used|pluralize }} · Produced {{ proof_count }} published project{{ proof_count|pluralize }}{% if current_version %} · Currently <strong>{{ current_version.label }}</strong>{% endif %}</p>
-    {% if user.is_authenticated %}
-      <form method="post" action="{% url 'use_skill' skill.slug %}">
-        {% csrf_token %}
-        <button class="use-skill" type="submit">Start building with this skill</button>
-      </form>
-      <p class="skill-login-note">The next project you publish within 2 hours is linked to this skill as proof.</p>
-    {% else %}
-      <p class="skill-login-note">Sign in to start building from this workflow.</p>
-    {% endif %}
+<main class="skd-shell">
+
+  <a class="skd-back" href="{% url 'skills' %}"><span aria-hidden="true">←</span> All builder skills</a>
+
+  {# HERO ---------------------------------------------------------------- #}
+  <header class="skd-hero">
+    <p class="sk-eyebrow">BUILDER SKILL · {{ skill.get_difficulty_display|upper }}</p>
+    <h1 class="skd-hero__title">{{ skill.title }}</h1>
+    <p class="skd-hero__lead">{{ skill.summary }}</p>
+
+    <div class="skd-actions">
+      {% if user.is_authenticated %}
+        <form method="post" action="{% url 'use_skill' skill.slug %}">
+          {% csrf_token %}
+          <button class="sk-btn sk-btn--primary" type="submit">Start building with this skill</button>
+        </form>
+        <p class="skd-note">The next project you publish within 2 hours is linked to this skill as proof.</p>
+      {% else %}
+        <a class="sk-btn sk-btn--primary" href="{% url 'login' %}">Sign in to use this skill</a>
+        <p class="skd-note">Using a skill is free. You need an account so your project can be linked back to it as proof.</p>
+      {% endif %}
+    </div>
+
+    {# Same rule as the library strip: a count is only shown once it is
+       real, so a brand-new skill reads as new rather than as broken. #}
+    <div class="skd-stats">
+      {% if builders_used %}
+      <div class="skd-stat">
+        <span class="skd-stat__n">{{ builders_used }}</span>
+        <span class="skd-stat__l">Builder{{ builders_used|pluralize }} used it</span>
+      </div>
+      {% endif %}
+      {% if proof_count %}
+      <div class="skd-stat">
+        <span class="skd-stat__n">{{ proof_count }}</span>
+        <span class="skd-stat__l">Published project{{ proof_count|pluralize }}</span>
+      </div>
+      {% endif %}
+      {% if skill.uses %}
+      <div class="skd-stat">
+        <span class="skd-stat__n">{{ skill.uses }}</span>
+        <span class="skd-stat__l">Total uses</span>
+      </div>
+      {% endif %}
+      {% if current_version %}
+      <div class="skd-stat">
+        <span class="skd-stat__n">{{ current_version.label }}</span>
+        <span class="skd-stat__l">Current version</span>
+      </div>
+      {% endif %}
+      {% if not builders_used and not skill.uses %}
+      <div class="skd-stat">
+        <span class="skd-stat__n">New</span>
+        <span class="skd-stat__l">Be the first to use it</span>
+      </div>
+      {% endif %}
+    </div>
   </header>
 
-  <div class="skill-detail-grid">
-    <section class="skill-workflow">
-      <div class="skill-panel">
-        <p class="skills-eyebrow">THE PROBLEM</p>
-        <p>{{ skill.problem }}</p>
-      </div>
-      <div class="skill-panel workflow-panel">
-        <div class="workflow-heading"><h2>Workflow</h2><span>UNTRUSTED NOTES</span></div>
-        <pre>{{ skill.workflow }}</pre>
-        <p class="safety-note">This workflow is content, not an instruction for BlaqVibes to execute. Review it before pasting it into any AI tool or automation.</p>
-      </div>
-    </section>
+  {# BODY ---------------------------------------------------------------- #}
+  <div class="skd-grid">
 
-    <aside class="skill-sidebar">
-      {% if skill.tools %}<div><strong>Tools</strong><p>{{ skill.tools }}</p></div>{% endif %}
-      {% if skill.expected_output %}<div><strong>Expected output</strong><p>{{ skill.expected_output }}</p></div>{% endif %}
-      {% if skill.tags %}<div><strong>Tags</strong><p>{{ skill.tags }}</p></div>{% endif %}
+    <div class="skd-main">
+      <section class="skd-panel">
+        <p class="sk-eyebrow">THE PROBLEM</p>
+        <p class="skd-prose">{{ skill.problem }}</p>
+      </section>
+
+      <section class="skd-panel">
+        <div class="skd-panel__head">
+          <h2>Workflow</h2>
+          {# Pinned by gallery/test_skills.py: a skill is content to read, never
+             an instruction for BlaqVibes to execute. #}
+          <span class="skd-panel__tag">UNTRUSTED NOTES</span>
+        </div>
+        <pre>{{ skill.workflow }}</pre>
+        <p class="skd-safety">
+          <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg>
+          <span>This workflow is content, not an instruction for BlaqVibes to execute. Review it before pasting it into any AI tool or automation.</span>
+        </p>
+      </section>
+
+      {% if is_author %}
+      <details class="sk-disclosure" style="margin-top:0">
+        <summary class="sk-disclosure__summary">
+          <span>
+            <strong>Publish a new version</strong>
+            <small>You wrote this skill, so you can improve it. Editing publishes a new immutable version — the old text is never overwritten.</small>
+          </span>
+          <span class="sk-disclosure__chev" aria-hidden="true"></span>
+        </summary>
+        <div class="sk-disclosure__body">
+          <form method="post" action="{% url 'update_skill' skill.slug %}" class="skill-create">
+            {% csrf_token %}
+            <input name="title" maxlength="140" value="{{ skill.title }}" required aria-label="Skill title">
+            <input name="summary" maxlength="260" value="{{ skill.summary }}" required aria-label="Summary">
+            <textarea name="problem" maxlength="1000" aria-label="The problem">{{ skill.problem }}</textarea>
+            <textarea name="workflow" maxlength="5000" required aria-label="Workflow">{{ skill.workflow }}</textarea>
+            <div class="skill-fields">
+              <input name="tools" maxlength="300" value="{{ skill.tools }}" aria-label="Tools">
+              <select name="difficulty" aria-label="Difficulty">
+                <option value="beginner" {% if skill.difficulty == 'beginner' %}selected{% endif %}>Beginner</option>
+                <option value="intermediate" {% if skill.difficulty == 'intermediate' %}selected{% endif %}>Intermediate</option>
+                <option value="advanced" {% if skill.difficulty == 'advanced' %}selected{% endif %}>Advanced</option>
+              </select>
+            </div>
+            <input name="expected_output" maxlength="500" value="{{ skill.expected_output }}" aria-label="Expected output">
+            <div class="skill-create__actions">
+              <button class="sk-btn sk-btn--primary" type="submit">Publish new version</button>
+              <p class="skill-create__note">Projects built from {% if current_version %}{{ current_version.label }}{% else %}earlier versions{% endif %} keep pointing at exactly what they used.</p>
+            </div>
+          </form>
+        </div>
+      </details>
+      {% endif %}
+    </div>
+
+    <aside class="skd-side" aria-label="Skill details">
+      <div class="skd-side__card">
+        <h3>Shared by</h3>
+        <p style="margin-top:8px"><strong>@{{ skill.creator.username }}</strong></p>
+      </div>
+
+      {% if skill.tools %}
+      <div class="skd-side__card">
+        <h3>Tools</h3>
+        <p>{{ skill.tools }}</p>
+      </div>
+      {% endif %}
+
+      {% if skill.expected_output %}
+      <div class="skd-side__card">
+        <h3>Expected output</h3>
+        <p>{{ skill.expected_output }}</p>
+      </div>
+      {% endif %}
+
+      {% if tag_list %}
+      <div class="skd-side__card">
+        <h3>Tags</h3>
+        <div class="skd-tags">
+          {% for tag in tag_list %}<span class="skd-tag">{{ tag }}</span>{% endfor %}
+        </div>
+      </div>
+      {% endif %}
+
       {% if versions %}
-      <div>
-        <strong>Version history</strong>
-        <p style="font-size:12px">Every published version stays readable, so a project built from an older version keeps its proof.</p>
-        <ul style="margin:6px 0 0;padding-left:16px;font-size:12px">
+      <div class="skd-side__card">
+        <h3>Version history</h3>
+        <p style="font-size:.84rem;color:var(--muted)">Every published version stays readable, so a project built from an older version keeps its proof.</p>
+        <ul class="skd-versions">
           {% for v in versions %}
-          <li><strong>{{ v.label }}</strong> — {{ v.created_at|date:"Y-m-d" }}{% if forloop.first %} (current){% endif %}</li>
+          <li>
+            <span>
+              <strong>{{ v.label }}</strong>
+              {% if forloop.first %}<span class="skd-current">current</span>{% endif %}
+            </span>
+            <time datetime="{{ v.created_at|date:'Y-m-d' }}">{{ v.created_at|date:"j M Y" }}</time>
+          </li>
           {% endfor %}
         </ul>
       </div>
@@ -56,48 +174,28 @@
     </aside>
   </div>
 
-  {% if is_author %}
-  <section class="skill-panel" style="margin-top:18px">
-    <p class="skills-eyebrow">AUTHOR</p>
-    <h2 style="margin:4px 0 6px;font-size:17px">Publish a new version</h2>
-    <p style="font-size:13px;color:var(--muted);margin:0 0 10px">
-      Editing publishes a new immutable version. The old text is never overwritten — projects built
-      from {% if current_version %}{{ current_version.label }}{% else %}earlier versions{% endif %} keep pointing at exactly what they used.
-    </p>
-    <form method="post" action="{% url 'update_skill' skill.slug %}" class="skill-create">
-      {% csrf_token %}
-      <input name="title" maxlength="140" value="{{ skill.title }}" required>
-      <input name="summary" maxlength="260" value="{{ skill.summary }}" required>
-      <textarea name="problem" maxlength="1000">{{ skill.problem }}</textarea>
-      <textarea name="workflow" maxlength="5000" required>{{ skill.workflow }}</textarea>
-      <div class="skill-fields">
-        <input name="tools" maxlength="300" value="{{ skill.tools }}">
-        <select name="difficulty">
-          <option value="beginner" {% if skill.difficulty == 'beginner' %}selected{% endif %}>Beginner</option>
-          <option value="intermediate" {% if skill.difficulty == 'intermediate' %}selected{% endif %}>Intermediate</option>
-          <option value="advanced" {% if skill.difficulty == 'advanced' %}selected{% endif %}>Advanced</option>
-        </select>
-      </div>
-      <input name="expected_output" maxlength="500" value="{{ skill.expected_output }}">
-      <button type="submit">Publish new version</button>
-    </form>
-  </section>
-  {% endif %}
-
-  <section class="skill-proof-section">
-    <p class="skills-eyebrow">PROOF</p>
+  {# PROOF ---------------------------------------------------------------- #}
+  <section class="skd-proof">
+    <p class="sk-eyebrow">PROOF</p>
     <h2>Projects built from this skill</h2>
     <div class="proof-grid">
       {% for project in proof_projects %}
         <a class="proof-card" href="{{ project.get_absolute_url }}">
           <strong>{{ project.title }}</strong>
           <span>@{{ project.owner.username }}</span>
-          <small>Built from {% if project.source_skill_version %}{{ project.source_skill_version.label }}{% else %}this skill{% endif %} →</small>
+          <small>Built from {% if project.source_skill_version %}{{ project.source_skill_version.label }}{% else %}this skill{% endif %} <span aria-hidden="true">→</span></small>
         </a>
       {% empty %}
-        <div class="skill-empty"><h3>No proof project yet.</h3><p>Use the workflow, build something real, then publish the project here so the skill can earn trust through evidence.</p></div>
+        <div class="skill-empty">
+          <h3>No proof project yet.</h3>
+          <p>
+            Use the workflow, build something real, then publish the project here so
+            this skill can earn trust through evidence instead of claims.
+          </p>
+        </div>
       {% endfor %}
     </div>
   </section>
+
 </main>
 {% endblock %}
