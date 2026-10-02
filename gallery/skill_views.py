@@ -1,7 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
-from django.db.models import F, Q
+from django.db.models import Count, F, Q, Sum
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -41,21 +41,67 @@ def _language_gate(request, values):
     return ''
 
 
+def _workflow_preview_steps(skill, limit=6):
+    """Break a workflow into short step-like lines for the hero preview.
+
+    A workflow is free text, so there is no single delimiter: the seeded
+    skills are semicolon-separated prose, others arrive as sentences or as
+    newline-separated lines. Try each separator and keep whichever produces
+    the most step-shaped result — a one-line blob of prose is not a preview.
+    """
+    if not skill:
+        return []
+    raw = (skill.workflow or '').strip()
+    if not raw:
+        return []
+    for sep in (';', '\n', '. '):
+        parts = [p.strip(' .-–') for p in raw.split(sep)]
+        parts = [p for p in parts if len(p) > 2]
+        if len(parts) > 1:
+            return parts[:limit]
+    return [raw[:120]]
+
+
 def skill_list(request):
     q = _clean(request.GET.get('q'), 100)
     difficulty = request.GET.get('difficulty', '').strip().lower()
     if difficulty not in {'beginner', 'intermediate', 'advanced'}:
         difficulty = ''
-    skills = Skill.objects.filter(is_published=True).select_related('creator')
+    published = Skill.objects.filter(is_published=True)
+    skills = published.select_related('creator')
     if q:
-        skills = skills.filter(title__icontains=q) | skills.filter(summary__icontains=q)
+        # `A | B` on two ORM filters can return the same row twice (a skill
+        # matching both its title and its summary); distinct() keeps the grid
+        # from rendering one card twice.
+        skills = (skills.filter(title__icontains=q) | skills.filter(summary__icontains=q)).distinct()
     if difficulty:
         skills = skills.filter(difficulty=difficulty)
-    skills = skills.order_by('-uses', '-stars', '-created_at')[:60]
+    skills = list(skills.order_by('-uses', '-stars', '-created_at')[:60])
+
+    # The hero strip answers "is this library real?" with counts, not copy.
+    # Three cheap aggregates over the published set; the proof count is the
+    # one that matters — a skill is only worth its published projects.
+    totals = published.aggregate(uses=Sum('uses'), builders=Count('creator', distinct=True))
+    proof_count = (
+        AppProject.objects.filter(status='published')
+        .filter(Q(source_skill__isnull=False) | Q(skill_uses__isnull=False))
+        .distinct()
+        .count()
+    )
+    # The hero shows a real workflow rather than stock imagery: the top-ranked
+    # skill, broken into steps. It is decorative (the same skill is a card in
+    # the grid below), so it carries no link and is hidden from screen readers.
+    featured = skills[0] if skills else None
     return render(request, 'gallery/skills.html', {
         'skills': skills,
         'q': q,
         'difficulty': difficulty,
+        'featured': featured,
+        'featured_steps': _workflow_preview_steps(featured),
+        'skill_count': published.count(),
+        'total_uses': totals.get('uses') or 0,
+        'builder_count': totals.get('builders') or 0,
+        'proof_count': proof_count,
     })
 
 
@@ -84,6 +130,10 @@ def skill_detail(request, slug):
     builders_used = (
         SkillUse.objects.filter(skill=skill).values('user_id').distinct().count()
     )
+    # `tags` is one comma-separated CharField; the template renders them as
+    # pills, so split it here rather than asking the template to call a
+    # method with an argument (which Django templates cannot do).
+    tag_list = [t.strip() for t in (skill.tags or '').split(',') if t.strip()]
     return render(request, 'gallery/skill_detail.html', {
         'skill': skill,
         'proof_projects': proof_projects,
@@ -91,6 +141,7 @@ def skill_detail(request, slug):
         'versions': versions,
         'current_version': versions[0] if versions else None,
         'builders_used': builders_used,
+        'tag_list': tag_list,
         'is_author': request.user.is_authenticated and request.user.pk == skill.creator_id,
     })
 

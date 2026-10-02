@@ -287,7 +287,15 @@ class SkillVersionTests(TestCase):
         make_project(self.builder, self.cat, title='Counted Proof')
         response = self.client.get(f'/skills/{self.skill.slug}/')
         self.assertContains(response, 'Version history')
-        self.assertContains(response, 'Produced 1 published project')
+        # The proof count used to live in the byline sentence "Produced 1
+        # published project"; the byline is now a row of labelled stat cells,
+        # so the same fact is asserted where it is rendered: the value 1
+        # directly above the "Published project" label.
+        self.assertEqual(response.context['proof_count'], 1)
+        self.assertRegex(
+            response.content.decode(),
+            r'skd-stat__n">1</span>\s*<span class="skd-stat__l">Published project',
+        )
         self.assertContains(response, 'Counted Proof')
 
 
