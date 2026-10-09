@@ -7,8 +7,7 @@
   <div class="remix-network__eyebrow">BLAQVIBES REMIX NETWORK</div>
   <h1 class="remix-network__title">One idea. Many directions.</h1>
   <p class="remix-network__intro">
-    This idea started with <b>@{{ root.owner.username }}</b> and evolved through different builders.
-    Follow the tree to see how it changed, then make your own version.
+    This idea started with <b>@{{ root.owner.username }}</b>. Follow the tree, then make your own.
   </p>
 
   <div class="remix-network__layout">
@@ -17,7 +16,7 @@
       <div class="remix-tree">
         {% include 'gallery/_remix_node.html' with node=tree is_root=True %}
         {% if remix_total == 0 %}
-          <div class="remix-empty">No remixes yet. Be the first creator to take this idea somewhere new.</div>
+          <div class="remix-empty">No remixes yet. Be the first to remix it.</div>
         {% endif %}
       </div>
     </section>
@@ -30,17 +29,17 @@
           <div class="remix-stat"><div class="remix-stat__value">{{ tree_depth }}</div><div class="remix-stat__label">Generations deep</div></div>
           <div class="remix-stat"><div class="remix-stat__value">{{ builder_count }}</div><div class="remix-stat__label">Builders involved</div></div>
         </div>
-        <div class="remix-panel__copy">The goal isn't to copy the original. It's to prove what you can do with the idea.</div>
+        <div class="remix-panel__copy">Make it your own and show what you can do.</div>
       </div>
 
       <div class="remix-panel">
         <div class="remix-panel__title">BUILD → SHOW → REMIX</div>
-        <div class="remix-panel__copy">Publish your version, keep the origin visible, and let the next creator build on your work. That chain is the BlaqVibes story.</div>
+        <div class="remix-panel__copy">Publish your version. Keep the origin visible for the next builder.</div>
       </div>
 
       <div class="remix-panel">
         <div class="remix-panel__title">WHY REMIX?</div>
-        <div class="remix-panel__copy">Forking keeps the source relationship intact while giving the new creator their own project, reputation, stars and audience.</div>
+        <div class="remix-panel__copy">Keep the source link; build your own project, reputation, stars, and audience.</div>
       </div>
     </aside>
   </div>

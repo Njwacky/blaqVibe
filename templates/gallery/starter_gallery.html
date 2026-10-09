@@ -11,9 +11,7 @@
     <span style="display:inline-block;font-size:12px;letter-spacing:.06em;padding:6px 12px;border-radius:999px;background:var(--accent-soft-bg);border:1px solid var(--accent-border);color:var(--accent-text)">✦ NO BLANK PAGE</span>
     <h1 style="font-family:Space Grotesk,sans-serif;font-size:32px;line-height:1.1;margin:14px 0 10px">Start a vibe in your browser</h1>
     <p style="color:var(--muted);font-size:15px;line-height:1.6">
-      Pick a starter and write HTML, CSS and JS in your browser — no upload, no setup.
-      Sign in when you want to run the live preview or publish. The sandbox never
-      executes anonymous code.
+      Choose a starter and code in your browser. Sign in to preview or publish; anonymous code never runs.
     </p>
   </div>
 
@@ -39,10 +37,7 @@
       <div style="font-size:30px;line-height:1"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-upload"></use></svg></div>
       <div style="font-weight:800;margin-top:10px;font-size:16px">Import a GitHub repo</div>
       <div style="color:var(--muted);font-size:13px;line-height:1.5;margin-top:6px;flex:1">
-        New here and nothing to show yet? Paste any <b style="color:var(--text)">public</b> repo
-        you already built — or try the sample
-        <b style="color:var(--text)">{{ demo_label }}</b>
-        to practise. GitHub already has the ZIP; we fetch it.
+        Import a <b style="color:var(--text)">public</b> repo or try <b style="color:var(--text)">{{ demo_label }}</b>. No ZIP needed.
       </div>
       <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:12px">
         <span style="font-size:11px;color:var(--muted);background:var(--input);border:1px solid var(--line);border-radius:999px;padding:3px 9px">no zip needed</span>
@@ -54,27 +49,20 @@
     <a href="{% url 'studio_blank' %}" class="starter-card" style="display:flex;flex-direction:column;justify-content:center;text-align:center;text-decoration:none;color:inherit;background:var(--bg);border:1px dashed var(--accent-border);border-radius:16px;padding:18px;min-height:180px;transition:border-color .15s,transform .15s">
       <div style="font-size:30px;line-height:1"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-pencil"></use></svg></div>
       <div style="font-weight:800;margin-top:10px;font-size:16px">Blank canvas</div>
-      <div style="color:var(--muted);font-size:13px;line-height:1.5;margin-top:6px">Already have code? Paste it into the HTML, CSS and JS tabs. Sign in to watch it run.</div>
+      <div style="color:var(--muted);font-size:13px;line-height:1.5;margin-top:6px">Paste HTML, CSS or JS. Sign in to preview.</div>
       <div style="margin-top:14px;font-weight:700;font-size:13px;color:var(--accent-text)">Open Studio →</div>
     </a>
   </div>
 
   <div style="margin-top:26px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;font-size:13px;color:var(--muted);line-height:1.6">
-    <b style="color:var(--text)">Bringing your own code.</b> Four ways in:
-    <b>1)</b> Open the <b>Blank canvas</b> and paste your HTML, CSS and JS into the three tabs — you can
-    write without an account.
-    <b>2)</b> Open any starter and replace its code with yours.
-    <b>3)</b> Have a whole project (many files, images, a Python or Node app)? Use the
-    <a href="{% url 'publish' %}" data-no-chooser style="color:var(--accent-text)">Publish</a> page instead — that one takes a ZIP.
-    <b>4)</b> Have it on GitHub already?
-    <a href="{% url 'import_from_github' %}" style="color:var(--accent-text)">Import the repo</a> —
-    we fetch the ZIP GitHub publishes, so you never have to make one.
+    <b style="color:var(--text)">Bring your code.</b>
+    Use a starter or blank canvas for snippets. Use
+    <a href="{% url 'publish' %}" data-no-chooser style="color:var(--accent-text)">Publish</a>
+    for ZIP projects, or <a href="{% url 'import_from_github' %}" style="color:var(--accent-text)">Import</a>
+    a public GitHub repo.
     <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
-      <b style="color:var(--text)">How it works.</b> You can write immediately. The live sandboxed preview
-      and Publish both need an account — so a shared Start link cannot run anonymous JavaScript.
-      After you sign in, the draft in this tab is restored and the preview starts. When you publish,
-      your vibe goes through the same honest checks as any upload: a secret scan, an auto label,
-      and a trust badge.
+      <b style="color:var(--text)">Preview and safety.</b>
+      Write without an account. Sign in to restore your draft, preview, or publish. Uploads are scanned and receive a trust badge; anonymous code never runs.
     </div>
   </div>
 </div>

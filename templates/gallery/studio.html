@@ -25,11 +25,9 @@
 
   <div class="studio-note">
     {% if can_preview %}
-    Edits run in a sandboxed preview right here — nothing is saved until you publish.
+    Preview in a sandbox. Changes save when you publish.
     {% else %}
-    Write HTML, CSS and JS here. <b>You cannot see the live preview until you
-    <a href="{% url 'login' %}?next={{ studio_next|urlencode }}">sign in</a></b>
-    — your draft stays in this tab.
+    Write HTML, CSS and JS. <a href="{% url 'login' %}?next={{ studio_next|urlencode }}">Sign in</a> to preview; your draft stays here.
     {% endif %}
   </div>
 
@@ -62,16 +60,15 @@
       <div class="studio-preview-lock" role="region" aria-labelledby="studio-preview-lock-title">
         <div class="studio-preview-lock-icon" aria-hidden="true"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-lock"></use></svg></div>
         <h2 id="studio-preview-lock-title">Sign in to run a live preview</h2>
-        <p>Keep writing. The editors stay open. Running HTML/JS is an account action — the same gate as publish — so this page cannot become an anonymous script runner.</p>
+        <p>Keep coding. Sign in to run the preview or publish. Anonymous code never runs.</p>
         <div class="studio-preview-lock-actions">
           <a href="{% url 'login' %}?next={{ studio_next|urlencode }}" class="btn-violet">Sign in to preview →</a>
           <a href="{% url 'signup' %}?next={{ studio_next|urlencode }}" class="btn-ghost">Create an account</a>
         </div>
         <ul class="studio-preview-lock-tips">
-          <li>HTML, CSS and JS stay in this tab while you write.</li>
-          <li>After you sign in, this tab restores your draft and the preview starts.</li>
-          <li>Nothing is uploaded until you press Publish.</li>
-          <li>Nolo can still read the code and suggest fixes without running it.</li>
+          <li>Your draft stays here; sign-in restores it and starts preview.</li>
+          <li>Nothing uploads until you publish.</li>
+          <li>Nolo can suggest fixes without running code.</li>
         </ul>
       </div>
       {% endif %}
@@ -94,7 +91,7 @@
         <h2 id="studio-publish-title">Publish your vibe</h2>
         <button type="button" id="studio-close-publish" data-close-drawer class="studio-x" aria-label="Close">×</button>
       </div>
-      <p class="studio-drawer-sub">Your HTML/CSS/JS is filled in from the editor. Add a few details and publish — it goes through the same scan, label, and trust checks as any upload.</p>
+      <p class="studio-drawer-sub">Editor code is ready. Add details and publish; the same scan and trust checks apply.</p>
 
       <form method="post" action="{% if starter %}{% url 'studio' starter.slug %}{% else %}{% url 'studio_blank' %}{% endif %}" id="studio-form" novalidate>
         {% csrf_token %}

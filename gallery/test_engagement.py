@@ -143,10 +143,9 @@ class FollowAndFollowingTabTests(TestCase):
         (same rule as trending / rising creators).
 
         The rail is keyed on its own markup (`{% if unfiltered %}{% today_loop %}`),
-        not on copy: the eyebrow it renders now says "TODAY ON BLAQVIBES", while
-        the string 'BUILDER PULSE' the test used to assert on has moved to the
-        always-visible weekly activity line below it — asserting on either label
-        would let a rail leak onto a filtered page unnoticed.
+        not on copy: its headings and activity summary may change without weakening
+        the guard. Asserting on labels would let a rail leak onto a filtered page
+        unnoticed.
         """
         self.client.force_login(self.alice)
         self.client.post('/u/bob/follow/')

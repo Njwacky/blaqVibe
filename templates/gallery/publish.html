@@ -9,13 +9,13 @@
 
   <header class="pub-head">
     <h1>Publish your project</h1>
-    <p class="pub-sub">You built something — show it. A quick safety scan runs right after you publish, then it's on the feed.</p>
+    <p class="pub-sub">Publish your project. We'll scan it before it reaches the feed.</p>
   </header>
 
   {% if challenge_tag %}
   <div class="pub-challenge">
     <span><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-challenges"></use></svg></span>
-    <div><b>Challenge Mode:</b> publishing for <b>#{{ challenge_tag }}</b> — the tag is added automatically.</div>
+    <div><b>Challenge #{{ challenge_tag }}</b> is added automatically.</div>
   </div>
   {% endif %}
 
@@ -32,7 +32,7 @@
   {% endcomment %}
   {% if form.is_bound and form.errors %}
   <div class="pub-error pub-error--summary" id="publish-errors" role="alert">
-    <b>Not published yet — fix {{ form.errors|length }} thing{{ form.errors|length|pluralize }} and try again:</b>
+    <b>Not published yet. Fix {{ form.errors|length }} issue{{ form.errors|length|pluralize }} and retry:</b>
     <ul class="pub-error-list">
       {% for e in form.non_field_errors %}
       <li>{{ e }}</li>
@@ -49,7 +49,7 @@
       {% endif %}
       {% endfor %}
     </ul>
-    <p class="pub-error-note">Nothing was lost — what you typed is still in the form below.</p>
+    <p class="pub-error-note">Your entries are saved below.</p>
   </div>
   {% endif %}
 
@@ -88,12 +88,11 @@
       {% endcomment %}
       {% if publish_rejected and zip_was_posted %}
       <p class="pub-error" id="zip-lost-note">
-        Your ZIP did not survive the failed publish — <b>pick it again</b> from
-        Files, then press Publish. Everything else you typed was kept.
+        ZIP upload didn't carry over. Please pick it again; your other details are saved.
       </p>
       {% endif %}
       <details class="pub-snippet" {% if form.html_code.value %}open{% endif %}>
-        <summary type="button">No ZIP? Paste a code snippet instead</summary>
+        <summary type="button">No ZIP? Paste code instead</summary>
         <div class="pub-snippet-fields">
           <label class="pub-mini" for="id_html_code">HTML</label>
           {{ form.html_code }}
@@ -120,7 +119,7 @@
         {% endfor %}
       </div>
       {% if form.build_method.errors %}<div class="pub-error">{{ form.build_method.errors.0 }}</div>{% endif %}
-      <p class="pub-hint">One tap is all transparency needs. You can add tool names and details later, any time.</p>
+      <p class="pub-hint">Choose a build method. Add details later.</p>
     </fieldset>
 
     {% if challenge %}
@@ -131,11 +130,11 @@
     {% endif %}
 
     <button type="submit" class="btn-violet pub-submit">Publish project</button>
-    <p class="pub-fineprint">Publishing adds your project to the public feed after a safety scan. README, details and proof can be added any time — nothing else is required now.</p>
+    <p class="pub-fineprint">Your project reaches the feed after safety checks. Add the README, details, and proof later.</p>
   </form>
 
   <p class="pub-alt">Nothing to upload yet? <a href="{% url 'starter_gallery' %}">✦ Start in your browser instead</a></p>
-  <p class="pub-alt pub-alt--quiet">This publishes a BlaqVibes listing with a safe preview — not a production host. <a href="{% url 'launch_hub' %}">Find the right launch path →</a></p>
+  <p class="pub-alt pub-alt--quiet">BlaqVibes gives your project a safe preview, not production hosting. <a href="{% url 'launch_hub' %}">Choose a launch path →</a></p>
 </div>
 <script src="{% static 'gallery/js/publish.js' %}?v=publish-errors-20260928" defer></script>
 {% endblock %}

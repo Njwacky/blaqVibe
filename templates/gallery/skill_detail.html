@@ -10,7 +10,7 @@
 {% block content %}
 <div class="skd-shell">
 
-  <a class="skd-back" href="{% url 'skills' %}"><span aria-hidden="true">←</span> All builder skills</a>
+  <a class="skd-back" href="{% url 'skills' %}"><span aria-hidden="true">←</span> All skills</a>
 
   {# HERO ---------------------------------------------------------------- #}
   <header class="skd-hero">
@@ -24,10 +24,10 @@
           {% csrf_token %}
           <button class="sk-btn sk-btn--primary" type="submit">Start building with this skill</button>
         </form>
-        <p class="skd-note">The next project you publish within 2 hours is linked to this skill as proof.</p>
+        <p class="skd-note">Your next published project links to this skill within 2 hours.</p>
       {% else %}
         <a class="sk-btn sk-btn--primary" href="{% url 'login' %}">Sign in to use this skill</a>
-        <p class="skd-note">Using a skill is free. You need an account so your project can be linked back to it as proof.</p>
+        <p class="skd-note">Free to use. Sign in to link your project to this skill.</p>
       {% endif %}
     </div>
 
@@ -93,7 +93,7 @@
         <pre id="skill-workflow">{{ skill.workflow }}</pre>
         <p class="skd-safety">
           <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg>
-          <span>This workflow is content, not an instruction for BlaqVibes to execute. Review it before pasting it into any AI tool or automation.</span>
+          <span>Untrusted content: BlaqVibes never runs it. Review before using with AI tools or automation.</span>
         </p>
       </section>
 
@@ -102,7 +102,7 @@
         <summary class="sk-disclosure__summary">
           <span>
             <strong>Publish a new version</strong>
-            <small>You wrote this skill, so you can improve it. Editing publishes a new immutable version — the old text is never overwritten.</small>
+            <small>Editing publishes a new version; old versions stay unchanged.</small>
           </span>
           <span class="sk-disclosure__chev" aria-hidden="true"></span>
         </summary>
@@ -124,7 +124,7 @@
             <input name="expected_output" maxlength="500" value="{{ skill.expected_output }}" aria-label="Expected output">
             <div class="skill-create__actions">
               <button class="sk-btn sk-btn--primary" type="submit">Publish new version</button>
-              <p class="skill-create__note">Projects built from {% if current_version %}{{ current_version.label }}{% else %}earlier versions{% endif %} keep pointing at exactly what they used.</p>
+              <p class="skill-create__note">Existing projects keep their original version.</p>
             </div>
           </form>
         </div>
@@ -164,7 +164,7 @@
       {% if versions %}
       <div class="skd-side__card">
         <h3>Version history</h3>
-        <p style="font-size:.84rem;color:var(--muted)">Every published version stays readable, so a project built from an older version keeps its proof.</p>
+        <p style="font-size:.84rem;color:var(--muted)">Old versions stay available to linked projects.</p>
         <ul class="skd-versions">
           {% for v in versions %}
           <li>
@@ -195,10 +195,7 @@
       {% empty %}
         <div class="skill-empty">
           <h3>No proof project yet.</h3>
-          <p>
-            Use the workflow, build something real, then publish the project here so
-            this skill can earn trust through evidence instead of claims.
-          </p>
+          <p>Use this workflow, build a project, and publish it as proof.</p>
         </div>
       {% endfor %}
     </div>

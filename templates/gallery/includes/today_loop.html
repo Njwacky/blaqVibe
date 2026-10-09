@@ -6,7 +6,7 @@
     <div class="today-loop__head-copy">
       <div class="today-loop__eyebrow">TODAY ON BLAQVIBES</div>
       <h2 id="today-loop-title" class="today-loop__title">What are people building?</h2>
-      <div class="today-loop__sub">Projects first. Everything else supports that.</div>
+      <div class="today-loop__sub">Projects, remixes, ideas to build on.</div>
     </div>
     {% if unread_notifications %}<a href="{% url 'notifications' %}" class="today-loop__signal"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-bell"></use></svg> {{ unread_notifications }} new</a>{% endif %}
   </div>
@@ -20,7 +20,7 @@
 
   {# 1. WHAT ARE PEOPLE BUILDING — recently built #}
   {% if discovery_vibes %}
-    <div class="today-loop__section-head"><span>WHAT ARE PEOPLE BUILDING</span><span>Fresh projects from the network</span></div>
+    <div class="today-loop__section-head"><span>WHAT ARE PEOPLE BUILDING</span><span>From the network</span></div>
     <div class="today-loop__projects">
       {% for vibe in discovery_vibes|slice:":5" %}
         <a href="{{ vibe.get_absolute_url }}" class="today-loop__project">
@@ -34,7 +34,7 @@
 
   {# 2. WHAT HAPPENED — your latest or trending #}
   {% if my_next_vibe or trending_vibes %}
-    <div class="today-loop__section-head"><span>WHAT HAPPENED</span><span>Activity worth seeing</span></div>
+    <div class="today-loop__section-head"><span>YOUR ACTIVITY</span><span>Latest or trending</span></div>
     <div class="today-loop__feeds">
       {% if my_next_vibe %}
         <div class="today-loop__feed">
@@ -50,7 +50,7 @@
 
   {# 3. WHAT CAN REMIX #}
   {% if following_vibes %}
-    <div class="today-loop__section-head"><span>WHAT CAN REMIX</span><span>Ideas ready to build on</span></div>
+    <div class="today-loop__section-head"><span>READY TO REMIX</span><span>From builders you follow</span></div>
     <div class="today-loop__feeds">
       <div class="today-loop__feed">
         <div class="today-loop__feed-title"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-trades"></use></svg> WORTH REMIXING</div>
@@ -65,7 +65,7 @@
   {% endif %}
 
   {# 4. WHAT BUILD NEXT #}
-  <div class="today-loop__section-head"><span>WHAT BUILD NEXT</span><span>Start something now</span></div>
+  <div class="today-loop__section-head"><span>BUILD NEXT</span><span>Pick a starting point</span></div>
   <div class="today-loop__feeds">
     <div class="today-loop__feed">
       <div class="today-loop__feed-title">BUILD</div>

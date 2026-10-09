@@ -120,7 +120,7 @@ class StudioPreviewLoginGateTests(TestCase):
         resp = self.client.get('/start/')
         self.assertEqual(resp.status_code, 200)
         self.assertNotContains(resp, 'edit it live with an instant preview')
-        self.assertContains(resp, 'Sign in when you want to run the live preview')
+        self.assertContains(resp, 'Sign in to preview or publish')
 
     def test_login_form_keeps_studio_next(self):
         page = self.client.get('/accounts/login/?next=/studio/hello-landing/')

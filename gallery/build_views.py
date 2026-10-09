@@ -34,12 +34,12 @@ from .skill_models import Skill, SkillUse
 logger = logging.getLogger(__name__)
 
 BUILD_STEPS = [
-    ('CREATE', 'Make the thing — by hand, with AI as a tool, or by remixing.'),
-    ('UPLOAD', 'Bring the files in. Every upload is scanned before the feed.'),
-    ('SHOW', 'Publish the story: what it does, how it was built, what is inside.'),
-    ('FEEDBACK', 'Builders comment, review and star. Real reactions, not vanity.'),
-    ('IMPROVE', 'Ship a new version — the project history records what changed.'),
-    ('PUBLISH', 'Your project becomes something other builders can remix.'),
+    ('CREATE', 'Build by hand, with AI, or by remixing.'),
+    ('UPLOAD', 'Upload files. Every upload is scanned.'),
+    ('SHOW', 'Describe what it does and how you built it.'),
+    ('FEEDBACK', 'Get comments, reviews and stars from builders.'),
+    ('IMPROVE', 'Release updates; changes stay in project history.'),
+    ('PUBLISH', 'Publish it for others to remix.'),
 ]
 
 

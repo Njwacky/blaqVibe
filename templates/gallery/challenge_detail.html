@@ -41,11 +41,9 @@ BlaqVibes{% endblock %} {% block content %}
     {{ challenge.description }}
   </p>
   <div style="font-size: 11px; color: var(--muted); margin-top: 4px">
-    Ends {{ challenge.end|date:"Y-m-d H:i" }} • {% if challenge.is_active %}<span style="color: var(--success-text)">● Active</span>{% else %}Closed{% endif %} • Publish with tag
+    Ends {{ challenge.end|date:"Y-m-d H:i" }} • {% if challenge.is_active %}<span style="color: var(--success-text)">● Active</span>{% else %}Closed{% endif %} • Join with
     <code style="background: var(--line); padding: 2px 6px; border-radius: 6px"
-      >#{{ challenge.tag }}</code
-    >
-    to join
+      >#{{ challenge.tag }}</code>
   </div>
   {% if challenge.winner %}
   <div
@@ -66,7 +64,7 @@ BlaqVibes{% endblock %} {% block content %}
         Winner — {{ challenge.winner.title }} by @{{ challenge.winner.owner.username }}
       </div>
       <div style="font-size: 11px; color: var(--muted)">
-        Got {{ challenge.bounty_stars }} ★ + Pro + top 1st
+        Won {{ challenge.bounty_stars }} ★ + Pro
       </div>
     </div>
     <a
@@ -139,7 +137,7 @@ BlaqVibes{% endblock %} {% block content %}
         border-radius: 12px;
       "
     >
-      No submissions yet. Publish with tag #{{ challenge.tag }} to join!
+      No submissions yet. Publish with #{{ challenge.tag }} to join.
     </div>
     {% endfor %}
   </div>

@@ -17,9 +17,8 @@ deadline the platform enforces has to be a deadline the person can read.
       <p class="attention-kicker">YOUR WORKSHOP <span> / </span> NEEDS A DECISION</p>
       <h1>Needs your decision</h1>
       <p class="attention-lead">
-        Two of your builds look like the same build, or one of them is broken in a way BlaqVibes can prove.
-        Only you know which copy you meant — so you get {{ decision_days }} days. After that BlaqVibes decides,
-        writes down exactly why, parks the other copy, and hands you a FINAL DELETE button.
+        Possible duplicates or broken builds need your choice. Pick which to keep within {{ decision_days }} days.
+        If you don't, BlaqVibes decides and parks the other copy. You control any final deletion.
       </p>
     </div>
   </div>
@@ -44,7 +43,7 @@ deadline the platform enforces has to be a deadline the person can read.
     <div class="attention-empty">
       <p style="font-size:26px" aria-hidden="true">✓</p>
       <p><b>Nothing is waiting on you.</b></p>
-      <p class="help" style="margin-top:6px">No duplicated builds, nothing broken. BlaqVibes checks again every time you upload and once an hour after that.</p>
+      <p class="help" style="margin-top:6px">No action needed. We check after uploads and hourly.</p>
     </div>
     {% endfor %}
   {% else %}
@@ -53,7 +52,7 @@ deadline the platform enforces has to be a deadline the person can read.
     {% empty %}
     <div class="attention-empty">
       <p><b>Nothing decided yet.</b></p>
-      <p class="help" style="margin-top:6px">When you pick a keeper — or let BlaqVibes pick — the reasoning and the cleanup land here.</p>
+      <p class="help" style="margin-top:6px">Your decisions and their reasons appear here.</p>
     </div>
     {% endfor %}
   {% endif %}
@@ -61,16 +60,11 @@ deadline the platform enforces has to be a deadline the person can read.
   <section class="attention-case" style="border-left-color:var(--cat-system);margin-top:28px">
     <h2 class="attention-case__title" style="font-size:15px">How the countdown works</h2>
     <ol class="attention-case__detail" style="padding-left:18px;margin-top:8px">
-      <li><b>Now:</b> you are told, in the inbox and in a banner on every page, and reminded every {{ reminder_minutes }} minutes until you answer.</li>
-      <li><b>You choose</b> a copy to keep — or press <i>Let BlaqVibes decide</i> and read the reason it gives.</li>
-      <li><b>{{ decision_days }} days of silence:</b> BlaqVibes chooses for you, using the rule printed on every case:
-        never delete a receipt → keep the published copy → keep the one that passed the scan → keep the one with the real
-        artifact → keep the one you wrote proof for → keep the one others remixed → then reviews, stars and views, capped so
-        popularity can tie-break but never decide → then the copy you were still working on → then the original upload.</li>
-      <li><b>The loser is parked, not deleted:</b> off the public site, still yours, restorable with one click.</li>
-      <li><b>FINAL DELETE</b> is yours to press. If you open that decision and then do nothing for
-        {{ final_delete_hours }} hours, BlaqVibes treats the silence as a yes and erases it. A build somebody paid for is
-        never erased — their download is their receipt.</li>
+      <li><b>Notice:</b> inbox and site banner; reminders every {{ reminder_minutes }} minutes.</li>
+      <li><b>Choose:</b> keep a copy or let BlaqVibes decide and show why.</li>
+      <li><b>After {{ decision_days }} days:</b> never erase paid receipts → published → scanned → complete artifact → proof → remixes → popularity (capped tie-breaker: reviews, stars, views) → work in progress → original upload.</li>
+      <li><b>The other copy is parked</b>, not deleted. Restore it with one click.</li>
+      <li><b>FINAL DELETE</b> is permanent. If you open it and do nothing for {{ final_delete_hours }} hours, silence confirms. Paid builds are never erased.</li>
     </ol>
   </section>
 </div>
