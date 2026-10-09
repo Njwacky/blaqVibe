@@ -2,7 +2,7 @@
 {% load static %}
 
 {% block title %}Builder Skills — BlaqVibes{% endblock %}
-{% block meta_desc %}Builder Skills are reusable workflows shared by builders: the problem, the workflow, the tools, and the published projects that prove it works.{% endblock %}
+{% block meta_desc %}Builder workflows, tools, and published projects that prove them.{% endblock %}
 {% block head %}
 <link rel="stylesheet" href="{% static 'gallery/css/skills.css' %}?v=skills-editorial-20261002">
 {% endblock %}
@@ -18,9 +18,7 @@
       <p class="sk-eyebrow">BUILDER SKILLS</p>
       <h1 class="sk-hero__title">Learn how other builders solve problems.</h1>
       <p class="sk-hero__lead">
-        Knowledge shared by builders: the problem, the workflow, the tools, and the
-        projects that prove it works. AI can be one tool inside a workflow — the
-        builder is the point.
+        Skills are workflows, not certificates. AI can help; builders stay responsible.
       </p>
       <div class="sk-cta-row">
         {% if user.is_authenticated %}
@@ -86,33 +84,29 @@
   <section class="sk-loop" aria-labelledby="sk-loop-h">
     <div class="sk-section-head">
       <p class="sk-eyebrow">HOW A SKILL WORKS</p>
-      <h2 id="sk-loop-h">Four steps from someone's workflow to your own proof.</h2>
-      <p>
-        A skill is not a certificate and it is not a course. It earns trust the
-        only way this platform accepts: a real project gets built from it and
-        published.
-      </p>
+      <h2 id="sk-loop-h">From shared workflow to project proof.</h2>
+      <p>A skill earns trust when someone builds and publishes a real project.</p>
     </div>
     <ol class="sk-steps">
       <li class="sk-step">
         <span class="sk-step__n">01</span>
         <h3>Read the problem</h3>
-        <p>Every skill opens with the specific problem it solves — not a list of tools or a badge to collect.</p>
+        <p>See the problem it solves.</p>
       </li>
       <li class="sk-step">
         <span class="sk-step__n">02</span>
         <h3>Take the workflow</h3>
-        <p>Copy the steps into your own project. Treat it as untrusted notes and adapt it — BlaqVibes never runs it.</p>
+        <p>Treat steps as untrusted; adapt them. We never run them.</p>
       </li>
       <li class="sk-step">
         <span class="sk-step__n">03</span>
         <h3>Build your project</h3>
-        <p>Start building with this skill. The next project you publish within 2 hours is linked to it automatically.</p>
+        <p>Your next published project links to this skill within 2 hours.</p>
       </li>
       <li class="sk-step">
         <span class="sk-step__n">04</span>
         <h3>Publish it as proof</h3>
-        <p>Your project becomes evidence the skill works — for you, and for the builder who shared it.</p>
+        <p>Publish your project to prove it works.</p>
       </li>
     </ol>
   </section>
@@ -123,17 +117,17 @@
     <summary class="sk-disclosure__summary">
       <span>
         <strong>Publish a skill</strong>
-        <small>Share a workflow that worked for you. You keep authorship, and every version you publish stays readable.</small>
+        <small>Share a workflow. You keep authorship; every version stays available.</small>
       </span>
       <span class="sk-disclosure__chev" aria-hidden="true"></span>
     </summary>
     <div class="sk-disclosure__body">
       <form class="skill-create" method="post" action="{% url 'create_skill' %}">
         {% csrf_token %}
-        <input name="title" maxlength="140" required placeholder="Skill title — e.g. Turn a Django idea into a first working page" aria-label="Skill title">
-        <input name="summary" maxlength="260" required placeholder="What will another builder get? One short sentence." aria-label="Summary">
-        <textarea name="problem" maxlength="1000" required placeholder="What problem does this solve? Be specific — this is the first thing a builder reads." aria-label="The problem"></textarea>
-        <textarea name="workflow" maxlength="5000" required placeholder="Share the prompt or workflow. Never include API keys, passwords or private data." aria-label="Workflow"></textarea>
+        <input name="title" maxlength="140" required placeholder="Skill title — e.g. Build a Django page" aria-label="Skill title">
+        <input name="summary" maxlength="260" required placeholder="One sentence: what will another builder get?" aria-label="Summary">
+        <textarea name="problem" maxlength="1000" required placeholder="What problem does it solve? Be specific." aria-label="The problem"></textarea>
+        <textarea name="workflow" maxlength="5000" required placeholder="Share steps. Never include API keys, passwords or private data." aria-label="Workflow"></textarea>
         <div class="skill-fields">
           <input name="tools" maxlength="300" placeholder="Tools: Django, Python, VS Code" aria-label="Tools">
           <select name="difficulty" aria-label="Difficulty">
@@ -142,11 +136,11 @@
             <option value="advanced">Advanced</option>
           </select>
         </div>
-        <input name="expected_output" maxlength="500" placeholder="Expected output (optional) — what exists at the end?" aria-label="Expected output">
+        <input name="expected_output" maxlength="500" placeholder="Optional: what exists at the end?" aria-label="Expected output">
         <input name="tags" maxlength="300" placeholder="Tags: django, debugging, auth" aria-label="Tags">
         <div class="skill-create__actions">
           <button class="sk-btn sk-btn--primary" type="submit">Publish skill</button>
-          <p class="skill-create__note">Public text passes the same language check as a project or a comment.</p>
+          <p class="skill-create__note">Public text passes a language check.</p>
         </div>
       </form>
     </div>
@@ -178,7 +172,7 @@
       {% if q or difficulty %}
         <b>{{ skills|length }}</b> skill{{ skills|length|pluralize }} matching{% if q %} “{{ q }}”{% endif %}{% if difficulty %} · {{ difficulty|title }} level{% endif %} — <a href="{% url 'skills' %}" style="color:var(--link);font-weight:700">Clear filters</a>
       {% else %}
-        <b>{{ skills|length }}</b> skill{{ skills|length|pluralize }}, ranked by what builders actually use.
+        <b>{{ skills|length }}</b> skill{{ skills|length|pluralize }} · ranked by use.
       {% endif %}
     </p>
 
@@ -190,7 +184,7 @@
             <span class="skill-card__uses">{{ skill.uses }} use{{ skill.uses|pluralize }}</span>
           </div>
           <h3 class="skill-card__title"><a href="{{ skill.get_absolute_url }}">{{ skill.title }}</a></h3>
-          <p class="skill-card__summary">{{ skill.summary }}</p>
+          <p class="skill-card__summary">{{ skill.summary|truncatewords:14 }}</p>
           {% if skill.expected_output %}
             <div class="skill-card__outcome">
               <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-check"></use></svg>
@@ -204,11 +198,8 @@
         </article>
       {% empty %}
         <div class="skill-empty">
-          <h3>Nothing here yet.</h3>
-          <p>
-            No skill matches that search. Try a broader term — or be the builder who
-            writes the workflow someone else needs next week.
-          </p>
+          <h3>No skills match.</h3>
+          <p>Try another search or clear your filters.</p>
         </div>
       {% endfor %}
     </div>

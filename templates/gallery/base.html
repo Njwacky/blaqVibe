@@ -347,18 +347,18 @@ skip link (100) and transient toast/PWA banners (999).{% endcomment %}
     <div style="display:flex;align-items:flex-start;gap:10px">
       <div style="flex:1">
         <h2 id="pub-choose-title" style="font-family:Space Grotesk,sans-serif;font-size:19px;font-weight:800;margin:0">Publish — upload or start?</h2>
-        <p style="font-size:13px;color:var(--muted);line-height:1.55;margin:6px 0 0">Two ways onto the feed. Both go through the same honest checks before they go live.</p>
+        <p style="font-size:13px;color:var(--muted);line-height:1.55;margin:6px 0 0">Upload files or start in the browser. Both pass the same checks.</p>
       </div>
       <button type="button" id="pub-choose-close" class="icon-btn" aria-label="Close">✕</button>
     </div>
     <div style="display:grid;gap:10px;margin-top:16px">
       <a id="pub-choose-upload" href="{% url 'publish' %}" data-no-chooser class="pub-choose-opt">
         <span class="pub-choose-ico"><svg class="bv-icon" aria-hidden="true"><use href="#bv-ico-upload"></use></svg></span>
-        <span><strong style="display:block;font-size:14px">Upload</strong><span style="display:block;font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:3px">You already have files — drop a ZIP or paste a snippet. Scanned, then shown as what you built.</span></span>
+        <span><strong style="display:block;font-size:14px">Upload</strong><span style="display:block;font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:3px">Upload a ZIP or paste a snippet. Both are scanned before publishing.</span></span>
       </a>
       <a href="{% url 'starter_gallery' %}" data-no-chooser class="pub-choose-opt">
         <span class="pub-choose-ico"><svg class="bv-icon" aria-hidden="true"><use href="#bv-ico-start"></use></svg></span>
-        <span><strong style="display:block;font-size:14px">Start</strong><span style="display:block;font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:3px">Nothing yet — pick a starter or a blank canvas and write HTML, CSS and JS in your browser.</span></span>
+        <span><strong style="display:block;font-size:14px">Start</strong><span style="display:block;font-size:12.5px;color:var(--muted);line-height:1.5;margin-top:3px">Choose a starter or blank canvas. Write HTML, CSS, and JS in your browser.</span></span>
       </a>
     </div>
   </div>

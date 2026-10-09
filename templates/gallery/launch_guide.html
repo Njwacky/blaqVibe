@@ -16,7 +16,7 @@
   {% if guide.review.is_outdated %}
   <div class="launch-warning" role="status">
     <span aria-hidden="true">!</span>
-    <div>This guide was last reviewed {{ guide.review.days_since|default:"?" }} days ago — platform policies and prices change. Verify every claim against the live sources below before acting.</div>
+    <div>Reviewed {{ guide.review.days_since|default:"?" }} days ago. Verify commands, policies, and prices in the sources below.</div>
   </div>
   {% endif %}
 
@@ -106,7 +106,7 @@
       <section class="launch-final-check card" id="ship-check">
         <div class="launch-block-heading">
           <span class="launch-section-number">✓</span>
-          <div><p class="launch-overline">Release gate</p><h2>Do not call it shipped until…</h2></div>
+          <div><p class="launch-overline">Release gate</p><h2>Ready to ship?</h2></div>
         </div>
         <div class="launch-progress" id="launch-progress" role="progressbar" aria-label="Release checklist progress" aria-valuemin="0" aria-valuemax="{{ guide.checklist|length }}" aria-valuenow="0"><span id="launch-progress-bar"></span></div>
         <p class="launch-progress-label" id="launch-progress-label" aria-live="polite">0 of {{ guide.checklist|length }} complete</p>
@@ -132,7 +132,7 @@
           <span class="launch-section-number">↗</span>
           <div><p class="launch-overline">Primary sources</p><h2>Verify against the live platform docs</h2></div>
         </div>
-        <p>Dashboard labels, prices, policies, and review requirements change. These links—not this page—are the final authority. Sources last reviewed {{ last_reviewed }}.</p>
+        <p>Dashboard labels, prices, policies, and review rules change; official sources are authoritative. Sources last reviewed {{ last_reviewed }}.</p>
         <ul>
           {% for source in guide.sources %}
           <li><a href="{{ source.url }}" target="_blank" rel="noopener noreferrer"><span>{{ source.label }}</span><b aria-hidden="true">↗</b></a></li>
@@ -152,13 +152,13 @@
       </nav>
       <div class="launch-aside-note">
         <span aria-hidden="true">⌁</span>
-        <div><b>Stuck on a command?</b><p>Angle brackets mark values you must replace. If your framework needs a build or start command not shown here, use that framework’s own production guide—do not guess.</p></div>
+        <div><b>Missing a command?</b><p>Replace angle-bracket values. Use your framework’s production guide; never guess.</p></div>
       </div>
 
       <section class="launch-framework-ref card" id="framework-commands" aria-labelledby="framework-ref-title">
         <p class="launch-overline">Before you deploy</p>
         <h2 id="framework-ref-title">Find your framework’s command</h2>
-        <p class="launch-framework-ref__intro">Guides say “use your framework’s real command” — this is where to find it. Every command is from the framework’s own docs; when a command is project-specific, the note tells you where it lives in your project.</p>
+        <p class="launch-framework-ref__intro">Commands come from official docs. Project-specific entries show where to find them.</p>
         {% for entry in framework_commands %}
         <details class="launch-framework" data-framework="{{ entry.slug }}">
           <summary>

@@ -18,9 +18,7 @@ countdown that ends in a deletion.
     <div>
       <p class="attention-kicker">YOUR INBOX <span> / </span> MOST URGENT FIRST</p>
       <h1>Inbox</h1>
-      <p class="attention-lead">Sorted by what needs you first. The colour on the left edge is the severity —
-        red is blocking or about to be erased, amber is a decision with a deadline, green is money,
-        blue is people responding to your work, grey is information.</p>
+      <p class="attention-lead">Sorted by urgency: red blocks or risks deletion; amber needs a decision; green is money; blue is social; grey is information.</p>
     </div>
     {% if open_cases %}
     <a href="{% url 'attention_center' %}" class="btn-violet" style="margin-left:auto">{{ open_cases }} waiting on you →</a>
@@ -59,7 +57,7 @@ countdown that ends in a deletion.
       {% if n.body %}<div class="bv-notif__body">{{ n.body }}</div>{% endif %}
     </a>
     {% empty %}
-    <div class="attention-empty">Nothing in the inbox. Build something and this fills up.</div>
+    <div class="attention-empty">Inbox empty.</div>
     {% endfor %}
   </div>
 </div>

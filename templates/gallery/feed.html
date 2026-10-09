@@ -9,11 +9,11 @@
   <header class="builder-hero">
     <h1>What are people building?</h1>
     <div class="builder-hero__actions">
-      <a href="#grid" class="btn-violet">Explore what's being built</a>
-      <a href="{% url 'build_hub' %}" class="btn-ghost">Build your next →</a>
-      <a href="{% url 'capability_search' %}" class="builder-hero__quiet-link">Find capability →</a>
+      <a href="#grid" class="btn-violet">Explore projects</a>
+      <a href="{% url 'build_hub' %}" class="btn-ghost">Start building →</a>
+      <a href="{% url 'capability_search' %}" class="builder-hero__quiet-link">Find builders →</a>
     </div>
-    {% if activity %}<div class="builder-hero__activity"><b>{{ activity.published }} published</b> · {{ activity.remixes }} remixes · {{ activity.stars }} stars this week — real builders, shipping now</div>{% endif %}
+    {% if activity %}<div class="builder-hero__activity"><b>{{ activity.published }} published</b> · {{ activity.remixes }} remixes · {{ activity.stars }} stars this week</div>{% endif %}
   </header>
 
   <div class="kind-chips" style="margin-top:10px">
@@ -33,10 +33,9 @@
   </form>
 
   <div class="feed-orientation">
-    Looking for <b style="color:var(--text)">who can do Django / React / APIs</b>?
-    <a href="{% url 'capability_search' %}{% if q %}?q={{ q|urlencode }}{% endif %}" style="color:var(--link);font-weight:700">Search by capability →</a>
-    That page ranks people by published proof, not followers.
-    · <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> Every vibe scanned.
+    Find builders by Django, React, or API skills — ranked by project proof, not followers.
+    <a href="{% url 'capability_search' %}{% if q %}?q={{ q|urlencode }}{% endif %}" style="color:var(--link);font-weight:700">Search by skill →</a>
+    · <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> Every project is scanned.
     <a href="{% url 'trust_legend' %}" style="color:var(--link)">Read the standard →</a>
   </div>
 
@@ -61,8 +60,8 @@
     </div>
     {% empty %}
     <div class="card" style="grid-column:1/-1;padding:36px;text-align:center">
-      <div style="font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700">The creative community is getting started.</div>
-      <div style="margin-top:8px;font-size:13px;color:var(--muted)">Publish your first vibe — <a href="{% url 'build_hub' %}" style="color:var(--link)">Build something →</a></div>
+      <div style="font-family:Space Grotesk,sans-serif;font-size:20px;font-weight:700">No projects yet.</div>
+      <div style="margin-top:8px;font-size:13px;color:var(--muted)"><a href="{% url 'build_hub' %}" style="color:var(--link)">Publish the first project →</a></div>
     </div>
     {% endfor %}
   </div>
@@ -113,7 +112,6 @@
   </div>
   {% endif %}
 
-  <div style="margin-top:14px;font-size:11px;color:var(--muted);text-align:center">Builder pulse: {{ activity.published|default:0 }} published · {{ activity.remixes|default:0 }} remixes this week</div>
 </div>
 {% endblock %}
 {% block scripts %}

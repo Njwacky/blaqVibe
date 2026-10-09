@@ -11,7 +11,7 @@
     <div class="launch-hero__copy">
       <span class="launch-kicker"><span aria-hidden="true">↗</span> From finished build to real users</span>
       <h1>You built the vibe.<br><span>Now ship it.</span></h1>
-      <p>Pick the card below that matches what you're holding — every destination links to a real, source-backed publishing path.</p>
+      <p>Choose your build to see official publishing steps.</p>
       <div class="launch-hero__cta">
         <a class="launch-hero__go" href="#deck">Choose your build →</a>
         <ul class="launch-hero__stats" aria-label="Launch guide facts">
@@ -47,7 +47,7 @@
       <span class="launch-step-tag">Step 01</span>
       <div>
         <h2 id="launch-picker-title">What are you holding?</h2>
-        <p>Tap the card that matches your build — matching destinations light up below.</p>
+        <p>Choose a build type to filter destinations.</p>
       </div>
     </div>
 
@@ -72,7 +72,7 @@
              {% if route.hint %}data-hint="{{ route.hint }}"{% endif %}
              {% if route.value == active_artifact %}aria-pressed="true"{% else %}aria-pressed="false"{% endif %}>
             <span class="launch-artifact__icon launch-artifact__icon--{{ route.value }}" aria-hidden="true"><img src="{% static route.icon %}" alt=""></span>
-            <span class="launch-artifact__copy"><b>{{ route.name }}</b><small>{{ route.note }}</small></span>
+            <span class="launch-artifact__copy"><b>{{ route.name }}</b><small>{{ route.note|truncatewords:8 }}</small></span>
             <span class="launch-artifact__count">{{ route.guides|length }} route{{ route.guides|length|pluralize }}</span>
             <span class="launch-artifact__check" aria-hidden="true">✓</span>
           </a>
@@ -83,7 +83,7 @@
       {% endfor %}
     </div>
     <a class="launch-picker__clear" href="{% url 'launch_hub' %}{% if active_category != 'all' %}?category={{ active_category }}{% endif %}#deck" data-artifact-clear{% if not active_artifact %} hidden{% endif %}>✕ Clear selection</a>
-    <noscript><p class="launch-noscript">JavaScript is off — picking a card reloads the page instead of filtering live. Everything still works.</p></noscript>
+    <noscript><p class="launch-noscript">JavaScript is off; cards reload the page. All routes still work.</p></noscript>
   </section>
 
   <section class="launch-chooser" aria-labelledby="launch-chooser-title">
@@ -129,7 +129,7 @@
           <span class="launch-route__copy">
             <em>{{ item.eyebrow }}</em>
             <b>{{ item.name }}{% if item.review.is_outdated %} <span class="launch-route__stale" title="Needs review — verify against live sources"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-alert"></use></svg></span>{% endif %}</b>
-            <small>{{ item.summary }}</small>
+            <small>{{ item.summary|truncatewords:12 }}</small>
           </span>
           <span class="launch-route__meta">
             <em><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-bolt"></use></svg> {{ item.pace }}</em>
@@ -147,19 +147,19 @@
     </div>
 
     <p class="launch-board__hint" id="launch-board-hint"
-       data-empty-hint="Tap a card above — the matching destinations light up instantly."
-       data-match-hint="Lit-up cards match what you are holding. Open one for the source-backed steps."
-       data-zero-hint="No matching route in this filter — tap “All destinations” above to see them.">
+       data-empty-hint="Choose a card to filter destinations."
+       data-match-hint="Matching cards fit your build. Open one for steps."
+       data-zero-hint="No match. Show all destinations.">
       {% if active_artifact %}
-        {% if match_count %}<span aria-hidden="true">✓</span> Lit-up cards match what you're holding. Open one for the source-backed steps.{% else %}<span aria-hidden="true"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-alert"></use></svg></span> No matching route in this filter — tap “All destinations” above to see them.{% endif %}
-      {% else %}<span aria-hidden="true"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-pointer"></use></svg></span> Tap a card above — the matching destinations light up instantly.{% endif %}
+        {% if match_count %}<span aria-hidden="true">✓</span> Matching routes. Open one for steps.{% else %}<span aria-hidden="true"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-alert"></use></svg></span> No match. Show all destinations above.{% endif %}
+      {% else %}<span aria-hidden="true"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-pointer"></use></svg></span> Choose a card to filter destinations.{% endif %}
     </p>
   </section>
 
   <section class="launch-compare" id="compare" aria-labelledby="compare-title">
     <div class="launch-section-head">
       <div><p class="launch-overline">Decision aid</p><h2 id="compare-title">Compare before you choose</h2></div>
-      <p>Three or four platforms still feel like a coin flip — this table narrows it. Cost labels were checked in {{ last_reviewed }}; pricing and policies change, so open the guide (→) for the live sources before committing.</p>
+      <p>Compare cost and pace. Prices checked {{ last_reviewed }}; verify live sources before choosing.</p>
     </div>
     <div class="launch-compare__groups">
       {% for group in comparison_groups %}
@@ -201,7 +201,7 @@
 
   <section class="launch-boundary-strip" aria-label="Important boundary">
     <span class="launch-boundary-strip__icon" aria-hidden="true"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-bolt"></use></svg></span>
-    <p><b>Preview is not hosting.</b> BlaqVibes shows a sandboxed preview — it does not keep your backend running, publish to a store, or become your production URL.</p>
+    <p><b>Preview is not hosting.</b> Previews are sandboxed; BlaqVibes does not keep your backend running, publish to stores, or host production URLs.</p>
     <ul>
       <li>✓ No store credentials collected</li>
       <li>✓ Official docs linked</li>
@@ -212,15 +212,15 @@
   <section class="launch-rules" aria-label="Three rules that prevent expensive mistakes">
     <div class="launch-rules__card">
       <span aria-hidden="true"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-lock"></use></svg></span>
-      <div><b>Never upload secrets</b><p>Keys and credentials live in the destination's secret settings — never in ZIPs, images, or browser code.</p></div>
+      <div><b>Never upload secrets</b><p>Store keys and credentials in your host's secrets—not ZIPs, images, or browser code.</p></div>
     </div>
     <div class="launch-rules__card">
       <span aria-hidden="true"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-flask"></use></svg></span>
-      <div><b>Test the shipped artifact</b><p>Install or open the exact build users receive, not just the editor preview.</p></div>
+      <div><b>Test the shipped build</b><p>Test the exact build users receive.</p></div>
     </div>
     <div class="launch-rules__card">
       <span aria-hidden="true"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-doc"></use></svg></span>
-      <div><b>Read the live policy</b><p>Fees, testing gates, and review rules change — every guide ends with primary sources. Last reviewed {{ last_reviewed }}.</p></div>
+      <div><b>Check live policies</b><p>Fees, testing gates, and review rules change. Verify official sources; reviewed {{ last_reviewed }}.</p></div>
     </div>
   </section>
 </main>

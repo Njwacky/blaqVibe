@@ -3625,7 +3625,7 @@ class TrustFilterTests(TestCase):
         invalidate_trust(self.verified)  # nothing verified anymore
         response = self.client.get('/', {'trust': 'verified', 'q': ''})
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, 'Publish your first vibe')  # empty state
+        self.assertContains(response, 'Publish the first project')  # empty state
         self.assertNotContains(response, 'FilterVerifiedOne')
         self.assertNotContains(response, 'FilterUnknownOne')
 
@@ -4167,7 +4167,7 @@ class ProjectStoryTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, 'Build method')
         self.assertContains(response, 'AI-assisted')
-        self.assertContains(response, 'WHY YOU CAN TRUST THIS PROJECT')
+        self.assertContains(response, 'PROJECT EVIDENCE')
         self.assertContains(response, 'PROJECT HISTORY')
         self.assertContains(response, 'First version published')
 
@@ -4288,7 +4288,10 @@ class BuilderSkillLoopTests(TestCase):
         # …and the skill page shows the proof.
         response = self.client.get(f'/skills/{self.skill.slug}/')
         self.assertContains(response, 'My Inventory App')
-        self.assertContains(response, 'Produced 1 published project')
+        self.assertRegex(
+            response.content.decode(),
+            r'skd-stat__n">1</span>\s*<span class="skd-stat__l">Published project',
+        )
         self.assertContains(response, 'Start building with this skill')
 
     def test_skill_without_use_gets_no_attribution(self):
@@ -4380,8 +4383,8 @@ class CommunityFirstHeroTests(TestCase):
         response = self.client.get('/')
         self.assertContains(response, 'What are people building?')
         self.assertNotContains(response, 'Your work belongs in the answer.')
-        self.assertContains(response, "Explore what's being built")
-        self.assertContains(response, 'real builders, shipping now')
+        self.assertContains(response, 'Explore projects')
+        self.assertContains(response, 'stars this week')
 
     def test_landing_shows_live_activity_counts(self):
         response = self.client.get('/')

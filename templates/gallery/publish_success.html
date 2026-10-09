@@ -11,40 +11,40 @@
   <div class="ps-hero ps-hero--held" role="status">
     <span class="ps-hero-mark">⏸</span>
     <div>
-      <b>Received — held for a quick look</b>
-      <p>Your upload matched a safety pattern, so a moderator checks it first. You'll get a notification the moment it's live. Everything below still helps.</p>
+      <b>Held for moderator review</b>
+      <p>A safety flag sent your upload to review. We'll notify you when it's live.</p>
     </div>
   </div>
   {% elif scan_failed %}
   <div class="ps-hero ps-hero--held" role="status">
     <span class="ps-hero-mark"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-clock"></use></svg></span>
     <div>
-      <b>Project received — safety checks need attention</b>
-      <p>Your files are saved and private. Our scan service is temporarily unavailable; staff have been alerted. You do not need to upload again.</p>
+      <b>Safety scan needs attention</b>
+      <p>Saved privately. Scan service unavailable; staff alerted. Don't upload again.</p>
     </div>
   </div>
   {% elif scan_waiting %}
   <div class="ps-hero ps-hero--queued" role="status">
     <span class="ps-hero-mark"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-clock"></use></svg></span>
     <div>
-      <b>Project received — waiting for safety checks</b>
-      <p>Your files are saved and private. A safety-check runner must check them before the project can go live. You do not need to upload again.</p>
+      <b>Waiting for safety checks</b>
+      <p>Saved privately. It goes live after checks clear. No need to upload again.</p>
     </div>
   </div>
   {% elif scan_held %}
   <div class="ps-hero ps-hero--held" role="status">
     <span class="ps-hero-mark">⏸</span>
     <div>
-      <b>Project received — awaiting review</b>
-      <p>{{ scan_hold_reason }} Your project stays private until approved. You do not need to upload again.</p>
+      <b>Awaiting moderator review</b>
+      <p>{{ scan_hold_reason }} It stays private until approved. No need to re-upload.</p>
     </div>
   </div>
   {% elif scan_pending %}
   <div class="ps-hero ps-hero--scan" role="status">
     <span class="ps-hero-mark"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-clock"></use></svg></span>
     <div>
-      <b>Project received — safety scan running</b>
-      <p>Your files are being checked for viruses and leaked secrets. You'll get a notification as soon as it's live on the feed. Nothing more to do now.</p>
+      <b>Safety scan running</b>
+      <p>Checking for viruses and leaked secrets. We'll notify you when it's live.</p>
     </div>
   </div>
   {% else %}
@@ -66,9 +66,9 @@
       <h2 style="margin:4px 0 3px;font-size:18px">You put a build on the platform.</h2>
       <p style="margin:0;color:var(--muted);font-size:12px;line-height:1.45">
         {% if scan_pending or quarantined %}
-        The project is received and private until safety checks and any required review clear it.
+        Private until safety checks and review finish.
         {% else %}
-        Your project is live. Now you can explore other builders and come back to strengthen this build whenever you want.
+        Live now. Explore other builds or improve this one anytime.
         {% endif %}
       </p>
     </div>
@@ -95,7 +95,7 @@
       <li class="{% if row.ok %}is-done{% endif %}"><span class="proof-mark">{% if row.ok %}✓{% else %}○{% endif %}</span> {{ row.label }}</li>
       {% endfor %}
     </ul>
-    <p class="ps-proof-note">Proof is optional and never done in one sitting — every ✓ makes the project easier to trust, remix and hire.</p>
+    <p class="ps-proof-note">Proof is optional. Each check builds trust and helps others remix or hire.</p>
   </section>
 
   <section class="ps-strengthen" aria-label="Make your project stronger">

@@ -54,7 +54,7 @@
     {% endfor %}
   </div>
   {% else %}
-  <section class="projects-empty"><span class="empty-mark" aria-hidden="true">＋</span><p class="projects-kicker">THE FIRST PROOF</p><h2>Build something.</h2><p>Your first project becomes your first piece of proof. Start with an idea, a problem or a remix.</p><div><a href="{% url 'publish' %}" class="btn-violet">Start your first build</a><a href="{% url 'import_from_github' %}" class="btn-ghost">Import from GitHub</a></div></section>
+  <section class="projects-empty"><span class="empty-mark" aria-hidden="true">＋</span><p class="projects-kicker">THE FIRST PROOF</p><h2>Build something.</h2><p>Start with an idea, a problem, or a remix.</p><div><a href="{% url 'publish' %}" class="btn-violet">Start your first build</a><a href="{% url 'import_from_github' %}" class="btn-ghost">Import from GitHub</a></div></section>
   {% endif %}
 </div>
 {% endblock %}

@@ -1,7 +1,7 @@
 {% extends 'gallery/base.html' %}
 {% load static %}
 {% block title %}Import a GitHub repo — BlaqVibes{% endblock %}
-{% block meta_desc %}Import any public GitHub repository as your first vibe. BlaqVibes fetches the ZIP GitHub already serves, strips what it refuses, and runs the normal scan before it reaches the feed.{% endblock %}
+{% block meta_desc %}Import a public GitHub repo. BlaqVibes cleans and scans it before it reaches the feed.{% endblock %}
 {% block content %}
 <div style="max-width:760px;margin:0 auto;padding:24px 20px">
 
@@ -9,10 +9,9 @@
     <span style="display:inline-block;font-size:12px;letter-spacing:.06em;padding:6px 12px;border-radius:999px;background:var(--accent-soft-bg);border:1px solid var(--accent-border);color:var(--accent-text)">✦ NO ZIP NEEDED</span>
     <h1 style="font-family:Space Grotesk,sans-serif;font-size:32px;line-height:1.1;margin:14px 0 10px">Import a repo from GitHub</h1>
     <p style="color:var(--muted);font-size:15px;line-height:1.6">
-      <b style="color:var(--text)">Got code on GitHub already?</b> Paste the link.
-      We fetch the public ZIP GitHub already serves, unwrap the folder it adds,
-      drop paths this platform refuses, and run the same scan as every upload.
-      No git CLI, no build step, no editor — and you leave with a public Build.
+      <b style="color:var(--text)">Already on GitHub?</b> Paste a public repo link.
+      We fetch its ZIP, remove blocked files, and scan it before it goes live.
+      No CLI or ZIP upload needed.
     </p>
   </div>
 
@@ -25,9 +24,7 @@
            placeholder="https://github.com/username/your-project"
            style="width:100%;padding:12px 14px;border-radius:12px;border:1px solid var(--line);background:var(--input);color:var(--text);font-size:15px">
     <div style="color:var(--muted);font-size:12px;margin-top:6px;line-height:1.6">
-      Paste a <b style="color:var(--text)">public</b> github.com link. Branch links work too
-      (<code>…/tree/main</code>) — leave it plain to take the default branch.
-      Private repos are not reachable: we only ask GitHub for the public archive.
+      Public GitHub links only. Branch links work (<code>…/tree/main</code>); private repos aren't supported.
     </div>
 
     <div style="margin-top:16px">
@@ -57,37 +54,24 @@
   </form>
 
   <div style="margin-top:20px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 18px;font-size:13px;color:var(--muted);line-height:1.7">
-    <b style="color:var(--text)">New here and nothing to paste yet?</b>
-    Try a small public sample — <b style="color:var(--text)">{{ demo_label }}</b>
-    (<a href="{{ demo_repo_url }}" rel="noopener" style="color:var(--accent-text)">{{ demo_repo_url }}</a>).
-    Copy that link into the box above (or
-    <button type="button" class="js-fill-demo" data-url="{{ demo_repo_url }}" style="all:unset;cursor:pointer;color:var(--accent-text);font-weight:700;text-decoration:underline">tap to fill it</button>).
-    It is a tiny HTML learning site — good practice, not this platform’s own source.
+    <b style="color:var(--text)">Need a sample?</b> Try <b style="color:var(--text)">{{ demo_label }}</b>, a tiny HTML learning site — not BlaqVibes source.
+    <a href="{{ demo_repo_url }}" rel="noopener" style="color:var(--accent-text)">Open sample</a> or
+    <button type="button" class="js-fill-demo" data-url="{{ demo_repo_url }}" style="all:unset;cursor:pointer;color:var(--accent-text);font-weight:700;text-decoration:underline">fill the link</button>.
     <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
-      <b style="color:var(--text)">What gets left out, and why.</b>
-      Native binaries (<code>.exe</code>, <code>.dll</code>, <code>.so</code>, …),
-      <code>node_modules/</code>, <code>.venv/</code>, <code>__pycache__/</code>,
-      <code>.git/</code>, symlinks, and anything shaped like a credential
-      (<code>.env</code>, <code>.npmrc</code>, <code>id_rsa</code>, …) never enter
-      a vibe. Source scripts such as <code>.sh</code> are kept, but BlaqVibes
-      scans uploaded files without running them. You are told exactly which
-      paths were dropped — nothing is removed quietly. <code>.env.example</code>
-      with empty values is fine and comes through.
+      <b style="color:var(--text)">Safety.</b>
+      We skip binaries (<code>.exe</code>/<code>.dll</code>/<code>.so</code>), dependencies (<code>node_modules/</code>/<code>.venv/</code>), caches (<code>__pycache__/</code>), <code>.git/</code>, symlinks, and credentials (<code>.env</code>/<code>.npmrc</code>/<code>id_rsa</code>).
+      Source <code>.sh</code> files stay but never run. You'll see every dropped path; empty <code>.env.example</code> files are allowed.
     </div>
     <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
-      <b style="color:var(--text)">Limits.</b> 60 MB of archive, 1000 files,
-      200 MB uncompressed, 50 MB per file — the same ceilings the
-      <a href="{% url 'publish' %}" style="color:var(--accent-text)">Publish</a> page enforces.
-      Over any of them, trim the repo or upload a ZIP by hand.
-      Imported vibes are free (0 ★): the same bytes are one click away on GitHub.
+      <b style="color:var(--text)">Limits.</b>
+      60 MB archive, 1,000 files, 200 MB unpacked, 50 MB per file — the same limits as
+      <a href="{% url 'publish' %}" style="color:var(--accent-text)">Publish</a>.
+      Trim larger repos or upload a ZIP. Imports are free (0 ★).
     </div>
     <div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">
-      <b style="color:var(--text)">Then what.</b> The import lands as
-      <b style="color:var(--text)">Pending Scan</b>, exactly like every upload. It
-      reaches the feed when the virus and vulnerability scans clear it, and it
-      gets the same auto label and trust badge as anything else. Importing is not
-      a shortcut past the checks. After it is live, your stack becomes
-      <a href="{% url 'capability_search' %}" style="color:var(--accent-text)">searchable capability</a>.
+      <b style="color:var(--text)">After import.</b>
+      Every repo enters <b style="color:var(--text)">Pending Scan</b>. Cleared projects get the same label and trust badge as uploads; nothing skips checks.
+      Your stack becomes <a href="{% url 'capability_search' %}" style="color:var(--accent-text)">searchable by skill</a> when live.
     </div>
   </div>
 </div>

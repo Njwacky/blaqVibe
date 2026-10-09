@@ -8,7 +8,7 @@
 {% block content %}
 <div style="max-width:760px;margin:0 auto;padding:20px 14px 60px">
   <h1 style="font-family:Space Grotesk,sans-serif;font-size:20px">Edit — {{ project.title }}</h1>
-  <p style="color:var(--muted);font-size:13px">Basics save instantly. Re-uploading files creates version v1.{{ project.versions.count|add:1 }}.0 and re-queues the safety scan (every edit is checked).</p>
+  <p style="color:var(--muted);font-size:13px">Basics save instantly. Re-uploading creates v1.{{ project.versions.count|add:1 }}.0 and runs a new safety scan.</p>
 
   <form method="post" enctype="multipart/form-data" style="margin-top:12px;display:grid;gap:14px">
     {% csrf_token %}
@@ -28,7 +28,7 @@
       </div>
       <div>
         <label class="field-label" for="id_creator_kind">What kind of program is this?</label>{{ form.creator_kind }}
-        {% if project.kind_evidence %}<div style="font-size:11px;color:var(--muted);margin-top:4px">We labelled this a <b>{{ project.kind_label }}</b> because: {{ project.kind_evidence|join:", " }}. Pick a kind above to override us.</div>{% endif %}
+        {% if project.kind_evidence %}<div style="font-size:11px;color:var(--muted);margin-top:4px">Detected as <b>{{ project.kind_label }}</b> from: {{ project.kind_evidence|join:", " }}. Change it above if needed.</div>{% endif %}
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px">
         <div><label class="field-label" for="id_star_cost">Trade cost — stars</label>{{ form.star_cost }}<div style="font-size:11px;color:var(--muted);margin-top:3px">0 = free, 1 = Bronze, 3 = Silver</div></div>
@@ -70,8 +70,8 @@
     {# ── README ── #}
     <section id="sec-readme" style="background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:8px">
       <h2 style="font-size:13px;letter-spacing:.06em;color:var(--muted);margin:0">README</h2>
-      {% if project.has_scaffold_readme %}<div style="font-size:12px;color:var(--accent-text);background:var(--accent-soft-bg);border:1px solid var(--accent-border);border-radius:10px;padding:8px 10px">This is still the starter scaffold — replace it with the real story: what it does, how to run it, what you learned.</div>{% endif %}
-      <label class="field-label" for="id_readme">README — markdown, min 100 chars, needs one “# ” heading</label>
+      {% if project.has_scaffold_readme %}<div style="font-size:12px;color:var(--accent-text);background:var(--accent-soft-bg);border:1px solid var(--accent-border);border-radius:10px;padding:8px 10px">Replace this scaffold with what it does, how to run it, and what you learned.</div>{% endif %}
+      <label class="field-label" for="id_readme">README (Markdown, 100+ characters, one “# ” heading)</label>
       {{ form.readme }}
       {% if form.readme.errors %}<div class="pub-error">{{ form.readme.errors.0 }}</div>{% endif %}
     </section>
@@ -89,7 +89,7 @@
           </label>
           {% endfor %}
         </div>
-        <div style="font-size:11px;color:var(--muted);margin-top:6px">One tap is all transparency needs — the details below are optional and strengthen your proof.</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:6px">Choose one method. Optional details strengthen proof.</div>
       </div>
       <details {% if project.claims_ai or form.ai_tool.value or form.ai_prompt.value %}open{% endif %}>
         <summary style="cursor:pointer;font-size:13px;font-weight:700">AI details <span style="color:var(--muted);font-weight:400">— optional</span></summary>
@@ -133,7 +133,7 @@
 
   <div style="margin-top:16px;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:12px">
     <div style="font-size:12px;font-weight:700">Co-owners — split star trade revenue</div>
-    <div style="font-size:11px;color:var(--muted);margin-top:2px">Each star trade on this vibe pays every co-owner their % of the star cost, atomically; you keep the remainder. Card sales are paid to BlaqVibes and unlock the project for the buyer. Splits are rounded so every star is accounted for.</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:2px">Star trades split atomically by each co-owner's share; you keep the remainder. Card sales go to BlaqVibes and unlock the project for buyers. Rounding accounts for every star.</div>
     {% for co in project.co_owners.all %}
     <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px">
       <span><a href="{% url 'profile_view' co.user.username %}" style="color:var(--link)">@{{ co.user.username }}</a> — <b>{{ co.share_percent }}%</b></span>
