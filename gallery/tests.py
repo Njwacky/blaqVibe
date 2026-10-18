@@ -1427,6 +1427,89 @@ class ChallengeAwardTests(TestCase):
         self.assertEqual(self.challenge.winner_id, self.entry.id)
         self.assertEqual(self.other.profile.stars_balance, 5)
 
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests', SEED_DEMO=False)
+class ChallengeVisibilityTests(TestCase):
+    """The challenge pipeline is staff context; everyone else gets one challenge.
+
+    /challenges/ used to render the full list — unapproved drafts and the
+    archive included — to every visitor. Staff (moderator and up) keep the
+    pipeline; normal users see exactly one challenge, the featured one, and
+    its detail page is the only one that opens — hiding the list is pointless
+    if a guessed URL still serves the page.
+    """
+
+    def setUp(self):
+        from gallery.models import Challenge
+        self.mod = make_user('mod', role='moderator')
+        self.normal = make_user('normal')
+        self.past = Challenge.objects.create(
+            title='Archived Quest Alpha', description='Settled before today.',
+            bounty_stars=10, tag='challenge-past-1',
+            start=timezone.now() - timedelta(days=20),
+            end=timezone.now() - timedelta(days=10), is_active=False,
+        )
+        self.draft = Challenge.objects.create(
+            title='Unapproved Draft Beta', description='Waiting on a superadmin.',
+            bounty_stars=10, tag='challenge-draft-1',
+            start=timezone.now() - timedelta(days=1),
+            end=timezone.now() + timedelta(days=6), is_active=False,
+        )
+        self.live = Challenge.objects.create(
+            title='Live Featured Gamma', description='Open for entries now.',
+            bounty_stars=10, tag='challenge-live-1',
+            start=timezone.now(),
+            end=timezone.now() + timedelta(days=1), is_active=True,
+        )
+
+    def _get(self, url):
+        # No auto-daily: these fixtures must own the featured slot outright.
+        with mock.patch('gallery.daily.ensure_daily_challenge', return_value=None):
+            return self.client.get(url)
+
+    def test_normal_users_see_only_the_featured_challenge(self):
+        response = self._get('/challenges/')
+        self.assertEqual(response.status_code, 200)
+        body = response.content.decode()
+        self.assertEqual(response.context['active'].pk, self.live.pk)
+        self.assertIn(self.live.title, body)
+        self.assertNotIn(self.past.title, body)
+        self.assertNotIn(self.draft.title, body)
+        self.assertNotIn('All Challenges', body)
+
+    def test_logged_in_normal_user_gets_the_same_single_challenge(self):
+        self.client.login(username='normal', password='pass12345')
+        response = self._get('/challenges/')
+        body = response.content.decode()
+        self.assertEqual(response.context['active'].pk, self.live.pk)
+        self.assertEqual(list(response.context['challenges']), [])
+        self.assertNotIn(self.past.title, body)
+        self.assertNotIn(self.draft.title, body)
+
+    def test_staff_see_every_challenge(self):
+        self.client.login(username='mod', password='pass12345')
+        response = self._get('/challenges/')
+        body = response.content.decode()
+        self.assertIn('All Challenges', body)
+        for challenge in (self.past, self.draft, self.live):
+            self.assertIn(challenge.title, body)
+        self.assertGreaterEqual(len(response.context['challenges']), 3)
+
+    def test_normal_users_cannot_open_draft_or_archived_detail(self):
+        for username in (None, 'normal'):
+            if username:
+                self.client.login(username=username, password='pass12345')
+            for tag in (self.past.tag, self.draft.tag):
+                self.assertEqual(self._get(f'/challenges/{tag}/').status_code, 404, tag)
+            self.client.logout()
+
+    def test_normal_users_can_open_the_featured_detail(self):
+        self.assertEqual(self._get('/challenges/challenge-live-1/').status_code, 200)
+
+    def test_staff_can_open_draft_and_archived_detail(self):
+        self.client.login(username='mod', password='pass12345')
+        for tag in (self.past.tag, self.draft.tag, self.live.tag):
+            self.assertEqual(self._get(f'/challenges/{tag}/').status_code, 200, tag)
+
 @override_settings(RATELIMIT_ENABLE=False, SEED_DEMO=False)
 class SnippetIsolationTests(TestCase):
     def setUp(self):

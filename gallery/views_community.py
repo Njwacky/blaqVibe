@@ -25,7 +25,7 @@ from .models import (
 )
 from .notify import notify
 from .scan_queue import enqueue_scan
-from .access import user_can_see_project
+from .access import user_can_see_project, user_is_moderator
 from users.decorators import not_quarantined
 
 logger = logging.getLogger(__name__)
@@ -578,9 +578,23 @@ def copy_increment(request, slug):
     AppProject.objects.filter(pk=project.pk).update(copies=F('copies') + 1)
     return JsonResponse({'ok': True})
 
+def _featured_challenge():
+    """The single challenge the public sees — the live pick, latest start first.
+
+    The challenges page serves two audiences in one URL: staff look at the
+    whole pipeline (drafts, archive, winner history), everyone else at
+    exactly one challenge — the current one. The list and the detail pages
+    must agree on which one that is, or a hidden list leaks through its URLs.
+    """
+    now = timezone.now()
+    return (
+        Challenge.objects
+        .filter(is_active=True, start__lte=now, end__gte=now)
+        .order_by('-start')
+        .first()
+    )
+
 def challenge_list(request):
-    from .models import Challenge
-    from django.utils import timezone
     # A challenge every day, with or without the AI generator: the pool is
     # derived from the date, so simply loading this page materialises it.
     # Settling here too means a finished day pays its winner the first time
@@ -591,8 +605,12 @@ def challenge_list(request):
         settle_past_challenges()
     except Exception:
         logging.getLogger(__name__).exception('daily challenge setup failed')
-    challenges = Challenge.objects.all().order_by('-start')
-    active = Challenge.objects.filter(is_active=True, start__lte=timezone.now(), end__gte=timezone.now()).first()
+    # The full list — drafts, the archive, winner history — is staff context
+    # (moderator and up). Normal users see exactly one challenge: the
+    # featured card below, never the pipeline behind it.
+    staff = user_is_moderator(request.user)
+    challenges = Challenge.objects.all().order_by('-start') if staff else Challenge.objects.none()
+    active = _featured_challenge()
     if active is not None:
         try:
             from .daily import leaderboard, submissions
@@ -600,7 +618,7 @@ def challenge_list(request):
             active.top_submissions = leaderboard(active, limit=3)
         except Exception:
             logging.getLogger(__name__).exception('challenge leaderboard failed')
-    return render(request, 'gallery/challenge_list.html', {'challenges': challenges, 'active': active})
+    return render(request, 'gallery/challenge_list.html', {'challenges': challenges, 'active': active, 'staff': staff})
 
 @login_required
 @require_POST
@@ -640,6 +658,13 @@ def challenge_detail(request, tag):
     from .models import Challenge
     from gallery.models import AppProject
     challenge = get_object_or_404(Challenge, tag=tag)
+    # Normal users get exactly one challenge — the featured one. Drafts and
+    # the archive are staff context; hiding the list is pointless if a
+    # guessed detail URL still opens the page.
+    if not user_is_moderator(request.user):
+        featured = _featured_challenge()
+        if featured is None or featured.pk != challenge.pk:
+            raise Http404
     # Ranked, not just listed: a challenge page is a scoreboard. Highest
     # stars first, earliest publish as the tie-break (see daily.settle).
     submissions = AppProject.objects.filter(tags__slug=challenge.tag, status='published').select_related('owner').order_by('-stars', 'created_at')
