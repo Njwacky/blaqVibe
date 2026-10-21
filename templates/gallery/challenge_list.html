@@ -49,6 +49,7 @@
   </div>
   {% endif %}
 
+  {% if staff %}
   <h2 style="margin-top:16px;font-size:14px;font-weight:700">All Challenges</h2>
   {% for c in challenges %}
   <div style="background:var(--card);border:1px solid {% if not c.is_active %}#7C3AED{% else %}var(--line){% endif %};border-radius:12px;padding:12px;margin-top:8px;display:flex;gap:12px;align-items:center">
@@ -65,5 +66,6 @@
     </div>
   </div>
   {% endfor %}
+  {% endif %}
 </div>
 {% endblock %}
