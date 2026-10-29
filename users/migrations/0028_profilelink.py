@@ -26,7 +26,7 @@ class Migration(migrations.Migration):
             ],
             options={
                 'ordering': ['position', 'id'],
-                'constraints': [models.CheckConstraint(condition=models.Q(('label', ''), _negated=True), name='profilelink_label_nonempty')],
+                'constraints': [models.CheckConstraint(check=models.Q(('label', ''), _negated=True), name='profilelink_label_nonempty')],
             },
         ),
     ]
