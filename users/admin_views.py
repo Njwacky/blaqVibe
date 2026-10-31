@@ -3,6 +3,7 @@ from urllib.parse import urlencode
 
 from django.core.paginator import Paginator
 from django.shortcuts import render, get_object_or_404, redirect
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.urls import reverse
@@ -10,7 +11,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 from django.views.decorators.vary import vary_on_headers
-from django.db.models import Case, Count, IntegerField, Q, Sum, Value, When
+from django.db.models import Avg, Case, Count, IntegerField, Max, Min, Q, Sum, Value, When
 from django_ratelimit.decorators import ratelimit
 from django.db.models.functions import TruncDate
 
@@ -207,7 +208,11 @@ def visitor_log(request):
     is a number they will eventually stop trusting.
     """
     from gallery.models import VisitorHit
-    from gallery.visitors import daily_series, ip_hash as hash_ip
+    from gallery.visitors import (
+        daily_series,
+        format_duration,
+        ip_hash as hash_ip,
+    )
     from .charts import daily_bars_chart, h_bars_chart
 
     try:
@@ -236,6 +241,8 @@ def visitor_log(request):
         hits_qs = hits_qs.filter(
             Q(ip=ip_query) | Q(forwarded_ip=ip_query) | Q(ip_hash=hash_ip(ip_query)))
 
+    live_cutoff = timezone.now() - timedelta(
+        minutes=getattr(settings, 'VISITOR_LIVE_WINDOW_MINUTES', 5))
     day_ago = timezone.now() - timedelta(days=1)
     today_qs = hits_qs.filter(created_at__gte=day_ago)
     stats = {
@@ -250,7 +257,39 @@ def visitor_log(request):
         # context ("how much noise am I hiding?"), not the answer.
         'bots': window_qs.filter(is_bot=True).count(),
         'team': window_qs.filter(is_bot=False, is_internal=True).count(),
+        # Time. "On site now" is a visitor with a page view in the live
+        # window, not a heartbeat — there is no client script to send one.
+        'live_now': (
+            hits_qs.filter(created_at__gte=live_cutoff)
+            .exclude(visitor_key='')
+            .values('visitor_key').distinct().count()
+        ),
     }
+
+    # Average time on a page: measured dwell only (a page nobody navigated
+    # away from has no honest number yet, so it is not counted as zero).
+    dwell = hits_qs.filter(dwell_seconds__isnull=False).aggregate(
+        avg=Avg('dwell_seconds'), n=Count('id'))
+    # Average length of a visit: last hit − first hit for each session. A
+    # session still open contributes only its elapsed time so far, which is
+    # why the card says "so far" rather than pretending it is final.
+    session_rows = list(
+        hits_qs.exclude(session_id='')
+        .values('session_id')
+        .annotate(started=Min('session_started_at'), ended=Max('created_at'))
+    )
+    visit_lengths = [
+        max(0.0, (row['ended'] - row['started']).total_seconds())
+        for row in session_rows if row['started'] and row['ended']
+    ]
+    stats['visits'] = len(session_rows)
+    stats['avg_page_seconds'] = int(dwell['avg']) if dwell['avg'] else None
+    stats['measured_pages'] = dwell['n'] or 0
+    stats['avg_visit_seconds'] = (
+        int(sum(visit_lengths) / len(visit_lengths)) if visit_lengths else None
+    )
+    stats['avg_page_label'] = format_duration(stats['avg_page_seconds']) or '—'
+    stats['avg_visit_label'] = format_duration(stats['avg_visit_seconds']) or '—'
 
     series = daily_series(hits_qs, window)
     days = [row[0] for row in series]
@@ -282,6 +321,28 @@ def visitor_log(request):
 
     recent = hits_qs.select_related('user').order_by('-created_at')
     page_obj = Paginator(recent, 50).get_page(request.GET.get('page'))
+
+    # "Still on this page" is a fact about the latest hit of a visitor, so it
+    # needs one grouped lookup for the 50 rows on screen — not 50 queries.
+    now = timezone.now()
+    rows = list(page_obj.object_list)
+    keys = {hit.visitor_key for hit in rows if hit.visitor_key}
+    latest_by_key = {
+        row['visitor_key']: row['last']
+        for row in VisitorHit.objects.filter(visitor_key__in=keys)
+        .values('visitor_key').annotate(last=Max('created_at'))
+    } if keys else {}
+    for hit in rows:
+        hit.is_live = bool(
+            hit.visitor_key
+            and latest_by_key.get(hit.visitor_key) == hit.created_at
+            and hit.created_at >= live_cutoff
+        )
+        hit.live_for_label = (
+            format_duration((now - hit.created_at).total_seconds())
+            if hit.is_live else ''
+        )
+    page_obj.object_list = rows
 
     params = {}
     if window != 7:

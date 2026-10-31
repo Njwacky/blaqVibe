@@ -36,6 +36,7 @@ import hmac
 import ipaddress
 import logging
 import re
+import uuid
 from datetime import timedelta
 from urllib.parse import urlparse
 
@@ -195,6 +196,28 @@ def client_ip(request) -> str | None:
         return None
 
 
+def format_duration(seconds) -> str:
+    """Human label for a span: '38s', '1m 42s', '1h 04m'. Empty for None."""
+    if seconds is None:
+        return ''
+    seconds = max(0, int(seconds))
+    if seconds < 60:
+        return f'{seconds}s'
+    if seconds < 3600:
+        return f'{seconds // 60}m {seconds % 60:02d}s'
+    return f'{seconds // 3600}h {(seconds % 3600) // 60:02d}m'
+
+
+def session_idle_window() -> timedelta:
+    """How long a gap still counts as the same visit.
+
+    Two page views 4 minutes apart are one person reading; two 3 hours apart
+    are two visits. 30 minutes is the industry default and is env-tunable so a
+    site with long-form content can say 90 without a code change.
+    """
+    return timedelta(minutes=int(getattr(settings, 'VISITOR_SESSION_IDLE_MINUTES', 30)))
+
+
 def forwarded_ip(request) -> str | None:
     """First X-Forwarded-For hop, as an UNVERIFIED display hint.
 
@@ -321,16 +344,34 @@ def record_visit(request, response):
         session_key = ''
 
     key = visitor_key(ip or '', user_agent)
+    now = timezone.now()
+
+    # One indexed lookup per page view, reused three ways: "is this visitor
+    # new?", "is this the same visit?" and "how long did they spend on the
+    # previous page?". A visit is a run of hits whose gaps are all under
+    # VISITOR_SESSION_IDLE_MINUTES; the gap that ends a run is also the dwell
+    # time recorded against the page they were on.
+    previous = None
     try:
-        # One indexed EXISTS per page view, and only for page views. This is
-        # what lets the dashboard say "3 people found the site today" without a
-        # full-table GROUP BY at render time.
-        first_visit = not VisitorHit.objects.filter(visitor_key=key).exists()
+        previous = (
+            VisitorHit.objects.filter(visitor_key=key)
+            .order_by('-created_at')
+            .first()
+        )
     except Exception:
-        first_visit = False
+        previous = None
+
+    first_visit = previous is None
+    continuing = bool(previous) and (now - previous.created_at) <= session_idle_window()
+    if continuing:
+        session_id = previous.session_id or uuid.uuid4().hex
+        session_started_at = previous.session_started_at or previous.created_at
+    else:
+        session_id = uuid.uuid4().hex
+        session_started_at = now
 
     try:
-        return VisitorHit.objects.create(
+        hit = VisitorHit.objects.create(
             path=request.path[:500],
             method=request.method[:8],
             status_code=response.status_code,
@@ -349,11 +390,28 @@ def record_visit(request, response):
             is_bot=parsed['is_bot'],
             is_internal=is_internal_user(user),
             is_first_visit=first_visit,
+            session_id=session_id,
+            session_started_at=session_started_at,
         )
     except Exception:
         # Logging must never break the page it is logging.
         logger.debug('visitor log write failed', exc_info=True)
         return None
+
+    if continuing:
+        # Close the previous page now that we know when they left it. Only the
+        # first measurement wins (a concurrent request must not overwrite it
+        # with a shorter one), and it is never negative.
+        try:
+            VisitorHit.objects.filter(
+                pk=previous.pk, dwell_seconds__isnull=True,
+            ).update(
+                dwell_seconds=max(0, int((now - previous.created_at).total_seconds())),
+            )
+        except Exception:
+            logger.debug('dwell time write failed', exc_info=True)
+
+    return hit
 
 
 # --------------------------------------------------------------------------

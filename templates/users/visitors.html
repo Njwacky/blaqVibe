@@ -31,9 +31,32 @@
     </div>
   </div>
 
+  <div style="margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+    <div class="card" style="padding:12px;text-align:center">
+      <div style="font-size:11px;color:var(--muted)">ON SITE NOW</div>
+      <div style="font-weight:800;font-size:22px">{{ stats.live_now }}</div>
+      <div style="font-size:10px;color:var(--muted)">page view in last 5 min</div>
+    </div>
+    <div class="card" style="padding:12px;text-align:center">
+      <div style="font-size:11px;color:var(--muted)">AVG TIME ON PAGE</div>
+      <div style="font-weight:800;font-size:22px">{{ stats.avg_page_label }}</div>
+      <div style="font-size:10px;color:var(--muted)">{{ stats.measured_pages }} page{{ stats.measured_pages|pluralize }} measured</div>
+    </div>
+    <div class="card" style="padding:12px;text-align:center">
+      <div style="font-size:11px;color:var(--muted)">AVG TIME ON VISIT</div>
+      <div style="font-weight:800;font-size:22px">{{ stats.avg_visit_label }}</div>
+      <div style="font-size:10px;color:var(--muted)">{{ stats.visits }} visit{{ stats.visits|pluralize }} (open ones so far)</div>
+    </div>
+    <div class="card" style="padding:12px;text-align:center">
+      <div style="font-size:11px;color:var(--muted)">VISITS</div>
+      <div style="font-weight:800;font-size:22px">{{ stats.visits }}</div>
+      <div style="font-size:10px;color:var(--muted)">gap &gt; 30 min starts a new one</div>
+    </div>
+  </div>
+
   <div style="margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
     <div class="card" style="padding:12px;text-align:center">
-      <div style="font-size:11px;color:var(--muted)">VISITS · LAST 24H</div>
+      <div style="font-size:11px;color:var(--muted)">PAGE VIEWS · LAST 24H</div>
       <div style="font-weight:800;font-size:18px">{{ stats.views_24h }}</div>
     </div>
     <div class="card" style="padding:12px;text-align:center">
@@ -92,12 +115,13 @@
   <h2 style="margin-top:20px;font-size:14px">Latest visits</h2>
   {% if page_obj.object_list %}
   <div class="card" style="margin-top:8px;padding:0;overflow-x:auto">
-    <table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:900px">
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:1080px">
       <thead>
         <tr style="text-align:left;color:var(--muted);font-size:11px">
           <th style="padding:10px 12px;border-bottom:1px solid var(--line)">WHEN</th>
           <th style="padding:10px 12px;border-bottom:1px solid var(--line)">WHO</th>
           <th style="padding:10px 12px;border-bottom:1px solid var(--line)">PAGE</th>
+          <th style="padding:10px 12px;border-bottom:1px solid var(--line)">TIME ON PAGE / VISIT</th>
           <th style="padding:10px 12px;border-bottom:1px solid var(--line)">IP</th>
           <th style="padding:10px 12px;border-bottom:1px solid var(--line)">DEVICE</th>
           <th style="padding:10px 12px;border-bottom:1px solid var(--line)">CAME FROM</th>
@@ -122,8 +146,20 @@
               {% if hit.is_bot %}<span style="font-size:9.5px;font-weight:800;letter-spacing:.4px;padding:2px 5px;border-radius:4px;background:#7f1d1d;color:#fff">BOT</span>{% endif %}
             </div>
           </td>
-          <td style="padding:10px 12px;border-bottom:1px solid var(--line);max-width:280px;word-break:break-all">
+          <td style="padding:10px 12px;border-bottom:1px solid var(--line);max-width:260px;word-break:break-all">
             <a href="?path={{ hit.path|urlencode }}{% if filters_qs %}&amp;{{ filters_qs }}{% endif %}">{{ hit.path }}</a>
+          </td>
+          <td style="padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap">
+            {% if hit.is_live %}
+              <div style="font-weight:700;color:#22D3EE">on page now · {{ hit.live_for_label }}</div>
+            {% elif hit.dwell_label %}
+              <div style="font-weight:700">{{ hit.dwell_label }} on page</div>
+            {% else %}
+              <div style="color:var(--muted)">left here / not measured</div>
+            {% endif %}
+            {% if hit.visit_elapsed_label %}
+              <div style="font-size:10px;color:var(--muted)">{{ hit.visit_elapsed_label }} into the visit</div>
+            {% endif %}
           </td>
           <td style="padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap">
             {% if hit.ip %}
@@ -176,8 +212,11 @@
   <p style="margin-top:16px;font-size:11.5px;color:var(--muted)">
     <strong>How “unique” is counted:</strong> one HMAC of IP + browser per install, with no cookie and no JavaScript.
     A shared office network can look like one visitor, and a browser update can make one person look like two — the
-    number is an honest estimate, not a fingerprint. <strong>Not tracked:</strong> static files, redirects, JSON/API
-    calls, 404s, the admin tools, and anyone the site never served a page to.
+    number is an honest estimate, not a fingerprint. <strong>How time is counted:</strong> server-side, from the
+    timestamps of page views. “On page” is the gap until their next page view; “on site” is the run of pages with no
+    gap longer than 30 minutes. A tab left open and walked away from cannot be told apart from reading — there is no
+    heartbeat script — so treat long times as an upper bound. <strong>Not tracked:</strong> static files, redirects,
+    JSON/API calls, 404s, the admin tools, and anyone the site never served a page to.
   </p>
 </div>
 {% endblock %}

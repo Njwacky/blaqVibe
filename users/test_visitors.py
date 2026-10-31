@@ -18,6 +18,7 @@ from gallery.tests import make_user
 from gallery.visitors import (
     BOT_PATTERN,
     daily_series,
+    format_duration,
     ip_hash,
     parse_user_agent,
     referrer_parts,
@@ -187,6 +188,64 @@ class MiddlewareWriteTests(TestCase):
 
 
 @override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests-visitors')
+class TimeOnSiteTests(TestCase):
+    """Time is measured from page-view timestamps — no heartbeat, no JS."""
+
+    def _visit(self, path):
+        return self.client.get(path, HTTP_ACCEPT=HTML, HTTP_USER_AGENT=CHROME_UA)
+
+    def test_duration_labels(self):
+        self.assertEqual(format_duration(None), '')
+        self.assertEqual(format_duration(0), '0s')
+        self.assertEqual(format_duration(38), '38s')
+        self.assertEqual(format_duration(102), '1m 42s')
+        self.assertEqual(format_duration(3600 + 4 * 60), '1h 04m')
+
+    def test_consecutive_pages_form_one_visit_and_close_the_previous_page(self):
+        self._visit(reverse('feed'))
+        first = VisitorHit.objects.get(path=reverse('feed'))
+        self._visit(reverse('discover'))
+        second = VisitorHit.objects.get(path=reverse('discover'))
+
+        first.refresh_from_db()
+        self.assertEqual(first.session_id, second.session_id)
+        self.assertAlmostEqual(
+            second.session_started_at, first.created_at, delta=timedelta(seconds=2))
+        self.assertIsNotNone(first.dwell_seconds,
+                            'the page they left must get a measured dwell time')
+        self.assertIsNone(second.dwell_seconds,
+                          'the page they are on is not over yet')
+        self.assertEqual(first.dwell_label(),
+                         format_duration(first.dwell_seconds))
+
+    def test_a_long_gap_starts_a_new_visit(self):
+        self._visit(reverse('feed'))
+        first = VisitorHit.objects.get(path=reverse('feed'))
+        old = timezone.now() - timedelta(hours=2)
+        VisitorHit.objects.filter(pk=first.pk).update(
+            created_at=old, session_started_at=old)
+
+        self._visit(reverse('discover'))
+        second = VisitorHit.objects.get(path=reverse('discover'))
+        first.refresh_from_db()
+        self.assertNotEqual(first.session_id, second.session_id)
+        self.assertIsNone(first.dwell_seconds,
+                          'a two-hour gap must not be recorded as time on page')
+        self.assertAlmostEqual(
+            second.session_started_at, second.created_at, delta=timedelta(seconds=2))
+
+    def test_session_idle_window_is_configurable(self):
+        self._visit(reverse('feed'))
+        first = VisitorHit.objects.get(path=reverse('feed'))
+        VisitorHit.objects.filter(pk=first.pk).update(
+            created_at=timezone.now() - timedelta(minutes=45))
+        with override_settings(VISITOR_SESSION_IDLE_MINUTES=90):
+            self._visit(reverse('discover'))
+        second = VisitorHit.objects.get(path=reverse('discover'))
+        self.assertEqual(first.session_id, second.session_id)
+
+
+@override_settings(RATELIMIT_ENABLE=False, MEDIA_ROOT='/tmp/blaqvibes-tests-visitors')
 class VisitorDashboardTests(TestCase):
     def setUp(self):
         self.admin = make_user('visitadmin', role='admin')
@@ -248,6 +307,26 @@ class VisitorDashboardTests(TestCase):
         by_ip = self.client.get(reverse('visitor_log'), {'ip': '41.13.9.9'})
         self.assertContains(by_ip, '/app/two/')
         self.assertNotContains(by_ip, '/app/one/')
+
+    def test_time_columns_and_cards_are_rendered(self):
+        now = timezone.now()
+        finished = self._hit(path='/app/timed/', dwell_seconds=42,
+                             session_started_at=now - timedelta(minutes=12),
+                             session_id='sess-1')
+        # Not live: they left this page twelve minutes ago.
+        VisitorHit.objects.filter(pk=finished.pk).update(
+            created_at=now - timedelta(minutes=10))
+        self._hit(path='/app/live/', visitor_key='k2',
+                  session_started_at=now - timedelta(seconds=30),
+                  session_id='sess-2')
+        self.client.force_login(self.admin)
+        response = self.client.get(reverse('visitor_log'))
+        self.assertContains(response, '42s on page')
+        self.assertContains(response, '2m 00s into the visit')
+        self.assertContains(response, 'on page now')
+        self.assertContains(response, 'ON SITE NOW')
+        self.assertContains(response, 'AVG TIME ON PAGE')
+        self.assertContains(response, 'AVG TIME ON VISIT')
 
     def test_old_rows_fall_outside_the_window(self):
         old = self._hit(path='/ancient/')

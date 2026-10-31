@@ -786,6 +786,12 @@ CACHE_MIDDLEWARE_SECONDS = int(os.getenv('CACHE_MIDDLEWARE_SECONDS', '0') or 0)
 # surgery. Retention is enforced by `python manage.py prune_visitor_hits`.
 BLAQVIBES_TRACK_VISITORS = _env_flag('BLAQVIBES_TRACK_VISITORS', default=True)
 VISITOR_LOG_RETENTION_DAYS = int(os.getenv('VISITOR_LOG_RETENTION_DAYS', '90') or 90)
+# A gap longer than this closes the visit; the gap itself is recorded as the
+# time spent on the page they left. 30 minutes is the analytics default.
+VISITOR_SESSION_IDLE_MINUTES = int(os.getenv('VISITOR_SESSION_IDLE_MINUTES', '30') or 30)
+# "On site now" / "still on page" lookback. Long enough to survive a slow
+# reader, short enough that a closed tab stops looking like an open one.
+VISITOR_LIVE_WINDOW_MINUTES = int(os.getenv('VISITOR_LIVE_WINDOW_MINUTES', '5') or 5)
 
 # Thumbnail optimization
 BLAQVIBES_THUMBNAIL_MAX_SIZE = int(os.getenv('BLAQVIBES_THUMBNAIL_MAX_SIZE', '600'))

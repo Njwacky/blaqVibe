@@ -1321,6 +1321,16 @@ class VisitorHit(models.Model):
     # any access decision and the dashboard labels it as unverified.
     forwarded_ip = models.GenericIPAddressField(null=True, blank=True)
     ip_hash = models.CharField(max_length=64, blank=True)
+    # A visit is a run of hits with no gap longer than the idle window
+    # (VISITOR_SESSION_IDLE_MINUTES, 30 by default). `session_started_at` is
+    # copied onto every row so "how long have they been on the site?" is a
+    # subtraction, not a grouped query.
+    session_id = models.CharField(max_length=32, blank=True, db_index=True)
+    session_started_at = models.DateTimeField(null=True, blank=True)
+    # Time they spent on THIS page, filled in when the next page view arrives.
+    # NULL means the visit ended here (tab closed) or is still open — the
+    # dashboard shows the live count for the latter.
+    dwell_seconds = models.PositiveIntegerField(null=True, blank=True)
     visitor_key = models.CharField(max_length=64, blank=True)
     session_key = models.CharField(max_length=64, blank=True)
     user_agent = models.CharField(max_length=400, blank=True)
@@ -1349,3 +1359,15 @@ class VisitorHit(models.Model):
     def __str__(self):
         who = f'@{self.user.username}' if self.user_id else 'anonymous'
         return f'{who} → {self.path} ({self.created_at:%Y-%m-%d %H:%M})'
+
+    def dwell_label(self):
+        """Time spent on this page, or '' when it was never measured."""
+        from .visitors import format_duration
+        return format_duration(self.dwell_seconds)
+
+    def visit_elapsed_label(self):
+        """How long into this visit they were when they opened this page."""
+        from .visitors import format_duration
+        if not self.session_started_at:
+            return ''
+        return format_duration((self.created_at - self.session_started_at).total_seconds())

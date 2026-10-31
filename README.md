@@ -336,6 +336,10 @@ as every other public surface, and URLs must be real http(s) URLs.
 
 - Every rendered HTML page view is logged server-side by `gallery.middleware.VisitorTrackingMiddleware` into `VisitorHit` (`gallery/visitors.py`). The person does **not** need an account; a signed-in visit is simply linked to its account, an anonymous one is not.
 - Recorded per visit: path, time, IP, browser / OS / device, external referrer, plus `is_bot`, `is_internal` (team), `is_first_visit` flags. Not recorded: static files, media, JSON/API calls, redirects, 404s, `/admin/`, `/ops/`, health checks.
+- **Time is measured server-side from page-view timestamps** — no heartbeat script, because there is no client script at all. Two numbers:
+  - *Time on page* = the gap until that visitor's next page view (filled in when the next page arrives; the page they are on shows a live count instead).
+  - *Time on visit* = the run of page views with no gap longer than `VISITOR_SESSION_IDLE_MINUTES` (30). The dashboard shows “on site now” (a page view in the last `VISITOR_LIVE_WINDOW_MINUTES`), average time on page, average visit length, and per-row “42s on page / 2m 00s into the visit”.
+  - A tab left open and walked away from cannot be told apart from reading, so long times are an upper bound, not a measurement of attention.
 - Unique visitors are counted from an HMAC of IP + user-agent — **no cookie, no JavaScript, nothing sent off-site**. It is an estimate: a shared office IP looks like one visitor, a browser update looks like two.
 - Bots and team visits are stored but excluded from the headline numbers by default; both are visible toggles on the page, never silent filters.
 - Filters: window (1/7/14/30/90 days), page path contains, exact IP. The table paginates at 50 rows.
