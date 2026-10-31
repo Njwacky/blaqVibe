@@ -533,6 +533,14 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'allauth.account.middleware.AccountMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # LAST ON PURPOSE — its response phase runs innermost-first, i.e. right
+    # after the view has produced a finished response, with `request.user`
+    # already attached by AuthenticationMiddleware. It only ever writes one
+    # VisitorHit row (gallery/visitors.py decides what counts as a visit) and
+    # never touches the response, so being innermost costs nothing. It also
+    # never sees a maintenance-mode 503, because that wall returns before it
+    # calls further in — which is correct: nobody visited a page that day.
+    'gallery.middleware.VisitorTrackingMiddleware',
 ]
 
 ROOT_URLCONF = 'blaqvibes.urls'
@@ -770,6 +778,20 @@ except Exception:
 # 30s at CDN level. Django's cache middleware is NOT enabled globally to avoid
 # caching per-user pages; we set headers per-view instead.
 CACHE_MIDDLEWARE_SECONDS = int(os.getenv('CACHE_MIDDLEWARE_SECONDS', '0') or 0)
+
+# Visitor log (gallery/visitors.py). On by default: an operator who deploys
+# without thinking about it still gets an answer to "did anyone open the link?".
+# Set BLAQVIBES_TRACK_VISITORS=0 to stop writing rows entirely — the middleware
+# stays mounted and becomes a no-op, so turning it back on needs no deploy
+# surgery. Retention is enforced by `python manage.py prune_visitor_hits`.
+BLAQVIBES_TRACK_VISITORS = _env_flag('BLAQVIBES_TRACK_VISITORS', default=True)
+VISITOR_LOG_RETENTION_DAYS = int(os.getenv('VISITOR_LOG_RETENTION_DAYS', '90') or 90)
+# A gap longer than this closes the visit; the gap itself is recorded as the
+# time spent on the page they left. 30 minutes is the analytics default.
+VISITOR_SESSION_IDLE_MINUTES = int(os.getenv('VISITOR_SESSION_IDLE_MINUTES', '30') or 30)
+# "On site now" / "still on page" lookback. Long enough to survive a slow
+# reader, short enough that a closed tab stops looking like an open one.
+VISITOR_LIVE_WINDOW_MINUTES = int(os.getenv('VISITOR_LIVE_WINDOW_MINUTES', '5') or 5)
 
 # Thumbnail optimization
 BLAQVIBES_THUMBNAIL_MAX_SIZE = int(os.getenv('BLAQVIBES_THUMBNAIL_MAX_SIZE', '600'))

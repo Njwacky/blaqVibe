@@ -111,3 +111,30 @@ class MaintenanceModeMiddleware:
             pass
 
         return self._get_response(request)
+
+class VisitorTrackingMiddleware:
+    """Append one `VisitorHit` per rendered human page view.
+
+    Sits LAST in MIDDLEWARE (see settings.py): its response phase then runs
+    innermost-first, after AuthenticationMiddleware has attached `request.user`
+    and after `MaintenanceModeMiddleware` has decided whether the request was
+    even served. Nothing downstream reads the row, so the write is safe to do
+    on the way out — and it happens inside a try/except in `record_visit`, so a
+    database hiccup logs nothing and breaks nothing.
+
+    The filtering rules live in `gallery/visitors.py` (static files, redirects,
+    JSON, bots and the operator's own team are all handled there). Keeping them
+    out of this class means they can be unit-tested without a request cycle.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        try:
+            from .visitors import record_visit
+            record_visit(request, response)
+        except Exception:  # pragma: no cover - belt and braces
+            pass
+        return response

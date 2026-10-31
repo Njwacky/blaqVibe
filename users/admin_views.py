@@ -3,6 +3,7 @@ from urllib.parse import urlencode
 
 from django.core.paginator import Paginator
 from django.shortcuts import render, get_object_or_404, redirect
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.contrib import messages
 from django.urls import reverse
@@ -10,7 +11,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 from django.views.decorators.vary import vary_on_headers
-from django.db.models import Case, Count, IntegerField, Sum, Value, When
+from django.db.models import Avg, Case, Count, IntegerField, Max, Min, Q, Sum, Value, When
 from django_ratelimit.decorators import ratelimit
 from django.db.models.functions import TruncDate
 
@@ -192,6 +193,183 @@ def admin_dashboard(request):
         'recent_reports': recent_reports,
         'recent_appeals': recent_appeals,
     })
+
+@admin_required
+def visitor_log(request):
+    """Who is actually on the site — registered or not.
+
+    The one question this page exists to answer: "somebody opened the link,
+    did anyone come?" Every number here is derived from `VisitorHit`, which the
+    middleware writes for anonymous browsers too (gallery/visitors.py).
+
+    Defaults are chosen to be honest rather than flattering: the last 7 days,
+    bots excluded, the team's own visits excluded. Both exclusions are visible
+    toggles, never silent filters — a visitor number the operator cannot audit
+    is a number they will eventually stop trusting.
+    """
+    from gallery.models import VisitorHit
+    from gallery.visitors import (
+        daily_series,
+        format_duration,
+        ip_hash as hash_ip,
+    )
+    from .charts import daily_bars_chart, h_bars_chart
+
+    try:
+        window = int(request.GET.get('days') or 7)
+    except (TypeError, ValueError):
+        window = 7
+    if window not in (1, 7, 14, 30, 90):
+        window = 7
+
+    path_query = (request.GET.get('path') or '').strip()[:200]
+    ip_query = (request.GET.get('ip') or '').strip()[:64]
+    include_team = request.GET.get('team') == '1'
+    include_bots = request.GET.get('bots') == '1'
+
+    since = timezone.now() - timedelta(days=window)
+    window_qs = VisitorHit.objects.filter(created_at__gte=since)
+
+    hits_qs = window_qs
+    if not include_bots:
+        hits_qs = hits_qs.exclude(is_bot=True)
+    if not include_team:
+        hits_qs = hits_qs.exclude(is_internal=True)
+    if path_query:
+        hits_qs = hits_qs.filter(path__icontains=path_query)
+    if ip_query:
+        hits_qs = hits_qs.filter(
+            Q(ip=ip_query) | Q(forwarded_ip=ip_query) | Q(ip_hash=hash_ip(ip_query)))
+
+    live_cutoff = timezone.now() - timedelta(
+        minutes=getattr(settings, 'VISITOR_LIVE_WINDOW_MINUTES', 5))
+    day_ago = timezone.now() - timedelta(days=1)
+    today_qs = hits_qs.filter(created_at__gte=day_ago)
+    stats = {
+        'views': hits_qs.count(),
+        'uniques': hits_qs.exclude(visitor_key='').values('visitor_key').distinct().count(),
+        'new_visitors': hits_qs.filter(is_first_visit=True).count(),
+        'anonymous': hits_qs.filter(user__isnull=True).count(),
+        'registered': hits_qs.filter(user__isnull=False).count(),
+        'views_24h': today_qs.count(),
+        'uniques_24h': today_qs.exclude(visitor_key='').values('visitor_key').distinct().count(),
+        # Counted across the whole window, not the filtered slice: these are
+        # context ("how much noise am I hiding?"), not the answer.
+        'bots': window_qs.filter(is_bot=True).count(),
+        'team': window_qs.filter(is_bot=False, is_internal=True).count(),
+        # Time. "On site now" is a visitor with a page view in the live
+        # window, not a heartbeat — there is no client script to send one.
+        'live_now': (
+            hits_qs.filter(created_at__gte=live_cutoff)
+            .exclude(visitor_key='')
+            .values('visitor_key').distinct().count()
+        ),
+    }
+
+    # Average time on a page: measured dwell only (a page nobody navigated
+    # away from has no honest number yet, so it is not counted as zero).
+    dwell = hits_qs.filter(dwell_seconds__isnull=False).aggregate(
+        avg=Avg('dwell_seconds'), n=Count('id'))
+    # Average length of a visit: last hit − first hit for each session. A
+    # session still open contributes only its elapsed time so far, which is
+    # why the card says "so far" rather than pretending it is final.
+    session_rows = list(
+        hits_qs.exclude(session_id='')
+        .values('session_id')
+        .annotate(started=Min('session_started_at'), ended=Max('created_at'))
+    )
+    visit_lengths = [
+        max(0.0, (row['ended'] - row['started']).total_seconds())
+        for row in session_rows if row['started'] and row['ended']
+    ]
+    stats['visits'] = len(session_rows)
+    stats['avg_page_seconds'] = int(dwell['avg']) if dwell['avg'] else None
+    stats['measured_pages'] = dwell['n'] or 0
+    stats['avg_visit_seconds'] = (
+        int(sum(visit_lengths) / len(visit_lengths)) if visit_lengths else None
+    )
+    stats['avg_page_label'] = format_duration(stats['avg_page_seconds']) or '—'
+    stats['avg_visit_label'] = format_duration(stats['avg_visit_seconds']) or '—'
+
+    series = daily_series(hits_qs, window)
+    days = [row[0] for row in series]
+    chart = daily_bars_chart(
+        f'Page views and unique visitors per day, last {window} days',
+        days,
+        [
+            {'name': 'page views', 'color': '#8B5CF6',
+             'values': [row[1] for row in series]},
+            {'name': 'unique visitors', 'color': '#22D3EE',
+             'values': [row[2] for row in series]},
+        ],
+        stacked=False,
+        fmt=_fmt,
+    )
+
+    top_page_rows = (
+        hits_qs.exclude(path='')
+        .values('path')
+        .annotate(n=Count('id'))
+        .order_by('-n')[:8]
+    )
+    top_pages = h_bars_chart(
+        'Most visited pages',
+        [{'label': row['path'], 'value': row['n']} for row in top_page_rows],
+        fmt=_fmt,
+        bar_color='#8B5CF6',
+    )
+
+    recent = hits_qs.select_related('user').order_by('-created_at')
+    page_obj = Paginator(recent, 50).get_page(request.GET.get('page'))
+
+    # "Still on this page" is a fact about the latest hit of a visitor, so it
+    # needs one grouped lookup for the 50 rows on screen — not 50 queries.
+    now = timezone.now()
+    rows = list(page_obj.object_list)
+    keys = {hit.visitor_key for hit in rows if hit.visitor_key}
+    latest_by_key = {
+        row['visitor_key']: row['last']
+        for row in VisitorHit.objects.filter(visitor_key__in=keys)
+        .values('visitor_key').annotate(last=Max('created_at'))
+    } if keys else {}
+    for hit in rows:
+        hit.is_live = bool(
+            hit.visitor_key
+            and latest_by_key.get(hit.visitor_key) == hit.created_at
+            and hit.created_at >= live_cutoff
+        )
+        hit.live_for_label = (
+            format_duration((now - hit.created_at).total_seconds())
+            if hit.is_live else ''
+        )
+    page_obj.object_list = rows
+
+    params = {}
+    if window != 7:
+        params['days'] = window
+    if path_query:
+        params['path'] = path_query
+    if ip_query:
+        params['ip'] = ip_query
+    if include_team:
+        params['team'] = '1'
+    if include_bots:
+        params['bots'] = '1'
+
+    return render(request, 'users/visitors.html', {
+        'stats': stats,
+        'chart': chart,
+        'top_pages': top_pages,
+        'page_obj': page_obj,
+        'window': window,
+        'window_options': (1, 7, 14, 30, 90),
+        'path_query': path_query,
+        'ip_query': ip_query,
+        'include_team': include_team,
+        'include_bots': include_bots,
+        'filters_qs': urlencode(params),
+    })
+
 
 @superadmin_required
 def manage_roles(request):

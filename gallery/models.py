@@ -1292,3 +1292,82 @@ class CloneEvent(models.Model):
     def __str__(self):
         who = f'@{self.user.username}' if self.user else 'anon'
         return f'{who} cloned {self.project.slug} via {self.source}'
+
+
+class VisitorHit(models.Model):
+    """One rendered page view by a real browser — registered or not.
+
+    Written only by `gallery.visitors.record_visit` (via middleware) so the
+    counters and the table can never disagree. Read only by the
+    `admin_required` visitor dashboard; there is no public writer and no
+    template that renders another person's row.
+
+    `visitor_key` is an HMAC of (ip, user-agent): enough to count "unique
+    visitors" without a tracking cookie, and not enough to recover either
+    input. `ip` is stored in the clear because seeing the address is the
+    point; `ip_hash` survives if a retention sweep clears the raw value.
+    """
+    path = models.CharField(max_length=500)
+    method = models.CharField(max_length=8, default='GET')
+    status_code = models.PositiveSmallIntegerField(default=200)
+    user = models.ForeignKey(
+        User, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='visitor_hits',
+    )
+    ip = models.GenericIPAddressField(null=True, blank=True)
+    # UNVERIFIED hint only: the first X-Forwarded-For hop, recorded so an
+    # operator behind a proxy can still see roughly where a visit came from.
+    # `ip` stays authoritative (trusted proxies only); this is never used for
+    # any access decision and the dashboard labels it as unverified.
+    forwarded_ip = models.GenericIPAddressField(null=True, blank=True)
+    ip_hash = models.CharField(max_length=64, blank=True)
+    # A visit is a run of hits with no gap longer than the idle window
+    # (VISITOR_SESSION_IDLE_MINUTES, 30 by default). `session_started_at` is
+    # copied onto every row so "how long have they been on the site?" is a
+    # subtraction, not a grouped query.
+    session_id = models.CharField(max_length=32, blank=True, db_index=True)
+    session_started_at = models.DateTimeField(null=True, blank=True)
+    # Time they spent on THIS page, filled in when the next page view arrives.
+    # NULL means the visit ended here (tab closed) or is still open — the
+    # dashboard shows the live count for the latter.
+    dwell_seconds = models.PositiveIntegerField(null=True, blank=True)
+    visitor_key = models.CharField(max_length=64, blank=True)
+    session_key = models.CharField(max_length=64, blank=True)
+    user_agent = models.CharField(max_length=400, blank=True)
+    device = models.CharField(max_length=20, blank=True)
+    browser = models.CharField(max_length=40, blank=True)
+    os = models.CharField(max_length=40, blank=True)
+    referrer = models.CharField(max_length=500, blank=True)
+    referrer_host = models.CharField(max_length=255, blank=True)
+    is_bot = models.BooleanField(default=False)
+    is_internal = models.BooleanField(default=False)
+    # True when this is the first row ever seen for `visitor_key`. Stored at
+    # write time so the dashboard's "new visitors" number is a cheap COUNT and
+    # means "new to the site", not "new in the window I happen to be looking at".
+    is_first_visit = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['-created_at', 'is_bot', 'is_internal'],
+                         name='visitor_recent_idx'),
+            models.Index(fields=['path', '-created_at'], name='visitor_path_idx'),
+            models.Index(fields=['visitor_key', '-created_at'], name='visitor_key_idx'),
+        ]
+
+    def __str__(self):
+        who = f'@{self.user.username}' if self.user_id else 'anonymous'
+        return f'{who} → {self.path} ({self.created_at:%Y-%m-%d %H:%M})'
+
+    def dwell_label(self):
+        """Time spent on this page, or '' when it was never measured."""
+        from .visitors import format_duration
+        return format_duration(self.dwell_seconds)
+
+    def visit_elapsed_label(self):
+        """How long into this visit they were when they opened this page."""
+        from .visitors import format_duration
+        if not self.session_started_at:
+            return ''
+        return format_duration((self.created_at - self.session_started_at).total_seconds())

@@ -26,6 +26,7 @@
 
   <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
     <a href="{% url 'moderation_queue' %}" class="btnV"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-shield"></use></svg> Moderation Queue</a>
+    <a href="{% url 'visitor_log' %}" class="btnV"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-eye"></use></svg> Visitors — including people who never signed up</a>
     <a href="{% url 'footer_contacts' %}" class="btnG"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-mail"></use></svg> Footer Contacts</a>
     {% if user.profile.is_superadmin %}<a href="{% url 'manage_roles' %}" class="btnG">Manage Roles</a>{% endif %}
     <a href="{% url 'appeals_queue' %}" class="btnG"><svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-id"></use></svg> Quarantine &amp; Appeals{% if stats.open_appeals %} ({{ stats.open_appeals }}){% endif %}</a>
