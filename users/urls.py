@@ -27,6 +27,9 @@ urlpatterns = [
     path('u/<str:username>/follow/', views.toggle_follow, name='toggle_follow'),
     path('u/<str:username>/tip/', views.tip_user, name='tip_user'),
     path('admin/dashboard/', admin_views.admin_dashboard, name='admin_dashboard'),
+    # Who is on the site right now — anonymous browsers included. Backend
+    # only; the middleware writes the rows, this page is the only reader.
+    path('admin/visitors/', admin_views.visitor_log, name='visitor_log'),
     path('admin/footer-contacts/', admin_views.footer_contacts, name='footer_contacts'),
     # Search-first role admin: /admin/roles/?q=@kwame finds the person,
     # /admin/roles/kwame/ is the one page that changes their role.

@@ -10,7 +10,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods, require_POST
 from django.views.decorators.vary import vary_on_headers
-from django.db.models import Case, Count, IntegerField, Sum, Value, When
+from django.db.models import Case, Count, IntegerField, Q, Sum, Value, When
 from django_ratelimit.decorators import ratelimit
 from django.db.models.functions import TruncDate
 
@@ -192,6 +192,123 @@ def admin_dashboard(request):
         'recent_reports': recent_reports,
         'recent_appeals': recent_appeals,
     })
+
+@admin_required
+def visitor_log(request):
+    """Who is actually on the site — registered or not.
+
+    The one question this page exists to answer: "somebody opened the link,
+    did anyone come?" Every number here is derived from `VisitorHit`, which the
+    middleware writes for anonymous browsers too (gallery/visitors.py).
+
+    Defaults are chosen to be honest rather than flattering: the last 7 days,
+    bots excluded, the team's own visits excluded. Both exclusions are visible
+    toggles, never silent filters — a visitor number the operator cannot audit
+    is a number they will eventually stop trusting.
+    """
+    from gallery.models import VisitorHit
+    from gallery.visitors import daily_series, ip_hash as hash_ip
+    from .charts import daily_bars_chart, h_bars_chart
+
+    try:
+        window = int(request.GET.get('days') or 7)
+    except (TypeError, ValueError):
+        window = 7
+    if window not in (1, 7, 14, 30, 90):
+        window = 7
+
+    path_query = (request.GET.get('path') or '').strip()[:200]
+    ip_query = (request.GET.get('ip') or '').strip()[:64]
+    include_team = request.GET.get('team') == '1'
+    include_bots = request.GET.get('bots') == '1'
+
+    since = timezone.now() - timedelta(days=window)
+    window_qs = VisitorHit.objects.filter(created_at__gte=since)
+
+    hits_qs = window_qs
+    if not include_bots:
+        hits_qs = hits_qs.exclude(is_bot=True)
+    if not include_team:
+        hits_qs = hits_qs.exclude(is_internal=True)
+    if path_query:
+        hits_qs = hits_qs.filter(path__icontains=path_query)
+    if ip_query:
+        hits_qs = hits_qs.filter(
+            Q(ip=ip_query) | Q(forwarded_ip=ip_query) | Q(ip_hash=hash_ip(ip_query)))
+
+    day_ago = timezone.now() - timedelta(days=1)
+    today_qs = hits_qs.filter(created_at__gte=day_ago)
+    stats = {
+        'views': hits_qs.count(),
+        'uniques': hits_qs.exclude(visitor_key='').values('visitor_key').distinct().count(),
+        'new_visitors': hits_qs.filter(is_first_visit=True).count(),
+        'anonymous': hits_qs.filter(user__isnull=True).count(),
+        'registered': hits_qs.filter(user__isnull=False).count(),
+        'views_24h': today_qs.count(),
+        'uniques_24h': today_qs.exclude(visitor_key='').values('visitor_key').distinct().count(),
+        # Counted across the whole window, not the filtered slice: these are
+        # context ("how much noise am I hiding?"), not the answer.
+        'bots': window_qs.filter(is_bot=True).count(),
+        'team': window_qs.filter(is_bot=False, is_internal=True).count(),
+    }
+
+    series = daily_series(hits_qs, window)
+    days = [row[0] for row in series]
+    chart = daily_bars_chart(
+        f'Page views and unique visitors per day, last {window} days',
+        days,
+        [
+            {'name': 'page views', 'color': '#8B5CF6',
+             'values': [row[1] for row in series]},
+            {'name': 'unique visitors', 'color': '#22D3EE',
+             'values': [row[2] for row in series]},
+        ],
+        stacked=False,
+        fmt=_fmt,
+    )
+
+    top_page_rows = (
+        hits_qs.exclude(path='')
+        .values('path')
+        .annotate(n=Count('id'))
+        .order_by('-n')[:8]
+    )
+    top_pages = h_bars_chart(
+        'Most visited pages',
+        [{'label': row['path'], 'value': row['n']} for row in top_page_rows],
+        fmt=_fmt,
+        bar_color='#8B5CF6',
+    )
+
+    recent = hits_qs.select_related('user').order_by('-created_at')
+    page_obj = Paginator(recent, 50).get_page(request.GET.get('page'))
+
+    params = {}
+    if window != 7:
+        params['days'] = window
+    if path_query:
+        params['path'] = path_query
+    if ip_query:
+        params['ip'] = ip_query
+    if include_team:
+        params['team'] = '1'
+    if include_bots:
+        params['bots'] = '1'
+
+    return render(request, 'users/visitors.html', {
+        'stats': stats,
+        'chart': chart,
+        'top_pages': top_pages,
+        'page_obj': page_obj,
+        'window': window,
+        'window_options': (1, 7, 14, 30, 90),
+        'path_query': path_query,
+        'ip_query': ip_query,
+        'include_team': include_team,
+        'include_bots': include_bots,
+        'filters_qs': urlencode(params),
+    })
+
 
 @superadmin_required
 def manage_roles(request):

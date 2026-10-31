@@ -1,0 +1,183 @@
+{% extends 'gallery/base.html' %}
+{% block title %}Visitors — BlaqVibes{% endblock %}
+{% block content %}
+<div style="max-width:1180px;margin:0 auto;padding:20px">
+  <h1 style="font-family:Space Grotesk,sans-serif;font-size:22px;display:flex;align-items:center;gap:8px">
+    <svg class="bv-glyph" aria-hidden="true"><use href="#bv-ico-eye"></use></svg> Visitors
+  </h1>
+  <p style="color:var(--muted);font-size:13px;max-width:760px">
+    Every page a real browser opened — including people who never signed up.
+    Server-side only: no tracking cookie, no third-party script, nothing sent off-site.
+    Rows older than {{ stats.retention_days|default:"90" }} days are pruned by the retention job.
+  </p>
+
+  <div style="margin-top:12px;display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+    <div class="card" style="padding:12px;text-align:center">
+      <div style="font-size:11px;color:var(--muted)">PAGE VIEWS · LAST {{ window }}D</div>
+      <div style="font-weight:800;font-size:22px">{{ stats.views }}</div>
+    </div>
+    <div class="card" style="padding:12px;text-align:center">
+      <div style="font-size:11px;color:var(--muted)">UNIQUE VISITORS · LAST {{ window }}D</div>
+      <div style="font-weight:800;font-size:22px">{{ stats.uniques }}</div>
+    </div>
+    <div class="card" style="padding:12px;text-align:center">
+      <div style="font-size:11px;color:var(--muted)">NEW VISITORS (FIRST EVER)</div>
+      <div style="font-weight:800;font-size:22px;color:#22D3EE">{{ stats.new_visitors }}</div>
+    </div>
+    <div class="card" style="padding:12px;text-align:center">
+      <div style="font-size:11px;color:var(--muted)">NOT REGISTERED</div>
+      <div style="font-weight:800;font-size:22px">{{ stats.anonymous }}</div>
+      <div style="font-size:10px;color:var(--muted)">{{ stats.registered }} signed in</div>
+    </div>
+  </div>
+
+  <div style="margin-top:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+    <div class="card" style="padding:12px;text-align:center">
+      <div style="font-size:11px;color:var(--muted)">VISITS · LAST 24H</div>
+      <div style="font-weight:800;font-size:18px">{{ stats.views_24h }}</div>
+    </div>
+    <div class="card" style="padding:12px;text-align:center">
+      <div style="font-size:11px;color:var(--muted)">UNIQUE VISITORS · LAST 24H</div>
+      <div style="font-weight:800;font-size:18px">{{ stats.uniques_24h }}</div>
+    </div>
+    <div class="card" style="padding:12px;text-align:center">
+      <div style="font-size:11px;color:var(--muted)">HIDDEN FROM THESE NUMBERS</div>
+      <div style="font-size:13px;font-weight:700">{{ stats.bots }} bot{{ stats.bots|pluralize }} · {{ stats.team }} team visit{{ stats.team|pluralize }}</div>
+    </div>
+  </div>
+
+  <form method="get" action="{% url 'visitor_log' %}"
+        style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap;align-items:end">
+    <label style="font-size:11px;color:var(--muted)">WINDOW
+      <select name="days" style="display:block;margin-top:4px;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:inherit">
+        {% for option in window_options %}
+        <option value="{{ option }}"{% if option == window %} selected{% endif %}>Last {{ option }} day{{ option|pluralize }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label style="font-size:11px;color:var(--muted)">PAGE CONTAINS
+      <input type="text" name="path" value="{{ path_query }}" placeholder="/u/username/ or /app/slug"
+             style="display:block;margin-top:4px;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:inherit;min-width:220px">
+    </label>
+    <label style="font-size:11px;color:var(--muted)">IP ADDRESS
+      <input type="text" name="ip" value="{{ ip_query }}" placeholder="41.13.x.x"
+             style="display:block;margin-top:4px;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:inherit;min-width:150px">
+    </label>
+    <label style="font-size:12px;display:flex;align-items:center;gap:6px">
+      <input type="checkbox" name="bots" value="1"{% if include_bots %} checked{% endif %}> include bots
+    </label>
+    <label style="font-size:12px;display:flex;align-items:center;gap:6px">
+      <input type="checkbox" name="team" value="1"{% if include_team %} checked{% endif %}> include team
+    </label>
+    <button type="submit" class="btnV">Apply</button>
+    {% if path_query or ip_query or include_bots or include_team %}
+    <a href="{% url 'visitor_log' %}" class="btnG">Reset</a>
+    {% endif %}
+  </form>
+
+  {% if chart %}
+  <div class="card" style="padding:12px;margin-top:14px">
+    <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">PAGE VIEWS / UNIQUE VISITORS PER DAY</div>
+    {{ chart|safe }}
+  </div>
+  {% endif %}
+
+  {% if top_pages %}
+  <div class="card" style="padding:12px;margin-top:14px">
+    <div style="font-size:11px;color:var(--muted);font-weight:700;margin-bottom:8px">MOST VISITED PAGES</div>
+    {{ top_pages|safe }}
+  </div>
+  {% endif %}
+
+  <h2 style="margin-top:20px;font-size:14px">Latest visits</h2>
+  {% if page_obj.object_list %}
+  <div class="card" style="margin-top:8px;padding:0;overflow-x:auto">
+    <table style="width:100%;border-collapse:collapse;font-size:12.5px;min-width:900px">
+      <thead>
+        <tr style="text-align:left;color:var(--muted);font-size:11px">
+          <th style="padding:10px 12px;border-bottom:1px solid var(--line)">WHEN</th>
+          <th style="padding:10px 12px;border-bottom:1px solid var(--line)">WHO</th>
+          <th style="padding:10px 12px;border-bottom:1px solid var(--line)">PAGE</th>
+          <th style="padding:10px 12px;border-bottom:1px solid var(--line)">IP</th>
+          <th style="padding:10px 12px;border-bottom:1px solid var(--line)">DEVICE</th>
+          <th style="padding:10px 12px;border-bottom:1px solid var(--line)">CAME FROM</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for hit in page_obj.object_list %}
+        <tr>
+          <td style="padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap">
+            {{ hit.created_at|date:"d M H:i" }}
+            <div style="font-size:10px;color:var(--muted)">{{ hit.created_at|timesince }} ago</div>
+          </td>
+          <td style="padding:10px 12px;border-bottom:1px solid var(--line)">
+            {% if hit.user_id %}
+              <a href="{% url 'profile_view' hit.user.username %}" style="font-weight:700">{{ hit.user.username }}</a>
+            {% else %}
+              <span style="color:var(--muted);font-weight:700">Not registered</span>
+            {% endif %}
+            <div style="margin-top:3px;display:flex;gap:6px;flex-wrap:wrap">
+              {% if hit.is_first_visit %}<span style="font-size:9.5px;font-weight:800;letter-spacing:.4px;padding:2px 5px;border-radius:4px;background:#0e7490;color:#fff">NEW</span>{% endif %}
+              {% if hit.is_internal %}<span style="font-size:9.5px;font-weight:800;letter-spacing:.4px;padding:2px 5px;border-radius:4px;background:var(--line);color:var(--muted)">TEAM</span>{% endif %}
+              {% if hit.is_bot %}<span style="font-size:9.5px;font-weight:800;letter-spacing:.4px;padding:2px 5px;border-radius:4px;background:#7f1d1d;color:#fff">BOT</span>{% endif %}
+            </div>
+          </td>
+          <td style="padding:10px 12px;border-bottom:1px solid var(--line);max-width:280px;word-break:break-all">
+            <a href="?path={{ hit.path|urlencode }}{% if filters_qs %}&amp;{{ filters_qs }}{% endif %}">{{ hit.path }}</a>
+          </td>
+          <td style="padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap">
+            {% if hit.ip %}
+              <a href="?ip={{ hit.ip|urlencode }}{% if filters_qs %}&amp;{{ filters_qs }}{% endif %}">{{ hit.ip }}</a>
+            {% else %}<span style="color:var(--muted)">—</span>{% endif %}
+            {% if hit.forwarded_ip and hit.forwarded_ip != hit.ip %}
+              <div style="font-size:10px;color:var(--muted);margin-top:3px">
+                via proxy: <a href="?ip={{ hit.forwarded_ip|urlencode }}{% if filters_qs %}&amp;{{ filters_qs }}{% endif %}">{{ hit.forwarded_ip }}</a> (unverified)
+              </div>
+            {% endif %}
+          </td>
+          <td style="padding:10px 12px;border-bottom:1px solid var(--line)">
+            <div>{{ hit.browser|default:"Unknown" }} · {{ hit.os|default:"Unknown" }}</div>
+            <div style="font-size:10.5px;color:var(--muted)">{{ hit.device|default:"Unknown" }}</div>
+          </td>
+          <td style="padding:10px 12px;border-bottom:1px solid var(--line);max-width:220px;word-break:break-all">
+            {% if hit.referrer_host %}
+              <div>{{ hit.referrer_host }}</div>
+              <div style="font-size:10.5px;color:var(--muted);word-break:break-all">{{ hit.referrer|truncatechars:60 }}</div>
+            {% else %}<span style="color:var(--muted)">Direct / typed in</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if page_obj.has_other_pages %}
+  <nav style="display:flex;gap:12px;align-items:center;margin-top:12px;font-size:12px" aria-label="Visitor pages">
+    {% if page_obj.has_previous %}
+      <a href="?page={{ page_obj.previous_page_number }}{% if filters_qs %}&amp;{{ filters_qs }}{% endif %}">← Newer</a>
+    {% endif %}
+    <span style="color:var(--muted)">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}
+      <a href="?page={{ page_obj.next_page_number }}{% if filters_qs %}&amp;{{ filters_qs }}{% endif %}">Older →</a>
+    {% endif %}
+  </nav>
+  {% endif %}
+
+  {% else %}
+  <div class="card" style="margin-top:8px;padding:20px;text-align:center;color:var(--muted);font-size:13px">
+    No visits recorded in this window{% if path_query %} for “{{ path_query }}”{% endif %}{% if ip_query %} from {{ ip_query }}{% endif %}.
+    <div style="margin-top:6px;font-size:12px">
+      Nothing is wrong if the site is new — the first row appears the moment somebody opens a page.
+      {% if not include_team %}Team visits and bots are hidden by default; tick the boxes above to include them.{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <p style="margin-top:16px;font-size:11.5px;color:var(--muted)">
+    <strong>How “unique” is counted:</strong> one HMAC of IP + browser per install, with no cookie and no JavaScript.
+    A shared office network can look like one visitor, and a browser update can make one person look like two — the
+    number is an honest estimate, not a fingerprint. <strong>Not tracked:</strong> static files, redirects, JSON/API
+    calls, 404s, the admin tools, and anyone the site never served a page to.
+  </p>
+</div>
+{% endblock %}

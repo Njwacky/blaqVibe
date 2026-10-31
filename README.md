@@ -330,6 +330,17 @@ can never fire later). The rows save together with the profile fields — either
 the whole edit saves or nothing does. Labels pass the same public-language gate
 as every other public surface, and URLs must be real http(s) URLs.
 
+## Who is visiting
+
+`/admin/visitors/` answers one question without a third-party tracker: **did anyone open the link — even someone who never signed up?**
+
+- Every rendered HTML page view is logged server-side by `gallery.middleware.VisitorTrackingMiddleware` into `VisitorHit` (`gallery/visitors.py`). The person does **not** need an account; a signed-in visit is simply linked to its account, an anonymous one is not.
+- Recorded per visit: path, time, IP, browser / OS / device, external referrer, plus `is_bot`, `is_internal` (team), `is_first_visit` flags. Not recorded: static files, media, JSON/API calls, redirects, 404s, `/admin/`, `/ops/`, health checks.
+- Unique visitors are counted from an HMAC of IP + user-agent — **no cookie, no JavaScript, nothing sent off-site**. It is an estimate: a shared office IP looks like one visitor, a browser update looks like two.
+- Bots and team visits are stored but excluded from the headline numbers by default; both are visible toggles on the page, never silent filters.
+- Filters: window (1/7/14/30/90 days), page path contains, exact IP. The table paginates at 50 rows.
+- Turn it off with `BLAQVIBES_TRACK_VISITORS=0`. Retention is `VISITOR_LOG_RETENTION_DAYS` (90 by default), enforced by `python manage.py prune_visitor_hits` (supports `--days` and `--dry-run`). Add it to cron/Celery beat so the retention promise is kept.
+
 ## Tests and CI
 
 
